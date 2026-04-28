@@ -1,0 +1,61 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "main": "src/cloudflare/worker.ts",
+  "name": "jrw-simple-ecommerce-site",
+  "account_id": "8e6c0cd85435131ccf9936cc03cb62e5",
+  "compatibility_date": "2026-04-28",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+  },
+  "preview_urls": true,
+  "workers_dev": false,
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1,
+  },
+  "r2_buckets": [
+    {
+      "binding": "STORAGE",
+      "bucket_name": "jrw-ecommerce-storage-production",
+      "remote": true
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "InventoryDurableObject",
+        "name": "INVENTORY_DURABLE_OBJECT",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["InventoryDurableObject"],
+    },
+  ],
+  "env": {
+    "development": {
+      "name": "jrw-ecommerce-development",
+      "r2_buckets": [
+        {
+          "binding": "STORAGE",
+          "bucket_name": "jrw-ecommerce-storage-development",
+          "remote": true
+        }
+      ]
+    },
+    "production": {
+      "name": "jrw-simple-ecommerce-site",
+      "r2_buckets": [
+        {
+          "binding": "STORAGE",
+          "bucket_name": "jrw-ecommerce-storage-production",
+          "remote": true
+        }
+      ]
+    }
+  }
+}
