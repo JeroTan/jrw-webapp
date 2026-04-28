@@ -29,6 +29,29 @@ src/
 └── styles/                # Global CSS / Tokens
 ```
 
+...
+
+## Project Scripts & Workflow
+
+The following scripts are defined in `package.json` to manage the lifecycle of the application:
+
+### Development
+- `npm run dev`: Starts the local Astro development server. Use this for general frontend and SSR development.
+- `npm run wrangler-dev`: Builds the project and starts the `wrangler dev` environment. Use this when testing Cloudflare-specific features like Durable Objects or R2 locally.
+
+### Infrastructure & Types
+- `npm run wrangler-types`: Generates the `worker-configuration.d.ts` file. **MUST** be run after any change to `wrangler.jsonc` (e.g., adding a new R2 bucket or DO binding).
+
+### Code Quality & Testing
+- `npm run check`: Runs `astro check` to verify TypeScript and Astro-specific component types.
+- `npm run test`: Executes unit and integration tests via `vitest`.
+- `npm run prettier`: Automatically formats the entire codebase according to project standards.
+
+### Build & Deployment
+- `npm run build`: Performs a full production build, including type checks and tests.
+- `npm run deploy-development`: Deploys the application to the Cloudflare **Development** environment.
+- `npm run deploy-production`: Deploys the application to the Cloudflare **Production** environment (Live site).
+
 ## Alignment
 - *Source*: User Prompt (Bulletproof React, DDD backend, `utils/` vs `lib/`).
 - *Source*: `.gemini/knowledge/setup/astro-cloudflare-worker-setup/references/ddd-architecture.md`.

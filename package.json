@@ -1,0 +1,50 @@
+{
+  "name": "jrw-simple-ecommerce-site",
+  "type": "module",
+  "version": "1.0.0",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro check && vitest run && astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "wrangler-types": "wrangler types",
+    "wrangler-dev": "astro build && wrangler dev",
+    "deploy-development": "npx wrangler@latest deploy --env=\"development\"",
+    "deploy-production": "npx wrangler@latest deploy --env=\"production\"",
+    "check": "astro check",
+    "test": "vitest",
+    "prettier": "prettier --write ."
+  },
+  "dependencies": {
+    "astro": "^6.1.9"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.8",
+    "@astrojs/cloudflare": "^13.2.1",
+    "@astrojs/react": "^5.0.4",
+    "@elysiajs/cors": "^1.4.2",
+    "@elysiajs/openapi": "^1.4.15",
+    "@tailwindcss/vite": "^4.2.4",
+    "@types/lodash": "^4.17.24",
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "ahooks": "^3.9.7",
+    "elysia": "^1.4.28",
+    "jose": "^6.2.3",
+    "lodash": "^4.18.1",
+    "p-queue": "^9.2.0",
+    "prettier": "^3.8.3",
+    "prettier-plugin-astro": "^0.14.1",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "tailwindcss": "^4.2.4",
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.5",
+    "wrangler": "^4.85.0"
+  }
+}

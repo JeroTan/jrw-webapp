@@ -3,6 +3,7 @@
 ## 1. Architectural Paradigm
 - **Frontend**: Feature-Based Modules (Bulletproof React). All React logic is encapsulated in `src/features/[feature-name]/`.
 - **Backend (API)**: Domain-Driven Design (DDD) using a Layered Pattern (`Route -> Controller -> Service`).
+- **Data Access**: **Prisma ORM** as the unified interface for Supabase interaction, ensuring type-safe queries and portable migrations.
 - **Inventory Concurrency**: Cloudflare Durable Objects (DO) using **Per-SKU Sharding** (`idFromName(sku_id)`). This ensures a single viral product doesn't bottle-neck the entire catalog.
 
 ## 2. Component Design & Patterns
