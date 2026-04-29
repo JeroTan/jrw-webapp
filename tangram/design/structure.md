@@ -7,7 +7,7 @@ src/
 ├── api/                   # ElysiaJS Backend
 │   ├── config/            # API specific configurations (CORS, etc)
 │   ├── controller/        # HTTP validation and routing handlers
-│   ├── routes/            # Astro API catch-all / Elysia route definitions
+│   ├── routes/            # Centralized Elysia route definitions and endpoint aggregators
 │   └── container/         # Dependency Injection
 ├── cloudflare/            # Cloudflare Worker Specifics
 │   ├── worker.ts          # Main worker entrypoint
@@ -25,6 +25,8 @@ src/
 ├── lib/                   # 3rd-Party Library wrappers (PayMongo, Resend, Supabase)
 ├── utils/                 # Independent atomic helper functions
 ├── pages/                 # Astro Pages (Routing)
+│   └── api/
+│       └── [...slug].ts   # The Elysia app instance and Astro catch-all API entry point
 ├── layouts/               # Astro Layouts
 └── styles/                # Global CSS / Tokens
 ```

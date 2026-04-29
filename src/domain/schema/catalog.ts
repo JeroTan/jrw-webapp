@@ -2,6 +2,11 @@ import { sqliteTable, text, integer, real, primaryKey } from "drizzle-orm/sqlite
 import { createId } from "@paralleldrive/cuid2";
 import { sql, relations } from "drizzle-orm";
 
+export type VariationChain = {
+  name: string;
+  group: string;
+};
+
 export const products = sqliteTable("products", {
   id: text("id").primaryKey().$defaultFn(() => createId()),
   name: text("name").notNull(),
@@ -28,9 +33,9 @@ export const categories = sqliteTable("categories", {
 export const product_categories = sqliteTable("product_categories", {
   product_id: text("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
   category_id: text("category_id").notNull().references(() => categories.id, { onDelete: "cascade" }),
-}, (t) => ({
-  pk: primaryKey({ columns: [t.product_id, t.category_id] }),
-}));
+}, (t) => [
+  primaryKey({ name: "product_categories_pk", columns: [t.product_id, t.category_id] }),
+]);
 
 export const product_variants = sqliteTable("product_variants", {
   id: text("id").primaryKey().$defaultFn(() => createId()),
@@ -41,6 +46,7 @@ export const product_variants = sqliteTable("product_variants", {
   is_preorder: integer("is_preorder", { mode: "boolean" }).notNull().default(false),
   expected_release: text("expected_release"),
   stock_lock_version: integer("stock_lock_version").notNull().default(0),
+  variation_chain: text("variation_chain", { mode: "json" }).$type<VariationChain[]>().notNull().default(sql`'[]'`),
   product_id: text("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
 });
 

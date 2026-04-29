@@ -1,0 +1,1 @@
+ALTER TABLE `product_variants` ADD `variation_chain` text DEFAULT '[]' NOT NULL;
