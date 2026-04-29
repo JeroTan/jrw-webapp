@@ -9,15 +9,18 @@ Your objective is to design a reliable and automated deployment strategy that en
 **Input**: Triggered by `/tangram:design-deployment`.
 
 **Hierarchy of Truth (The Supreme Law)**
-1. **User Prompt/Input (including brand designs, preferences, and specific instructions)**: Priority #1 and overrides everything else.
-2. **User Project Knowledge**: Deployment patterns in `.gemini/knowledge/deployment/**`.
-3. **Project Context**: Scalability goals and budget constraints in `tangram/studies/**`.
-4. **Internet Research**: Modern DevOps practices (GitHub Actions, Vercel, AWS, Docker), and "Infrastructure as Code" (IaC) trends.
+1. **User Prompt/Input**: The specific instructions, brand designs, or preferences in the current message.
+2. **Project Constitution**: Non-negotiable laws found in `tangram/constitution.md` (if it exists).
+3. **User Project Knowledge**: Project-specific rules and standards added by the user in `tangram/knowledge/**` (if it exists).
+4. **Internal Knowledge (Framework Rules)**: The boilerplate and framework-level standards found in `.gemini/knowledge/**`.
+5. **Project Context**: Findings from Phase I located in `tangram/studies/**` (requirements, goals, etc.).
+6. **Internet Research**: Latest documentation and community best practices.
+7. **Internal AI Knowledge**: General industry patterns (Fallback only).
 
 ### Execution Steps
 
-**Step 1: Read Context**
-Read `tangram/studies/feasibility.md` and `tangram/design/stack.md`. The deployment MUST support the technology and the budget.
+**Step 1: Read Context, Constitution, and Knowledge**
+Read `tangram/constitution.md` (if it exists) to ensure all decisions adhere to the project's non-negotiable laws. Scan `tangram/knowledge/**` (if it exists) for project-specific rules and standards. Read `tangram/studies/feasibility.md` and `tangram/design/stack.md`. The deployment MUST support the technology and the budget.
 
 **Step 2: Internet Research (DevOps & Hosting)**
 Use `google_web_search` to find the best hosting and CI/CD solutions for the stack.

@@ -9,15 +9,18 @@ Your objective is to design a modern, intuitive, and accessible user interface t
 **Input**: Triggered by `/tangram:design-ui`. The user may provide markdown files containing brand designs, specific color palettes, or detailed design notes in the prompt.
 
 **Hierarchy of Truth (The Supreme Law)**
-1. **User Prompt/Input (including brand designs, preferences, and specific instructions)**: Priority #1 and overrides everything else.
-2. **User Project Knowledge**: UI rules and patterns in `.gemini/knowledge/ui/**`.
-3. **Project Context**: User personas and flows in `tangram/studies/**`.
-4. **Internet Research**: Platform-specific UI trends (e.g., Human Interface Guidelines for iOS, Material Design for Android/Web, CLI UX best practices).
+1. **User Prompt/Input**: The specific instructions, brand designs, or preferences in the current message.
+2. **Project Constitution**: Non-negotiable laws found in `tangram/constitution.md` (if it exists).
+3. **User Project Knowledge**: Project-specific rules and standards added by the user in `tangram/knowledge/**` (if it exists).
+4. **Internal Knowledge (Framework Rules)**: The boilerplate and framework-level standards found in `.gemini/knowledge/**`.
+5. **Project Context**: Findings from Phase I located in `tangram/studies/**` (requirements, goals, etc.).
+6. **Internet Research**: Latest documentation and community best practices.
+7. **Internal AI Knowledge**: General industry patterns (Fallback only).
 
 ### Execution Steps
 
-**Step 1: Read Context & Brand Assets**
-Read `tangram/studies/feature-backlog.md` and any brand design markdown files or inputs provided by the user. Identify the target platform (Web, Desktop, CLI, or Mobile).
+**Step 1: Read Context, Constitution, Knowledge, and Brand Assets**
+Read `tangram/constitution.md` (if it exists) to ensure all decisions adhere to the project's non-negotiable laws. Scan `tangram/knowledge/**` (if it exists) for project-specific rules and standards. Read `tangram/studies/feature-backlog.md` and any brand design markdown files or inputs provided by the user. Identify the target platform (Web, Desktop, CLI, or Mobile).
 
 **Step 2: Internet Research (Platform-Specific UI)**
 Use `google_web_search` to find best practices for the target platform and design inspirations.

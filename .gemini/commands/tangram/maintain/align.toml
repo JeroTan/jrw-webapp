@@ -8,12 +8,14 @@ Your goal is to detect manual changes made outside the AI workflow and update th
 
 **Hierarchy of Truth**
 1. **The Actual Code**: The current state of the .js, .py, .ts, etc., files.
-2. **The Project History**: tangram/archive/ and tangram/design/.
+2. **Project Constitution**: Non-negotiable laws in `tangram/constitution.md` (if it exists).
+3. **The Project History**: tangram/archive/, tangram/design/, and tangram/knowledge/ (if it exists).
 
 **Steps**
 
 1. **The Reality Audit (Subagent Scan)**
    Invoke a Context Subagent to:
+   - **Constitution Scan**: Read `tangram/constitution.md` (if it exists) to ensure the current code adheres to the project's non-negotiable laws (e.g., styling rules, architectural patterns).
    - Compare the active feature and entire codebase against `tangram/design/**` to ensure architectural and styling alignment.
    - Cross-reference the current implementation against `tangram/studies/**` to ensure it still solves the original feasibility and requirements goals.
    - Compare the current file structure against `tangram/design/structure.md`.
@@ -22,6 +24,7 @@ Your goal is to detect manual changes made outside the AI workflow and update th
 
 2. **Identify Drift**
    List any discrepancies found. For example:
+   - "Code violates the Project Constitution (e.g., used Tailwind when Vanilla CSS is mandated)."
    - "Feature X deviates from the UX requirements defined in studies/requirements.md."
    - "Detected undocumented manual code in src/utils/auth.js."
    - "Archive numbers are out of sync."
@@ -36,6 +39,7 @@ Your goal is to detect manual changes made outside the AI workflow and update th
    Based on the user's feedback, propose specific updates to the documentation to absorb these manual changes into the AI's memory.
    - Propose updates to tangram/design/*.md.
    - Propose renaming archive folders to fix numbering.
+   - Propose refinements to the Constitution if the "laws" themselves need to change.
 
 5. **Wait for Approval**
    Show the Alignment Plan.
@@ -51,6 +55,7 @@ Your goal is to detect manual changes made outside the AI workflow and update th
 > 
 > **Drift Detected:** [X] Manual changes found.
 > **Actions Taken:**
+> - Constitution alignment verified
 > - Archive numbering repaired
 > - Design pillars updated to reflect current code
 > - Undocumented code cataloged

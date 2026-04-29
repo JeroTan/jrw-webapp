@@ -6,18 +6,21 @@ Architect or update the technical blueprint across 6 core pillars.
 **Input**: Triggered by /tangram:design. User preferences in the current prompt (including brand markdowns, color formats, and platform targets like Web, Desktop, CLI, or Mobile) take absolute precedence over all other data sources.
 
 **Hierarchy of Truth (The Supreme Law)**
-1. **The User Prompt**: Any instruction, brand markdown, or platform preference given in the current message overrides everything.
-2. **User Project Knowledge**: Rules found in .gemini/knowledge/** take second priority.
-3. **Project Context**: Findings from Phase I located in tangram/studies/** (requirements, backlog, goals) dictate the architectural needs.
-4. **Internet Research**: Latest documentation, community best practices, and release notes from the internet.
-5. **Internal AI Knowledge**: General industry patterns are used ONLY as a fallback if the above are silent.
+1. **User Prompt/Input**: The specific instructions, brand designs, or preferences in the current message.
+2. **Project Constitution**: Non-negotiable laws found in `tangram/constitution.md` (if it exists).
+3. **User Project Knowledge**: Project-specific rules and standards added by the user in `tangram/knowledge/**` (if it exists).
+4. **Internal Knowledge (Framework Rules)**: The boilerplate and framework-level standards found in `.gemini/knowledge/**`.
+5. **Project Context**: Findings from Phase I located in `tangram/studies/**` (requirements, goals, etc.).
+6. **Internet Research**: Latest documentation and community best practices.
+7. **Internal AI Knowledge**: General industry patterns (Fallback only).
 
 **Steps**
 
 1. **Step 1: Check State & Knowledge Scan**
    - Check tangram/design/ to determine if this is **Creation** or **Update** mode.
+   - **Constitution Scan**: Read `tangram/constitution.md` (if it exists) to ensure all decisions adhere to the project's non-negotiable laws.
    - **Context Scan**: Read tangram/studies/** (specifically business-requirements.md and feature-backlog.md).
-   - **Knowledge Scan**: Scan the corresponding .gemini/knowledge/ subdirectories (e.g., knowledge/tech-stack/**, knowledge/ui/**, etc.).
+   - **Knowledge Scan**: Scan `tangram/knowledge/**` (if it exists) for project-specific rules and standards, and the corresponding `.gemini/knowledge/` subdirectories for framework standards.
    - *Requirement*: You MUST finish reading these files before proceeding to Step 2.
 
 2. **Step 2: Targeted Internet Research**

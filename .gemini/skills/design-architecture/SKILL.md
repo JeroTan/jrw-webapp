@@ -9,15 +9,18 @@ Your objective is to architect the core system logic and flow, ensuring it is sc
 **Input**: Triggered by `/tangram:design-architecture`.
 
 **Hierarchy of Truth (The Supreme Law)**
-1. **User Prompt/Input (including brand designs, preferences, and specific instructions)**: Priority #1 and overrides everything else.
-2. **User Project Knowledge**: Rules in `.gemini/knowledge/tech-stack/**` or `.gemini/knowledge/architecture/**`.
-3. **Project Context**: Requirements and goals in `tangram/studies/**`.
-4. **Internet Research**: Modern patterns (Clean Architecture, DDD, Hexagonal, etc.) and industry best practices.
+1. **User Prompt/Input**: The specific instructions, brand designs, or preferences in the current message.
+2. **Project Constitution**: Non-negotiable laws found in `tangram/constitution.md` (if it exists).
+3. **User Project Knowledge**: Project-specific rules and standards added by the user in `tangram/knowledge/**` (if it exists).
+4. **Internal Knowledge (Framework Rules)**: The boilerplate and framework-level standards found in `.gemini/knowledge/**`.
+5. **Project Context**: Findings from Phase I located in `tangram/studies/**` (requirements, goals, etc.).
+6. **Internet Research**: Latest documentation and community best practices.
+7. **Internal AI Knowledge**: General industry patterns (Fallback only).
 
 ### Execution Steps
 
-**Step 1: Read Context**
-Read `tangram/overview.md` and all files in `tangram/studies/`. Understand the functional requirements and success metrics.
+**Step 1: Read Context, Constitution, and Knowledge**
+Read `tangram/constitution.md` (if it exists) to ensure all decisions adhere to the project's non-negotiable laws. Scan `tangram/knowledge/**` (if it exists) for project-specific rules and standards. Read `tangram/overview.md` and all files in `tangram/studies/`. Understand the functional requirements and success metrics.
 
 **Step 2: Internet Research (Architectural Patterns)**
 Use `google_web_search` to research the best architectural patterns for the identified tech stack and project type. 

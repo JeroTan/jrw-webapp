@@ -9,15 +9,18 @@ Your objective is to establish a clean, predictable, and scalable folder hierarc
 **Input**: Triggered by `/tangram:design-structure`.
 
 **Hierarchy of Truth (The Supreme Law)**
-1. **User Prompt/Input (including brand designs, preferences, and specific instructions)**: Priority #1 and overrides everything else.
-2. **User Project Knowledge**: Folder patterns in `.gemini/knowledge/structure/**`.
-3. **Project Context**: The tech stack defined in `tangram/design/stack.md` and architecture in `tangram/design/architecture.md`.
-4. **Internet Research**: Official framework guidelines (e.g., Next.js App Router structure, Django project layout).
+1. **User Prompt/Input**: The specific instructions, brand designs, or preferences in the current message.
+2. **Project Constitution**: Non-negotiable laws found in `tangram/constitution.md` (if it exists).
+3. **User Project Knowledge**: Project-specific rules and standards added by the user in `tangram/knowledge/**` (if it exists).
+4. **Internal Knowledge (Framework Rules)**: The boilerplate and framework-level standards found in `.gemini/knowledge/**`.
+5. **Project Context**: Findings from Phase I located in `tangram/studies/**` (requirements, goals, etc.).
+6. **Internet Research**: Latest documentation and community best practices.
+7. **Internal AI Knowledge**: General industry patterns (Fallback only).
 
 ### Execution Steps
 
-**Step 1: Read Context**
-Read `tangram/design/stack.md` and `tangram/design/architecture.md`. The structure MUST support the chosen tools and logic.
+**Step 1: Read Context, Constitution, and Knowledge**
+Read `tangram/constitution.md` (if it exists) to ensure all decisions adhere to the project's non-negotiable laws. Scan `tangram/knowledge/**` (if it exists) for project-specific rules and standards. Read `tangram/design/stack.md` and `tangram/design/architecture.md`. The structure MUST support the chosen tools and logic.
 
 **Step 2: Internet Research (Folder Conventions)**
 Use `google_web_search` to find the most widely accepted folder structures for the specific framework.
