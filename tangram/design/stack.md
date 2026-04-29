@@ -8,8 +8,8 @@
 ## 2. Infrastructure & Services
 - **Inventory Concurrency**: Cloudflare Durable Objects (SQLite Backend).
 - **Storage (Assets/Images)**: Cloudflare R2 (Binary storage for product images).
-- **Database**: Supabase (PostgreSQL) with Row Level Security (RLS).
-- **ORM**: Prisma ORM (for schema management and type-safe migrations).
+- **Database**: Cloudflare D1 (Native Edge SQLite).
+- **ORM**: Drizzle ORM (Type-safe, edge-optimized data access).
 - **Payment Gateway**: PayMongo API v1 (Payment Intent & Payment Method workflow).
 - **Transactional Emails**: Resend API.
 
@@ -24,7 +24,8 @@
 - **WYSIWYG Editor**: Toast UI Editor (Markdown-based product curation).
 
 ## 4. Rationale
-- **Performance**: Astro v6 and Cloudflare Workers ensure sub-200ms TTFB (Time to First Byte).
+- **Performance**: Astro v6 and Cloudflare Workers ensure sub-200ms TTFB (Time to First Byte). D1 provides zero-cold-start database access.
 - **Integrity**: Durable Objects provide the atomic locking needed to fulfill the "Zero Overselling" mandate.
+- **Cost**: Leveraging Cloudflare's unified ecosystem (D1, R2, DO) minimizes latency and operational costs compared to external providers.
 - **Local Fit**: PayMongo is the leading gateway for the Philippine market (GCash/Maya/Cards).
 - **Consistency**: Tailwind v4 ensures the "Technical Brutalist" aesthetic is strictly maintained across all components.

@@ -23,7 +23,7 @@
 - **Hard Deletion**: Products are physically removed from the DB, but references in snapshots are preserved via `ON DELETE SET NULL`.
 
 ## 4. Super-Admin Security (The Root)
-- **Identification**: The root "Owner" is identified by a specific environment variable (`OWNER_EMAIL`) and a database-level `is_owner: true` check.
+- **Identification**: The root "Owner" is identified by a specific environment variable (`SEED_ADMIN_EMAIL`) and a database-level `is_owner: true` check.
 - **Protection**: The `is_owner` flag is immutable and cannot be modified by standard Admins.
 
 ## 5. Compliance

@@ -27,3 +27,7 @@ Thumbs.db
 # Project Specific
 raw-prd.txt
 ./raw-prd.txt
+raw-query.txt
+
+/src/generated/prisma
+
