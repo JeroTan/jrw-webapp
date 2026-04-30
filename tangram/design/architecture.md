@@ -8,7 +8,11 @@
 
 ## 2. Component Design & Patterns
 - **Transactional Integrity**: Use **DO SQLite-backed storage** to handle atomic SQL transactions (e.g., deducting stock + logging audit trail in one `COMMIT`).
-- **Cloudflare Bindings**: NEVER manually define an `Env` interface for bindings or environment variables. Use the automatically generated global types. To access the environment, prefer `import { env } from "cloudflare:workers"`.
+- **Cloudflare Bindings**: Utilize `import { env } from "cloudflare:workers"` to access environment variables and bindings at any level of the project. **NEVER** manually define an `Env` interface; use the automatically generated global types. Avoid passing `env` through function parameters where possible.
+- **Dependency Injection**: Utilize a **Modular Hybrid DI** pattern.
+    - **Global Singletons**: Business logic (Services) and request handlers (Controllers) are instantiated once at the **top level** of their respective Domain Container files to maximize performance and minimize garbage collection.
+    - **Domain Containers**: Small, synchronous factory files in `src/api/container/` (e.g., `CatalogContainer.ts`) that plug pre-instantiated controllers into the Elysia route tree.
+    - **Hybrid Lifecycle Pattern**: In the Worker entry point (`src/pages/api/[...slug].ts`), the base Elysia `app` is a global singleton, but **Domain Containers** are registered inside the `handle` function via `.use(ApiContainer)` *after* the `.derive()` call. This ensures that pre-instantiated controllers correctly receive the request-scoped Astro context (`urlData`, `astroCookies`) without data leaks between concurrent requests.
 - **Communication**: Utilize **Worker RPC** for type-safe, low-latency communication between ElysiaJS services and Durable Objects (avoiding the overhead of `fetch`).
 - **Fluent Interfaces**: Complex logic (e.g., query builders, payment intent builders) MUST use method chaining (`return this`) for modular, readable programming.
 - **Atomic Helpers**: Independent functions reside purely in `src/utils/**`.

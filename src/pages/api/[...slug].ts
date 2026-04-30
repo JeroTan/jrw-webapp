@@ -3,27 +3,30 @@ import { CloudflareAdapter } from "elysia/adapter/cloudflare-worker";
 import { openapi } from "@elysiajs/openapi";
 import getCorsConfig from "@/api/config/cors";
 import type { APIRoute } from "astro";
+import { ApiContainer } from "@/api/container/ApiContainer";
 
-// Required for Cloudflare Workers. In order to run elysia here
+// Initialize the app at the global scope for performance
+const app = new Elysia({
+  prefix: "/api",
+  adapter: CloudflareAdapter,
+  aot: false,
+  normalize: true,
+})
+  .use(openapi())
+  .use(getCorsConfig());
+
 const handle: APIRoute = async (ctx) => {
-  const app = new Elysia({
-    prefix: "/api",
-    adapter: CloudflareAdapter,
-    aot: false, // After numerous trial to make it work, turning it off make it work on Cloudflare worker.
-    normalize: true, //
-  })
-    .use(openapi())
-    .use(getCorsConfig());
-
-  app.decorate({
-    urlData: ctx.url,
-    astroCookies: ctx.cookies,
-  });
-  //---> A single function to call enpoints should be here <---// To avoid cluttering this file
-
-  //-----------------------------------------------------------//
-  return await app.handle(ctx.request);
+  // Use scoped derive to inject real Astro data into the global app instance
+  // This overwrites the "placeholders" in your modular plugins for this request only.
+  return await app
+    .derive({ as: "scoped" }, () => ({
+      urlData: ctx.url,
+      astroCookies: ctx.cookies,
+    }))
+    .use(ApiContainer)
+    .handle(ctx.request);
 };
+
 export const GET = handle;
 export const POST = handle;
 export const PUT = handle;

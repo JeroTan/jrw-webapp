@@ -1,10 +1,11 @@
 # Project Constitution
 
-**Version:** 1.0
-**Last Updated:** 2026-04-28
+**Version:** 1.1
+**Last Updated:** 2026-04-30
 
 ## Changelog
 - **v1.0:** Initial establishment of architectural and programming standards focusing on Bulletproof React, DDD, and Fluent Interfaces.
+- **v1.1:** Added Principle 6 to mandate incremental documentation updates and prevent the accidental deletion of historical context.
 
 ## Core Principles
 
@@ -27,3 +28,7 @@
 ### 5. Standardized Global Utilities
 > **Rationale:** Prevents "utility bloat" and ensures that third-party logic is isolated.
 **Enforcement Rule:** Atomic, independent helper functions MUST live in `src/utils/**`. All logic involving 3rd-party libraries or custom wrapper creations MUST be localized in `src/lib/**`.
+
+### 6. Incremental Documentation Updates
+> **Rationale:** Documentation represents the project's cumulative memory and technical laws. Overwriting entire files risks losing critical historical context and specific user-mandated rules.
+**Enforcement Rule:** When updating documentation (Design Pillars, Knowledge, or Memory), the AI MUST prioritize surgical edits and additions over wholesale replacement. Content SHOULD be appended or incrementally modified to preserve existing mandates.

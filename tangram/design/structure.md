@@ -6,16 +6,18 @@ Based on Bulletproof React and DDD backend constraints, the project will follow 
 src/
 ├── api/                   # ElysiaJS Backend
 │   ├── config/            # API specific configurations (CORS, etc)
+│   ├── container/         # Dependency Injection (Modular Hybrid Containers)
 │   ├── controller/        # HTTP validation and routing handlers
-│   ├── routes/            # Centralized Elysia route definitions and endpoint aggregators
-│   └── container/         # Dependency Injection
+│   └── routes/            # Centralized Elysia route definitions and endpoint aggregators
 ├── cloudflare/            # Cloudflare Worker Specifics
 │   ├── worker.ts          # Main worker entrypoint
 │   └── durable-objects/   # Durable Object classes (e.g., InventoryDO.ts)
 ├── adapter/               # DDD Adapters
-│   ├── application/       # Application use cases
-│   └── infrastructure/    # Services containing business logic (Domain logic wrappers)
+│   ├── application/       # Application use cases (Flow orchestration)
+│   └── infrastructure/    # External system implementations
 ├── domain/                # DDD Domain Layer (Entities, Value Objects, Types)
+│   ├── schema/            # Drizzle database schemas
+│   ├── services/          # Pure business logic services
 │   └── validation/        # Modular dual-layer validation schemas (Zod/TypeBox)
 ├── features/              # Bulletproof React Features
 │   ├── auth/              # Bounded context: Auth
