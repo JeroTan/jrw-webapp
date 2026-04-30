@@ -7,7 +7,8 @@ import { products } from "./catalog";
 export const orders = sqliteTable("orders", {
   id: text("id").primaryKey().$defaultFn(() => createId()),
   customer_id: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
-  status: text("status").notNull().default("UNPAID"),
+  status: text("status").notNull().default("PENDING"),
+  status_description: text("status_description"),
   shipping_type: text("shipping_type").notNull().default("STANDARD"),
   total_amount: real("total_amount").notNull(),
   created_at: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),

@@ -16,13 +16,17 @@ src/
 │   ├── application/       # Application use cases
 │   └── infrastructure/    # Services containing business logic (Domain logic wrappers)
 ├── domain/                # DDD Domain Layer (Entities, Value Objects, Types)
+│   └── validation/        # Modular dual-layer validation schemas (Zod/TypeBox)
 ├── features/              # Bulletproof React Features
 │   ├── auth/              # Bounded context: Auth
 │   ├── catalog/           # Bounded context: Products & Variants
 │   └── checkout/          # Bounded context: Cart & Payment
 ├── components/            # Global UI atomic components
 ├── hooks/                 # Global React hooks
-├── lib/                   # 3rd-Party Library wrappers (PayMongo, Resend, Supabase)
+├── lib/                   # 3rd-Party Library wrappers & Custom Utilities
+│   ├── zod/               # Custom Zod wrappers and schema builders
+│   ├── typebox/           # TypeBox API validation utilities
+│   └── ...                # Other wrappers (PayMongo, Jose, etc)
 ├── utils/                 # Independent atomic helper functions
 ├── pages/                 # Astro Pages (Routing)
 │   └── api/

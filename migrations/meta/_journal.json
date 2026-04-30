@@ -15,6 +15,13 @@
       "when": 1777462718710,
       "tag": "0001_fixed_bloodstorm",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1777509138017,
+      "tag": "0002_perfect_diamondback",
+      "breakpoints": true
     }
   ]
 }

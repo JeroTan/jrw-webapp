@@ -16,6 +16,9 @@
 ## 3. Libraries & Dependencies
 - **UI Library**: React v19.x (Islands of interactivity).
 - **API Engine**: ElysiaJS (Integrated natively into Astro routes).
+- **Validation (Dual-Layer)**: 
+    - **Zod**: Client-side form validation and complex response type inference.
+    - **TypeBox**: Elysia-native API boundary validation and response enforcement.
 - **Authentication**: `jose` (Edge-compatible JWT handling).
 - **Hooks & State**: `ahooks` (React lifecycle helpers).
 - **Utilities**: `lodash` (Data manipulation), `p-queue` (Concurrency control).
