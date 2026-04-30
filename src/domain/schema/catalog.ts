@@ -47,6 +47,7 @@ export const product_variants = sqliteTable("product_variants", {
   expected_release: text("expected_release"),
   stock_lock_version: integer("stock_lock_version").notNull().default(0),
   variation_chain: text("variation_chain", { mode: "json" }).$type<VariationChain[]>().notNull().default(sql`'[]'`),
+  image_reference_id: text("image_reference_id").references(() => product_photos.id, { onDelete: "set null" }),
   product_id: text("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
 });
 
@@ -57,8 +58,14 @@ export const productsRelations = relations(products, ({ many }) => ({
   categories: many(product_categories),
 }));
 
-export const productVariantsRelations = relations(product_variants, ({ one, many }) => ({
+export const productVariantsRelations = relations(product_variants, ({ one }) => ({
   product: one(products, { fields: [product_variants.product_id], references: [products.id] }),
+  image_reference: one(product_photos, { fields: [product_variants.image_reference_id], references: [product_photos.id] }),
+}));
+
+export const productPhotosRelations = relations(product_photos, ({ one, many }) => ({
+  product: one(products, { fields: [product_photos.product_id], references: [products.id] }),
+  variants: many(product_variants),
 }));
 
 export const categoriesRelations = relations(categories, ({ many }) => ({

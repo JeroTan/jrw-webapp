@@ -4,7 +4,7 @@
 - **Frontend**: Feature-Based Modules (Bulletproof React). All React logic is encapsulated in `src/features/[feature-name]/`.
 - **Backend (API)**: Domain-Driven Design (DDD) using a Layered Pattern (`Route -> Controller -> Service`).
 - **Data Access**: **Drizzle ORM** as the unified interface for Cloudflare D1 interaction, ensuring type-safe queries and edge-native performance.
-- **Inventory Concurrency**: Cloudflare Durable Objects (DO) using **Per-SKU Sharding** (`idFromName(sku_id)`). This ensures a single viral product doesn't bottle-neck the entire catalog.
+- **Inventory Concurrency**: Cloudflare Durable Objects (DO) using **Per-SKU Sharding** (`idFromName(sku_id)`). This ensures a single viral product doesn't bottle-neck the entire catalog. We utilize a **"Safety Belt" Protocol** combining DO mutexes with Optimistic Concurrency Control (`stock_lock_version`). See `tangram/knowledge/tech-stack/inventory-concurrency.md` for details.
 
 ## 2. Component Design & Patterns
 - **Transactional Integrity**: Use **DO SQLite-backed storage** to handle atomic SQL transactions (e.g., deducting stock + logging audit trail in one `COMMIT`).

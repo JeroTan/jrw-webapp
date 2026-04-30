@@ -35,6 +35,7 @@ export const zodVariant = z.object({
   expected_release: z.string().nullable().optional(),
   stock_lock_version: z.number().int(),
   variation_chain: z.array(zodVariationChain),
+  image_reference_id: z.cuid2().nullable().optional(),
   product_id: z.cuid2(),
 });
 
@@ -77,6 +78,7 @@ export const tboxVariant = t.Object({
   expected_release: t.Optional(t.Union([t.String(), t.Null()])),
   stock_lock_version: t.Integer(),
   variation_chain: t.Array(tboxVariationChain),
+  image_reference_id: t.Optional(t.Union([t.String(), t.Null()])),
   product_id: t.String(),
 });
 
@@ -104,6 +106,7 @@ export const zodCreateVariantInput = z.object({
   is_preorder: z.coerce.boolean(),
   expected_release: z.string().optional(),
   variation_chain: z.string().transform((val) => JSON.parse(val)), // Parse JSON string from FormData
+  image_reference_id: z.cuid2().optional(),
 });
 
 export const zodCreateProductForm = z.object({
@@ -124,6 +127,7 @@ export const tboxCreateVariantInput = t.Object({
   is_preorder: t.BooleanString(), // Elysia handles boolean strings in form data
   expected_release: t.Optional(t.String()),
   variation_chain: t.String(), // Will be parsed later
+  image_reference_id: t.Optional(t.String()),
 });
 
 export const tboxCreateProductBody = t.Object({
