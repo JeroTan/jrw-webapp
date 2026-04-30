@@ -22,6 +22,8 @@ export const zodAdmin = z.object({
 export const zodCustomer = z.object({
   id: z.cuid2(),
   email: zodEmail({ fieldName: "Email" }),
+  password_hash: z.string().nullable().optional(), // Nullable for OAuth users
+  avatar_url: z.string().url().nullable().optional(),
   first_name: zodName({ fieldName: "First Name" }).nullable().optional(),
   last_name: zodName({ fieldName: "Last Name" }).nullable().optional(),
   phone: zodAlphaNumericSpace({ fieldName: "Phone" }).nullable().optional(),
@@ -31,6 +33,15 @@ export const zodCustomer = z.object({
   postal_code: zodAlphaNumericSpace({ fieldName: "Postal Code" }).nullable().optional(),
   created_at: z.string(),
   updated_at: z.string(),
+});
+
+export const zodCustomerProvider = z.object({
+  id: z.cuid2(),
+  customer_id: z.cuid2(),
+  provider: z.string(),
+  provider_user_id: z.string(),
+  metadata: z.record(z.string(), z.any()).nullable().optional(),
+  created_at: z.string(),
 });
 
 // --- FORMS & REQUEST BODIES ---

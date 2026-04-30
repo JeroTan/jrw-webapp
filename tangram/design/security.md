@@ -2,8 +2,10 @@
 
 ## 1. Authentication & Identity
 - **Mechanism**: JWT (JSON Web Token) using the **`jose`** library.
-- **Why**: `jose` is edge-native, lightweight, and leverages WebCrypto for high performance on Cloudflare Workers.
+- **Provider Pattern**: Multi-Provider OAuth utilizing a one-to-many relationship between Customers and Identity Providers (Google, Facebook, etc.) alongside traditional Email/Password flows.
+- **Protocol**: Strictly follows the **Identity Protocol** (`tangram/knowledge/security/identity-protocol.md`) for account linking, auto-merging, and data precedence.
 - **Identity Layer**: Authentication is decoupled from the DB provider. Users are verified at the Edge using native WebCrypto before any database query is executed.
+- **Why**: `jose` is edge-native, lightweight, and leverages WebCrypto for high performance on Cloudflare Workers.
 
 ## 2. Authorization Matrix (Strict Separation)
 - **Postgres-Native RLS**: All authorization logic is enforced via standard PostgreSQL Row Level Security (RLS) to ensure portability.

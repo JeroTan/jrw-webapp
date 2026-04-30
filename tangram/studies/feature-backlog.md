@@ -38,7 +38,7 @@
 
 ### Sprint 1: Foundation & Security
 - [ ] **Database Schema**: Implement Supabase tables with `ON DELETE SET NULL` for `product_id` references in history.
-- [ ] **Auth Implementation**: Google OAuth and Email/Password flows for all personas.
+- [ ] **Auth Architecture**: Implement Multi-provider Identity Schema (Google, Facebook, etc.) alongside Email/Password flows, with account linking support as per Identity Protocol.
 - [ ] **Durable Object Setup**: Initialize the Stock-Locking DO with `blockConcurrencyWhile` logic.
 
 ### Sprint 2: Catalog & Command Center

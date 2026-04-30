@@ -1,6 +1,6 @@
 import { sqliteTable, text, integer } from "drizzle-orm/sqlite-core";
 import { createId } from "@paralleldrive/cuid2";
-import { sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
 
 export const admins = sqliteTable("admins", {
   id: text("id").primaryKey().$defaultFn(() => createId()),
@@ -14,6 +14,8 @@ export const admins = sqliteTable("admins", {
 export const customers = sqliteTable("customers", {
   id: text("id").primaryKey().$defaultFn(() => createId()),
   email: text("email").notNull().unique(),
+  password_hash: text("password_hash"), // Nullable for OAuth users
+  avatar_url: text("avatar_url"),        // Profile picture URL
   first_name: text("first_name"),
   last_name: text("last_name"),
   phone: text("phone"),
@@ -24,3 +26,25 @@ export const customers = sqliteTable("customers", {
   created_at: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   updated_at: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const customer_providers = sqliteTable("customer_providers", {
+  id: text("id").primaryKey().$defaultFn(() => createId()),
+  customer_id: text("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  provider: text("provider").notNull(), // e.g., 'GOOGLE', 'FACEBOOK'
+  provider_user_id: text("provider_user_id").notNull().unique(), // ID from the provider (e.g., 'sub' in Google)
+  metadata: text("metadata", { mode: "json" }), // Original provider snapshot
+  created_at: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const customersRelations = relations(customers, ({ many }) => ({
+  providers: many(customer_providers),
+}));
+
+export const customerProvidersRelations = relations(customer_providers, ({ one }) => ({
+  customer: one(customers, {
+    fields: [customer_providers.customer_id],
+    references: [customers.id],
+  }),
+}));
