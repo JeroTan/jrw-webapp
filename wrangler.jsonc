@@ -4,49 +4,44 @@
   "name": "jrw-simple-ecommerce-site",
   "account_id": "8e6c0cd85435131ccf9936cc03cb62e5",
   "compatibility_date": "2026-04-28",
-  "compatibility_flags": [
-    "nodejs_compat",
-    "global_fetch_strictly_public"
-  ],
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
   "assets": {
     "directory": "./dist",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
   },
   "preview_urls": true,
-  "workers_dev": false,
+  "workers_dev": true,
   "observability": {
     "enabled": true,
-    "head_sampling_rate": 1
+    "head_sampling_rate": 1,
   },
   "r2_buckets": [
     {
       "binding": "STORAGE",
       "bucket_name": "jrw-ecommerce-storage-production",
-      "remote": true
-    }
+      "remote": true,
+    },
   ],
   "durable_objects": {
     "bindings": [
       {
         "class_name": "InventoryDurableObject",
-        "name": "INVENTORY_DURABLE_OBJECT"
-      }
-    ]
+        "name": "INVENTORY_DURABLE_OBJECT",
+      },
+    ],
   },
   "d1_databases": [
     {
       "binding": "DB",
       "database_name": "jrw-database-production",
-      "database_id": "fd08e264-2046-4648-9164-84f66948533e"
-    }
+      "database_id": "fd08e264-2046-4648-9164-84f66948533e",
+    },
   ],
   "migrations": [
     {
       "tag": "v1",
-      "new_sqlite_classes": [
-        "InventoryDurableObject"
-      ]
-    }
+      "new_sqlite_classes": ["InventoryDurableObject"],
+    },
   ],
   "env": {
     "development": {
@@ -55,16 +50,16 @@
         {
           "binding": "STORAGE",
           "bucket_name": "jrw-ecommerce-storage-development",
-          "remote": true
-        }
+          "remote": true,
+        },
       ],
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "jrw-database-development",
-          "database_id": "beabfd98-8611-4d58-8f1b-7a972b8af1ed"
-        }
-      ]
+          "database_id": "beabfd98-8611-4d58-8f1b-7a972b8af1ed",
+        },
+      ],
     },
     "production": {
       "name": "jrw-simple-ecommerce-site",
@@ -72,16 +67,16 @@
         {
           "binding": "STORAGE",
           "bucket_name": "jrw-ecommerce-storage-production",
-          "remote": true
-        }
+          "remote": true,
+        },
       ],
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "jrw-database-production",
-          "database_id": "fd08e264-2046-4648-9164-84f66948533e"
-        }
-      ]
-    }
-  }
+          "database_id": "fd08e264-2046-4648-9164-84f66948533e",
+        },
+      ],
+    },
+  },
 }
