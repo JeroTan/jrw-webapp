@@ -6,7 +6,7 @@ import { tboxPaginatedResponse } from "@/lib/typebox/wrappers";
 // --- BASE SCHEMAS (ZOD) ---
 export const zodAuditLog = z.object({
   id: z.cuid2(),
-  admin_id: z.cuid2(),
+  admin_id: z.cuid2().nullable().optional(),
   action: z.string(),
   entity: z.string(),
   entity_id: z.string().nullable().optional(),
@@ -18,7 +18,7 @@ export type typeAuditLog = z.infer<typeof zodAuditLog>;
 // --- BASE SCHEMAS (TYPEBOX) ---
 export const tboxAuditLog = t.Object({
   id: t.String(),
-  admin_id: t.String(),
+  admin_id: t.Optional(t.Union([t.String(), t.Null()])),
   action: t.String(),
   entity: t.String(),
   entity_id: t.Optional(t.Union([t.String(), t.Null()])),

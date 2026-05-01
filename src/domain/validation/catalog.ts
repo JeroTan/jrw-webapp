@@ -7,7 +7,7 @@ import {
   zodArrayMinMax,
   zodApiResponse,
 } from "@/lib/zod/wrappers";
-import { tboxApiResponse } from "@/lib/typebox/wrappers";
+import { tboxApiResponse, tboxPaginationQuery, tboxSearchQuery } from "@/lib/typebox/wrappers";
 
 // --- BASE SCHEMAS (ZOD) ---
 export const zodProduct = z.object({
@@ -42,7 +42,7 @@ export const zodVariant = z.object({
 export const zodPhoto = z.object({
   id: z.cuid2(),
   name: z.string().nullable().optional(),
-  image_link: z.string().url(),
+  image_link: z.url({ message: "Invalid Image Link format. Must be a valid HTTP or HTTPS URL." }),
   product_id: z.cuid2(),
 });
 
@@ -142,6 +142,29 @@ export const tboxCreateProductBody = t.Object({
   variants: t.String(), // Stringified JSON array of variants
   photos: t.Files(), // Use t.Files() for multiple file uploads
 });
+
+// Category Management
+export const tboxCreateCategoryBody = t.Object({
+  name: t.String(),
+  type: t.String(),
+});
+
+export const tboxUpdateCategoryBody = t.Object({
+  name: t.Optional(t.String()),
+  type: t.Optional(t.String()),
+});
+
+// Product Filtering
+export const tboxProductFilterQuery = t.Composite([
+  tboxPaginationQuery,
+  tboxSearchQuery,
+  t.Object({
+    category_id: t.Optional(t.String({ description: "Filter by Category ID. Comma-separated for multiple." })),
+    min_price: t.Optional(t.Numeric({ description: "Minimum price filter." })),
+    max_price: t.Optional(t.Numeric({ description: "Maximum price filter." })),
+    sort: t.Optional(t.String({ description: "Sort by: price, created_at. Prefix with '-' for descending. Comma-separated for multiple." }))
+  })
+]);
 
 // --- API RESPONSES ---
 

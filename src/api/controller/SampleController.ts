@@ -1,4 +1,4 @@
-import type { SampleService } from "@/domain/services/SampleServices";
+import type { SampleService } from "@/domain/services/SampleService";
 import type { AstroCookies } from "astro";
 
 export class SampleController {

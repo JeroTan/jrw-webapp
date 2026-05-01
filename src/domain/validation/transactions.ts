@@ -15,7 +15,7 @@ import {
   zodShippingType,
   tboxShippingType,
 } from "./shared";
-import { tboxApiResponse } from "@/lib/typebox/wrappers";
+import { tboxApiResponse, tboxPaginationQuery, tboxSearchQuery } from "@/lib/typebox/wrappers";
 import { zodCustomer, tboxCustomerResponse } from "./identity";
 
 // --- BASE SCHEMAS (ZOD) ---
@@ -148,6 +148,19 @@ export const tboxSubmitReviewBody = t.Object({
   comment: t.Optional(t.String()),
 });
 
+export const tboxUpdateOrderStatusBody = t.Object({
+  status: tboxOrderStatus,
+});
+
+export const tboxOrderFilterQuery = t.Composite([
+  tboxPaginationQuery,
+  tboxSearchQuery,
+  t.Object({
+    status: t.Optional(t.String({ description: "Filter by status. Comma-separated for multiple." })),
+    sort: t.Optional(t.String({ description: "Sort by: total_amount, created_at. Prefix with '-' for descending. Comma-separated for multiple." }))
+  })
+]);
+
 // --- API RESPONSES ---
 
 // Order Details (Nested)
@@ -168,3 +181,4 @@ export const tboxOrderDetails = t.Intersect([
 ]);
 
 export const tboxOrderDetailsResponse = tboxApiResponse(tboxOrderDetails);
+

@@ -5,7 +5,7 @@ import { admins } from "./identity";
 
 export const audit_logs = sqliteTable("audit_logs", {
   id: text("id").primaryKey().$defaultFn(() => createId()),
-  admin_id: text("admin_id").notNull().references(() => admins.id),
+  admin_id: text("admin_id").references(() => admins.id, { onDelete: "set null" }),
   action: text("action").notNull(),
   entity: text("entity").notNull(),
   entity_id: text("entity_id"),

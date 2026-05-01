@@ -1,6 +1,6 @@
 import { SampleRoutes } from "@/api/routes/SampleRoutes";
 import { SampleController } from "@/api/controller/SampleController";
-import { SampleService } from "@/domain/services/SampleServices";
+import { SampleService } from "@/domain/services/SampleService";
 import type Elysia from "elysia";
 
 // Global instances for performance (initialized once per Worker isolate)

@@ -42,7 +42,7 @@ Your goal is to transform the plan.md of an active feature into functional, veri
    - **Pattern Alignment**: Ensure the code matches the "signature" found in the archive/.
 
 6. **Task Verification**
-   After each task or batch, perform an "Internal Reality Check":
+   After each task or batch, perform an "Internal Check":
    - Does this code meet the "Pass Criteria" in the plan's Verification Table?
    - Does it violate any design/security.md or design/stack.md rules?
 

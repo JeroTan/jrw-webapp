@@ -12,7 +12,18 @@ const app = new Elysia({
   aot: false,
   normalize: true,
 })
-  .use(openapi())
+  .use(
+    openapi({
+      documentation: {
+        info: {
+          title: "JRW Simple E-commerce API",
+          version: "1.0.0",
+          description:
+            "## The Technical Brutalist E-commerce Engine\n\nThis API powers a high-performance, edge-native e-commerce platform built specifically for Cloudflare Workers. It is designed around 'Technical Brutalist' principles: radical simplicity, raw performance, and absolute resilience.\n\n### Key Architectural Pillars\n- **Edge Native**: Runs globally across Cloudflare's edge network using V8 Isolates (via ElysiaJS) for millisecond latency.\n- **Zero Overselling**: Critical inventory logic is secured by atomic Durable Object Mutexes and Optimistic Concurrency Control (OCC) using the `stock_lock_version` Safety Belt protocol, making overselling mathematically impossible during flash sales.\n- **Multi-Provider Identity**: Supports modular OAuth seamlessly linked to a primary customer record.\n\nThis documentation serves as the exact, strictly-typed API contract bridging the frontend clients and the backend D1 SQLite database.",
+        },
+      },
+    })
+  )
   .use(getCorsConfig());
 
 const handle: APIRoute = async (ctx) => {

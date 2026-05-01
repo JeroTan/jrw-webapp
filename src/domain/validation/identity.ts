@@ -23,7 +23,7 @@ export const zodCustomer = z.object({
   id: z.cuid2(),
   email: zodEmail({ fieldName: "Email" }),
   password_hash: z.string().nullable().optional(), // Nullable for OAuth users
-  avatar_url: z.string().url().nullable().optional(),
+  avatar_url: z.url({ message: "Invalid Avatar URL format. Must be a valid HTTP or HTTPS URL." }).nullable().optional(),
   first_name: zodName({ fieldName: "First Name" }).nullable().optional(),
   last_name: zodName({ fieldName: "Last Name" }).nullable().optional(),
   phone: zodAlphaNumericSpace({ fieldName: "Phone" }).nullable().optional(),
@@ -71,7 +71,7 @@ export const tboxRegistrationBody = t.Object({
 // Login
 export const zodLoginForm = z.object({
   email: zodEmail({ fieldName: "Email" }),
-  password: z.string().min(1, { message: "Password is required" }),
+  password: z.string().min(1, { message: "Password is required" }), 
 });
 export type typeLoginForm = z.infer<typeof zodLoginForm>;
 
@@ -80,8 +80,31 @@ export const tboxLoginBody = t.Object({
   password: t.String(),
 });
 
-// --- API RESPONSES ---
+export const tboxForgotPasswordBody = t.Object({
+  email: t.String({ format: "email" }),
+});
 
+export const tboxResetPasswordBody = t.Object({
+  token: t.String(),
+  new_password: t.String(),
+});
+
+export const tboxUpdateProfileBody = t.Object({
+  first_name: t.Optional(t.String()),
+  last_name: t.Optional(t.String()),
+  phone: t.Optional(t.String()),
+  street_address: t.Optional(t.String()),
+  barangay: t.Optional(t.String()),
+  city_province: t.Optional(t.String()),
+  postal_code: t.Optional(t.String()),
+});
+
+export const tboxChangePasswordBody = t.Object({
+  old_password: t.String(),
+  new_password: t.String(),
+});
+
+// --- API RESPONSES ---
 // Admin Details (excluding password)
 export const zodAdminDetails = zodAdmin.omit({ password_hash: true });
 export type typeAdminDetails = z.infer<typeof zodAdminDetails>;

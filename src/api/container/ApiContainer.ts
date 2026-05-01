@@ -1,5 +1,9 @@
 import type Elysia from "elysia";
 import { SampleContainer } from "./SampleContainer";
+import { IdentityContainer } from "./IdentityContainer";
+import { CatalogContainer } from "./CatalogContainer";
+import { TransactionContainer } from "./TransactionContainer";
+import { AuditContainer } from "./AuditContainer";
 
 /**
  * Root API Container
@@ -8,7 +12,9 @@ import { SampleContainer } from "./SampleContainer";
  */
 export function ApiContainer(app: Elysia) {
   return app
-    .use(SampleContainer);
-    // .use(CatalogContainer)
-    // .use(OrderContainer)
+    .use(SampleContainer)
+    .use(IdentityContainer)
+    .use(CatalogContainer)
+    .use(TransactionContainer)
+    .use(AuditContainer);
 }

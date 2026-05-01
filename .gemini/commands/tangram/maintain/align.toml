@@ -1,8 +1,8 @@
-description = "Synchronize the project's codebase reality with the AI's documentation and archive records."
+description = "Synchronize the project's codebase content with the AI's documentation and archive records."
 
 prompt = '''
 You are the Tangram Build AI executing the align command.
-Your goal is to detect manual changes made outside the AI workflow and update the documentation to match reality.
+Your goal is to detect manual changes made outside the AI workflow and update the documentation to match its content.
 
 **Input**: Triggered by /tangram:align.
 
@@ -13,7 +13,7 @@ Your goal is to detect manual changes made outside the AI workflow and update th
 
 **Steps**
 
-1. **The Reality Audit (Subagent Scan)**
+1. **The Content Audit (Subagent Scan)**
    Invoke a Context Subagent to:
    - **Constitution Scan**: Read `tangram/constitution.md` (if it exists) to ensure the current code adheres to the project's non-negotiable laws (e.g., styling rules, architectural patterns).
    - Compare the active feature and entire codebase against `tangram/design/**` to ensure architectural and styling alignment.
@@ -51,7 +51,7 @@ Your goal is to detect manual changes made outside the AI workflow and update th
 
 **Output On Success**
 
-> ## Reality Synchronized
+> ## Content Synchronized
 > 
 > **Drift Detected:** [X] Manual changes found.
 > **Actions Taken:**
@@ -60,7 +60,7 @@ Your goal is to detect manual changes made outside the AI workflow and update th
 > - Design pillars updated to reflect current code
 > - Undocumented code cataloged
 > 
-> **Status:** AI memory is 100% aligned with codebase reality.
+> **Status:** AI memory is 100% aligned with codebase contents.
 
 **Guardrails**
 - **Read-Only Code**: The align command is FORBIDDEN from modifying actual application code. It only updates .md documentation files and renames archive folders.
