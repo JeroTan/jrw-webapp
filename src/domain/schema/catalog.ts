@@ -38,7 +38,7 @@ export const product_photos = sqliteTable("product_photos", {
     .primaryKey()
     .$defaultFn(() => createId()),
   name: text("name"),
-  image_link: text("image_link").notNull(),
+  image_id: text("image_id").notNull(),
   product_id: text("product_id")
     .notNull()
     .references(() => products.id, { onDelete: "cascade" }),

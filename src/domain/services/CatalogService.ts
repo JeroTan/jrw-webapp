@@ -10,7 +10,10 @@ export class CatalogService {
       description: "Mock Description",
       tags: ["mock"],
       variants: [],
-      photos: [],
+      // Note: In reality, 'image_link' is hydrated from 'image_id' in the D1 schema
+      photos: [
+        { id: "img_1", name: "Photo 1", image_link: "https://example.com/photo1.jpg", product_id: id }
+      ],
       categories: [],
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
@@ -27,6 +30,14 @@ export class CatalogService {
 
   mockDeleteProduct(id: string) {
     return { id };
+  }
+
+  mockAdminListProducts() {
+    return [];
+  }
+
+  mockAdminGetProduct(id: string) {
+    return this.mockGetProduct(id);
   }
 
   mockListCategories() {

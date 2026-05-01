@@ -10,6 +10,7 @@
 
 - **Inventory Concurrency**: Cloudflare Durable Objects (SQLite Backend).
 - **Storage (Assets/Images)**: Cloudflare R2 (Binary storage for product images).
+- **Storage (Asset Management)**: `src/lib/cloudflare/r2.ts` (Custom library for environment-aware resource addressing and R2 object lifecycle).
 - **Database**: Cloudflare D1 (Native Edge SQLite).
 - **ORM**: Drizzle ORM (Type-safe, edge-optimized data access).
 - **Payment Gateway**: PayMongo REST API (Integrated via HTTP; Filipino-market optimized).

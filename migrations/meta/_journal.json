@@ -43,6 +43,13 @@
       "when": 1777611248578,
       "tag": "0005_awesome_valkyrie",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1777639786431,
+      "tag": "0006_striped_lord_hawal",
+      "breakpoints": true
     }
   ]
 }

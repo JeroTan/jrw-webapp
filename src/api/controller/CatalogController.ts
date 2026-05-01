@@ -39,6 +39,21 @@ export class CatalogController {
     };
   }
 
+  async handleAdminListProducts({ query }: { query?: any } = {}) {
+    return {
+      data: this.catalogService.mockAdminListProducts(),
+      meta: { page: 1, total: 0, limit: 10 },
+      message: "Admin products retrieved successfully",
+    };
+  }
+
+  async handleAdminGetProduct({ params }: { params: { id: string } }) {
+    return {
+      data: this.catalogService.mockAdminGetProduct(params.id),
+      message: "Admin product retrieved successfully",
+    };
+  }
+
   async handleListCategories() {
     return {
       data: this.catalogService.mockListCategories(),

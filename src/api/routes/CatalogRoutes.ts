@@ -73,6 +73,24 @@ export const CatalogRoutes =
         app
           .group("/products", (app) =>
             app
+              .get("/", catalogController.handleAdminListProducts, {
+                query: tboxProductFilterQuery,
+                detail: { 
+                  summary: "List all products (Admin)", 
+                  description: "Retrieves a paginated list of all products, including drafts and hidden items. Requires active admin authorization token. Supports filtering and multi-field sorting.",
+                  tags: ["Admin Catalog"] 
+                },
+                response: { 200: tboxPaginatedResponse(tboxProductDetails), 500: t.String() },
+              })
+              .get("/:id", catalogController.handleAdminGetProduct, {
+                params: t.Object({ id: t.String() }),
+                detail: { 
+                  summary: "Get product details (Admin)", 
+                  description: "Retrieves full details for any product, regardless of visibility status. Requires active admin authorization token.",
+                  tags: ["Admin Catalog"] 
+                },
+                response: { 200: tboxApiResponse(tboxProductDetails), 500: t.String() },
+              })
               .post("/", catalogController.handleCreateProduct, {
                 body: tboxCreateProductBody,
                 detail: { 
