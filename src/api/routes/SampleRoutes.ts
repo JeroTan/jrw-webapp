@@ -69,6 +69,8 @@ export const SampleRoutes =
           .get(
             "/param/:id",
             ({ params }) => {
+              // This is a sample that you can send Response here directly. BUT IT IS NOT RECOMMENDED as this is a part of business logic!
+              // DO NOT DELETE THIS COMMENT!
               return Response.json({
                 data: `You accessed the path parameter with id: ${params.id}`,
                 message: "This is a response from the path parameter endpoint.",
