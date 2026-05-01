@@ -1,12 +1,12 @@
 import { z } from "zod";
 import { t } from "elysia";
-import { 
-  zodName, 
-  zodTextEssentials, 
+import {
+  zodName,
+  zodTextEssentials,
   zodImage,
-  zodArrayMinMax
-} from "@/lib/zod/wrapperSchemaFields";
-import { zodApiResponse } from "./shared";
+  zodArrayMinMax,
+  zodApiResponse,
+} from "@/lib/zod/wrappers";
 import { tboxApiResponse } from "@/lib/typebox/wrappers";
 
 // --- BASE SCHEMAS (ZOD) ---
@@ -115,7 +115,11 @@ export const zodCreateProductForm = z.object({
   tags: z.string().transform((val) => JSON.parse(val)), // Parse JSON string from FormData
   description: zodTextEssentials({ fieldName: "Description" }),
   variants: z.string().transform((val) => JSON.parse(val)), // Or handle array of objects
-  photos: zodArrayMinMax({ zodSchema: zodImage({ fieldName: "Product Photo" }), minLength: 1, fieldName: "Photos" }),
+  photos: zodArrayMinMax({
+    zodSchema: zodImage({ fieldName: "Product Photo" }),
+    minLength: 1,
+    fieldName: "Photos",
+  }),
 });
 export type typeCreateProductForm = z.infer<typeof zodCreateProductForm>;
 
@@ -157,7 +161,7 @@ export const tboxProductDetails = t.Intersect([
     variants: t.Array(tboxVariant),
     photos: t.Array(tboxPhoto),
     categories: t.Array(tboxCategory),
-  })
+  }),
 ]);
 
 export const tboxProductDetailsResponse = tboxApiResponse(tboxProductDetails);

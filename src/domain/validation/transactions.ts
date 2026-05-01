@@ -1,19 +1,19 @@
 import { z } from "zod";
 import { t } from "elysia";
-import { 
-  zodName, 
-  zodEmail, 
-  zodAddress, 
-  zodTextEssentials, 
+import {
+  zodName,
+  zodEmail,
+  zodAddress,
+  zodTextEssentials,
   zodAlphaNumericSpace,
-  zodRarity
-} from "@/lib/zod/wrapperSchemaFields";
-import { 
-  zodOrderStatus, 
-  tboxOrderStatus, 
-  zodShippingType, 
+  zodRarity,
+  zodApiResponse,
+} from "@/lib/zod/wrappers";
+import {
+  zodOrderStatus,
+  tboxOrderStatus,
+  zodShippingType,
   tboxShippingType,
-  zodApiResponse
 } from "./shared";
 import { tboxApiResponse } from "@/lib/typebox/wrappers";
 import { zodCustomer, tboxCustomerResponse } from "./identity";
@@ -148,7 +148,6 @@ export const tboxSubmitReviewBody = t.Object({
   comment: t.Optional(t.String()),
 });
 
-
 // --- API RESPONSES ---
 
 // Order Details (Nested)
@@ -165,7 +164,7 @@ export const tboxOrderDetails = t.Intersect([
   t.Object({
     snapshots: t.Array(tboxOrderSnapshot),
     customer: t.Optional(t.Union([tboxCustomerResponse, t.Null()])),
-  })
+  }),
 ]);
 
 export const tboxOrderDetailsResponse = tboxApiResponse(tboxOrderDetails);

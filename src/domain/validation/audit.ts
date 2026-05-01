@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { t } from "elysia";
-import { zodPaginatedResponse } from "./shared";
+import { zodPaginatedResponse } from "@/lib/zod/wrappers";
 import { tboxPaginatedResponse } from "@/lib/typebox/wrappers";
 
 // --- BASE SCHEMAS (ZOD) ---

@@ -8,7 +8,7 @@
 - **Why**: `jose` is edge-native, lightweight, and leverages WebCrypto for high performance on Cloudflare Workers.
 
 ## 2. Authorization Matrix (Strict Separation)
-- **Postgres-Native RLS**: All authorization logic is enforced via standard PostgreSQL Row Level Security (RLS) to ensure portability.
+- **Edge-Enforced Authorization**: Since Cloudflare D1 (SQLite) does not support native RLS, all authorization logic is enforced at the Application/Edge layer via ElysiaJS middleware and Service-level guards.
 - **Roles**:
     - **Super-Admin (Governance)**:
         - *Permissions*: Create, modify, and delete Admin accounts; View high-level system audit logs.
@@ -17,7 +17,7 @@
         - *Permissions*: Full CRUD on Products/Variants; Manage Order lifecycles and Fulfillment.
         - *Restriction*: Cannot access, modify, or delete any administrative account (Admin or Super-Admin).
     - **Customer/Visitor**:
-        - *Permissions*: Read-only access to Catalog; CRUD access only to their own profile and order history (verified via JWT `sub`).
+        - *Permissions*: Read-only access to Catalog; CRUD access only to their own profile and order history (verified via JWT `sub` and manual ownership checks).
 
 ## 3. Data Protection (Compliance)
 - **Encryption**: Application-level encryption for sensitive PII (Name, Address, Phone) using `jose` utilities before persistence.

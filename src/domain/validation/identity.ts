@@ -1,13 +1,13 @@
 import { z } from "zod";
 import { t } from "elysia";
-import { 
-  zodName, 
-  zodEmail, 
-  zodPassword, 
-  zodAddress, 
-  zodTextEssentials, 
-  zodAlphaNumericSpace 
-} from "@/lib/zod/wrapperSchemaFields";
+import {
+  zodName,
+  zodEmail,
+  zodPassword,
+  zodAddress,
+  zodTextEssentials,
+  zodAlphaNumericSpace,
+} from "@/lib/zod/wrappers";
 
 // --- BASE SCHEMAS (ZOD) ---
 export const zodAdmin = z.object({
@@ -27,10 +27,16 @@ export const zodCustomer = z.object({
   first_name: zodName({ fieldName: "First Name" }).nullable().optional(),
   last_name: zodName({ fieldName: "Last Name" }).nullable().optional(),
   phone: zodAlphaNumericSpace({ fieldName: "Phone" }).nullable().optional(),
-  street_address: zodAddress({ fieldName: "Street Address" }).nullable().optional(),
+  street_address: zodAddress({ fieldName: "Street Address" })
+    .nullable()
+    .optional(),
   barangay: zodTextEssentials({ fieldName: "Barangay" }).nullable().optional(),
-  city_province: zodTextEssentials({ fieldName: "City/Province" }).nullable().optional(),
-  postal_code: zodAlphaNumericSpace({ fieldName: "Postal Code" }).nullable().optional(),
+  city_province: zodTextEssentials({ fieldName: "City/Province" })
+    .nullable()
+    .optional(),
+  postal_code: zodAlphaNumericSpace({ fieldName: "Postal Code" })
+    .nullable()
+    .optional(),
   created_at: z.string(),
   updated_at: z.string(),
 });
@@ -65,7 +71,7 @@ export const tboxRegistrationBody = t.Object({
 // Login
 export const zodLoginForm = z.object({
   email: zodEmail({ fieldName: "Email" }),
-  password: z.string().min(1, { message: "Password is required" }), 
+  password: z.string().min(1, { message: "Password is required" }),
 });
 export type typeLoginForm = z.infer<typeof zodLoginForm>;
 

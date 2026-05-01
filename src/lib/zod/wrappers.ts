@@ -196,3 +196,23 @@ export function zodArrayMinMax<T extends z.ZodTypeAny>({
     });
   return zodData;
 }
+
+// API Wrappers (Zod)
+export function zodApiResponse<T extends z.ZodTypeAny>(dataSchema: T) {
+  return z.object({
+    data: dataSchema,
+    message: z.string(),
+  });
+}
+
+export function zodPaginatedResponse<T extends z.ZodTypeAny>(dataSchema: T) {
+  return z.object({
+    data: z.array(dataSchema),
+    meta: z.object({
+      page: z.number(),
+      total: z.number(),
+      limit: z.number(),
+    }),
+    message: z.string(),
+  });
+}

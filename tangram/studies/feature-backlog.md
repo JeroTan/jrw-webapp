@@ -19,7 +19,7 @@
 
 ## 3. Recommended Additions (Proactive Backlog)
 
-- **Stock Reconciliation Logic:** A background routine to verify that Supabase DB stock counts perfectly match the Durable Object "Lock" state.
+- **Stock Reconciliation Logic:** A background routine to verify that D1 DB stock counts perfectly match the Durable Object "Lock" state.
 - **Admin Audit Trail:** A read-only log tracking which Admin updated which product or order status.
 - **ODA (Out-of-Delivery-Area) Detection:** Proactive UI warning if a customer provides a postal code identified as a remote provincial area.
 - **Inventory Adjustment Logs:** Tracking "Why" stock was manually changed (e.g., "Damaged Stock", "Restock").
@@ -28,17 +28,16 @@
 
 - **Key Data Entities:** User, Product, ProductVariant, Order, OrderSnapshot (The immutable metadata copy), TransactionHistory, AuditLog.
 - **Critical Order States:** 
-    - `UNPAID`: Awaiting PayMongo payment signal.
-    - `PAID`: Payment confirmed; Stock locked and Snapshot created.
-    - `CANCELLED`: User or Admin triggered reversal; Automated Refund initiated.
-    - `ON_THE_WAY`: Admin has updated status for courier pickup.
-    - `FULFILLED`: Final delivery state confirmed.
+    - `PENDING`: Waiting for payment, preparing item, or verifying inventory.
+    - `FAILED`: Terminal failure (Payment failed, User cancelled, Seller declined).
+    - `ON_THE_WAY`: In transit or out for delivery.
+    - `FULFILLED`: Final delivery state confirmed and completed.
 
 ## 5. Sprint Implementation Roadmap (Dynamic Checklist)
 
 ### Sprint 1: Foundation & Security
-- [ ] **Database Schema**: Implement Supabase tables with `ON DELETE SET NULL` for `product_id` references in history.
-- [ ] **Auth Architecture**: Implement Multi-provider Identity Schema (Google, Facebook, etc.) alongside Email/Password flows, with account linking support as per Identity Protocol.
+- [x] **Database Schema**: Implement D1 tables with `ON DELETE SET NULL` for `product_id` references in history.
+- [x] **Auth Architecture**: Implement Multi-provider Identity Schema (Google, Facebook, etc.) alongside Email/Password flows, with account linking support as per Identity Protocol.
 - [ ] **Durable Object Setup**: Initialize the Stock-Locking DO with `blockConcurrencyWhile` logic.
 
 ### Sprint 2: Catalog & Command Center
@@ -51,12 +50,12 @@
 - [ ] **Metadata Replication Service**: Logic to snapshot product info into `OrderSnapshot` upon payment.
 - [ ] **Cart & Stock Locking**: React-based cart that locks DO stock items upon checkout initiation.
 - [ ] **PayMongo Integration**: Secure payment source creation and webhook handler.
-- [ ] **Automated Refund Engine**: Logic to handle `PENDING -> CANCELLED` reversals.
+- [ ] **Automated Refund Engine**: Logic to handle PENDING -> CANCELLED reversals.
 
 ### Sprint 4: Logistics & Notifications
 - [ ] **Email Service**: Resend integration for all transactional triggers.
 - [ ] **Order Tracking UI**: Customer/Visitor view for monitoring their lifecycle state.
-- [ ] **Admin Fulfillment View**: Interface for moving orders from `PAID` to `FULFILLED`.
+- [ ] **Admin Fulfillment View**: Interface for moving orders through their lifecycle.
 
 ### Sprint 5: Refinement & Audit
 - [ ] **Stock Reconciliation Tool**: Admin tool to sync DB and DO states.

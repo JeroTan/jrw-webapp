@@ -25,7 +25,7 @@
 ### 3. Layered API Pattern (Route -> Controller -> Service)
 
 > **Rationale:** Ensures separation of concerns. Controllers handle "How" the data arrives (HTTP), while Services handle "What" to do with it (Business Logic).
-> **Enforcement Rule:** Controllers MUST NOT contain business logic. They MUST only parse inputs, handle status codes, and delegate to a Service. Services MUST remain transport-agnostic.
+> **Enforcement Rule:** Controllers MUST NOT contain business logic. They MUST only parse inputs, handle status codes, and delegate to a Service. Services MUST remain transport-agnostic. **Routes MUST be used strictly for endpoint definition and documentation; they MUST NOT contain any implementation or technical logic (e.g., direct response generation).**
 
 ### 4. Fluent Interface Modular Programming
 

@@ -10,7 +10,7 @@ A "Technical Brutalist" web application that leverages Cloudflare Workers' edge 
 
 **Key Technical Pillars**:
 - **Stack**: AstroJS (Full-stack) + React (Frontend) + ElysiaJS (API).
-- **Data**: Supabase (PostgreSQL) with Row Level Security.
+- **Data**: Cloudflare D1 (SQLite) with Drizzle ORM.
 - **Logic**: Cloudflare Durable Objects for atomicity.
 - **Design**: Google Stitch Technical Brutalist System.
 
