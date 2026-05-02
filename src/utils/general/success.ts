@@ -1,0 +1,18 @@
+export const SUCCESS_CODE = [
+  "SUCCESS",
+  "REDIRECTED",
+  "CREATED",
+  "ACCEPTED",
+  "COMPLETED",
+  "PROCESSED",
+  "OK",
+  "PAYMENT_SUCCESS",
+  "VALIDATION_SUCCESS",
+  "AUTHENTICATION_SUCCESS",
+  "AUTHORIZATION_SUCCESS",
+  "OPERATION_SUCCESS",
+  "REQUEST_SUCCESS",
+  "RESPONSE_SUCCESS",
+] as const;
+
+export type SuccessCodeType = (typeof SUCCESS_CODE)[number];

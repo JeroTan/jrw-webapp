@@ -14,6 +14,7 @@ export class SampleController {
     return Response.json({
       data: "Sample response from controller",
       message: `${this.sampleService.doSomething()} You accessed the URL: ${urlData.pathname} and does you have a cookie? ${astroCookies.has("sample_cookie") ? "Yes!" : "No!"}`,
+      code: "SUCCESS" as const,
     });
   }
 
@@ -21,6 +22,7 @@ export class SampleController {
     return Response.json({
       data: `You submitted: ${body.field}`,
       message: "This is a response from the form submission endpoint.",
+      code: "SUCCESS" as const,
     });
   }
 
@@ -28,6 +30,7 @@ export class SampleController {
     return Response.json({
       data: `You searched for: ${search}`,
       message: "This is a response from the query endpoint.",
+      code: "SUCCESS" as const,
     });
   }
 }

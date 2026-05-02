@@ -18,7 +18,7 @@
   "r2_buckets": [
     {
       "binding": "STORAGE",
-      "bucket_name": "jrw-ecommerce-storage-production",
+      "bucket_name": "jrw-ecommerce-storage-development",
       "remote": true,
     },
   ],
@@ -33,8 +33,9 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "jrw-database-production",
-      "database_id": "fd08e264-2046-4648-9164-84f66948533e",
+      "database_name": "jrw-database-development",
+      "database_id": "beabfd98-8611-4d58-8f1b-7a972b8af1ed",
+      "remote": true,
     },
   ],
   "migrations": [
@@ -58,6 +59,21 @@
           "binding": "DB",
           "database_name": "jrw-database-development",
           "database_id": "beabfd98-8611-4d58-8f1b-7a972b8af1ed",
+          "remote": true,
+        },
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "InventoryDurableObject",
+            "name": "INVENTORY_DURABLE_OBJECT",
+          },
+        ],
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["InventoryDurableObject"],
         },
       ],
     },
@@ -75,6 +91,21 @@
           "binding": "DB",
           "database_name": "jrw-database-production",
           "database_id": "fd08e264-2046-4648-9164-84f66948533e",
+          "remote": true,
+        },
+      ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "class_name": "InventoryDurableObject",
+            "name": "INVENTORY_DURABLE_OBJECT",
+          },
+        ],
+      },
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["InventoryDurableObject"],
         },
       ],
     },

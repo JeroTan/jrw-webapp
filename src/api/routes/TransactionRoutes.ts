@@ -16,7 +16,7 @@ export const TransactionRoutes =
     app
       .group("/checkout", (app) =>
         app
-          .post("/auth", transactionController.handleAuthCheckout, {
+          .post("/auth", (ctx) => transactionController.handleAuthCheckout(ctx), {
             body: tboxAuthCheckoutBody,
             detail: { 
               summary: "Checkout for authenticated users", 
@@ -25,7 +25,7 @@ export const TransactionRoutes =
             },
             response: { 200: tboxApiResponse(tboxOrderDetails), 500: t.String() },
           })
-          .post("/guest", transactionController.handleGuestCheckout, {
+          .post("/guest", (ctx) => transactionController.handleGuestCheckout(ctx), {
             body: tboxGuestCheckoutBody,
             detail: { 
               summary: "Checkout for guests", 
@@ -37,7 +37,7 @@ export const TransactionRoutes =
       )
       .group("/orders", (app) =>
         app
-          .get("/", transactionController.handleListOrders, {
+          .get("/", (ctx) => transactionController.handleListOrders(ctx), {
             query: tboxOrderFilterQuery,
             detail: { 
               summary: "List user orders", 
@@ -46,7 +46,7 @@ export const TransactionRoutes =
             },
             response: { 200: tboxPaginatedResponse(tboxOrder), 500: t.String() },
           })
-          .get("/:id", transactionController.handleGetOrder, {
+          .get("/:id", (ctx) => transactionController.handleGetOrder(ctx), {
             params: t.Object({ id: t.String() }),
             detail: { 
               summary: "Get order details", 
@@ -60,7 +60,7 @@ export const TransactionRoutes =
         app
           .group("/orders", (app) =>
             app
-              .get("/", transactionController.handleListAdminOrders, {
+              .get("/", (ctx) => transactionController.handleListAdminOrders(ctx), {
                 query: tboxOrderFilterQuery,
                 detail: { 
                   summary: "List all orders (Admin)", 
@@ -69,7 +69,7 @@ export const TransactionRoutes =
                 },
                 response: { 200: tboxPaginatedResponse(tboxOrder), 500: t.String() },
               })
-              .patch("/:id/status", transactionController.handleUpdateOrderStatus, {
+              .patch("/:id/status", (ctx) => transactionController.handleUpdateOrderStatus(ctx), {
                 params: t.Object({ id: t.String() }),
                 body: tboxUpdateOrderStatusBody,
                 detail: { 
@@ -82,7 +82,7 @@ export const TransactionRoutes =
           )
       )
       .group("/webhooks", (app) =>
-        app.post("/paymongo", transactionController.handlePayMongoWebhook, {
+        app.post("/paymongo", (ctx) => transactionController.handlePayMongoWebhook(ctx), {
           detail: { 
             summary: "PayMongo webhook receiver", 
             description: "Public endpoint for receiving payment status updates directly from the PayMongo API. Requires valid signature verification.",

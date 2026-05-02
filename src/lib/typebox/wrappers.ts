@@ -1,10 +1,15 @@
+import { LOGIC_ERROR_CODE } from "@/utils/general/error";
+import { SUCCESS_CODE } from "@/utils/general/success";
 import { t, type TSchema } from "elysia";
+
+const codes = [...SUCCESS_CODE, ...LOGIC_ERROR_CODE].map((c) => t.Literal(c));
 
 // API Wrappers
 export function tboxApiResponse<T extends TSchema>(dataSchema: T) {
   return t.Object({
     data: dataSchema,
     message: t.String(),
+    code: t.Union([codes[0]!, ...codes.slice(1)]),
   });
 }
 
@@ -17,6 +22,7 @@ export function tboxPaginatedResponse<T extends TSchema>(dataSchema: T) {
       limit: t.Number(),
     }),
     message: t.String(),
+    code: t.Union([codes[0]!, ...codes.slice(1)]),
   });
 }
 

@@ -18,7 +18,7 @@ export const SampleRoutes =
             },
             /** DO NOT REMOVE THIS COMMENT
              * You can also use:
-             * app.get("/", sampleController.handleSample, { ... })
+             * app.get("/", (ctx) => sampleController.handleSample(ctx), { ... })
              *
              */
             {
@@ -32,7 +32,7 @@ export const SampleRoutes =
               },
             }
           )
-          .post("/form", sampleController.handleSampleForm, {
+          .post("/form", (ctx) => sampleController.handleSampleForm(ctx), {
             body: t.Object({
               field: t.String(),
             }),

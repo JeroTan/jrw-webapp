@@ -19,7 +19,7 @@ export const CatalogRoutes =
         app
           .group("/products", (app) =>
             app
-              .get("/", catalogController.handleListProducts, {
+              .get("/", (ctx) => catalogController.handleListProducts(ctx), {
                 query: tboxProductFilterQuery,
                 detail: { 
                   summary: "List products", 
@@ -28,7 +28,7 @@ export const CatalogRoutes =
                 },
                 response: { 200: tboxPaginatedResponse(tboxProductDetails), 500: t.String() },
               })
-              .get("/:id", catalogController.handleGetProduct, {
+              .get("/:id", (ctx) => catalogController.handleGetProduct(ctx), {
                 params: t.Object({ id: t.String() }),
                 detail: { 
                   summary: "Get product details", 
@@ -37,7 +37,7 @@ export const CatalogRoutes =
                 },
                 response: { 200: tboxApiResponse(tboxProductDetails), 500: t.String() },
               })
-              .get("/:id/reviews", catalogController.handleListReviews, {
+              .get("/:id/reviews", (ctx) => catalogController.handleListReviews(ctx), {
                 params: t.Object({ id: t.String() }),
                 detail: { 
                   summary: "List product reviews", 
@@ -46,7 +46,7 @@ export const CatalogRoutes =
                 },
                 response: { 200: tboxPaginatedResponse(tboxReview), 500: t.String() },
               })
-              .post("/:id/reviews", catalogController.handleSubmitReview, {
+              .post("/:id/reviews", (ctx) => catalogController.handleSubmitReview(ctx), {
                 params: t.Object({ id: t.String() }),
                 body: tboxSubmitReviewBody,
                 detail: { 
@@ -59,7 +59,7 @@ export const CatalogRoutes =
           )
           .group("/categories", (app) =>
             app
-              .get("/", catalogController.handleListCategories, {
+              .get("/", () => catalogController.handleListCategories(), {
                 detail: { 
                   summary: "List categories", 
                   description: "Retrieves a paginated list of all active product categories.",
@@ -73,7 +73,7 @@ export const CatalogRoutes =
         app
           .group("/products", (app) =>
             app
-              .get("/", catalogController.handleAdminListProducts, {
+              .get("/", (ctx) => catalogController.handleAdminListProducts(ctx), {
                 query: tboxProductFilterQuery,
                 detail: { 
                   summary: "List all products (Admin)", 
@@ -82,7 +82,7 @@ export const CatalogRoutes =
                 },
                 response: { 200: tboxPaginatedResponse(tboxProductDetails), 500: t.String() },
               })
-              .get("/:id", catalogController.handleAdminGetProduct, {
+              .get("/:id", (ctx) => catalogController.handleAdminGetProduct(ctx), {
                 params: t.Object({ id: t.String() }),
                 detail: { 
                   summary: "Get product details (Admin)", 
@@ -91,7 +91,7 @@ export const CatalogRoutes =
                 },
                 response: { 200: tboxApiResponse(tboxProductDetails), 500: t.String() },
               })
-              .post("/", catalogController.handleCreateProduct, {
+              .post("/", (ctx) => catalogController.handleCreateProduct(ctx), {
                 body: tboxCreateProductBody,
                 detail: { 
                   summary: "Create product", 
@@ -100,7 +100,7 @@ export const CatalogRoutes =
                 },
                 response: { 200: tboxApiResponse(tboxProductDetails), 500: t.String() },
               })
-              .put("/:id", catalogController.handleUpdateProduct, {
+              .put("/:id", (ctx) => catalogController.handleUpdateProduct(ctx), {
                 params: t.Object({ id: t.String() }),
                 body: tboxCreateProductBody,
                 detail: { 
@@ -110,7 +110,7 @@ export const CatalogRoutes =
                 },
                 response: { 200: tboxApiResponse(tboxProductDetails), 500: t.String() },
               })
-              .delete("/:id", catalogController.handleDeleteProduct, {
+              .delete("/:id", (ctx) => catalogController.handleDeleteProduct(ctx), {
                 params: t.Object({ id: t.String() }),
                 detail: { 
                   summary: "Delete product", 
@@ -122,7 +122,7 @@ export const CatalogRoutes =
           )
           .group("/categories", (app) =>
             app
-              .post("/", catalogController.handleCreateCategory, {
+              .post("/", (ctx) => catalogController.handleCreateCategory(ctx), {
                 body: tboxCreateCategoryBody,
                 detail: { 
                   summary: "Create category", 
@@ -131,7 +131,7 @@ export const CatalogRoutes =
                 },
                 response: { 200: tboxApiResponse(tboxCategory), 500: t.String() },
               })
-              .put("/:id", catalogController.handleUpdateCategory, {
+              .put("/:id", (ctx) => catalogController.handleUpdateCategory(ctx), {
                 params: t.Object({ id: t.String() }),
                 body: tboxUpdateCategoryBody,
                 detail: { 
@@ -141,7 +141,7 @@ export const CatalogRoutes =
                 },
                 response: { 200: tboxApiResponse(tboxCategory), 500: t.String() },
               })
-              .delete("/:id", catalogController.handleDeleteCategory, {
+              .delete("/:id", (ctx) => catalogController.handleDeleteCategory(ctx), {
                 params: t.Object({ id: t.String() }),
                 detail: { 
                   summary: "Delete category", 

@@ -1,3 +1,12 @@
+import { getDb } from "@/adapter/infrastructure/db/client";
+import { admins } from "@/domain/schema/identity";
+import { verifyHash } from "@/lib/crypto/hash";
+import { jwtEncrypt } from "@/lib/crypto/jwt";
+import { Result } from "@/utils/general/result";
+import { LogicError } from "@/utils/general/error";
+import { env } from "cloudflare:workers";
+import { eq } from "drizzle-orm";
+
 export class IdentityService {
   mockLogin() {
     return { token: "mock_jwt_token" };
@@ -33,8 +42,44 @@ export class IdentityService {
   }
 
   // --- Admin Specific ---
-  mockAdminLogin() {
-    return { token: "mock_admin_jwt_token" };
+  async adminLogin({ email, password }: { email: string; password: string }) {
+    const db = getDb();
+
+    // 1. Find Admin
+    const adminResult = await db
+      .select()
+      .from(admins)
+      .where(eq(admins.email, email))
+      .limit(1);
+    
+    const admin = adminResult[0];
+
+    if (!admin) {
+      return Result.error(new LogicError("Unauthorized access", "UNAUTHORIZED"));
+    }
+
+    // 2. Verify Password
+    const isPasswordValid = await verifyHash(password, admin.password_hash);
+    if (!isPasswordValid) {
+      return Result.error(new LogicError("Unauthorized access", "UNAUTHORIZED"));
+    }
+
+    // 3. Generate JWT
+    const tokenResult = await jwtEncrypt({
+      payload: {
+        sub: admin.id,
+        email: admin.email,
+        is_owner: admin.is_owner,
+      },
+      secretKey: env.JWT_SECRET,
+      expiresInSeconds: 86400, // 24 hours
+    });
+
+    if (tokenResult.error) {
+      return Result.error(new LogicError("Failed to generate secure token", "INTERNAL_ERROR"));
+    }
+
+    return Result.okay({ token: tokenResult.data });
   }
 
   mockAdminForgotPassword() {

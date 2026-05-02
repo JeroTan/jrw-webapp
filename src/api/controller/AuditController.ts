@@ -8,6 +8,7 @@ export class AuditController {
       data: this.auditService.mockListLogs(),
       meta: { page: 1, total: 0, limit: 10 },
       message: "Audit logs retrieved successfully",
+      code: "SUCCESS" as const,
     };
   }
 }

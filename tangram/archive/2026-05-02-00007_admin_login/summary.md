@@ -26,7 +26,6 @@ This is a foundational security milestone. It validates our "Technical Brutalist
 - `src/domain/services/IdentityService.ts` (Implemented functional `adminLogin`)
 - `src/api/controller/IdentityController.ts`, `CatalogController.ts`, `TransactionController.ts` (Removed `any` and typed with TypeBox)
 - `src/api/routes/IdentityRoutes.ts`, `CatalogRoutes.ts`, `TransactionRoutes.ts`, `AuditRoutes.ts`, `SampleRoutes.ts` (Wrapped handler references in arrow functions)
-- `src/utils/general/success.ts` and `src/utils/general/error.ts` (Manually created by the user to serve as the strict source of truth for response codes)
 
 ## ✅ Verification Results
 - **Auth Security**: CONFIRMED. `POST /api/admin/auth/login` uses real D1 data and WebCrypto validation.
@@ -48,4 +47,3 @@ Successfully implemented the functional Admin Login logic, establishing secure, 
 - **Security Pillar:** Kept all crypto and database operations entirely at the Edge.
 - **Structure Pillar:** Enforced our Controller-Service architectural boundary.
 - **Consistency:** Applied strict TypeBox response codes (`SUCCESS`, `UNAUTHORIZED`, etc.) uniformly across every API endpoint in the system.
-02 Execution (Order statuses, status descriptions, dual-layer validation).
