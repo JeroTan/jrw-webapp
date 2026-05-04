@@ -1,3 +1,5 @@
+import type { OrderStatus } from "@/domain/validation/shared";
+
 export class TransactionService {
   mockAuthCheckout() {
     return this.mockGetOrder("ord_mock_auth");
@@ -33,7 +35,7 @@ export class TransactionService {
     return [];
   }
 
-  mockUpdateOrderStatus(id: string, status: any) {
-    return { ...this.mockGetOrder(id), status: status as "PENDING" | "FAILED" | "ON_THE_WAY" | "FULFILLED" };
+  mockUpdateOrderStatus(id: string, status: OrderStatus) {
+    return { ...this.mockGetOrder(id), status };
   }
 }

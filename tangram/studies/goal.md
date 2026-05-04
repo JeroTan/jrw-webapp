@@ -23,5 +23,5 @@ The project is built on a "Clean Slate" standard. It handles requirement changes
 ## 5. Potential "Deadpoints" (Warning Signs)
 
 - **Design Drift**: If rounded corners or shadows begin appearing in the UI (Recovery: Re-audit against Google Stitch spec).
-- **Concurrency Failure**: If stock levels in Supabase drift from the Durable Object state (Recovery: Implement strict DO-to-DB sync reconciliation).
+- **Concurrency Failure**: If stock levels in Cloudflare D1 drift from the Durable Object state (Recovery: Implement strict DO-to-D1 sync reconciliation).
 - **Integration Bloat**: If 3rd party logic leaks out of the `src/lib/` folder (Recovery: Refactor to maintain Project Constitution standards).

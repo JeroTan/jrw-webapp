@@ -32,7 +32,7 @@
 - **Testing**: `vitest` (Unit and Integration testing).
 - **SEO**: `@astrojs/sitemap` (Astro sitemap generation).
 - **Styling**: TailwindCSS v4.x (Customized for Technical Brutalism: 0px radius, 1px borders).
-- **WYSIWYG Editor**: Toast UI Editor (Markdown-based product curation).
+- **WYSIWYG Editor**: Planned for product curation. Not installed yet; select and install during the Admin Product CRUD feature.
 - **Development Tools**: `@elysiajs/node` (Installed strictly for local dev/scripting; not for Edge runtime).
 
 ## 4. Rationale

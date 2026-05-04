@@ -27,37 +27,45 @@
 ## 4. Structural Models
 
 - **Key Data Entities:** User, Product, ProductVariant, Order, OrderSnapshot (The immutable metadata copy), TransactionHistory, AuditLog.
-- **Critical Order States:** 
-    - `PENDING`: Waiting for payment, preparing item, or verifying inventory.
-    - `FAILED`: Terminal failure (Payment failed, User cancelled, Seller declined).
-    - `ON_THE_WAY`: In transit or out for delivery.
-    - `FULFILLED`: Final delivery state confirmed and completed.
+- **Critical Order States:**
+  - `PENDING`: Waiting for payment, preparing item, or verifying inventory.
+  - `FAILED`: Terminal failure (Payment failed, User cancelled, Seller declined).
+  - `ON_THE_WAY`: In transit or out for delivery.
+  - `FULFILLED`: Final delivery state confirmed and completed.
 
 ## 5. Sprint Implementation Roadmap (Dynamic Checklist)
 
 ### Sprint 1: Foundation & Security
+
 - [x] **Database Schema**: Implement D1 tables with `ON DELETE SET NULL` for `product_id` references in history.
 - [x] **Auth Architecture**: Implement Multi-provider Identity Schema (Google, Facebook, etc.) alongside Email/Password flows, with account linking support as per Identity Protocol.
+- [x] **API Contract Surface**: Define Elysia route contracts, TypeBox request/response schemas, and controller/service wiring with intentional mocks.
+- [x] **Admin Login Implementation**: Replace the mock admin login with real D1 lookup, password verification, and JWT generation.
 - [ ] **Durable Object Setup**: Initialize the Stock-Locking DO with `blockConcurrencyWhile` logic.
+- [ ] **Authorization Middleware**: Implement JWT verification, admin/customer route guards, and service-level ownership checks.
 
 ### Sprint 2: Catalog & Command Center
+
 - [ ] **Admin Product CRUD**: Feature-based module for managing products, variants, and images.
 - [ ] **Pre-order Toggle**: Implement "Allow Pre-order" flag and "Expected Release Date" in product management.
 - [ ] **The Architectural Grid**: 12-column Astro grid with 1px borders and Satoshi/Space Mono typography.
 - [ ] **WYSIWYG Integration**: Toast UI editor for Markdown descriptions.
 
 ### Sprint 3: The Transactional Core
+
 - [ ] **Metadata Replication Service**: Logic to snapshot product info into `OrderSnapshot` upon payment.
 - [ ] **Cart & Stock Locking**: React-based cart that locks DO stock items upon checkout initiation.
 - [ ] **PayMongo Integration**: Secure payment source creation and webhook handler.
 - [ ] **Automated Refund Engine**: Logic to handle PENDING -> CANCELLED reversals.
 
 ### Sprint 4: Logistics & Notifications
+
 - [ ] **Email Service**: Resend integration for all transactional triggers.
 - [ ] **Order Tracking UI**: Customer/Visitor view for monitoring their lifecycle state.
 - [ ] **Admin Fulfillment View**: Interface for moving orders through their lifecycle.
 
 ### Sprint 5: Refinement & Audit
+
 - [ ] **Stock Reconciliation Tool**: Admin tool to sync DB and DO states.
 - [ ] **Audit Logging**: Implement persistent logging for all administrative actions.
 - [ ] **Performance Polish**: Final optimization for sub-200ms API response times.
@@ -66,4 +74,9 @@
 
 - **Completeness**: Audit and Transaction integrity are secured via metadata replication, even after hard product deletion.
 - **Verifiability**: Each sprint is verifiable via TDD or manual QA of the "Architectural" design standards.
-D or manual QA of the "Architectural" design standards.
+
+## 7. Current Stage Notes
+
+- The active codebase is at Feature `00007_admin_login`.
+- Mock service methods remain intentional for unimplemented domains.
+- Durable Object stock-locking, PayMongo checkout, Resend email, storefront UI, and admin UI are future feature work.

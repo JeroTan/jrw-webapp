@@ -4,16 +4,22 @@ import { execSync } from "child_process";
 import { writeFileSync, unlinkSync } from "fs";
 import "dotenv/config";
 
+function cleanEnv(value: string | undefined) {
+  return value?.replace(/;$/, "").replace(/^"/, "").replace(/"$/, "");
+}
+
 async function main() {
-  const email = process.env.SEED_SUPERADMIN_EMAIL?.replace(/;$/, "").replace(/^"/, "").replace(/"$/, "");
-  const password = process.env.SEED_SUPERADMIN_PASSWORD?.replace(/;$/, "").replace(/^"/, "").replace(/"$/, "");
+  const email = cleanEnv(process.env.SEED_ADMIN_EMAIL);
+  const password = cleanEnv(process.env.SEED_ADMIN_PASSWORD);
 
   if (!email || !password) {
-    console.error("❌ SEED_SUPERADMIN_EMAIL and SEED_SUPERADMIN_PASSWORD must be set in .env");
+    console.error(
+      "SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD must be set in .env"
+    );
     process.exit(1);
   }
 
-  console.log(`🌱 Generating hash for ${email}...`);
+  console.log(`Generating hash for ${email}...`);
   const passwordHash = await hash(password);
   const id = createId();
 
@@ -22,13 +28,16 @@ async function main() {
   const tempFile = "seed.sql";
   writeFileSync(tempFile, sql);
 
-  console.log("🚀 Executing remote seed from file...");
-  execSync(`npx wrangler@latest d1 execute DB --remote --env development --file=${tempFile} --yes`, { stdio: "inherit" });
-  console.log("✅ Super-Admin seeded successfully.");
+  console.log("Executing remote seed from file...");
+  execSync(
+    `npx wrangler@latest d1 execute DB --remote --env development --file=${tempFile} --yes`,
+    { stdio: "inherit" }
+  );
+  console.log("Super-Admin seeded successfully.");
   unlinkSync(tempFile);
 }
 
-main().catch(err => {
-    console.error(err);
-    process.exit(1);
+main().catch((err) => {
+  console.error(err);
+  process.exit(1);
 });

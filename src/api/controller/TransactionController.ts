@@ -1,16 +1,20 @@
 import type { TransactionService } from "@/domain/services/TransactionService";
-import { 
-  tboxAuthCheckoutBody, 
-  tboxGuestCheckoutBody, 
-  tboxUpdateOrderStatusBody, 
-  tboxOrderFilterQuery 
+import {
+  tboxAuthCheckoutBody,
+  tboxGuestCheckoutBody,
+  tboxUpdateOrderStatusBody,
+  tboxOrderFilterQuery,
 } from "@/domain/validation/transactions";
 import type { Static } from "elysia";
 
 export class TransactionController {
   constructor(public transactionService: TransactionService) {}
 
-  async handleAuthCheckout({ body }: { body: Static<typeof tboxAuthCheckoutBody> }) {
+  async handleAuthCheckout({
+    body,
+  }: {
+    body: Static<typeof tboxAuthCheckoutBody>;
+  }) {
     return {
       data: this.transactionService.mockAuthCheckout(),
       message: "Authenticated checkout processed",
@@ -18,7 +22,11 @@ export class TransactionController {
     };
   }
 
-  async handleGuestCheckout({ body }: { body: Static<typeof tboxGuestCheckoutBody> }) {
+  async handleGuestCheckout({
+    body,
+  }: {
+    body: Static<typeof tboxGuestCheckoutBody>;
+  }) {
     return {
       data: this.transactionService.mockGuestCheckout(),
       message: "Guest checkout processed",
@@ -34,7 +42,7 @@ export class TransactionController {
     };
   }
 
-  async handlePayMongoWebhook({ body }: { body: any }) {
+  async handlePayMongoWebhook({ body: _body }: { body: unknown }) {
     return {
       data: this.transactionService.mockPayMongoWebhook(),
       message: "Webhook processed",
@@ -42,7 +50,9 @@ export class TransactionController {
     };
   }
 
-  async handleListOrders({ query }: { query?: Static<typeof tboxOrderFilterQuery> } = {}) {
+  async handleListOrders({
+    query,
+  }: { query?: Static<typeof tboxOrderFilterQuery> } = {}) {
     return {
       data: this.transactionService.mockListOrders(),
       meta: { page: 1, total: 0, limit: 10 },
@@ -51,7 +61,9 @@ export class TransactionController {
     };
   }
 
-  async handleListAdminOrders({ query }: { query?: Static<typeof tboxOrderFilterQuery> } = {}) {
+  async handleListAdminOrders({
+    query,
+  }: { query?: Static<typeof tboxOrderFilterQuery> } = {}) {
     return {
       data: this.transactionService.mockListAdminOrders(),
       meta: { page: 1, total: 0, limit: 10 },
@@ -60,9 +72,18 @@ export class TransactionController {
     };
   }
 
-  async handleUpdateOrderStatus({ params, body }: { params: { id: string }; body: Static<typeof tboxUpdateOrderStatusBody> }) {
+  async handleUpdateOrderStatus({
+    params,
+    body,
+  }: {
+    params: { id: string };
+    body: Static<typeof tboxUpdateOrderStatusBody>;
+  }) {
     return {
-      data: this.transactionService.mockUpdateOrderStatus(params.id, body.status),
+      data: this.transactionService.mockUpdateOrderStatus(
+        params.id,
+        body.status
+      ),
       message: "Order status updated",
       code: "SUCCESS" as const,
     };

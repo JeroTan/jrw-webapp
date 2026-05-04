@@ -23,7 +23,12 @@ export const zodCustomer = z.object({
   id: z.cuid2(),
   email: zodEmail({ fieldName: "Email" }),
   password_hash: z.string().nullable().optional(), // Nullable for OAuth users
-  avatar_url: z.url({ message: "Invalid Avatar URL format. Must be a valid HTTP or HTTPS URL." }).nullable().optional(),
+  avatar_url: z
+    .url({
+      message: "Invalid Avatar URL format. Must be a valid HTTP or HTTPS URL.",
+    })
+    .nullable()
+    .optional(),
   first_name: zodName({ fieldName: "First Name" }).nullable().optional(),
   last_name: zodName({ fieldName: "Last Name" }).nullable().optional(),
   phone: zodAlphaNumericSpace({ fieldName: "Phone" }).nullable().optional(),
@@ -46,7 +51,7 @@ export const zodCustomerProvider = z.object({
   customer_id: z.cuid2(),
   provider: z.string(),
   provider_user_id: z.string(),
-  metadata: z.record(z.string(), z.any()).nullable().optional(),
+  metadata: z.record(z.string(), z.unknown()).nullable().optional(),
   created_at: z.string(),
 });
 
@@ -71,7 +76,7 @@ export const tboxRegistrationBody = t.Object({
 // Login
 export const zodLoginForm = z.object({
   email: zodEmail({ fieldName: "Email" }),
-  password: z.string().min(1, { message: "Password is required" }), 
+  password: z.string().min(1, { message: "Password is required" }),
 });
 export type typeLoginForm = z.infer<typeof zodLoginForm>;
 

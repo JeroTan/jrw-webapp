@@ -42,7 +42,15 @@ export const IdentityRoutes =
                 "Registers a new customer account using an email and password.",
               tags: ["Identity"],
             },
-            response: { 200: tboxApiResponse(t.Any()), 500: t.String() },
+            response: {
+              200: tboxApiResponse(
+                t.Object({
+                  id: t.String(),
+                  email: t.String({ format: "email" }),
+                })
+              ),
+              500: t.String(),
+            },
           })
           .post(
             "/forgot-password",

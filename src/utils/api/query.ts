@@ -1,21 +1,37 @@
-import type { PageProps, QueryProps, PageAndQueryProps } from "@/utils/api/types";
+import type {
+  PageProps,
+  QueryProps,
+  PageAndQueryProps,
+} from "@/utils/api/types";
 
 /**
  * Safely parses the raw Elysia query object into the structured `PageAndQueryProps` format.
  * This modern parser handles standard flat query properties without relying on bracket syntax.
- * 
+ *
  * - `q`: Full-text search string.
  * - `page` / `limit`: Pagination (defaults to 1 and 10).
  * - `sort`: Comma-separated sort fields (e.g., `-price,created_at`).
  * - Everything else is treated as a filter and split by commas (e.g., `category_id=cat1,cat2`).
  */
-export function parseApiQuery(query: Record<string, any>): PageAndQueryProps {
+export function parseApiQuery(
+  query: Record<string, unknown>
+): PageAndQueryProps {
+  const q = typeof query.q === "string" && query.q.length > 0 ? query.q : null;
+  const page =
+    typeof query.page === "string" || typeof query.page === "number"
+      ? Number(query.page)
+      : 1;
+  const limit =
+    typeof query.limit === "string" || typeof query.limit === "number"
+      ? Number(query.limit)
+      : 10;
+
   const parsed: PageAndQueryProps = {
-    q: query.q || null,
+    q,
     filter: [],
     sort: [],
-    page: query.page ? Number(query.page) : 1,
-    limit: query.limit ? Number(query.limit) : 10,
+    page,
+    limit,
   };
 
   // Extract known keys to separate them from dynamic filters
@@ -26,7 +42,10 @@ export function parseApiQuery(query: Record<string, any>): PageAndQueryProps {
 
     // Handle Sort parsing
     if (key === "sort" && typeof value === "string") {
-      const sortFields = value.split(",").map((s) => s.trim()).filter(Boolean);
+      const sortFields = value
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       for (const field of sortFields) {
         const direction = field.startsWith("-") ? "desc" : "asc";
         const fieldName = field.replace(/^-/, "");
@@ -39,8 +58,11 @@ export function parseApiQuery(query: Record<string, any>): PageAndQueryProps {
     if (!knownKeys.includes(key)) {
       // Coerce to string to safely split (Elysia usually guarantees string or undefined here)
       const stringValue = String(value);
-      const values = stringValue.split(",").map((s) => s.trim()).filter(Boolean);
-      
+      const values = stringValue
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
       if (values.length > 0) {
         parsed.filter.push({ field: key, values });
       }
@@ -84,4 +106,3 @@ export function fromPropsToQueryParams(
 
   return queryParams;
 }
-

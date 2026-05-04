@@ -10,7 +10,7 @@ export const zodAuditLog = z.object({
   action: z.string(),
   entity: z.string(),
   entity_id: z.string().nullable().optional(),
-  details: z.any().nullable().optional(), // Flexible JSON details
+  details: z.unknown().nullable().optional(), // Flexible JSON details
   created_at: z.string(),
 });
 export type typeAuditLog = z.infer<typeof zodAuditLog>;
@@ -22,7 +22,7 @@ export const tboxAuditLog = t.Object({
   action: t.String(),
   entity: t.String(),
   entity_id: t.Optional(t.Union([t.String(), t.Null()])),
-  details: t.Optional(t.Union([t.Any(), t.Null()])),
+  details: t.Optional(t.Union([t.Unknown(), t.Null()])),
   created_at: t.String(),
 });
 

@@ -1,43 +1,38 @@
-# Astro Starter Kit: Minimal
+# JRW Simple E-commerce Site
 
-```sh
-npm create astro@latest -- --template minimal
-```
+Astro + Elysia + Cloudflare Workers ecommerce foundation for JRW.
 
-> 🧑‍🚀 **Seasoned astronaut?** Delete this file. Have fun!
+## Current Status
 
-## 🚀 Project Structure
+The project is in construction at Feature `00007_admin_login`.
 
-Inside of your Astro project, you'll see the following folders and files:
+Implemented:
 
-```text
-/
-├── public/
-├── src/
-│   └── pages/
-│       └── index.astro
-└── package.json
-```
+- Cloudflare D1 schema with Drizzle migrations.
+- Dual validation layer using Zod and TypeBox.
+- Elysia API route contracts for identity, catalog, transactions, audit, and sample endpoints.
+- Cloudflare R2 helper utilities and image-reference schema direction.
+- Functional admin login using D1, WebCrypto password verification, and `jose` JWT generation.
 
-Astro looks for `.astro` or `.md` files in the `src/pages/` directory. Each page is exposed as a route based on its file name.
+Intentional current gaps:
 
-There's nothing special about `src/components/`, but that's where we like to put any Astro/React/Vue/Svelte/Preact components.
+- Most non-admin-login API handlers still return mock data.
+- Authorization middleware and protected route guards are not implemented yet.
+- Durable Object inventory locking is scaffolded only.
+- Storefront and admin UI are future tasks; the Astro starter home page is still present.
 
-Any static assets, like images, can be placed in the `public/` directory.
+## Commands
 
-## 🧞 Commands
+| Command                     | Action                                                         |
+| :-------------------------- | :------------------------------------------------------------- |
+| `npm run dev`               | Start Astro dev server.                                        |
+| `npm run check`             | Run Astro/TypeScript checks.                                   |
+| `npm run build`             | Run checks and build for Cloudflare.                           |
+| `npm run test`              | Run Vitest tests once test files exist.                        |
+| `npm run db:generate`       | Generate Drizzle migrations.                                   |
+| `npm run db:migrate:remote` | Apply D1 migrations to the Cloudflare development environment. |
+| `npm run wrangler-types`    | Regenerate Cloudflare worker types after binding changes.      |
 
-All commands are run from the root of the project, from a terminal:
+## Project Memory
 
-| Command                   | Action                                           |
-| :------------------------ | :----------------------------------------------- |
-| `npm install`             | Installs dependencies                            |
-| `npm run dev`             | Starts local dev server at `localhost:4321`      |
-| `npm run build`           | Build your production site to `./dist/`          |
-| `npm run preview`         | Preview your build locally, before deploying     |
-| `npm run astro ...`       | Run CLI commands like `astro add`, `astro check` |
-| `npm run astro -- --help` | Get help using the Astro CLI                     |
-
-## 👀 Want to learn more?
-
-Feel free to check [our documentation](https://docs.astro.build) or jump into our [Discord server](https://astro.build/chat).
+Tangram project memory lives in `tangram/`. Treat the actual code as source of truth, then align `tangram/design/**`, `tangram/studies/**`, and `tangram/archive/**` when implementation changes.
