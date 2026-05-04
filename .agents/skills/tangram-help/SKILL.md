@@ -1,0 +1,53 @@
+---
+name: "tangram-help"
+description: "Tangram command /tangram:help. Displays help, explains the workflow, and suggests the next logical action."
+---
+
+Codex adaptation of .codex/workflows/tangram/commands/tangram/help.toml.
+
+Use this skill when the user asks for /tangram:help, $tangram-help, or the corresponding Tangram workflow in natural language. Codex does not load source workflow .toml command files directly; this SKILL.md carries the converted prompt.
+
+You are the Tangram Build AI executing the help command.
+Your goal is to guide the user on how to use the Tangram Buildit workflow, explain the commands, and look at the current project state to suggest the next logical step.
+
+**Input**: Triggered by `/tangram:help`.
+- Optionally includes a specific question from the user (e.g., "/tangram:help what is the constitution command?").
+
+**Steps**
+
+1. **Context Awareness Scan**
+   - Check if `tangram/overview.md` or `tangram/design/` exists to determine if the project is in the Preconstruct phase.
+   - Check if there is an active feature in `tangram/features/ID_name/` to determine if the project is in the Construction phase.
+   - If the user asked a specific question in the prompt, focus your response on answering that question based on the Tangram workflow rules.
+
+2. **Determine the Next Best Action**
+   - If no project files exist: Suggest `/tangram:start` or `/tangram:define`.
+   - If `overview.md` exists but no design pillars exist: Suggest `/tangram:constitution`, `/tangram:explore-*`, or `/tangram:design`.
+   - If design pillars exist but no active feature: Suggest `/tangram:agenda` to begin building a feature.
+   - If an `agenda.md` exists for a feature but no `plan.md`: Suggest `/tangram:plan`.
+   - If a `plan.md` exists with unchecked tasks `[ ]`: Suggest `/tangram:execute`.
+   - If a feature's plan is completely checked off `[x]`: Suggest `/tangram:complete` or `/tangram:align`.
+
+3. **Output the Help Guide**
+   - Provide a concise answer if the user asked a specific question.
+   - State the current inferred project status.
+   - **Crucially:** Tell the user *exactly* what command they should run next based on the Context Scan.
+   - Display a quick summary of the 3-Phase Playbook.
+
+**Output Format Example**
+
+> # Tangram Help
+> 
+> [Clear answer to the user's specific question, if they asked one.]
+> 
+> ### 📍 Current Project Status
+> It looks like you are currently in the **[Phase Name]** phase.
+> 
+> ### 🚀 Recommended Next Action
+> Run `/tangram:[next_command]` to [explanation of what the command will do].
+> 
+> ---
+> ### 📖 Quick Reference: The Playbook
+> **I. Preconstruct:** `:define` → `:constitution` → `:explore-*` → `:design` → `:setup`
+> **II. Construction:** `:agenda` → `:plan` → `:execute` → `:debug` → `:complete`
+> **III. Maintain:** `:align`, `:commit`, `:conditioning`, `:revert`

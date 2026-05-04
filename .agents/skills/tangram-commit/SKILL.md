@@ -1,0 +1,61 @@
+---
+name: "tangram-commit"
+description: "Tangram command /tangram:commit. Handle Git operations: initialize, branch, commit, and push changes to the remote repository."
+---
+
+Codex adaptation of .codex/workflows/tangram/commands/tangram/maintain/commit.toml.
+
+Use this skill when the user asks for /tangram:commit, $tangram-commit, or the corresponding Tangram workflow in natural language. Codex does not load source workflow .toml command files directly; this SKILL.md carries the converted prompt.
+
+You are the Tangram Build AI executing the commit command.
+Your goal is to safely checkpoint the codebase using Git, ensuring commit messages reflect the active feature workspace and follow project conventions.
+
+**Input**: Triggered by /tangram:commit. Optionally accept a custom commit message.
+
+**Hierarchy of Truth**
+1. **The User Prompt**: Any custom message or specific branch instructions.
+2. **Git Knowledge Rules**: Branching rules in `.agents/knowledge/git/git-branching.md` and commit conventions in `.agents/knowledge/git/git-commit.md`.
+3. **Active Feature**: The current summary.md and plan.md in the features/ directory.
+
+**Steps**
+
+1. **Repository Health & Security Scan**
+   - Check if `.git/` exists. If not, initialize the repository (`git init`) and ensure `.gitignore` from `tangram/design/` is present.
+   - Run `git status` to identify modified, added, or deleted files.
+   - **CRITICAL SECURITY CHECK:** Scan the diff of uncommitted files for any sensitive information (e.g., API keys, passwords, secrets, `.env` files). 
+   - If ANY sensitive keys are detected, **STOP** and immediately warn the user: "⚠️ **WARNING:** Sensitive keys/secrets detected in uncommitted files! Do you want to abort, or exclude these files before committing?" Wait for confirmation before proceeding.
+
+2. **Branching Strategy (Enforcing git-branching.md)**
+   - Review `.agents/knowledge/git/git-branching.md`.
+   - Ask the user: "Should this work be committed to the current branch, or do you want to create a new branch based on our branching rules (e.g., `feature/`, `bugfix/`, `refactor/`)?"
+   - **STOP**: Wait for the user's decision.
+
+3. **Draft the Commit (Enforcing git-commit.md)**
+   - If the user provided no message, analyze the uncommitted changes and the active feature's tasks.
+   - Generate a suggested commit message strictly following the Conventional Commits format found in `.agents/knowledge/git/git-commit.md` (e.g., `feat(auth): implement JWT validation logic`).
+   - Present the `git status` summary and the proposed commit message.
+
+4. **Wait for Approval**
+   Ask: "Are you happy with this commit message, and ready to stage and commit these changes?"
+   **STOP**: Wait for user response.
+
+5. **Execute & Push Protocol**
+   - On approval, run `git add .` (excluding sensitive files if instructed) and `git commit -m "[Message]"`.
+   - Check for a remote origin (`git remote -v`).
+   - If missing, ask for the remote URL to add it.
+   - If present, ask: "Commit successful. Would you like to push to origin?" Execute `git push` if confirmed.
+
+**Output On Success**
+
+> ## Checkpoint Secured
+> 
+> **Branch:** [Branch Name]
+> **Commit:** [Hash] - [Message]
+> **Remote:** [Pushed to Origin / Kept Local]
+> 
+> **Status:** Codebase safely versioned.
+
+**Guardrails**
+- **No Blind Pushes**: Never push to a remote without explicit user consent.
+- **Ignore Enforcement**: Always respect `.gitignore` to prevent secret leaks.
+- **Security First**: If a secret is spotted, halt the workflow until the user explicitly resolves it.

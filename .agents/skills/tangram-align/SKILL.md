@@ -1,0 +1,73 @@
+---
+name: "tangram-align"
+description: "Tangram command /tangram:align. Synchronize the project's codebase content with the AI's documentation and archive records."
+---
+
+Codex adaptation of .codex/workflows/tangram/commands/tangram/maintain/align.toml.
+
+Use this skill when the user asks for /tangram:align, $tangram-align, or the corresponding Tangram workflow in natural language. Codex does not load source workflow .toml command files directly; this SKILL.md carries the converted prompt.
+
+You are the Tangram Build AI executing the align command.
+Your goal is to detect manual changes made outside the AI workflow and update the documentation to match its content.
+
+**Input**: Triggered by /tangram:align.
+
+**Hierarchy of Truth**
+1. **The Actual Code**: The current state of the .js, .py, .ts, etc., files.
+2. **Project Constitution**: Non-negotiable laws in `tangram/constitution.md` (if it exists).
+3. **The Project History**: tangram/archive/, tangram/design/, and tangram/knowledge/ (if it exists).
+
+**Steps**
+
+1. **The Content Audit (Subagent Scan)**
+   Invoke a Context Subagent to:
+   - **Constitution Scan**: Read `tangram/constitution.md` (if it exists) to ensure the current code adheres to the project's non-negotiable laws (e.g., styling rules, architectural patterns).
+   - Compare the active feature and entire codebase against `tangram/design/**` to ensure architectural and styling alignment.
+   - Cross-reference the current implementation against `tangram/studies/**` to ensure it still solves the original feasibility and requirements goals.
+   - Compare the current file structure against `tangram/design/structure.md`.
+   - Scan the codebase for new libraries/packages not listed in `tangram/design/stack.md`.
+   - Check `tangram/archive/` for sequence gaps (e.g., Feature 00001 jumps to 00003).
+
+2. **Identify Drift**
+   List any discrepancies found. For example:
+   - "Code violates the Project Constitution (e.g., used Tailwind when Vanilla CSS is mandated)."
+   - "Feature X deviates from the UX requirements defined in studies/requirements.md."
+   - "Detected undocumented manual code in src/utils/auth.js."
+   - "Archive numbers are out of sync."
+   - "New dependency axios found in package.json."
+
+3. **Consult the User (Intervention)**
+   If discrepancies are found, present them to the user.
+   Ask: "I detected the above inconsistencies. Do you have an idea on how we should handle these gaps, or would you like me to propose an Alignment Plan to synchronize the documentation with the code?"
+   **STOP**: Wait for user response and incorporate their feedback.
+
+4. **Draft the Alignment Plan**
+   Based on the user's feedback, propose specific updates to the documentation to absorb these manual changes into the AI's memory.
+   - Propose updates to tangram/design/*.md.
+   - Propose renaming archive folders to fix numbering.
+   - Propose refinements to the Constitution if the "laws" themselves need to change.
+
+5. **Wait for Approval**
+   Show the Alignment Plan.
+   Ask: "Should I execute this Alignment Plan to match the current codebase?"
+   **STOP**: Wait for user response.
+
+6. **Execute Synchronization**
+   Update the Markdown files and rename folders as approved.
+
+**Output On Success**
+
+> ## Content Synchronized
+> 
+> **Drift Detected:** [X] Manual changes found.
+> **Actions Taken:**
+> - Constitution alignment verified
+> - Archive numbering repaired
+> - Design pillars updated to reflect current code
+> - Undocumented code cataloged
+> 
+> **Status:** AI memory is 100% aligned with codebase contents.
+
+**Guardrails**
+- **Read-Only Code**: The align command is FORBIDDEN from modifying actual application code. It only updates .md documentation files and renames archive folders.
+- **Explicit Approval**: Never overwrite documentation without showing the user exactly what discrepancies were found and discussing how to handle them.

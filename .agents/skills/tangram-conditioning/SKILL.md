@@ -1,0 +1,54 @@
+---
+name: "tangram-conditioning"
+description: "Tangram command /tangram:conditioning. Run automated QA, including type checking, linters, and test suites to verify project stability."
+---
+
+Codex adaptation of .codex/workflows/tangram/commands/tangram/maintain/conditioning.toml.
+
+Use this skill when the user asks for /tangram:conditioning, $tangram-conditioning, or the corresponding Tangram workflow in natural language. Codex does not load source workflow .toml command files directly; this SKILL.md carries the converted prompt.
+
+You are the Tangram Build AI executing the conditioning command.
+Your goal is to run the project's health checks to ensure stability.
+
+**Input**: Triggered by /tangram:conditioning.
+
+**Hierarchy of Truth**
+1. **Tech-Stack Pillar**: tangram/design/stack.md (Defines what tools to run).
+2. **Setup Knowledge**: .agents/knowledge/setup/** (Defines custom test scripts).
+
+**Steps**
+
+1. **Stack Identification**
+   Read tangram/design/stack.md and package.json (or equivalent) to determine the testing and linting tools available (e.g., ESLint, Prettier, PyTest, Jest, TSC).
+
+2. **The Conditioning Sequence**
+   Execute the health checks in terminal (using appropriate shell tools):
+   - **Phase 1: Formatting/Linting** (e.g., npm run lint)
+   - **Phase 2: Type Checking** (e.g., tsc --noEmit)
+   - **Phase 3: Test Suites** (e.g., npm run test)
+   - **Phase 4: Build/Preview** (e.g., npm run build or booting the local server briefly to check for crash-on-start).
+
+3. **Log the Results**
+   Capture the stdout/stderr from these commands. Identify any warnings or hard failures.
+
+4. **Suggest Action**
+   - **If All Pass**: Congratulate the user.
+   - **If Failures Exist**: Present the errors and ask: "Conditioning failed. Would you like me to trigger /tangram:debug to fix these issues?"
+   **STOP**: Wait for user response.
+
+**Output On Success**
+
+> ## Conditioning Complete
+> 
+> **Checks Run:** [Lint, Types, Tests]
+> **Results:** [Pass / X Errors Found]
+> 
+> **Log:**
+> - Linting: Passed
+> - Type Check: Passed
+> - Tests: Passed X / Failed Y
+> 
+> **Status:** Stable / Requires Debugging
+
+**Guardrails**
+- **Non-Destructive**: Do not attempt to auto-fix the code during conditioning. Only report. Defer to /tangram:debug for actual repairs.

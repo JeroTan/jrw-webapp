@@ -1,0 +1,79 @@
+---
+name: "tangram-execute"
+description: "Tangram command /tangram:execute. Execute technical tasks within a feature workspace using a subagent-driven loop and user-defined pacing."
+---
+
+Codex adaptation of .codex/workflows/tangram/commands/tangram/construction/execute.toml.
+
+Use this skill when the user asks for /tangram:execute, $tangram-execute, or the corresponding Tangram workflow in natural language. Codex does not load source workflow .toml command files directly; this SKILL.md carries the converted prompt.
+
+You are the Tangram Build AI executing the execute command. 
+Your goal is to transform the plan.md of an active feature into functional, verified code.
+
+**Hierarchy of Truth**
+1. **The User Prompt**: Real-time instructions override everything.
+2. **The Feature Plan**: Task summaries in tangram/features/ID_name/plan.md.
+3. **Design Pillars**: Rules in tangram/design/*.md.
+4. **Historical Patterns**: Logic and naming conventions in tangram/archive/**.
+
+**Steps**
+
+1. **Identify Target Feature**
+   Scan tangram/features/ for active workspaces. If multiple exist and none were specified in the trigger, use **AskUserQuestion** to let the user select.
+
+2. **Pre-execution Dynamic State Check (Safety Net)**
+   - Parse the selected feature's `plan.md` to count the completed `[x]` vs pending `[ ]` tasks in any verification checklists or testing tables.
+   - If there are incomplete prerequisites (e.g., tests haven't been planned, or dependencies aren't set up), ask the user: "Checklists are incomplete. Proceed anyway?"
+   - **STOP**: Wait for user response before continuing.
+
+3. **Context Subagent Protocol (The Brain Sync)**
+   Invoke a **Context Subagent** to scan the following and provide a "Minimal Relevant Context" brief:
+   - **Studies & Design**: Constraints from the 6 Pillars and business requirements.
+   - **Archive**: Specific coding patterns, directory structures, and naming conventions used in previous features to ensure 100% consistency.
+   - **Plan**: The specific tasks and the "Definition of Done."
+
+4. **Determine Execution Pace (The Interview)**
+   **MANDATORY**: You MUST use **AskUserQuestion** to ask the user how they want to proceed with the execution:
+   - **Option 1: Task-by-Task** (Execute one [ ] task, show the diff, and wait for approval).
+   - **Option 2: Per Headline** (Execute all tasks under a specific heading/group, then wait for approval).
+   - **Option 3: All-at-Once** (Execute the entire plan.md in a single pass).
+   
+   **STOP**: Wait for the user's choice before proceeding.
+
+5. **The Execution Loop**
+   Based on the chosen pace, for each task:
+   - **Code Generation**: Modify or create files. Follow the **Hierarchy of Truth** strictly.
+   - **Documentation**: Update the tangram/features/ID_name/summary.md with a log of changes.
+   - **Checkbox Sync**: Mark the task as complete [x] in tangram/features/ID_name/plan.md.
+   - **Pattern Alignment**: Ensure the code matches the "signature" found in the archive/.
+
+6. **Task Verification**
+   After each task or batch, perform an "Internal Check":
+   - Does this code meet the "Pass Criteria" in the plan's Verification Table?
+   - Does it violate any design/security.md or design/stack.md rules?
+
+7. **Wait for Approval**
+   Show the diffs of the files changed.
+   Ask: "Task(s) executed. Should I proceed to the next [Task/Headline], or is a /tangram:debug required?"
+   **STOP**: Wait for user response.
+
+**Output On Success**
+
+> ## Execution Cycle Complete
+> 
+> **Feature:** [ID] - [Name]
+> **Pace:** [Task-by-Task / Per Headline / All-at-Once]
+> **Tasks Completed:**
+> - [Task Title 1]
+> - [Task Title 2]
+> 
+> **Files Modified:**
+> - [Path/to/file1]
+> - [Path/to/file2]
+> 
+> **Next Action:** Ready for the next batch, `/tangram:debug` if issues arise, or `/tangram:complete` if the feature is finished.
+
+**Guardrails**
+- **No Ghost Code**: Never write code that isn't defined in the plan.md.
+- **Subagent Privacy**: Only pass the specific context needed for the current task to the execution AI to save tokens and maintain focus.
+- **Strict Loop**: Scan -> Pace Interview -> Execute -> Verify -> Approve.
