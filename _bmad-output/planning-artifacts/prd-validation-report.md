@@ -4,7 +4,6 @@ validationDate: "2026-05-11"
 inputDocuments:
   - "tangram/**/*.md"
   - "docs/**/*.md"
-  - "_bmad-output-from-other-project/**/*.{md,yaml,html}"
   - "package.json"
   - "src/**/*.ts"
 validationStepsCompleted:
@@ -35,7 +34,6 @@ overallStatus: "Pass"
 - PRD: `_bmad-output/planning-artifacts/prd.md`
 - Tangram docs: 66 files from `tangram/**/*.md`
 - Project docs: 2 files from `docs/**/*.md`
-- Reference BMAD output: 16 files from `_bmad-output-from-other-project/**/*.{md,yaml,html}`
 - Package metadata: `package.json`
 - Source files: 53 files from `src/**/*.ts`
 - Additional references: none

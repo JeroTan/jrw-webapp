@@ -20,7 +20,6 @@ stepsCompleted:
 inputDocuments:
   - "tangram/**/*.md"
   - "docs/**/*.md"
-  - "_bmad-output-from-other-project/**/*.{md,yaml,html}"
   - "package.json"
   - "src/**/*.ts"
 documentCounts:
@@ -60,6 +59,8 @@ classification:
 editHistory:
   - date: "2026-05-11"
     changes: "Validation-guided edit: separated product requirements from architecture details, added measurable NFRs, added web/API project-type details, refined FRs, and preserved architecture handoff context."
+  - date: "2026-05-11"
+    changes: "Removed stale deleted-folder reference from PRD input documents; no product requirements changed."
 ---
 
 # Product Requirements Document - jrw-webapp
@@ -196,7 +197,7 @@ MVP complete when:
 - Marketplace or multi-store expansion only if PayMongo Platforms/sub-merchant onboarding is adopted later.
 - Multi-branch JRW operations.
 - White-label store domains.
-- Marketplace seller subscriptions/platform fees only if marketplace model is adopted later.
+- Marketplace operating model only if marketplace model is adopted later.
 - Advanced fulfillment integrations.
 - Admin risk scoring for account approvals.
 

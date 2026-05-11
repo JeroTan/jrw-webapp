@@ -11,8 +11,6 @@ inputDocuments:
   - "raw-query.txt"
   - "raw-prd.txt"
   - "tangram/**/*.md"
-  - "_bmad-output-from-other-project/planning-artifacts/architecture.md"
-  - "_bmad-output-from-other-project/project-context.md"
 workflowType: "architecture"
 workflowStatus: "complete"
 lastStep: 8
@@ -34,12 +32,9 @@ sourcePriority:
     - "raw-query.txt"
     - "raw-prd.txt"
     - "tangram/**/*.md"
-  structureReferenceOnly:
-    - "_bmad-output-from-other-project/planning-artifacts/architecture.md"
-    - "_bmad-output-from-other-project/project-context.md"
 notes:
   - "JRW is single-store ecommerce; brands are catalog/collaboration groups, not stores, sellers, merchants, tenants, payout owners, or PayMongo accounts."
-  - "Other-project BMAD output is useful for organization and architecture style only; do not copy QR restaurant domain roles, routes, order states, subscriptions, ads, tenant rules, or live restaurant behavior into JRW."
+  - "Do not add obsolete domain roles, routes, order states, tenancy rules, or operational behavior unless current PRD explicitly requires them."
 ---
 
 # Architecture Decision Document
@@ -94,7 +89,7 @@ Brownfield constraints:
 - Authorization middleware and protected route guards are not complete.
 - Durable Object inventory safety is scaffolded only.
 - Storefront/admin UI is not implemented.
-- `src/server/app.ts` contains QR Resto copy text and must be reconciled.
+- `src/server/app.ts` contains outdated scaffold text and must be reconciled.
 - Existing `src/lib/**` and `src/utils/**` helpers must be inspected and reused when fit.
 
 ### Cross-Cutting Concerns Identified
@@ -178,7 +173,7 @@ Starter gives Astro pages and integration shell. JRW architecture must define fi
 **Development Experience:**
 Use `npm run dev` for Astro development, `npm run wrangler-dev` for Cloudflare-specific runtime checks, `npm run check` for Astro/TS validation, and `npm run build-test` when meaningful tests exist.
 
-**Note:** First implementation story should reconcile existing brownfield foundation and remove QR Resto drift from `src/server/app.ts`, not scaffold a fresh app over current work.
+**Note:** First implementation story should reconcile existing brownfield foundation and remove outdated route drift from `src/server/app.ts`, not scaffold a fresh app over current work.
 
 ## Core Architectural Decisions
 
@@ -244,7 +239,7 @@ Cloudflare Workers hosts SSR/API. D1, R2, and Durable Objects are first-class bi
 ### Decision Impact Analysis
 
 **Implementation Sequence:**
-1. Reconcile `src/server/app.ts` and `src/pages/api/[...slug].ts`; remove QR Resto route drift.
+1. Reconcile `src/server/app.ts` and `src/pages/api/[...slug].ts`; remove outdated route drift.
 2. Standardize API envelopes, error codes, request IDs, and OpenAPI helpers.
 3. Add schema migrations for roles, verification, approval, brands, status separation, reservations, payments, webhooks, returns/refunds.
 4. Implement auth/session/RBAC/brand guards.
@@ -379,7 +374,7 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 - API JSON leaking snake_case DB rows directly.
 - Money stored as floats in new payment/order tables.
 - Mixing payment and fulfillment into one `status`.
-- Copying QR Resto route names into JRW routes.
+- Introducing outdated route names into JRW routes.
 
 ## Project Structure & Boundaries
 
@@ -638,7 +633,7 @@ None.
 
 - Strengthened `src/server/**` as canonical backend home.
 - Marked `src/api/**` deprecated and migration-only.
-- Kept reference architecture organization while removing QR Resto domain leakage.
+- Confirmed server-first architecture organization while removing outdated domain leakage.
 - Preserved JRW single-store/payment/brand boundaries.
 
 ### Architecture Completeness Checklist
@@ -696,4 +691,4 @@ None.
 - Test auth, RBAC, brand access, inventory, payment webhooks, order transitions, and returns/refunds before marking complete.
 
 **First Implementation Priority:**
-Reconcile `src/server/app.ts` and `src/pages/api/[...slug].ts`, migrate useful `src/api/**` patterns into `src/server/**`, and remove QR Resto route drift.
+Reconcile `src/server/app.ts` and `src/pages/api/[...slug].ts`, migrate useful `src/api/**` patterns into `src/server/**`, and remove outdated route drift.

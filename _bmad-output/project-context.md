@@ -27,8 +27,8 @@ _Critical rules and patterns AI agents must follow when implementing code in thi
 - Current product truth lives in `_bmad-output/planning-artifacts/prd.md`.
 - UX truth lives in `_bmad-output/planning-artifacts/ux-design-specification.md` and `docs/design-by-google-stitch.md`.
 - Raw intent lives in `raw-prd.txt` and `raw-query.txt`.
-- Legacy docs in `docs/jrw-simple-ecommerce-site.md`, `tangram/**`, and `_bmad-output-from-other-project/**` are reference only.
-- `_bmad-output-from-other-project/project-context.md` is useful for architecture style, not product domain. Do not copy QR restaurant roles, routes, order states, ads, subscriptions, or tenant rules into JRW ecommerce.
+- Legacy docs in `docs/jrw-simple-ecommerce-site.md` and `tangram/**` are reference only.
+- Do not add obsolete roles, routes, order states, or tenancy rules unless current PRD explicitly requires them.
 - Actual code beats old docs when they conflict. Update docs after implementation changes instead of forcing code to match stale artifacts.
 
 ## Product Boundaries
@@ -123,8 +123,8 @@ Tooling:
 - Repositories/adapters encapsulate D1, Drizzle, Durable Objects, R2, PayMongo, Resend, Google OAuth, and other external effects.
 - `src/pages/api/[...slug].ts` is current Astro-to-Elysia bridge. Keep it thin.
 - `src/api/container/**` composes domain route containers. Avoid "God files"; add domain containers instead.
-- `src/server/app.ts` contains copied QR Resto route names and must not be treated as authoritative JRW API structure until reconciled.
-- New endpoints must not copy QR Resto route names like restaurant, menu, seating QR, subscriptions, or ads unless JRW PRD explicitly adds equivalent ecommerce needs.
+- `src/server/app.ts` contains outdated route names and must not be treated as authoritative JRW API structure until reconciled.
+- New endpoints must follow current JRW PRD and architecture, not legacy scaffold naming.
 - Elysia app uses `adapter: CloudflareAdapter`, `aot: false`, and `normalize: true`; keep these unless architecture updates Workers compatibility.
 - Astro-scoped values such as URL and cookies must be injected per request with scoped `derive`, not stored in global mutable state.
 
@@ -242,7 +242,7 @@ Tooling:
 - Durable Object inventory locking is scaffolded only.
 - Storefront and admin UI are not implemented yet.
 - Existing API response shapes are inconsistent; standardize before marking endpoints complete.
-- `src/server/app.ts` has QR Resto copy text and routes. Reconcile or remove during API architecture cleanup.
+- `src/server/app.ts` has outdated scaffold text and routes. Reconcile or remove during API architecture cleanup.
 - Old docs mention automated PayMongo refunds and apparel-only scope; current PRD prefers lifestyle products and manual refund/return recording for MVP.
 
 ## Usage Guidelines
@@ -251,7 +251,7 @@ For AI agents:
 
 - Read this file before implementing code.
 - Follow all rules unless user explicitly updates architecture.
-- Prefer current PRD over older Tangram or other-project artifacts.
+- Prefer current PRD over older Tangram artifacts.
 - When uncertain, choose stronger domain isolation and safer payment/inventory behavior.
 - Update this file when stack, structure, or critical implementation rules change.
 

@@ -8,7 +8,6 @@ inputDocuments:
   - "_bmad-output/planning-artifacts/prd-validation-report.md"
   - "docs/design-by-google-stitch.md"
   - "docs/jrw-simple-ecommerce-site.md"
-  - "_bmad-output-from-other-project/planning-artifacts/ux-design-specification.md"
 projectName: "jrw-webapp"
 userName: "MR. JRW"
 createdDate: "2026-05-11"
