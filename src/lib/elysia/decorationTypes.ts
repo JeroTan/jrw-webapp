@@ -1,10 +1,18 @@
 import type { AstroCookies } from "astro";
 import Elysia from "elysia";
 
-export const typedUrlData = new Elysia().decorate({
-  x: undefined,
-} as unknown as { urlData: URL });
+export type AstroBridgeDecorations = {
+  urlData?: URL;
+  astroCookies?: AstroCookies;
+  runtimeEnv?: Partial<Env> & Record<string, unknown>;
+};
 
-export const typedAstroCookies = new Elysia().decorate({
-  x: undefined,
-} as unknown as { astroCookies: AstroCookies });
+export const typedUrlData = new Elysia({ name: "typed-url-data" }).decorate(
+  "urlData",
+  undefined as URL | undefined,
+);
+
+export const typedAstroCookies = new Elysia({ name: "typed-astro-cookies" }).decorate(
+  "astroCookies",
+  undefined as AstroCookies | undefined,
+);

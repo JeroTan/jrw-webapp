@@ -14,7 +14,7 @@ export function zodName({
     .max(maxLength, {
       message: `${fieldName} must be at most ${maxLength} characters long.`,
     })
-    .regex(/^[\p{L}\p{M}'ñÑáéíóúÁÉÍÓÚ\s\-\.,]+$/gu, {
+    .regex(/^[\p{L}\p{M}\s'".,-]+$/gu, {
       message: `${fieldName} should only contain letters, spaces, and the characters ., ' \"`,
     });
 }
@@ -31,7 +31,7 @@ export function zodNameWithNumbers({
     .max(maxLength, {
       message: `${fieldName} must be at most ${maxLength} characters long.`,
     })
-    .regex(/^[\p{L}\p{M}0-9'ñÑáéíóúÁÉÍÓÚ\s\-\.,]+$/gu, {
+    .regex(/^[\p{L}\p{M}0-9\s'".,-]+$/gu, {
       message: `${fieldName} should only contain letters, numbers, spaces, and the characters ., ' \"`,
     });
 }
@@ -49,7 +49,7 @@ export function zodTextEssentials({
     .max(maxLength, {
       message: `${fieldName} must be at most ${maxLength} characters long.`,
     })
-    .regex(/^[\p{L}\p{M}'ñÑáéíóúÁÉÍÓÚ\s\.,0-9 !"&'()+,\-./:;=\\_]+$/u, {
+    .regex(/^[\p{L}\p{M}\s.,0-9 !"&'()+,\-./:;=\\_]+$/u, {
       message: `${fieldName} should only contain letters, numbers, spaces and some essential characters.`,
     });
 }
@@ -130,10 +130,7 @@ export function zodAddress({
     });
 }
 
-export function zodRequired<T extends z.ZodType>(
-  zodSchema: T,
-  fieldName = "Field"
-) {
+export function zodRequired<T extends z.ZodType>(zodSchema: T, fieldName = "Field") {
   return zodSchema
     .transform((val) => (val === "" ? undefined : val))
     .refine((val) => val !== undefined && val !== null, {
@@ -148,9 +145,7 @@ export function zod0To9({ fieldName = "Field" }: { fieldName?: string } = {}) {
     .max(9, { message: `${fieldName} must be at most 9.` });
 }
 
-export function zodRarity({
-  fieldName = "Rarity",
-}: { fieldName?: string } = {}) {
+export function zodRarity({ fieldName = "Rarity" }: { fieldName?: string } = {}) {
   return z.coerce
     .number({ message: `${fieldName} must be a number from 1 to 5.` })
     .min(1, { message: `${fieldName} must be at least 1.` })
@@ -161,11 +156,9 @@ export function zodFile({
   fieldName = "File",
   fileTypes = ["image/jpeg"],
 }: { fieldName?: string; fileTypes?: string[] } = {}) {
-  return z
-    .file()
-    .refine((file) => fileTypes.some((type) => fileType(file, type)), {
-      error: `${fieldName} must be a ${fileTypes.join(", ")}.`,
-    });
+  return z.file().refine((file) => fileTypes.some((type) => fileType(file, type)), {
+    error: `${fieldName} must be a ${fileTypes.join(", ")}.`,
+  });
 }
 
 export function zodImage({ fieldName = "Image" }: { fieldName?: string } = {}) {
@@ -184,35 +177,15 @@ export function zodArrayMinMax<T extends z.ZodTypeAny>({
   maxLength?: number;
   fieldName?: string;
 }) {
-  const zodData = z.array(zodSchema);
+  let zodData = z.array(zodSchema);
   if (minLength !== undefined)
-    zodData.min(minLength, {
+    zodData = zodData.min(minLength, {
       message: `${fieldName} must have at least ${minLength} items.`,
     });
 
   if (maxLength !== undefined)
-    zodData.max(maxLength, {
+    zodData = zodData.max(maxLength, {
       message: `${fieldName} must have at most ${maxLength} items.`,
     });
   return zodData;
-}
-
-// API Wrappers (Zod)
-export function zodApiResponse<T extends z.ZodTypeAny>(dataSchema: T) {
-  return z.object({
-    data: dataSchema,
-    message: z.string(),
-  });
-}
-
-export function zodPaginatedResponse<T extends z.ZodTypeAny>(dataSchema: T) {
-  return z.object({
-    data: z.array(dataSchema),
-    meta: z.object({
-      page: z.number(),
-      total: z.number(),
-      limit: z.number(),
-    }),
-    message: z.string(),
-  });
 }

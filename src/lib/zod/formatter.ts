@@ -1,4 +1,4 @@
-import type { z, ZodError } from "zod";
+import type { ZodError } from "zod";
 
 export type FORMATTED_ZOD_ERROR = Record<string, string>;
 export type ZOD_ERROR_ISSUE = {
