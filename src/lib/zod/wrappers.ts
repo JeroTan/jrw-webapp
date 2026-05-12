@@ -189,3 +189,23 @@ export function zodArrayMinMax<T extends z.ZodTypeAny>({
     });
   return zodData;
 }
+
+export function zodApiResponse<T extends z.ZodTypeAny>(zodSchema: T) {
+  return z.object({
+    data: zodSchema,
+    meta: z.record(z.string(), z.unknown()).optional(),
+  });
+}
+
+export function zodPaginatedResponse<T extends z.ZodTypeAny>(zodSchema: T) {
+  return z.object({
+    data: z.array(zodSchema),
+    meta: z
+      .object({
+        page: z.number(),
+        limit: z.number(),
+        total: z.number(),
+      })
+      .catchall(z.unknown()),
+  });
+}

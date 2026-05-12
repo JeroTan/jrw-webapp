@@ -7,7 +7,7 @@ import {
   zodArrayMinMax,
   zodApiResponse,
 } from "@/lib/zod/wrappers";
-import { tboxApiResponse, tboxPaginationQuery, tboxSearchQuery } from "@/lib/typebox/wrappers";
+import { tboxApiResponse, tboxPaginationQuery, tboxSearchQuery } from "@/lib/typebox/api";
 
 // --- BASE SCHEMAS (ZOD) ---
 export const zodProduct = z.object({

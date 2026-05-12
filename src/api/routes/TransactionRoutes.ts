@@ -1,5 +1,5 @@
 import type { TransactionController } from "@/api/controller/TransactionController";
-import { tboxApiResponse, tboxPaginatedResponse } from "@/lib/typebox/wrappers";
+import { tboxLegacyApiResponse, tboxLegacyPaginatedResponse } from "@/lib/typebox/api";
 import {
   tboxAuthCheckoutBody,
   tboxGuestCheckoutBody,
@@ -28,7 +28,7 @@ export const TransactionRoutes =
                 tags: ["Transactions"],
               },
               response: {
-                200: tboxApiResponse(tboxOrderDetails),
+                200: tboxLegacyApiResponse(tboxOrderDetails),
                 500: t.String(),
               },
             }
@@ -45,7 +45,7 @@ export const TransactionRoutes =
                 tags: ["Transactions"],
               },
               response: {
-                200: tboxApiResponse(tboxOrderDetails),
+                200: tboxLegacyApiResponse(tboxOrderDetails),
                 500: t.String(),
               },
             }
@@ -62,7 +62,7 @@ export const TransactionRoutes =
               tags: ["Transactions"],
             },
             response: {
-              200: tboxPaginatedResponse(tboxOrder),
+              200: tboxLegacyPaginatedResponse(tboxOrder),
               500: t.String(),
             },
           })
@@ -75,7 +75,7 @@ export const TransactionRoutes =
               tags: ["Transactions"],
             },
             response: {
-              200: tboxApiResponse(tboxOrderDetails),
+              200: tboxLegacyApiResponse(tboxOrderDetails),
               500: t.String(),
             },
           })
@@ -95,7 +95,7 @@ export const TransactionRoutes =
                   tags: ["Admin Transactions"],
                 },
                 response: {
-                  200: tboxPaginatedResponse(tboxOrder),
+                  200: tboxLegacyPaginatedResponse(tboxOrder),
                   500: t.String(),
                 },
               }
@@ -113,7 +113,7 @@ export const TransactionRoutes =
                   tags: ["Admin Transactions"],
                 },
                 response: {
-                  200: tboxApiResponse(tboxOrderDetails),
+                  200: tboxLegacyApiResponse(tboxOrderDetails),
                   500: t.String(),
                 },
               }
@@ -132,7 +132,7 @@ export const TransactionRoutes =
               tags: ["Webhooks"],
             },
             response: {
-              200: tboxApiResponse(t.Object({ status: t.String() })),
+              200: tboxLegacyApiResponse(t.Object({ status: t.String() })),
               500: t.String(),
             },
           }

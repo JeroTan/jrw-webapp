@@ -1,6 +1,6 @@
 # Story 1.1: Brownfield Server Migration and Minimal Reformat
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -23,49 +23,49 @@ so that future auth, catalog, checkout, and admin stories build on stable archit
 
 ## Tasks / Subtasks
 
-- [ ] Inventory current API foundation and classify migration candidates. (AC: 1, 3, 4)
-  - [ ] Read `src/server/app.ts`, `src/pages/api/[...slug].ts`, `src/api/container/**`, `src/api/routes/**`, `src/api/controller/**`, `src/domain/services/**`, `src/domain/validation/**`, `src/lib/api/response.ts`, `src/lib/typebox/api.ts`, `src/lib/elysia/**`.
-  - [ ] Capture current broken/drifted items in migration notes before changing behavior.
-  - [ ] Identify useful patterns to preserve: Elysia container composition, controller injection, TypeBox route schemas, OpenAPI `detail`, Astro scoped context, CORS plugin shape.
+- [x] Inventory current API foundation and classify migration candidates. (AC: 1, 3, 4)
+  - [x] Read `src/server/app.ts`, `src/pages/api/[...slug].ts`, `src/api/container/**`, `src/api/routes/**`, `src/api/controller/**`, `src/domain/services/**`, `src/domain/validation/**`, `src/lib/api/response.ts`, `src/lib/typebox/api.ts`, `src/lib/elysia/**`.
+  - [x] Capture current broken/drifted items in migration notes before changing behavior.
+  - [x] Identify useful patterns to preserve: Elysia container composition, controller injection, TypeBox route schemas, OpenAPI `detail`, Astro scoped context, CORS plugin shape.
 
-- [ ] Rebuild canonical server ownership under `src/server/**`. (AC: 1, 2, 5)
-  - [ ] Keep `src/server/app.ts` as sole Elysia app composer.
-  - [ ] Create/keep these tracked folders with real files or `_readme.md`: `src/server/context`, `src/server/routes`, `src/server/controllers`, `src/server/services`, `src/server/repositories`, `src/server/middleware`, `src/server/dto`, `src/server/openapi`.
-  - [ ] Document each folder responsibility in `src/server/**` readmes or barrel files so later stories know where backend work belongs.
-  - [ ] Ensure `src/server/app.ts` uses JRW names only. Remove QR Resto Hub title, restaurant/menu/seating/subscriptions route imports, and any other unrelated scaffold drift.
+- [x] Rebuild canonical server ownership under `src/server/**`. (AC: 1, 2, 5)
+  - [x] Keep `src/server/app.ts` as sole Elysia app composer.
+  - [x] Create/keep these tracked folders with real files or `_readme.md`: `src/server/context`, `src/server/routes`, `src/server/controllers`, `src/server/services`, `src/server/repositories`, `src/server/middleware`, `src/server/dto`, `src/server/openapi`.
+  - [x] Document each folder responsibility in `src/server/**` readmes or barrel files so later stories know where backend work belongs.
+  - [x] Ensure `src/server/app.ts` uses JRW names only. Remove QR Resto Hub title, restaurant/menu/seating/subscriptions route imports, and any other unrelated scaffold drift.
 
-- [ ] Make Astro API catch-all a thin bridge. (AC: 1, 7)
-  - [ ] Update `src/pages/api/[...slug].ts` so it imports `createApp()` from `@/server/app`.
-  - [ ] Import `env` from `cloudflare:workers` in the bridge only, then pass it as `runtimeEnv` through the existing Astro bridge context.
-  - [ ] Create one module-scoped app instance with `const app = createApp();` for reuse across requests.
-  - [ ] Bind per-request Astro data using existing `bindAstroBridgeDecorations(ctx.request, { urlData: ctx.url, astroCookies: ctx.cookies, runtimeEnv: env as Partial<Env> & Record<string, unknown> })`.
-  - [ ] Delegate to `app.handle(ctx.request)`.
-  - [ ] Clear request binding in `finally` with `clearAstroBridgeDecorations(ctx.request)`.
-  - [ ] Keep method exports only. Do not compose OpenAPI, CORS, or domain containers in this bridge.
+- [x] Make Astro API catch-all a thin bridge. (AC: 1, 7)
+  - [x] Update `src/pages/api/[...slug].ts` so it imports `createApp()` from `@/server/app`.
+  - [x] Import `env` from `cloudflare:workers` in the bridge only, then pass it as `runtimeEnv` through the existing Astro bridge context.
+  - [x] Create one module-scoped app instance with `const app = createApp();` for reuse across requests.
+  - [x] Bind per-request Astro data using existing `bindAstroBridgeDecorations(ctx.request, { urlData: ctx.url, astroCookies: ctx.cookies, runtimeEnv: env as Partial<Env> & Record<string, unknown> })`.
+  - [x] Delegate to `app.handle(ctx.request)`.
+  - [x] Clear request binding in `finally` with `clearAstroBridgeDecorations(ctx.request)`.
+  - [x] Keep method exports only. Do not compose OpenAPI, CORS, or domain containers in this bridge.
 
-- [ ] Move or wrap brownfield route/container patterns into `src/server/**` without claiming completed endpoint behavior. (AC: 3, 4, 5)
-  - [ ] Migrate useful container pattern from `src/api/container/ApiContainer.ts` to `src/server/routes` or `src/server/openapi` as appropriate.
-  - [ ] Prefer JRW route groups named from current PRD/architecture: auth, brands, products, checkout, payments/webhooks, orders, returns-refunds, assets, audit.
-  - [ ] Mark moved legacy/mock endpoints as migration-only or remove them from canonical app until they satisfy current contracts.
-  - [ ] Do not add new backend code under `src/api/**`.
+- [x] Move or wrap brownfield route/container patterns into `src/server/**` without claiming completed endpoint behavior. (AC: 3, 4, 5)
+  - [x] Migrate useful container pattern from `src/api/container/ApiContainer.ts` to `src/server/routes` or `src/server/openapi` as appropriate.
+  - [x] Prefer JRW route groups named from current PRD/architecture: auth, brands, products, checkout, payments/webhooks, orders, returns-refunds, assets, audit.
+  - [x] Mark moved legacy/mock endpoints as migration-only or remove them from canonical app until they satisfy current contracts.
+  - [x] Do not add new backend code under `src/api/**`.
 
-- [ ] Preserve and reuse existing helpers; fix wrong imports during migration. (AC: 3, 5, 7)
-  - [ ] Use `src/lib/api/response.ts` for `apiSuccess`, `apiError`, and `resultToApiResponse`.
-  - [ ] Use `src/lib/typebox/api.ts` for `tboxApiResponse`, `tboxApiSuccess`, `tboxApiError`, and `openApiErrorResponses`.
-  - [ ] Do not import `@/lib/typebox/wrappers`; that file does not exist.
-  - [ ] Treat current controllers returning `Response.json({ data, message, code })` as legacy/mock behavior, not accepted completed endpoint shape.
+- [x] Preserve and reuse existing helpers; fix wrong imports during migration. (AC: 3, 5, 7)
+  - [x] Use `src/lib/api/response.ts` for `apiSuccess`, `apiError`, and `resultToApiResponse`.
+  - [x] Use `src/lib/typebox/api.ts` for `tboxApiResponse`, `tboxApiSuccess`, `tboxApiError`, and `openApiErrorResponses`.
+  - [x] Do not import `@/lib/typebox/wrappers`; that file does not exist.
+  - [x] Treat current controllers returning `Response.json({ data, message, code })` as legacy/mock behavior, not accepted completed endpoint shape.
 
-- [ ] Write migration notes. (AC: 4, 8)
-  - [ ] Create `_bmad-output/implementation-artifacts/1-1-legacy-api-migration-notes.md`.
-  - [ ] Include table: source file, action taken, canonical destination, status (`moved`, `wrapped`, `frozen`, `remove-later`), reason.
-  - [ ] Include freeze rule: future stories must not add new code under `src/api/**`.
-  - [ ] List remaining `src/api/**` removal candidates and blockers.
+- [x] Write migration notes. (AC: 4, 8)
+  - [x] Create `_bmad-output/implementation-artifacts/1-1-legacy-api-migration-notes.md`.
+  - [x] Include table: source file, action taken, canonical destination, status (`moved`, `wrapped`, `frozen`, `remove-later`), reason.
+  - [x] Include freeze rule: future stories must not add new code under `src/api/**`.
+  - [x] List remaining `src/api/**` removal candidates and blockers.
 
-- [ ] Validate with minimal churn. (AC: 6, 7, 8)
-  - [ ] Reformat only touched files.
-  - [ ] Run `npm run check`.
-  - [ ] If `npm run check` fails, document exact command output blocker in dev notes and final summary.
-  - [ ] Output changed file list and `src/api/**` freeze/removal candidates.
+- [x] Validate with minimal churn. (AC: 6, 7, 8)
+  - [x] Reformat only touched files.
+  - [x] Run `npm run check`.
+  - [x] If `npm run check` fails, document exact command output blocker in dev notes and final summary.
+  - [x] Output changed file list and `src/api/**` freeze/removal candidates.
 
 ## Dev Notes
 
@@ -195,18 +195,65 @@ const handle: APIRoute = async (ctx) => {
 - `src/lib/api/response.ts`
 - `src/lib/typebox/api.ts`
 
+## Change Log
+
+- 2026-05-12: Implemented canonical `src/server/**` API composer, thin Astro bridge, server folder ownership docs, migration notes, legacy helper cleanup, and validation tests.
+
 ## Dev Agent Record
 
 ### Agent Model Used
 
-TBD by dev-story agent.
+GPT-5
 
 ### Debug Log References
+
+- `npx vitest run src/server/app.test.ts src/lib/elysia/astroBridgeContext.test.ts` failed before implementation after alias config with missing `@/server/routes`; confirmed red state.
+- `npx vitest run src/server/app.test.ts src/lib/elysia/astroBridgeContext.test.ts` passed after implementation.
+- `npx tsc --noEmit --pretty false` passed.
+- `npm run check` passed.
+- `npx vitest run` passed.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
+- Replaced stale QR Resto `src/server/app.ts` composer with JRW Elysia composer using OpenAPI, CORS middleware, Astro bridge decorations, and canonical `serverRoutes`.
+- Converted Astro API catch-all to thin bridge with module-scoped `app`, `runtimeEnv` passthrough, and request cleanup in `finally`.
+- Added tracked `src/server/**` ownership folders and readmes for future Route -> Controller -> Service -> Domain/Repository work.
+- Preserved brownfield route/container patterns as migration-only while removing canonical dependency on `src/api/**`.
+- Moved missing TypeBox response imports to `src/lib/typebox/api.ts`; added legacy response schema helpers so frozen `src/api/**` still type-checks without claiming completion.
+- Added migration notes with moved/wrapped/frozen/remove-later status and `src/api/**` freeze rule.
+- Added focused Vitest coverage for canonical OpenAPI metadata and Astro bridge context lifecycle.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-1-brownfield-server-migration-and-minimal-reformat.md`
+- `_bmad-output/implementation-artifacts/1-1-legacy-api-migration-notes.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/api/controller/SampleController.ts`
+- `src/api/routes/AuditRoutes.ts`
+- `src/api/routes/CatalogRoutes.ts`
+- `src/api/routes/IdentityRoutes.ts`
+- `src/api/routes/SampleRoutes.ts`
+- `src/api/routes/TransactionRoutes.ts`
+- `src/domain/validation/audit.ts`
+- `src/domain/validation/catalog.ts`
+- `src/domain/validation/transactions.ts`
+- `src/lib/elysia/astroBridgeContext.test.ts`
+- `src/lib/typebox/api.ts`
+- `src/lib/zod/wrappers.ts`
+- `src/pages/api/[...slug].ts`
+- `src/server/app.test.ts`
+- `src/server/app.ts`
+- `src/server/context/_readme.md`
+- `src/server/controllers/_readme.md`
+- `src/server/dto/_readme.md`
+- `src/server/middleware/_readme.md`
+- `src/server/middleware/cors.ts`
+- `src/server/openapi/_readme.md`
+- `src/server/openapi/documentation.ts`
+- `src/server/repositories/_readme.md`
+- `src/server/routes/_readme.md`
+- `src/server/routes/index.ts`
+- `src/server/services/_readme.md`
+- `src/utils/general/error.ts`
+- `vitest.config.ts`

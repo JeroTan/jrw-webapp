@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { t } from "elysia";
 import { zodPaginatedResponse } from "@/lib/zod/wrappers";
-import { tboxPaginatedResponse } from "@/lib/typebox/wrappers";
+import { tboxPaginatedResponse } from "@/lib/typebox/api";
 
 // --- BASE SCHEMAS (ZOD) ---
 export const zodAuditLog = z.object({

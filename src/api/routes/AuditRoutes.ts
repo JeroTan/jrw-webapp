@@ -1,5 +1,5 @@
 import type { AuditController } from "@/api/controller/AuditController";
-import { tboxPaginatedResponse } from "@/lib/typebox/wrappers";
+import { tboxLegacyPaginatedResponse } from "@/lib/typebox/api";
 import { tboxAuditLog } from "@/domain/validation/audit";
 import type Elysia from "elysia";
 
@@ -12,6 +12,6 @@ export const AuditRoutes =
           description: "Retrieves a paginated list of system-wide audit logs. Requires active owner or admin authorization token. Useful for monitoring administrator actions and system changes.", 
           tags: ["Audit"] 
         },
-        response: { 200: tboxPaginatedResponse(tboxAuditLog) },
+        response: { 200: tboxLegacyPaginatedResponse(tboxAuditLog) },
       })
     );

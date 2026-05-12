@@ -1,5 +1,5 @@
 import type { IdentityController } from "@/api/controller/IdentityController";
-import { tboxApiResponse } from "@/lib/typebox/wrappers";
+import { tboxLegacyApiResponse } from "@/lib/typebox/api";
 import {
   tboxLoginBody,
   tboxRegistrationBody,
@@ -29,7 +29,7 @@ export const IdentityRoutes =
                 tags: ["Identity"],
               },
               response: {
-                200: tboxApiResponse(t.Object({ token: t.String() })),
+                200: tboxLegacyApiResponse(t.Object({ token: t.String() })),
                 500: t.String(),
               },
             }
@@ -43,7 +43,7 @@ export const IdentityRoutes =
               tags: ["Identity"],
             },
             response: {
-              200: tboxApiResponse(
+              200: tboxLegacyApiResponse(
                 t.Object({
                   id: t.String(),
                   email: t.String({ format: "email" }),
@@ -64,7 +64,7 @@ export const IdentityRoutes =
                 tags: ["Identity"],
               },
               response: {
-                200: tboxApiResponse(t.Object({ success: t.Boolean() })),
+                200: tboxLegacyApiResponse(t.Object({ success: t.Boolean() })),
                 500: t.String(),
               },
             }
@@ -81,7 +81,7 @@ export const IdentityRoutes =
                 tags: ["Identity"],
               },
               response: {
-                200: tboxApiResponse(t.Object({ success: t.Boolean() })),
+                200: tboxLegacyApiResponse(t.Object({ success: t.Boolean() })),
                 500: t.String(),
               },
             }
@@ -97,7 +97,7 @@ export const IdentityRoutes =
               tags: ["Identity"],
             },
             response: {
-              200: tboxApiResponse(tboxCustomerResponse),
+              200: tboxLegacyApiResponse(tboxCustomerResponse),
               500: t.String(),
             },
           })
@@ -110,7 +110,7 @@ export const IdentityRoutes =
               tags: ["Identity"],
             },
             response: {
-              200: tboxApiResponse(tboxCustomerResponse),
+              200: tboxLegacyApiResponse(tboxCustomerResponse),
               500: t.String(),
             },
           })
@@ -126,7 +126,7 @@ export const IdentityRoutes =
                 tags: ["Identity"],
               },
               response: {
-                200: tboxApiResponse(t.Object({ success: t.Boolean() })),
+                200: tboxLegacyApiResponse(t.Object({ success: t.Boolean() })),
                 500: t.String(),
               },
             }
@@ -150,10 +150,10 @@ export const IdentityRoutes =
                     tags: ["Admin Identity"],
                   },
                   response: {
-                    200: tboxApiResponse(
+                    200: tboxLegacyApiResponse(
                       t.Object({ token: t.Union([t.String(), t.Null()]) })
                     ),
-                    401: tboxApiResponse(t.Null()),
+                    401: tboxLegacyApiResponse(t.Null()),
                     500: t.String(),
                   },
                 }
@@ -170,7 +170,7 @@ export const IdentityRoutes =
                     tags: ["Admin Identity"],
                   },
                   response: {
-                    200: tboxApiResponse(t.Object({ success: t.Boolean() })),
+                    200: tboxLegacyApiResponse(t.Object({ success: t.Boolean() })),
                     500: t.String(),
                   },
                 }
@@ -187,7 +187,7 @@ export const IdentityRoutes =
                     tags: ["Admin Identity"],
                   },
                   response: {
-                    200: tboxApiResponse(t.Object({ success: t.Boolean() })),
+                    200: tboxLegacyApiResponse(t.Object({ success: t.Boolean() })),
                     500: t.String(),
                   },
                 }
@@ -206,7 +206,7 @@ export const IdentityRoutes =
                   tags: ["Admin Identity"],
                 },
                 response: {
-                  200: tboxApiResponse(t.Object({ success: t.Boolean() })),
+                  200: tboxLegacyApiResponse(t.Object({ success: t.Boolean() })),
                   500: t.String(),
                 },
               }

@@ -49,3 +49,5 @@ export class GeneralError<T = unknown> {
     public message: string = DEFAULT_ERROR_MESSAGE[code],
   ) {}
 }
+
+export class LogicError<T = unknown> extends GeneralError<T> {}

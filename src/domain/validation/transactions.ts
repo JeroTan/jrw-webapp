@@ -15,7 +15,7 @@ import {
   zodShippingType,
   tboxShippingType,
 } from "./shared";
-import { tboxApiResponse, tboxPaginationQuery, tboxSearchQuery } from "@/lib/typebox/wrappers";
+import { tboxApiResponse, tboxPaginationQuery, tboxSearchQuery } from "@/lib/typebox/api";
 import { zodCustomer, tboxCustomerResponse } from "./identity";
 
 // --- BASE SCHEMAS (ZOD) ---

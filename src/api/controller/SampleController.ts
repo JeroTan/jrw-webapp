@@ -8,12 +8,12 @@ export class SampleController {
     astroCookies,
     urlData,
   }: {
-    astroCookies: AstroCookies;
-    urlData: URL;
+    astroCookies?: AstroCookies;
+    urlData?: URL;
   }) {
     return Response.json({
       data: "Sample response from controller",
-      message: `${this.sampleService.doSomething()} You accessed the URL: ${urlData.pathname} and does you have a cookie? ${astroCookies.has("sample_cookie") ? "Yes!" : "No!"}`,
+      message: `${this.sampleService.doSomething()} You accessed the URL: ${urlData?.pathname ?? "unknown"} and does you have a cookie? ${astroCookies?.has("sample_cookie") ? "Yes!" : "No!"}`,
       code: "SUCCESS" as const,
     });
   }

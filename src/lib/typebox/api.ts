@@ -3,6 +3,15 @@ import type { TSchema } from "@sinclair/typebox";
 export const tboxErrorCode = t.String();
 export const tboxSuccessCode = t.String();
 
+export const tboxPaginationQuery = t.Object({
+  page: t.Optional(t.Numeric({ minimum: 1, default: 1 })),
+  limit: t.Optional(t.Numeric({ minimum: 1, maximum: 100, default: 20 })),
+});
+
+export const tboxSearchQuery = t.Object({
+  search: t.Optional(t.String({ minLength: 1 })),
+});
+
 export const tboxApiMeta = t.Object(
   {
     code: t.Optional(tboxSuccessCode),
@@ -35,6 +44,50 @@ export function tboxApiResponse<
   TDetailsSchema extends TSchema = ReturnType<typeof t.Unknown>,
 >(dataSchema: TDataSchema, detailsSchema?: TDetailsSchema) {
   return t.Union([tboxApiSuccess(dataSchema), tboxApiError(detailsSchema)]);
+}
+
+export function tboxPaginatedResponse<TItemSchema extends TSchema>(itemSchema: TItemSchema) {
+  return t.Union([
+    t.Object({
+      data: t.Array(itemSchema),
+      meta: t.Intersect([
+        tboxApiMeta,
+        t.Object({
+          page: t.Number(),
+          limit: t.Number(),
+          total: t.Number(),
+        }),
+      ]),
+    }),
+    tboxApiError(),
+  ]);
+}
+
+export function tboxLegacyApiResponse<TDataSchema extends TSchema>(dataSchema: TDataSchema) {
+  return t.Object({
+    data: dataSchema,
+    message: t.Optional(t.Unknown()),
+    code: t.Optional(t.String()),
+    meta: t.Optional(tboxApiMeta),
+  });
+}
+
+export function tboxLegacyPaginatedResponse<TItemSchema extends TSchema>(
+  itemSchema: TItemSchema,
+) {
+  return t.Object({
+    data: t.Array(itemSchema),
+    meta: t.Object(
+      {
+        page: t.Number(),
+        limit: t.Number(),
+        total: t.Number(),
+      },
+      { additionalProperties: true },
+    ),
+    message: t.Optional(t.Unknown()),
+    code: t.Optional(t.String()),
+  });
 }
 
 export type OpenApiErrorStatus = 400 | 401 | 403 | 404 | 409 | 413 | 415 | 429 | 500;

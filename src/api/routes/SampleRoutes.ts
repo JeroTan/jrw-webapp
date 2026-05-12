@@ -1,6 +1,6 @@
 import type { SampleController } from "@/api/controller/SampleController";
 import { typedAstroCookies, typedUrlData } from "@/lib/elysia/decorationTypes";
-import { tboxApiResponse } from "@/lib/typebox/wrappers";
+import { tboxLegacyApiResponse } from "@/lib/typebox/api";
 import type Elysia from "elysia";
 import { t } from "elysia";
 
@@ -27,7 +27,7 @@ export const SampleRoutes =
                 tags: ["Sample"],
               },
               response: {
-                200: tboxApiResponse(t.String()),
+                200: tboxLegacyApiResponse(t.String()),
                 500: t.String(),
               },
             }
@@ -41,7 +41,7 @@ export const SampleRoutes =
               tags: ["Sample"],
             },
             response: {
-              200: tboxApiResponse(t.String()),
+              200: tboxLegacyApiResponse(t.String()),
               500: t.String(),
             },
           })
@@ -61,7 +61,7 @@ export const SampleRoutes =
                 tags: ["Sample"],
               },
               response: {
-                200: tboxApiResponse(t.String()),
+                200: tboxLegacyApiResponse(t.String()),
                 500: t.String(),
               },
             }
@@ -85,7 +85,7 @@ export const SampleRoutes =
                 tags: ["Sample"],
               },
               response: {
-                200: tboxApiResponse(t.String()),
+              200: tboxLegacyApiResponse(t.String()),
                 500: t.String(),
               },
             }

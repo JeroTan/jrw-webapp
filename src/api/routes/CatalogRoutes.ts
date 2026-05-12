@@ -1,5 +1,5 @@
 import type { CatalogController } from "@/api/controller/CatalogController";
-import { tboxApiResponse, tboxPaginatedResponse } from "@/lib/typebox/wrappers";
+import { tboxLegacyApiResponse, tboxLegacyPaginatedResponse } from "@/lib/typebox/api";
 import {
   tboxProductDetails,
   tboxCreateProductBody,
@@ -31,7 +31,7 @@ export const CatalogRoutes =
                   tags: ["Catalog"],
                 },
                 response: {
-                  200: tboxPaginatedResponse(tboxProductDetails),
+                  200: tboxLegacyPaginatedResponse(tboxProductDetails),
                   500: t.String(),
                 },
               })
@@ -44,7 +44,7 @@ export const CatalogRoutes =
                   tags: ["Catalog"],
                 },
                 response: {
-                  200: tboxApiResponse(tboxProductDetails),
+                  200: tboxLegacyApiResponse(tboxProductDetails),
                   500: t.String(),
                 },
               })
@@ -60,7 +60,7 @@ export const CatalogRoutes =
                     tags: ["Catalog"],
                   },
                   response: {
-                    200: tboxPaginatedResponse(tboxReview),
+                    200: tboxLegacyPaginatedResponse(tboxReview),
                     500: t.String(),
                   },
                 }
@@ -78,7 +78,7 @@ export const CatalogRoutes =
                     tags: ["Catalog"],
                   },
                   response: {
-                    200: tboxApiResponse(tboxReview),
+                    200: tboxLegacyApiResponse(tboxReview),
                     500: t.String(),
                   },
                 }
@@ -93,7 +93,7 @@ export const CatalogRoutes =
                 tags: ["Catalog"],
               },
               response: {
-                200: tboxPaginatedResponse(tboxCategory),
+                200: tboxLegacyPaginatedResponse(tboxCategory),
                 500: t.String(),
               },
             })
@@ -115,7 +115,7 @@ export const CatalogRoutes =
                     tags: ["Admin Catalog"],
                   },
                   response: {
-                    200: tboxPaginatedResponse(tboxProductDetails),
+                    200: tboxLegacyPaginatedResponse(tboxProductDetails),
                     500: t.String(),
                   },
                 }
@@ -132,7 +132,7 @@ export const CatalogRoutes =
                     tags: ["Admin Catalog"],
                   },
                   response: {
-                    200: tboxApiResponse(tboxProductDetails),
+                    200: tboxLegacyApiResponse(tboxProductDetails),
                     500: t.String(),
                   },
                 }
@@ -146,7 +146,7 @@ export const CatalogRoutes =
                   tags: ["Admin Catalog"],
                 },
                 response: {
-                  200: tboxApiResponse(tboxProductDetails),
+                  200: tboxLegacyApiResponse(tboxProductDetails),
                   500: t.String(),
                 },
               })
@@ -163,7 +163,7 @@ export const CatalogRoutes =
                     tags: ["Admin Catalog"],
                   },
                   response: {
-                    200: tboxApiResponse(tboxProductDetails),
+                    200: tboxLegacyApiResponse(tboxProductDetails),
                     500: t.String(),
                   },
                 }
@@ -180,7 +180,7 @@ export const CatalogRoutes =
                     tags: ["Admin Catalog"],
                   },
                   response: {
-                    200: tboxApiResponse(t.Object({ id: t.String() })),
+                    200: tboxLegacyApiResponse(t.Object({ id: t.String() })),
                     500: t.String(),
                   },
                 }
@@ -197,7 +197,7 @@ export const CatalogRoutes =
                   tags: ["Admin Catalog"],
                 },
                 response: {
-                  200: tboxApiResponse(tboxCategory),
+                  200: tboxLegacyApiResponse(tboxCategory),
                   500: t.String(),
                 },
               })
@@ -214,7 +214,7 @@ export const CatalogRoutes =
                     tags: ["Admin Catalog"],
                   },
                   response: {
-                    200: tboxApiResponse(tboxCategory),
+                    200: tboxLegacyApiResponse(tboxCategory),
                     500: t.String(),
                   },
                 }
@@ -231,7 +231,7 @@ export const CatalogRoutes =
                     tags: ["Admin Catalog"],
                   },
                   response: {
-                    200: tboxApiResponse(t.Object({ id: t.String() })),
+                    200: tboxLegacyApiResponse(t.Object({ id: t.String() })),
                     500: t.String(),
                   },
                 }
