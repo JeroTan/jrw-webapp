@@ -6,8 +6,7 @@ export type RouteRole =
   | "SUPER_ADMIN"
   | "ADMIN"
   | "CUSTOMER"
-  | "PROSPECT"
-  | "SYSTEM";
+  | "PROSPECT";
 
 export type RouteAuthMetadata = {
   mode: RouteAuthMode;

@@ -8,6 +8,21 @@ import { tboxApiSuccess } from "@/lib/typebox/api";
 import { createApp } from "./app";
 
 describe("createApp", () => {
+  type OpenApiSchema = {
+    type?: string;
+    properties?: Record<string, OpenApiSchema>;
+    items?: OpenApiSchema;
+  };
+
+  type OpenApiResponse = {
+    content?: Record<
+      string,
+      {
+        schema?: OpenApiSchema;
+      }
+    >;
+  };
+
   it("exposes JRW OpenAPI metadata from the canonical server composer", async () => {
     const app = createApp();
     const response = await app.handle(new Request("https://jrw.test/api/openapi/json"));
@@ -22,6 +37,60 @@ describe("createApp", () => {
     expect(body.info?.title).toBe("JRW Webapp API");
     expect(body.info?.description).toContain("JRW single-store ecommerce");
     expect(body.info?.title).not.toContain("QR Resto");
+  });
+
+  it("documents the completed Foundation endpoint with safe OpenAPI contract metadata", async () => {
+    const app = createApp();
+    const response = await app.handle(new Request("https://jrw.test/api/openapi/json"));
+    const specText = await response.text();
+    const body = JSON.parse(specText) as {
+      paths?: {
+        [path: string]: {
+          get?: {
+            summary?: string;
+            description?: string;
+            tags?: string[];
+            responses?: Record<string, OpenApiResponse>;
+            "x-auth"?: {
+              mode?: string;
+              roles?: string[];
+            };
+            "x-rate-limit-class"?: string;
+            "x-error-codes"?: string[];
+          };
+        };
+      };
+    };
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("application/json");
+
+    const foundationOperation = body.paths?.["/api/"]?.get;
+    const successSchema =
+      foundationOperation?.responses?.["200"]?.content?.["application/json"]?.schema;
+    const errorSchema =
+      foundationOperation?.responses?.["500"]?.content?.["application/json"]?.schema;
+
+    expect(foundationOperation?.summary).toBe("API foundation");
+    expect(foundationOperation?.description).toContain("Reports canonical JRW API ownership");
+    expect(foundationOperation?.tags).toContain("Foundation");
+    expect(successSchema?.type).toBe("object");
+    expect(successSchema?.properties?.data?.type).toBe("object");
+    expect(successSchema?.properties?.data?.properties?.name).toBeDefined();
+    expect(successSchema?.properties?.data?.properties?.routeGroups?.type).toBe("array");
+    expect(successSchema?.properties?.meta?.type).toBe("object");
+    expect(errorSchema?.type).toBe("object");
+    expect(errorSchema?.properties?.error?.properties?.code).toBeDefined();
+    expect(errorSchema?.properties?.error?.properties?.message?.type).toBe("string");
+    expect(foundationOperation?.["x-auth"]).toEqual({
+      mode: "public",
+      roles: ["PROSPECT"],
+    });
+    expect(foundationOperation?.["x-rate-limit-class"]).toBe("public-read");
+    expect(foundationOperation?.["x-error-codes"]).toEqual(["INTERNAL_ERROR"]);
+    expect(specText).not.toMatch(
+      /QR Resto|DATABASE_URL|PAYMONGO_SECRET|RESEND_API_KEY|JWT_SECRET|raw provider payload|sk_live_|sk_test_|Bearer\s+[A-Za-z0-9._-]+/i,
+    );
   });
 
   it("registers canonical foundation routes through the server route container", async () => {

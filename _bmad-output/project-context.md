@@ -123,8 +123,8 @@ Tooling:
 - Services orchestrate use cases and return `AppResult`/domain result types for meaningful failures.
 - Repositories/adapters encapsulate D1, Drizzle, Durable Objects, R2, PayMongo, Resend, Google OAuth, and other external effects.
 - `src/pages/api/[...slug].ts` is current Astro-to-Elysia bridge. Keep it thin.
-- `src/api/container/**` composes domain route containers. Avoid "God files"; add domain containers instead.
-- `src/server/app.ts` contains outdated route names and must not be treated as authoritative JRW API structure until reconciled.
+- `src/server/routes/**` composes canonical route groups and route modules. Avoid "God files"; add domain route modules instead.
+- `src/server/app.ts` is the canonical Elysia composer after Story 1.3. Keep legacy route names out of this composer.
 - New endpoints must follow current JRW PRD and architecture, not legacy scaffold naming.
 - Elysia app uses `adapter: CloudflareAdapter`, `aot: false`, and `normalize: true`; keep these unless architecture updates Workers compatibility.
 - Astro-scoped values such as URL and cookies must be injected per request with scoped `derive`, not stored in global mutable state.
@@ -218,7 +218,7 @@ Tooling:
 
 ### Testing And Quality
 
-- Current repo has no real test files. Do not treat `npm run test` pass/fail as meaningful until tests exist.
+- Current repo has limited early Vitest coverage. Do not treat broad test pass/fail as complete feature proof until critical story tests exist.
 - Add Vitest tests for pure domain rules before wiring risky flows into UI or providers.
 - Minimum critical test areas: RBAC, brand membership, product publish rules, inventory reservation/release, payment reconciliation, webhook idempotency, order transitions, return/refund transitions, API envelopes, and auth.
 - API route completion requires contract tests or documented contract verification.
@@ -244,7 +244,7 @@ Tooling:
 - Durable Object inventory locking is scaffolded only.
 - Storefront and admin UI are not implemented yet.
 - Existing API response shapes are inconsistent; standardize before marking endpoints complete.
-- `src/server/app.ts` has outdated scaffold text and routes. Reconcile or remove during API architecture cleanup.
+- `src/api/**` still has outdated scaffold text and routes. Treat it as migration source only and follow Story 1.3 baseline before removal.
 - Old docs mention automated PayMongo refunds and apparel-only scope; current PRD prefers lifestyle products and manual refund/return recording for MVP.
 
 ## Usage Guidelines
