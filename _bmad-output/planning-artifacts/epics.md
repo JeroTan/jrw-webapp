@@ -792,20 +792,20 @@ So that future stories know how to ship database, deployment, logging, customer-
 **Then** D1 migration plan, CI/check baseline, deployment runbook, observability checklist, retention/privacy checklist, and UI QA baseline are present
 **And** the output summary names each artifact path and any launch blockers still open.
 
-### Story 1.5: Global Font and UI Token Baseline
+### Story 1.5: Global Font, UI Token, and Primitive Baseline
 
 As a developer/agent,
-I want local JRW fonts and base UI token CSS configured before feature UI starts,
-So that auth, governance, brand, admin, storefront, checkout, and order UI share one typography foundation.
+I want local JRW fonts, Tailwind CSS v4 tokens, and the first reusable UI primitives configured before auth/governance UI starts,
+So that Epic 1 and later features share one typography, control, state, and accessibility foundation.
 
-**Requirements covered:** UX-DR1; supports UX-DR2, UX-DR30.
+**Requirements covered:** UX-DR1; supports UX-DR2, UX-DR30, and Epic 1 UI flows.
 
 **Acceptance Criteria:**
 
 **Given** local font assets already exist under `public/fonts/satoshi/**` and `public/fonts/space-mono/**`
 **When** UI baseline styling is configured
 **Then** `src/styles/global.css` defines `@font-face` entries for Satoshi and Space Mono using local `.woff2` assets with `font-display: swap`
-**And** global CSS maps JRW typography defaults so headings/identity text use Satoshi and body/system labels can use Space Mono.
+**And** Tailwind CSS v4 theme tokens or documented CSS variables expose those families for headings, identity text, body copy, labels, and system/meta text.
 
 **Given** global font CSS is configured
 **When** Astro renders the shared layout or first UI page
@@ -813,19 +813,34 @@ So that auth, governance, brand, admin, storefront, checkout, and order UI share
 **And** future UI stories can consume the font families through documented global CSS variables or token names.
 
 **Given** UI token baseline exists
-**When** first feature UI story begins
-**Then** Satoshi and Space Mono token names are documented for feature and primitive consumers
-**And** this story does not implement shared primitives or feature components.
+**When** Tailwind CSS v4 design tokens are configured from the UX specification
+**Then** tokens exist for JRW background/content/muted/border/strong-border/cobalt/error/status colors, 0px radius, 1px borders, visible focus, disabled/loading/error states, and compact spacing
+**And** tokens preserve the technical brutalist rules: no shadows, no blur, no decorative gradients, and restrained cobalt for focus, selected state, primary action, and live status.
+
+**Given** Epic 1 auth and governance UI needs repeatable controls
+**When** baseline shared primitives are implemented
+**Then** reusable components exist under `src/components/**` for `Button`, `IconButton`, `Input`, `Textarea`, `Select`, `Checkbox`, `Toggle`, `Badge`, `StatusBadge`, `Tabs`, `DataTable`, `Modal`, `Toast`, `ConfirmDialog`, `EmptyState`, and `Skeleton`
+**And** components use Tailwind CSS v4 tokens/local CSS only, without adopting a full external component library.
+
+**Given** primitive components render user-facing controls
+**When** keyboard, focus, status, loading, disabled, empty, and error states are reviewed
+**Then** controls have accessible names/labels, visible focus, stable dimensions, text labels for status, associated field errors, and no color-only meaning
+**And** unfamiliar icon buttons include accessible names and tooltip-ready metadata.
+
+**Given** later epics need UI beyond the baseline
+**When** a story needs a new component
+**Then** it first reuses or extends existing `src/components/**` primitives where the behavior is generic
+**And** feature-specific components stay under `src/features/<feature>/**` until reuse across features justifies promotion to shared components.
 
 **Given** validation exists
 **When** story implementation finishes
 **Then** `npm run check` passes or blocker is documented
-**And** no unrelated UI or backend feature work is introduced.
+**And** no unrelated backend feature work or broad visual redesign is introduced.
 
 **Given** story outputs are reviewed
 **When** implementation is accepted
-**Then** `src/styles/global.css`, documented Satoshi/Space Mono variables or token names, and one shared layout/page import are present
-**And** rendered font loading is verified or blocker is documented.
+**Then** `src/styles/global.css`, documented Tailwind/CSS token names, one shared layout/page import, and baseline primitive component exports are present
+**And** rendered font loading plus primitive smoke checks are verified or blockers are documented.
 
 ### Story 1.6: Seed Unique Super Admin and Deprecated Role Alias
 
@@ -2275,20 +2290,30 @@ So that JRW shopping feels fast, readable, and trustworthy.
 **Then** responsive, accessibility, reduced-motion, text-overflow, and performance checks are recorded
 **And** `npm run check` passes or blocker is documented.
 
-### Story 4.7: Shared UI Primitives Baseline
+### Story 4.7: Storefront and Cart UI Primitive Extensions
 
 As a Customer, Prospect, Admin, or Super Admin,
-I want consistent accessible controls across JRW screens,
-So that storefront, checkout, dashboard, and governance flows behave predictably.
+I want storefront and cart UI to extend the shared primitive kit instead of creating duplicate controls,
+So that storefront, checkout, dashboard, and governance flows behave predictably while each epic can add only the components it needs.
 
 **Requirements covered:** UX-DR2; supports FR32-FR58 UI flows.
 
 **Acceptance Criteria:**
 
-**Given** shared primitives are needed by storefront and admin flows
-**When** baseline primitives are implemented
-**Then** token-driven components exist for `Button`, `IconButton`, `Input`, `Textarea`, `Select`, `Checkbox`, `Toggle`, `Badge`, `StatusBadge`, `Tabs`, `SegmentedControl`, `DataTable`, `Modal`, `Drawer`, `SidePanel`, `Toast`, `ConfirmDialog`, `EmptyState`, `Skeleton`, `Pagination`, and `Stepper`
-**And** components use JRW tokens: 0px radius, 1px borders, no shadows/blur, visible focus, and restrained cobalt accent.
+**Given** Story 1.5 baseline primitives already exist
+**When** storefront and cart UI need common controls
+**Then** they reuse or extend existing `Button`, `IconButton`, `Input`, `Select`, `Checkbox`, `Toggle`, `Badge`, `StatusBadge`, `Tabs`, `Modal`, `Toast`, `ConfirmDialog`, `EmptyState`, and `Skeleton`
+**And** duplicate feature-local versions of those base controls are not introduced.
+
+**Given** storefront and cart flows need reusable UI beyond the Epic 1 baseline
+**When** missing generic primitives are implemented
+**Then** shared extensions exist for `SegmentedControl`, `Drawer`, `SidePanel`, and `Pagination` where needed by storefront/cart flows
+**And** feature components such as `ProductCard`, `ProductGrid`, `ProductDetailPanel`, and `CartDrawer` stay under `src/features/**` while composing shared primitives.
+
+**Given** future checkout or order stories need additional generic primitives
+**When** a later epic requires components such as `Stepper` or timeline/list variants
+**Then** that epic can add them under the appropriate `src/components/**` area if reused across features
+**And** otherwise keeps them local to the feature module.
 
 **Given** primitives render interactive controls
 **When** keyboard navigation and focus are tested

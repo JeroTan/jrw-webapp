@@ -11,7 +11,7 @@ sections_completed:
   - workflow_rules
   - anti_patterns
 status: "complete"
-rule_count: 75
+rule_count: 77
 optimized_for_llm: true
 existing_patterns_found: 18
 ---
@@ -104,6 +104,7 @@ Tooling:
 - Use Bulletproof React style: organize user-facing UI by feature, not by technical file type.
 - `src/features/<feature>/**` owns feature components, hooks, local state, client API calls, schemas, and feature tests.
 - `src/components/**` is for generic reusable primitives only: buttons, inputs, modals, tables, badges, drawers, layout primitives.
+- When building UI, extract and/or create reusable atomic or modular components under `src/components/**` when behavior is generic across features; keep feature-specific components in `src/features/<feature>/**` until reuse justifies promotion.
 - Business rules belong in `src/domain/**` and must be testable without HTTP, D1, Durable Objects, R2, PayMongo, Resend, Google OAuth, or React.
 - Domain logic must not depend on Astro `Context`, Elysia `Context`, `Request`, `Response`, Cloudflare bindings, or provider SDKs.
 - Infrastructure adapters belong in `src/adapter/infrastructure/**`.
@@ -205,6 +206,7 @@ Tooling:
 
 - Follow `docs/design-by-google-stitch.md`: sharp 0px corners, 1px grid/borders, no shadows, no blur, no soft generic ecommerce style.
 - Use Satoshi for headings/identity and Space Mono for utility/system text when fonts are available.
+- Use `src/styles/global.css` as the Tailwind CSS v4 project style surface for `@theme`, `@utility`, and reusable component classes; extract repeated long Tailwind class chains there so feature `className` values stay short and readable.
 - Use cobalt accent sparingly for focus, selected state, primary action, and live status.
 - Storefront must be responsive-first with desktop and mobile parity.
 - Admin dashboard is desktop-first, dense, table-driven, keyboard-friendly, and operation-focused.
@@ -262,4 +264,4 @@ For humans:
 - Remove rules once code structure makes them obvious.
 - Review after architecture artifact or major source reorganization.
 
-Last Updated: 2026-05-11
+Last Updated: 2026-05-12
