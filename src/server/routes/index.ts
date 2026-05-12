@@ -1,18 +1,7 @@
 import type Elysia from "elysia";
-
-export const serverRouteGroups = [
-  "auth",
-  "brands",
-  "products",
-  "checkout",
-  "payments",
-  "webhooks",
-  "orders",
-  "returns-refunds",
-  "assets",
-  "audit",
-] as const;
+import { foundationRoutes } from "./foundation.routes";
+export { serverRouteGroups } from "./route-groups";
 
 export function serverRoutes(app: Elysia) {
-  return app;
+  return app.use(foundationRoutes);
 }

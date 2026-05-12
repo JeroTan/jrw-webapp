@@ -1,6 +1,6 @@
 # Story 1.1: Brownfield Server Migration and Minimal Reformat
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -66,6 +66,12 @@ so that future auth, catalog, checkout, and admin stories build on stable archit
   - [x] Run `npm run check`.
   - [x] If `npm run check` fails, document exact command output blocker in dev notes and final summary.
   - [x] Output changed file list and `src/api/**` freeze/removal candidates.
+
+### Review Findings
+
+- [x] [Review][Patch] Canonical route container is a no-op, so useful route composition pattern was not migrated [src/server/routes/index.ts:16]
+- [x] [Review][Patch] Global error handler maps `NOT_FOUND` and other request/client errors to `INTERNAL_SERVER_ERROR` [src/server/app.ts:23]
+- [x] [Review][Defer] Production CORS origin policy remains localhost-only [src/server/middleware/cors.ts:3] — deferred, pre-existing
 
 ## Dev Notes
 
@@ -223,11 +229,13 @@ GPT-5
 - Moved missing TypeBox response imports to `src/lib/typebox/api.ts`; added legacy response schema helpers so frozen `src/api/**` still type-checks without claiming completion.
 - Added migration notes with moved/wrapped/frozen/remove-later status and `src/api/**` freeze rule.
 - Added focused Vitest coverage for canonical OpenAPI metadata and Astro bridge context lifecycle.
+- Review patches added a canonical foundation route through the server route container and mapped Elysia request/client errors to stable API envelopes.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-1-brownfield-server-migration-and-minimal-reformat.md`
 - `_bmad-output/implementation-artifacts/1-1-legacy-api-migration-notes.md`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `src/api/controller/SampleController.ts`
 - `src/api/routes/AuditRoutes.ts`
@@ -252,8 +260,10 @@ GPT-5
 - `src/server/openapi/_readme.md`
 - `src/server/openapi/documentation.ts`
 - `src/server/repositories/_readme.md`
+- `src/server/routes/foundation.routes.ts`
 - `src/server/routes/_readme.md`
 - `src/server/routes/index.ts`
+- `src/server/routes/route-groups.ts`
 - `src/server/services/_readme.md`
 - `src/utils/general/error.ts`
 - `vitest.config.ts`

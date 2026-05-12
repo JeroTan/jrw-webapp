@@ -6,6 +6,7 @@ export const openApiDocumentation = {
       "JRW single-store ecommerce API for auth, brand collaboration, catalog, checkout, payments, orders, returns/refunds, assets, and audit workflows.",
   },
   tags: [
+    { name: "Foundation", description: "Canonical API ownership and route group discovery." },
     { name: "Auth", description: "Customer, Admin, and Super Admin identity flows." },
     { name: "Brands", description: "JRW catalog collaboration groups." },
     { name: "Products", description: "Catalog, variants, pricing, media, and inventory." },

@@ -17,4 +17,35 @@ describe("createApp", () => {
     expect(body.info?.description).toContain("JRW single-store ecommerce");
     expect(body.info?.title).not.toContain("QR Resto");
   });
+
+  it("registers canonical foundation routes through the server route container", async () => {
+    const app = createApp();
+    const response = await app.handle(new Request("https://jrw.test/api/"));
+    const body = (await response.json()) as {
+      data?: {
+        name?: string;
+        routeGroups?: string[];
+      };
+    };
+
+    expect(response.status).toBe(200);
+    expect(body.data?.name).toBe("jrw-webapp-api");
+    expect(body.data?.routeGroups).toContain("auth");
+    expect(body.data?.routeGroups).toContain("payments");
+  });
+
+  it("returns a 404 API envelope for missing routes", async () => {
+    const app = createApp();
+    const response = await app.handle(new Request("https://jrw.test/api/missing"));
+    const body = (await response.json()) as {
+      error?: {
+        code?: string;
+        message?: string;
+      };
+    };
+
+    expect(response.status).toBe(404);
+    expect(body.error?.code).toBe("NOT_FOUND");
+    expect(body.error?.message).toBe("The requested resource was not found.");
+  });
 });
