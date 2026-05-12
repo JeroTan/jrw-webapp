@@ -302,7 +302,8 @@ NFR45: Existing helpers and utilities must be inventoried before replacement to 
 - Co-locate pure domain/service tests as `*.test.ts`; shared fixtures live in `src/test/fixtures/**`.
 - Feature UI belongs under `src/features/<feature>/**`; shared primitives belong under `src/components/**`; business rules belong under `src/domain/**`.
 - Infrastructure adapters belong under `src/adapter/infrastructure/**`; third-party wrappers belong under `src/lib/**`; provider-free atomic helpers belong under `src/utils/**`.
-- Exact endpoint catalog, table-by-table D1 migration plan, CI workflow commands, deployment runbook, observability setup, and retention/privacy checklist remain implementation/story gaps.
+- Story 1.3 must establish API contract, endpoint catalog, and legacy migration baselines before broad feature implementation.
+- Story 1.4 must establish table-by-table D1 migration plan, CI workflow command, deployment runbook, observability setup checklist, and retention/privacy checklist before broad feature implementation.
 - All agents must read `_bmad-output/project-context.md` and architecture before coding.
 
 ### UX Design Requirements
@@ -616,13 +617,18 @@ So that future auth, catalog, checkout, and admin stories build on stable archit
 **Then** `npm run check` passes or failures are documented with exact blocker
 **And** no unrelated user changes are reverted.
 
-### Story 1.2: API Foundation, Envelopes, and Request Context
+**Given** story outputs are reviewed
+**When** implementation is accepted
+**Then** `src/server/app.ts`, `src/pages/api/[...slug].ts`, target `src/server/**` folders, and migration notes are present
+**And** the output summary lists changed files and any remaining `src/api/**` freeze/removal candidates.
+
+### Story 1.2: API Foundation, Envelopes, Request Context, and Operational Hooks
 
 As a developer/agent and API consumer,
-I want consistent API envelopes, stable request context, and typed response helpers,
-So that completed endpoints behave predictably and future stories do not invent response shapes.
+I want consistent API envelopes, stable request context, safe operational logging, and typed audit/event hooks,
+So that completed endpoints behave predictably and sensitive future stories do not invent response, logging, or audit shapes.
 
-**Requirements covered:** FR72, FR67; supports FR71.
+**Requirements covered:** FR72, FR67; supports FR65, FR68, FR70, FR71.
 
 **Acceptance Criteria:**
 
@@ -641,6 +647,16 @@ So that completed endpoints behave predictably and future stories do not invent 
 **Then** request context reads `x-request-id` or generates request ID
 **And** typed context exposes request ID to controllers/services without global mutable state.
 
+**Given** successful or failed API actions need operational visibility
+**When** safe logging hooks are added
+**Then** log context supports request ID, actor role, safe actor identifier, target resource identifier, error code where applicable, and timestamp
+**And** logs reject or scrub secrets, tokens, raw provider payloads, cookies, passwords, and unnecessary PII.
+
+**Given** sensitive future stories need audit behavior before Epic 7 viewing exists
+**When** audit/event foundation is added
+**Then** a typed audit event interface or port exists for account, brand, catalog, inventory, payment, refund/return, and order actions
+**And** future sensitive stories must record or enqueue audit events through this interface instead of deferring audit semantics to Epic 7.
+
 **Given** TypeBox/Elysia contracts are required
 **When** API response helpers are added or reconciled
 **Then** `src/lib/api/response.ts` and `src/lib/typebox/api.ts` support standard success/error schema reuse
@@ -658,16 +674,21 @@ So that completed endpoints behave predictably and future stories do not invent 
 
 **Given** validation exists
 **When** story implementation finishes
-**Then** response envelope examples or tests cover success and error shapes
+**Then** response envelope, request ID, safe log context, and audit interface examples or tests cover success and error paths
 **And** `npm run check` passes or blocker is documented.
 
-### Story 1.3: API Contract Documentation and Legacy Migration Notes
+**Given** story outputs are reviewed
+**When** implementation is accepted
+**Then** response helper example/test, request ID propagation example/test, safe log context example/test, and audit event interface example/test are present
+**And** the output summary identifies where future stories must import or call those helpers.
+
+### Story 1.3: API Contract Documentation and Legacy Migration Baseline
 
 As a developer/agent,
-I want machine-readable API contract documentation plus explicit legacy migration notes,
-So that future endpoint stories know current contracts, auth metadata, errors, and deprecated paths.
+I want machine-readable API contract documentation, endpoint catalog baseline, and explicit legacy migration notes,
+So that future endpoint stories know current contracts, auth metadata, errors, endpoint ownership, and deprecated paths.
 
-**Requirements covered:** FR71, FR73, FR74.
+**Requirements covered:** FR71, FR73, FR74; supports NFR43, NFR44.
 
 **Acceptance Criteria:**
 
@@ -686,6 +707,11 @@ So that future endpoint stories know current contracts, auth metadata, errors, a
 **Then** notes list migrated, wrapped, frozen, and removal-candidate modules
 **And** notes warn that new backend/API work belongs under `src/server/**`.
 
+**Given** MVP route groups are known
+**When** endpoint catalog baseline is written
+**Then** each route group has a table row for known or planned method/path, owning story, auth mode, roles, rate-limit class, primary DTO/schema, error codes, and implementation status
+**And** later feature stories must update the catalog when endpoints are added or changed.
+
 **Given** `src/server/app.ts` had outdated route drift
 **When** docs are reviewed
 **Then** outdated scaffold routes are identified or removed
@@ -696,8 +722,8 @@ So that future endpoint stories know current contracts, auth metadata, errors, a
 **Then** docs show public contract metadata only
 **And** no secrets, tokens, raw provider payloads, or environment values appear.
 
-**Given** architecture requires endpoint-level API contract table later
-**When** Story 1.3 is complete
+**Given** architecture requires endpoint-level API contract table
+**When** baseline API contract and migration documentation are created
 **Then** initial contract/migration document exists as baseline
 **And** later feature stories can extend it per endpoint.
 
@@ -706,7 +732,102 @@ So that future endpoint stories know current contracts, auth metadata, errors, a
 **Then** `npm run check` passes or blocker is documented
 **And** docs generation route/build path is documented.
 
-### Story 1.4: Seed Unique Super Admin and Deprecated Role Alias
+**Given** story outputs are reviewed
+**When** implementation is accepted
+**Then** OpenAPI docs route/build path, endpoint catalog baseline, and legacy migration notes exist as referenced artifacts
+**And** the output summary names each artifact path and how later endpoint stories update it.
+
+### Story 1.4: Delivery, Data, Observability, Privacy, and UI QA Baselines
+
+As a developer/agent,
+I want migration, delivery, observability, privacy, and UI QA baselines documented before feature implementation,
+So that future stories know how to ship database, deployment, logging, customer-data, and user-interface changes safely.
+
+**Requirements covered:** Supports NFR14, NFR37, NFR43, NFR44.
+
+**Acceptance Criteria:**
+
+**Given** D1 and Drizzle are relational source of truth
+**When** table-by-table migration baseline is written
+**Then** each planned table or schema group has owning story, purpose, main relationships, migration timing, and remote development migration evidence policy
+**And** production migration remains explicitly review-gated.
+
+**Given** implementation needs repeatable verification
+**When** CI/check baseline is written
+**Then** it documents local check command, intended CI gate command, test command expectations, and Cloudflare binding/type generation expectations
+**And** blockers or missing CI automation are visible before broad feature implementation.
+
+**Given** deployment must be repeatable
+**When** deployment runbook baseline is written
+**Then** it documents development deploy command, production deploy review gate, smoke check, rollback notes, and environment-specific migration warning
+**And** production deploy remains review-gated.
+
+**Given** production payments require operations readiness
+**When** observability setup checklist is written
+**Then** checklist covers request IDs, Cloudflare logs, error tracking enablement, critical failure categories, safe event context, and launch blockers
+**And** real customer payments remain gated until critical observability items are satisfied or explicitly accepted.
+
+**Given** customer/admin PII requirements apply
+**When** retention/privacy checklist is written
+**Then** checklist covers PII fields, data purpose, access scope, retention rule owner, deletion/review notes, and registration/checkout notice needs
+**And** blockers are documented before production launch.
+
+**Given** UI stories require repeatable quality checks
+**When** UI QA baseline is written
+**Then** it selects Playwright plus `@axe-core/playwright` or documented equivalent for automated accessibility checks
+**And** it defines responsive screenshot widths `320`, `375`, `390`, `430`, `768`, `1024`, and `1440`.
+
+**Given** UI QA cannot be fully automated
+**When** manual QA checklist is written
+**Then** it covers keyboard-only walkthroughs, focus trap/restore, status badge contrast, no color-only status, reduced motion, text overflow, and Lighthouse/WebPageTest storefront performance evidence
+**And** each UI story must record executed checks or blockers.
+
+**Given** validation exists
+**When** story implementation finishes
+**Then** the migration plan, delivery runbook, observability checklist, retention/privacy checklist, and UI QA baseline exist as referenced artifacts
+**And** `npm run check` passes or blocker is documented.
+
+**Given** story outputs are reviewed
+**When** implementation is accepted
+**Then** D1 migration plan, CI/check baseline, deployment runbook, observability checklist, retention/privacy checklist, and UI QA baseline are present
+**And** the output summary names each artifact path and any launch blockers still open.
+
+### Story 1.5: Global Font and UI Token Baseline
+
+As a developer/agent,
+I want local JRW fonts and base UI token CSS configured before feature UI starts,
+So that auth, governance, brand, admin, storefront, checkout, and order UI share one typography foundation.
+
+**Requirements covered:** UX-DR1; supports UX-DR2, UX-DR30.
+
+**Acceptance Criteria:**
+
+**Given** local font assets already exist under `public/fonts/satoshi/**` and `public/fonts/space-mono/**`
+**When** UI baseline styling is configured
+**Then** `src/styles/global.css` defines `@font-face` entries for Satoshi and Space Mono using local `.woff2` assets with `font-display: swap`
+**And** global CSS maps JRW typography defaults so headings/identity text use Satoshi and body/system labels can use Space Mono.
+
+**Given** global font CSS is configured
+**When** Astro renders the shared layout or first UI page
+**Then** the global stylesheet is imported once through the shared layout/page entry
+**And** future UI stories can consume the font families through documented global CSS variables or token names.
+
+**Given** UI token baseline exists
+**When** first feature UI story begins
+**Then** Satoshi and Space Mono token names are documented for feature and primitive consumers
+**And** this story does not implement shared primitives or feature components.
+
+**Given** validation exists
+**When** story implementation finishes
+**Then** `npm run check` passes or blocker is documented
+**And** no unrelated UI or backend feature work is introduced.
+
+**Given** story outputs are reviewed
+**When** implementation is accepted
+**Then** `src/styles/global.css`, documented Satoshi/Space Mono variables or token names, and one shared layout/page import are present
+**And** rendered font loading is verified or blocker is documented.
+
+### Story 1.6: Seed Unique Super Admin and Deprecated Role Alias
 
 As Super Admin,
 I want exactly one seeded owner account and clear role normalization,
@@ -751,7 +872,7 @@ So that JRW has a controlled governance root and legacy `STORE_ADMIN` data canno
 **Then** `npm run check` passes or blocker is documented
 **And** remote production seed/migration is not performed without explicit review.
 
-### Story 1.5: Secure Session Authentication
+### Story 1.7: Secure Session Authentication
 
 As Super Admin, Admin, or Customer,
 I want secure email/password sign-in and sign-out,
@@ -801,7 +922,7 @@ So that role-protected areas can identify me without exposing credentials or tok
 **Then** `npm run check` passes or blocker is documented
 **And** logs do not emit raw passwords, hashes, session tokens, JWTs, pepper, or cookies.
 
-### Story 1.6: Customer Registration, Verification, and Profile
+### Story 1.8: Customer Registration, Verification, and Profile
 
 As a Customer,
 I want to register, verify my email, and manage basic profile details,
@@ -850,7 +971,7 @@ So that I can build trusted checkout/account identity before buying from JRW.
 **When** story implementation finishes
 **Then** `npm run check` passes or blocker is documented.
 
-### Story 1.7: Password Reset and Account Email Notifications
+### Story 1.9: Password Reset and Account Email Notifications
 
 As a Customer or Admin,
 I want secure password reset and account-status emails,
@@ -900,7 +1021,7 @@ So that account recovery and account lifecycle events work without leaking secre
 **Then** tests cover reset request, valid reset, invalid/expired/reused token, safe enumeration behavior, and provider failure mapping
 **And** `npm run check` passes or blocker is documented.
 
-### Story 1.8: Customer Google Sign-In
+### Story 1.10: Customer Google Sign-In
 
 As a Customer,
 I want to sign in with Google,
@@ -950,7 +1071,7 @@ So that I can access JRW checkout/account flows without creating separate passwo
 **Then** tests cover valid callback, invalid state, expired state, unverified email, safe auto-link, provider error, and customer-only role enforcement
 **And** `npm run check` passes or blocker is documented.
 
-### Story 1.9: Admin Account Management and Approval
+### Story 1.11: Admin Account Management and Approval
 
 As Super Admin,
 I want to create, inspect, update, suspend, reactivate, approve, and reject Admin accounts,
@@ -1004,7 +1125,7 @@ So that only trusted operators can access JRW dashboard.
 **Then** tests cover create, inspect, update, suspend, reactivate, approve/reject, non-owner denial, and dashboard access gate
 **And** `npm run check` passes or blocker is documented.
 
-### Story 1.10: Server-Side RBAC Guards
+### Story 1.12: Server-Side RBAC Guards
 
 As JRW,
 I want server-side role guards for Super Admin, Admin, Customer, and Prospect access,
@@ -1054,7 +1175,7 @@ So that protected routes enforce permissions even if UI controls are bypassed.
 **Then** tests cover allowed/denied paths for each role and account status
 **And** route handlers remain free of business rules beyond guard composition.
 
-### Story 1.11: Ownership Transfer Governance
+### Story 1.13: Ownership Transfer Governance
 
 As Super Admin,
 I want to transfer ownership to an eligible Admin with deliberate confirmation,
