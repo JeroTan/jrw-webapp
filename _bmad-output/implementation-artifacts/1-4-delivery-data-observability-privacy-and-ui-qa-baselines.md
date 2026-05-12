@@ -1,6 +1,6 @@
 # Story 1.4: Delivery, Data, Observability, Privacy, and UI QA Baselines
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -22,50 +22,50 @@ so that future stories know how to ship database, deployment, logging, customer-
 
 ## Tasks / Subtasks
 
-- [ ] Create D1 migration plan baseline. (AC: 1, 8, 9)
-  - [ ] Create `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md`.
-  - [ ] Inventory current schema files `src/domain/schema/*.ts`, existing `migrations/*.sql`, and `migrations/meta/_journal.json`.
-  - [ ] Add table-by-table or schema-group table with columns: current/proposed table, owning story, purpose, relationships, migration timing, destructive-change risk, remote development evidence policy, production gate.
-  - [ ] Include current drift: existing schema uses some legacy/simple fields (`real` money, plain product brand text, combined order status) that future stories must migrate to PRD-aligned centavos, brand relationships, separate payment/fulfillment status, reservation/payment/webhook/return/refund/audit structures.
-  - [ ] State development D1 migration evidence must name command, environment, migration file(s), timestamp, and success output. Production D1 migration requires explicit human review.
+- [x] Create D1 migration plan baseline. (AC: 1, 8, 9)
+  - [x] Create `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md`.
+  - [x] Inventory current schema files `src/domain/schema/*.ts`, existing `migrations/*.sql`, and `migrations/meta/_journal.json`.
+  - [x] Add table-by-table or schema-group table with columns: current/proposed table, owning story, purpose, relationships, migration timing, destructive-change risk, remote development evidence policy, production gate.
+  - [x] Include current drift: existing schema uses some legacy/simple fields (`real` money, plain product brand text, combined order status) that future stories must migrate to PRD-aligned centavos, brand relationships, separate payment/fulfillment status, reservation/payment/webhook/return/refund/audit structures.
+  - [x] State development D1 migration evidence must name command, environment, migration file(s), timestamp, and success output. Production D1 migration requires explicit human review.
 
-- [ ] Create CI/check and delivery runbook baseline. (AC: 2, 3, 8, 9)
-  - [ ] Create `_bmad-output/implementation-artifacts/1-4-delivery-runbook.md`.
-  - [ ] Document current local commands from `package.json`: `npm run check`, `npx vitest run`, `npm run build-test`, `npm run wrangler-types`, `npm run db:generate`, `npm run db:migrate:remote`, `npm run deploy-development`, `npm run deploy-production`.
-  - [ ] Document intended CI gate command as `npm run build-test` once CI has Cloudflare auth/bindings; until then, record missing `.github/workflows/**` as open automation gap.
-  - [ ] Document `wrangler.jsonc` development and production env names, D1 database names/IDs, R2 bucket names, Durable Object binding, compatibility date, and compatibility flags.
-  - [ ] Document deployment sequence: validate, generate binding types after binding changes, generate migrations after schema changes, apply remote development migration, deploy development, smoke check, then production review gate.
-  - [ ] Include rollback notes and warn that Worker rollback does not roll back D1/R2/Durable Object resource state.
+- [x] Create CI/check and delivery runbook baseline. (AC: 2, 3, 8, 9)
+  - [x] Create `_bmad-output/implementation-artifacts/1-4-delivery-runbook.md`.
+  - [x] Document current local commands from `package.json`: `npm run check`, `npx vitest run`, `npm run build-test`, `npm run wrangler-types`, `npm run db:generate`, `npm run db:migrate:remote`, `npm run deploy-development`, `npm run deploy-production`.
+  - [x] Document intended CI gate command as `npm run build-test` once CI has Cloudflare auth/bindings; until then, record missing `.github/workflows/**` as open automation gap.
+  - [x] Document `wrangler.jsonc` development and production env names, D1 database names/IDs, R2 bucket names, Durable Object binding, compatibility date, and compatibility flags.
+  - [x] Document deployment sequence: validate, generate binding types after binding changes, generate migrations after schema changes, apply remote development migration, deploy development, smoke check, then production review gate.
+  - [x] Include rollback notes and warn that Worker rollback does not roll back D1/R2/Durable Object resource state.
 
-- [ ] Create observability setup checklist. (AC: 4, 8, 9)
-  - [ ] Create `_bmad-output/implementation-artifacts/1-4-observability-checklist.md`.
-  - [ ] Reference existing request ID and logging foundation: `src/utils/request-id.ts`, `src/server/context/request-context.ts`, `src/adapter/infrastructure/logging/operational-log.ts`, `src/server/app.ts`.
-  - [ ] Checklist must cover request ID propagation, response header, safe error response request ID, structured JSON operational logs, scrubbed details, Cloudflare Workers Logs/observability config, source maps decision, third-party error tracking decision, and launch blockers.
-  - [ ] Critical failure categories must include unhandled API exceptions, payment webhook failures, checkout/payment reconciliation failures, auth/email verification failures, image upload failures, provider timeouts, and D1 migration/deploy failures.
-  - [ ] Safe event context must include request ID, actor role, safe actor identifier, target resource identifier, error code, timestamp, environment, and sanitized details only.
-  - [ ] Real customer payments remain blocked until observability checklist marks critical items satisfied or explicitly accepted by owner.
+- [x] Create observability setup checklist. (AC: 4, 8, 9)
+  - [x] Create `_bmad-output/implementation-artifacts/1-4-observability-checklist.md`.
+  - [x] Reference existing request ID and logging foundation: `src/utils/request-id.ts`, `src/server/context/request-context.ts`, `src/adapter/infrastructure/logging/operational-log.ts`, `src/server/app.ts`.
+  - [x] Checklist must cover request ID propagation, response header, safe error response request ID, structured JSON operational logs, scrubbed details, Cloudflare Workers Logs/observability config, source maps decision, third-party error tracking decision, and launch blockers.
+  - [x] Critical failure categories must include unhandled API exceptions, payment webhook failures, checkout/payment reconciliation failures, auth/email verification failures, image upload failures, provider timeouts, and D1 migration/deploy failures.
+  - [x] Safe event context must include request ID, actor role, safe actor identifier, target resource identifier, error code, timestamp, environment, and sanitized details only.
+  - [x] Real customer payments remain blocked until observability checklist marks critical items satisfied or explicitly accepted by owner.
 
-- [ ] Create retention/privacy checklist. (AC: 5, 8, 9)
-  - [ ] Create `_bmad-output/implementation-artifacts/1-4-retention-privacy-checklist.md`.
-  - [ ] Cover PII fields from PRD: admin/customer email, password hash, names, phone, address fields, OAuth provider identity, avatar URL, order history, payment metadata, audit actor identifiers, support/contact records when added.
-  - [ ] For each field/group, document purpose, access scope, owning story, retention owner, retention rule/TBD, deletion/review notes, and whether registration/checkout privacy notice must mention it.
-  - [ ] Record production launch blockers for missing privacy notice, undefined retention owner, unnecessary PII collection, raw provider payload exposure, raw payment/card data collection, or missing access-control story.
-  - [ ] Keep PayMongo hosted/controlled payment capture. JRW app must not collect raw card details.
+- [x] Create retention/privacy checklist. (AC: 5, 8, 9)
+  - [x] Create `_bmad-output/implementation-artifacts/1-4-retention-privacy-checklist.md`.
+  - [x] Cover PII fields from PRD: admin/customer email, password hash, names, phone, address fields, OAuth provider identity, avatar URL, order history, payment metadata, audit actor identifiers, support/contact records when added.
+  - [x] For each field/group, document purpose, access scope, owning story, retention owner, retention rule/TBD, deletion/review notes, and whether registration/checkout privacy notice must mention it.
+  - [x] Record production launch blockers for missing privacy notice, undefined retention owner, unnecessary PII collection, raw provider payload exposure, raw payment/card data collection, or missing access-control story.
+  - [x] Keep PayMongo hosted/controlled payment capture. JRW app must not collect raw card details.
 
-- [ ] Create UI QA baseline. (AC: 6, 7, 8, 9)
-  - [ ] Create `_bmad-output/implementation-artifacts/1-4-ui-qa-baseline.md`.
-  - [ ] Select Playwright plus `@axe-core/playwright` for automated UI QA unless implementation documents equivalent and why.
-  - [ ] State current repo does not yet include Playwright or `@axe-core/playwright`; this story may document selected baseline without installing unless adding scripts/tests is explicitly chosen.
-  - [ ] Define responsive screenshot widths exactly: `320`, `375`, `390`, `430`, `768`, `1024`, `1440`.
-  - [ ] Include automated checks: smoke navigation, screenshot capture/comparison where stable, axe scan for key pages, no console errors for critical flows, reduced-motion emulation where relevant.
-  - [ ] Include manual checks: keyboard-only walkthroughs, focus trap/restore for modals/drawers/side panels, status badge contrast, text labels for status, no color-only status, reduced motion, text overflow, sticky action bars not covering content, Lighthouse/WebPageTest storefront performance evidence.
-  - [ ] Require each future UI story to record executed checks or blockers in completion notes.
+- [x] Create UI QA baseline. (AC: 6, 7, 8, 9)
+  - [x] Create `_bmad-output/implementation-artifacts/1-4-ui-qa-baseline.md`.
+  - [x] Select Playwright plus `@axe-core/playwright` for automated UI QA unless implementation documents equivalent and why.
+  - [x] State current repo does not yet include Playwright or `@axe-core/playwright`; this story may document selected baseline without installing unless adding scripts/tests is explicitly chosen.
+  - [x] Define responsive screenshot widths exactly: `320`, `375`, `390`, `430`, `768`, `1024`, `1440`.
+  - [x] Include automated checks: smoke navigation, screenshot capture/comparison where stable, axe scan for key pages, no console errors for critical flows, reduced-motion emulation where relevant.
+  - [x] Include manual checks: keyboard-only walkthroughs, focus trap/restore for modals/drawers/side panels, status badge contrast, text labels for status, no color-only status, reduced motion, text overflow, sticky action bars not covering content, Lighthouse/WebPageTest storefront performance evidence.
+  - [x] Require each future UI story to record executed checks or blockers in completion notes.
 
-- [ ] Validate and record evidence. (AC: 8, 9)
-  - [ ] Run `npm run check`.
-  - [ ] Run `npx vitest run` if code/scripts/package config changed; if docs-only, note why targeted tests are not required.
-  - [ ] Confirm all five baseline artifacts exist and are linked from this story completion notes.
-  - [ ] Summarize open launch blockers and missing automation.
+- [x] Validate and record evidence. (AC: 8, 9)
+  - [x] Run `npm run check`.
+  - [x] Run `npx vitest run` if code/scripts/package config changed; if docs-only, note why targeted tests are not required.
+  - [x] Confirm all five baseline artifacts exist and are linked from this story completion notes.
+  - [x] Summarize open launch blockers and missing automation.
 
 ## Dev Notes
 
@@ -293,8 +293,33 @@ Ultimate context engine analysis completed - comprehensive developer guide creat
 
 ### Agent Model Used
 
+GPT-5 Codex
+
 ### Debug Log References
+
+- 2026-05-12T14:54:42+08:00: Story moved to in-progress in sprint tracking.
+- 2026-05-12T15:08:31+08:00: `npm run check` passed with 0 errors, 0 warnings, 22 existing hints.
+- 2026-05-12T15:12:27+08:00: `npm run build-test` initially failed in sandbox with `spawn EPERM`; rerun outside sandbox after approval passed.
+- 2026-05-12T15:14:45+08:00: `npm run build-test` passed: Astro check 0 errors/0 warnings/22 hints, Vitest 6 files/18 tests passed, Astro build complete.
 
 ### Completion Notes List
 
+- Created D1 migration plan baseline with current schema/migration inventory, table/schema ownership, migration timing, remote development evidence policy, production gates, drift notes, and production launch blockers: `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md`.
+- Created CI/check and delivery runbook baseline with local commands, intended CI gate, missing `.github/workflows/**` gap, Cloudflare env/binding inventory, deploy sequence, smoke checks, and rollback warnings: `_bmad-output/implementation-artifacts/1-4-delivery-runbook.md`.
+- Created observability checklist covering request ID propagation, response headers, safe error request IDs, structured logs, scrubbed details, Cloudflare Workers Logs, source maps/error tracking decisions, critical failure categories, safe event context, and payment launch blockers: `_bmad-output/implementation-artifacts/1-4-observability-checklist.md`.
+- Created retention/privacy checklist covering admin/customer PII, OAuth identity/avatar/metadata, order history, payment metadata, audit actor IDs, support/contact records, privacy notice needs, and production launch blockers: `_bmad-output/implementation-artifacts/1-4-retention-privacy-checklist.md`.
+- Created UI QA baseline selecting Playwright plus `@axe-core/playwright`, exact viewport widths `320`, `375`, `390`, `430`, `768`, `1024`, `1440`, automated/manual QA expectations, and future-story evidence template: `_bmad-output/implementation-artifacts/1-4-ui-qa-baseline.md`.
+- Open launch blockers recorded across artifacts: production D1 migration review gate, missing CI workflow automation, named-env observability verification, third-party error tracking decision, privacy notice/retention owners, payment observability/idempotency gates, missing Playwright/axe automation, and no storefront performance evidence yet.
+
 ### File List
+
+- `_bmad-output/implementation-artifacts/1-4-delivery-data-observability-privacy-and-ui-qa-baselines.md`
+- `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md`
+- `_bmad-output/implementation-artifacts/1-4-delivery-runbook.md`
+- `_bmad-output/implementation-artifacts/1-4-observability-checklist.md`
+- `_bmad-output/implementation-artifacts/1-4-retention-privacy-checklist.md`
+- `_bmad-output/implementation-artifacts/1-4-ui-qa-baseline.md`
+
+### Change Log
+
+- 2026-05-12: Added Story 1.4 baseline artifacts and moved story to review after validation passed.

@@ -1,5 +1,5 @@
 # generated: 2026-05-12T08:38:32+08:00
-# last_updated: 2026-05-12T14:54:42+08:00
+# last_updated: 2026-05-12T15:15:05+08:00
 # project: jrw-webapp
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-12T08:38:32+08:00"
-last_updated: "2026-05-12T14:54:42+08:00"
+last_updated: "2026-05-12T15:15:05+08:00"
 project: jrw-webapp
 project_key: NOKEY
 tracking_system: file-system
@@ -46,7 +46,7 @@ development_status:
   1-1-brownfield-server-migration-and-minimal-reformat: done
   1-2-api-foundation-envelopes-request-context-and-operational-hooks: done
   1-3-api-contract-documentation-and-legacy-migration-baseline: done
-  1-4-delivery-data-observability-privacy-and-ui-qa-baselines: in-progress
+  1-4-delivery-data-observability-privacy-and-ui-qa-baselines: review
   1-5-global-font-ui-token-and-primitive-baseline: backlog
   1-6-seed-unique-super-admin-and-deprecated-role-alias: backlog
   1-7-secure-session-authentication: backlog
