@@ -1,6 +1,6 @@
 # Story 1.4: Delivery, Data, Observability, Privacy, and UI QA Baselines
 
-Status: review
+Status: done
 
 ## Story
 
