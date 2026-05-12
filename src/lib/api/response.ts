@@ -31,6 +31,8 @@ export type ResultToApiOptions = {
   exposeErrorDetails?: boolean;
 };
 
+export type ApiErrorDetails = Record<string, unknown>;
+
 export function apiSuccess<T, M extends ApiMeta = ApiMeta>(
   data: T,
   meta = {} as M,
@@ -46,6 +48,50 @@ export function apiError<D = unknown>(
   return details === undefined
     ? { error: { code, message } }
     : { error: { code, message, details } };
+}
+
+export function withRequestIdMeta(meta: ApiMeta = {}, requestId?: string): ApiMeta {
+  return requestId ? { ...meta, requestId } : meta;
+}
+
+export function withRequestIdDetails(
+  details?: unknown,
+  requestId?: string,
+): ApiErrorDetails | undefined {
+  if (!requestId) {
+    return details && typeof details === "object" && !Array.isArray(details)
+      ? (details as ApiErrorDetails)
+      : details === undefined
+        ? undefined
+        : { details };
+  }
+
+  if (details === undefined) {
+    return { requestId };
+  }
+
+  if (details && typeof details === "object" && !Array.isArray(details)) {
+    return { ...(details as ApiErrorDetails), requestId };
+  }
+
+  return { requestId, details };
+}
+
+export function apiSuccessWithRequestId<T>(
+  data: T,
+  requestId?: string,
+  meta: ApiMeta = {},
+): ApiSuccess<T> {
+  return apiSuccess(data, withRequestIdMeta(meta, requestId));
+}
+
+export function apiErrorWithRequestId(
+  code: ErrorCodeType,
+  message: string,
+  requestId?: string,
+  details?: unknown,
+): ApiError<ApiErrorDetails> {
+  return apiError(code, message, withRequestIdDetails(details, requestId));
 }
 
 export function resultToApiResponse<T, D = unknown>(

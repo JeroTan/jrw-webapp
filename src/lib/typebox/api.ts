@@ -20,6 +20,13 @@ export const tboxApiMeta = t.Object(
   { additionalProperties: true },
 );
 
+export const tboxApiErrorDetails = t.Object(
+  {
+    requestId: t.Optional(t.String()),
+  },
+  { additionalProperties: true },
+);
+
 export function tboxApiSuccess<TDataSchema extends TSchema>(dataSchema: TDataSchema) {
   return t.Object({
     data: dataSchema,
@@ -90,7 +97,7 @@ export function tboxLegacyPaginatedResponse<TItemSchema extends TSchema>(
   });
 }
 
-export type OpenApiErrorStatus = 400 | 401 | 403 | 404 | 409 | 413 | 415 | 429 | 500;
+export type OpenApiErrorStatus = 400 | 401 | 402 | 403 | 404 | 409 | 413 | 415 | 429 | 500 | 503;
 
 export function openApiErrorResponses(statuses: readonly OpenApiErrorStatus[]) {
   return Object.fromEntries(statuses.map((status) => [status, tboxApiError()])) as Record<
