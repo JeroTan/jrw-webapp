@@ -1,17 +1,47 @@
 ---
-
+import { Button, Input, StatusBadge } from "@/components";
+import BaseLayout from "@/layouts/BaseLayout.astro";
 ---
 
-<html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<link rel="icon" href="/favicon.ico" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
-</html>
+<BaseLayout
+  title="JRW UI Baseline"
+  description="JRW font, token, and primitive baseline."
+>
+  <main class="jrw-page-shell">
+    <section class="jrw-page-section" aria-labelledby="baseline-title">
+      <p class="jrw-page-kicker">UI Foundation</p>
+      <h1 id="baseline-title" class="jrw-page-title">JRW Baseline</h1>
+      <p class="jrw-page-copy">
+        Local fonts, global tokens, and shared primitives load through one
+        layout. Future auth and governance UI builds from this surface.
+      </p>
+      <div class="jrw-inline-stack" aria-label="Primitive status samples">
+        <StatusBadge tone="success" label="Fonts loaded" />
+        <StatusBadge tone="info" label="Tokens active" />
+        <StatusBadge tone="warning" label="UI QA pending" />
+      </div>
+    </section>
+
+    <section class="jrw-page-section" aria-labelledby="primitive-smoke-title">
+      <h2 id="primitive-smoke-title">Primitive Smoke</h2>
+      <div class="jrw-control-grid">
+        <Input
+          id="baseline-email"
+          label="Email field"
+          type="email"
+          placeholder="customer@example.com"
+          description="Field labels, descriptions, and focus states share baseline tokens."
+        />
+        <div class="jrw-field">
+          <span class="jrw-field__label">Actions</span>
+          <div class="jrw-inline-stack">
+            <Button variant="primary">Primary action</Button>
+            <Button variant="secondary" loading loadingLabel="Loading">
+              Loading action
+            </Button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

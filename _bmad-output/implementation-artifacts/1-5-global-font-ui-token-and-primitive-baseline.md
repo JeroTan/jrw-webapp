@@ -1,6 +1,6 @@
 # Story 1.5: Global Font, UI Token, and Primitive Baseline
 
-Status: ready-for-dev
+Status: in-progress
 
 ## Story
 
@@ -200,6 +200,8 @@ Ultimate context engine analysis completed - comprehensive developer guide creat
 GPT-5 Codex
 
 ### Debug Log References
+
+- 2026-05-12T15:42:46+08:00: Story moved to in-progress in sprint tracking.
 
 ### Completion Notes List
 
