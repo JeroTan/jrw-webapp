@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { noopOperationalLogger } from "@/adapter/infrastructure/logging/operational-log";
+import { t } from "elysia";
+import {
+  noopOperationalLogger,
+  type OperationalLogEvent,
+} from "@/adapter/infrastructure/logging/operational-log";
+import { tboxApiSuccess } from "@/lib/typebox/api";
 import { createApp } from "./app";
 
 describe("createApp", () => {
@@ -119,5 +124,110 @@ describe("createApp", () => {
     expect(JSON.stringify(body)).not.toContain("password");
     expect(JSON.stringify(body)).not.toContain("secret");
     expect(JSON.stringify(body)).not.toContain("stack");
+  });
+
+  it("keeps generated request ID stable across context, error response, and logs", async () => {
+    const logs: OperationalLogEvent[] = [];
+    let routeRequestId: string | undefined;
+    const app = createApp({
+      operationalLogger: {
+        record: (event) => logs.push(event),
+      },
+    }).get("/boom-generated", (ctx) => {
+      routeRequestId = (ctx as typeof ctx & { requestId: string }).requestId;
+      throw new Error("boom");
+    });
+
+    const response = await app.handle(new Request("https://jrw.test/api/boom-generated"));
+    const body = (await response.json()) as {
+      error?: {
+        details?: {
+          requestId?: string;
+        };
+      };
+    };
+
+    expect(response.status).toBe(500);
+    expect(routeRequestId).toMatch(/^req_/);
+    expect(response.headers.get("x-request-id")).toBe(routeRequestId);
+    expect(body.error?.details?.requestId).toBe(routeRequestId);
+    expect(logs[0]?.requestId).toBe(routeRequestId);
+  });
+
+  it("does not let operational logger failures replace safe error responses", async () => {
+    const app = createApp({
+      operationalLogger: {
+        record: () => {
+          throw new Error("logger unavailable");
+        },
+      },
+    }).get("/logger-fails", () => {
+      throw new Error("original failure");
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/logger-fails", {
+        headers: { "x-request-id": "req_logger_fails" },
+      }),
+    );
+    const body = (await response.json()) as {
+      error?: {
+        code?: string;
+        details?: {
+          requestId?: string;
+        };
+      };
+    };
+
+    expect(response.status).toBe(500);
+    expect(body.error?.code).toBe("INTERNAL_ERROR");
+    expect(body.error?.details?.requestId).toBe("req_logger_fails");
+  });
+
+  it("treats response contract validation failures as internal failures", async () => {
+    const logs: OperationalLogEvent[] = [];
+    const app = createApp({
+      operationalLogger: {
+        record: (event) => logs.push(event),
+      },
+    }).get(
+      "/bad-response-contract",
+      (ctx) => ({
+        data: {
+          name: "wrong-shape",
+        },
+        meta: {
+          requestId: (ctx as typeof ctx & { requestId: string }).requestId,
+        },
+      }) as never,
+      {
+        response: {
+          200: tboxApiSuccess(
+            t.Object({
+              ok: t.Boolean(),
+            }),
+          ),
+        },
+      },
+    );
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/bad-response-contract", {
+        headers: { "x-request-id": "req_bad_response" },
+      }),
+    );
+    const body = (await response.json()) as {
+      error?: {
+        code?: string;
+        details?: {
+          requestId?: string;
+        };
+      };
+    };
+
+    expect(response.status).toBe(500);
+    expect(body.error?.code).toBe("INTERNAL_ERROR");
+    expect(body.error?.details?.requestId).toBe("req_bad_response");
+    expect(logs[0]?.errorCode).toBe("INTERNAL_ERROR");
   });
 });

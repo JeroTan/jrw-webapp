@@ -17,26 +17,28 @@ export const tboxApiMeta = t.Object(
     code: t.Optional(tboxSuccessCode),
     requestId: t.Optional(t.String()),
   },
-  { additionalProperties: true },
+  { additionalProperties: true }
 );
 
 export const tboxApiErrorDetails = t.Object(
   {
     requestId: t.Optional(t.String()),
   },
-  { additionalProperties: true },
+  { additionalProperties: true }
 );
 
-export function tboxApiSuccess<TDataSchema extends TSchema>(dataSchema: TDataSchema) {
+export function tboxApiSuccess<TDataSchema extends TSchema>(
+  dataSchema: TDataSchema
+) {
   return t.Object({
     data: dataSchema,
     meta: tboxApiMeta,
   });
 }
 
-export function tboxApiError<TDetailsSchema extends TSchema = ReturnType<typeof t.Unknown>>(
-  detailsSchema: TDetailsSchema = t.Unknown() as TDetailsSchema,
-) {
+export function tboxApiError<
+  TDetailsSchema extends TSchema = typeof tboxApiErrorDetails,
+>(detailsSchema: TDetailsSchema = tboxApiErrorDetails as unknown as TDetailsSchema) {
   return t.Object({
     error: t.Object({
       code: tboxErrorCode,
@@ -53,7 +55,9 @@ export function tboxApiResponse<
   return t.Union([tboxApiSuccess(dataSchema), tboxApiError(detailsSchema)]);
 }
 
-export function tboxPaginatedResponse<TItemSchema extends TSchema>(itemSchema: TItemSchema) {
+export function tboxPaginatedResponse<TItemSchema extends TSchema>(
+  itemSchema: TItemSchema
+) {
   return t.Union([
     t.Object({
       data: t.Array(itemSchema),
@@ -70,7 +74,9 @@ export function tboxPaginatedResponse<TItemSchema extends TSchema>(itemSchema: T
   ]);
 }
 
-export function tboxLegacyApiResponse<TDataSchema extends TSchema>(dataSchema: TDataSchema) {
+export function tboxLegacyApiResponse<TDataSchema extends TSchema>(
+  dataSchema: TDataSchema
+) {
   return t.Object({
     data: dataSchema,
     message: t.Optional(t.Unknown()),
@@ -80,7 +86,7 @@ export function tboxLegacyApiResponse<TDataSchema extends TSchema>(dataSchema: T
 }
 
 export function tboxLegacyPaginatedResponse<TItemSchema extends TSchema>(
-  itemSchema: TItemSchema,
+  itemSchema: TItemSchema
 ) {
   return t.Object({
     data: t.Array(itemSchema),
@@ -90,18 +96,30 @@ export function tboxLegacyPaginatedResponse<TItemSchema extends TSchema>(
         limit: t.Number(),
         total: t.Number(),
       },
-      { additionalProperties: true },
+      { additionalProperties: true }
     ),
     message: t.Optional(t.Unknown()),
     code: t.Optional(t.String()),
   });
 }
 
-export type OpenApiErrorStatus = 400 | 401 | 402 | 403 | 404 | 409 | 413 | 415 | 429 | 500 | 503;
+export type OpenApiErrorStatus =
+  | 400
+  | 401
+  | 402
+  | 403
+  | 404
+  | 409
+  | 413
+  | 415
+  | 429
+  | 500
+  | 503;
 
-export function openApiErrorResponses(statuses: readonly OpenApiErrorStatus[]) {
-  return Object.fromEntries(statuses.map((status) => [status, tboxApiError()])) as Record<
-    OpenApiErrorStatus,
-    ReturnType<typeof tboxApiError>
-  >;
+export function openApiErrorResponses(
+  statuses: readonly OpenApiErrorStatus[]
+) {
+  return Object.fromEntries(
+    statuses.map((status) => [status, tboxApiError()])
+  ) as Record<number, ReturnType<typeof tboxApiError>>;
 }

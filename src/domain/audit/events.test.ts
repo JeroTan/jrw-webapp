@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  AUDIT_REDACTED_VALUE,
   NoopAuditEventPublisher,
+  auditActionTypes,
   auditEntityTypes,
   createAuditEvent,
 } from "./events";
@@ -22,6 +24,10 @@ describe("audit event foundation", () => {
       },
       safeDetails: {
         providerEventId: "evt_paymongo_1",
+        providerPayload: {
+          secret: "sk_test_raw",
+        },
+        customerEmail: "customer@example.test",
       },
       occurredAt: "2026-05-12T03:00:00.000Z",
     });
@@ -35,6 +41,7 @@ describe("audit event foundation", () => {
       "refund-return",
       "order",
     ]);
+    expect(auditActionTypes).toContain("payment.webhook_processed");
     expect(event).toMatchObject({
       eventId: "evt_1",
       requestId: "req_audit",
@@ -44,6 +51,13 @@ describe("audit event foundation", () => {
       occurredAt: "2026-05-12T03:00:00.000Z",
       version: 1,
     });
+    expect(event.safeDetails).toMatchObject({
+      providerEventId: "evt_paymongo_1",
+      providerPayload: AUDIT_REDACTED_VALUE,
+      customerEmail: AUDIT_REDACTED_VALUE,
+    });
+    expect(JSON.stringify(event)).not.toContain("sk_test_raw");
+    expect(JSON.stringify(event)).not.toContain("customer@example.test");
 
     await expect(new NoopAuditEventPublisher().publish(event)).resolves.toBeUndefined();
   });

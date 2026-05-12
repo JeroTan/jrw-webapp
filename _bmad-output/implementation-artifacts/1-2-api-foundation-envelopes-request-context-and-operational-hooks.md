@@ -1,6 +1,6 @@
 # Story 1.2: API Foundation, Envelopes, Request Context, and Operational Hooks
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -75,6 +75,19 @@ so that completed endpoints behave predictably and sensitive future stories do n
   - [x] Add tests for logging scrubber rejecting/redacting sensitive values.
   - [x] Add tests for audit/event type helper or example publisher shape.
   - [x] Run `npx vitest run` for touched tests and `npm run check`; document exact blocker if either fails.
+
+### Review Findings
+
+- [x] [Review][Patch] Error handler regenerates request ID on missing-header failures [src/server/app.ts:57]
+- [x] [Review][Patch] Operational logger failure can replace safe error response [src/server/app.ts:64]
+- [x] [Review][Patch] Response validation failures are returned as client validation errors [src/server/app.ts:26]
+- [x] [Review][Patch] Log redactor misses generic provider payload, signature, token, and PII fields [src/adapter/infrastructure/logging/operational-log.ts:34]
+- [x] [Review][Patch] Public error detail helpers still allow raw unsafe details [src/lib/api/response.ts:57]
+- [x] [Review][Patch] Result adapter cannot propagate request ID into success or error envelopes [src/lib/api/response.ts:29]
+- [x] [Review][Patch] Webhook invalid signature errors fall through to HTTP 500 [src/lib/api/errors.ts:39]
+- [x] [Review][Patch] Audit safeDetails are copied without scrubbing or guardrails [src/domain/audit/events.ts:75]
+- [x] [Review][Patch] Audit action accepts any string instead of typed lower-dot actions [src/domain/audit/events.ts:38]
+- [x] [Review][Patch] Audit target entityId is optional despite required traceability [src/domain/audit/events.ts:32]
 
 ## Dev Notes
 
@@ -205,6 +218,8 @@ GPT-5
 - Green phase targeted validation: `npx vitest run src/server/app.test.ts src/adapter/infrastructure/logging/operational-log.test.ts src/domain/audit/events.test.ts src/server/openapi/route-metadata.test.ts` passed.
 - Type/Astro validation: `npm run check` passed. Existing legacy unused-parameter hints remain in frozen `src/api/**`.
 - Full regression: `npx vitest run` passed.
+- Review patch validation: `npx vitest run` passed 6 test files / 17 tests.
+- Review patch Type/Astro validation: `npm run check` passed with 0 errors and existing legacy hints only.
 
 ### Completion Notes List
 
@@ -216,6 +231,7 @@ GPT-5
 - Added safe operational logging event builder, redactor, noop logger, and console logger adapter under infrastructure logging.
 - Added typed audit event foundation and no-op publisher under `src/domain/audit/**` for future sensitive stories.
 - Added focused Vitest coverage for success envelopes, generated/provided request IDs, safe error envelopes, logging scrubber, audit event port, and OpenAPI metadata helper.
+- Resolved review findings by preserving generated request IDs on error paths, guarding logger failures, mapping response contract validation to safe internal errors, strengthening public/log/audit redaction, typing audit actions, and requiring audit target IDs.
 
 ### File List
 
@@ -226,6 +242,7 @@ GPT-5
 - `src/domain/audit/events.test.ts`
 - `src/domain/audit/events.ts`
 - `src/lib/api/errors.ts`
+- `src/lib/api/response.test.ts`
 - `src/lib/api/response.ts`
 - `src/lib/typebox/api.ts`
 - `src/server/app.test.ts`

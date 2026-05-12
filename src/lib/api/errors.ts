@@ -45,6 +45,7 @@ export function errorCodeToHttpStatus(code: ErrorCodeType): number {
     case "REQUEST_ERROR":
       return 400;
     case "AUTH_REQUIRED":
+    case "WEBHOOK_INVALID_SIGNATURE":
     case "AUTHENTICATION":
     case "UNAUTHORIZED":
       return 401;

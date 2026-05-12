@@ -10,21 +10,93 @@ import {
 import { errorCodeToHttpStatus, publicErrorMessage } from "@/lib/api/errors";
 import { apiErrorWithRequestId } from "@/lib/api/response";
 import { astroBridgeDecorations } from "@/lib/elysia/astroBridgeContext";
-import { requestContextPlugin, setRequestIdResponseHeader } from "@/server/context/request-context";
+import {
+  requestContextPlugin,
+  setRequestIdResponseHeader,
+  type RequestContextDecorations,
+} from "@/server/context/request-context";
 import { corsMiddleware } from "@/server/middleware/cors";
 import { openApiDocumentation } from "@/server/openapi/documentation";
 import { serverRoutes } from "@/server/routes";
-import type { ErrorCodeType } from "@/utils/general/error";
+import { ERROR_CODE, type ErrorCodeType } from "@/utils/general/error";
 import { getOrCreateRequestId } from "@/utils/request-id";
 
 export type CreateAppOptions = {
   operationalLogger?: OperationalLogger;
 };
 
-function mapElysiaErrorCode(code: string): ErrorCodeType {
+const knownErrorCodes = new Set<string>(ERROR_CODE);
+
+function isErrorCodeType(value: unknown): value is ErrorCodeType {
+  return typeof value === "string" && knownErrorCodes.has(value);
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+function isResponseValidationError(error: unknown): boolean {
+  return isRecord(error) && error.type === "response";
+}
+
+function mapHttpStatusToErrorCode(status: number): ErrorCodeType {
+  switch (status) {
+    case 400:
+    case 422:
+      return "VALIDATION_FAILED";
+    case 401:
+      return "AUTH_REQUIRED";
+    case 402:
+      return "PAYMENT_REQUIRED";
+    case 403:
+      return "AUTH_FORBIDDEN";
+    case 404:
+      return "RESOURCE_NOT_FOUND";
+    case 409:
+      return "CONFLICT_STATE";
+    case 413:
+      return "PAYLOAD_TOO_LARGE";
+    case 415:
+      return "UNSUPPORTED_MEDIA_TYPE";
+    case 429:
+      return "RATE_LIMITED";
+    case 503:
+      return "PROVIDER_UNAVAILABLE";
+    default:
+      return "INTERNAL_ERROR";
+  }
+}
+
+function mapElysiaErrorCode(code: unknown, error: unknown): ErrorCodeType {
+  if (typeof code === "number") {
+    return mapHttpStatusToErrorCode(code);
+  }
+
+  if (isErrorCodeType(code)) {
+    switch (code) {
+      case "VALIDATION":
+        return isResponseValidationError(error) ? "INTERNAL_ERROR" : "VALIDATION_FAILED";
+      case "NOT_FOUND":
+        return "RESOURCE_NOT_FOUND";
+      case "AUTHENTICATION":
+      case "UNAUTHORIZED":
+        return "AUTH_REQUIRED";
+      case "FORBIDDEN":
+        return "AUTH_FORBIDDEN";
+      case "CONFLICT":
+        return "CONFLICT_STATE";
+      case "TOO_MANY_REQUESTS":
+        return "RATE_LIMITED";
+      case "INTERNAL_SERVER_ERROR":
+        return "INTERNAL_ERROR";
+      default:
+        return code;
+    }
+  }
+
   switch (code) {
     case "VALIDATION":
-      return "VALIDATION_FAILED";
+      return isResponseValidationError(error) ? "INTERNAL_ERROR" : "VALIDATION_FAILED";
     case "NOT_FOUND":
       return "RESOURCE_NOT_FOUND";
     case "PARSE":
@@ -36,6 +108,12 @@ function mapElysiaErrorCode(code: string): ErrorCodeType {
     default:
       return "INTERNAL_ERROR";
   }
+}
+
+function getErrorRequestId(
+  context: { request: Request } & Partial<RequestContextDecorations>,
+): string {
+  return context.requestId ?? context.requestContext?.requestId ?? getOrCreateRequestId(context.request.headers);
 }
 
 export function createApp(options: CreateAppOptions = {}) {
@@ -53,24 +131,29 @@ export function createApp(options: CreateAppOptions = {}) {
       }),
     )
     .use(corsMiddleware())
-    .onError(({ code, error, request, set }) => {
-      const requestId = getOrCreateRequestId(request.headers);
-      const errorCode = mapElysiaErrorCode(String(code));
+    .onError((context) => {
+      const { code, error, set } = context;
+      const requestId = getErrorRequestId(context);
+      const errorCode = mapElysiaErrorCode(code, error);
 
       set.status = errorCodeToHttpStatus(errorCode);
       setRequestIdResponseHeader(set, requestId);
 
       if (shouldLogOperationalFailure(errorCode)) {
-        operationalLogger.record(
-          createOperationalLogEvent({
-            requestId,
-            errorCode,
-            details: {
-              elysiaCode: code,
-              error,
-            },
-          }),
-        );
+        try {
+          operationalLogger.record(
+            createOperationalLogEvent({
+              requestId,
+              errorCode,
+              details: {
+                elysiaCode: code,
+                error,
+              },
+            }),
+          );
+        } catch {
+          // Logging must never mask the original safe error response.
+        }
       }
 
       return apiErrorWithRequestId(errorCode, publicErrorMessage(errorCode), requestId);
