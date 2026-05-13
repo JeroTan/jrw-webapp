@@ -157,10 +157,11 @@ Tooling:
 - Development D1: `jrw-database-development`, id `beabfd98-8611-4d58-8f1b-7a972b8af1ed`.
 - Production D1: `jrw-database-production`, id `fd08e264-2046-4648-9164-84f66948533e`.
 - Remote-first D1 is project standard. Apply schema changes to remote `development` first, then explicit remote `production` after review.
-- Root Wrangler D1 binding and `env.development` both point to development D1. Production must use `--env production`.
+- Wrangler Cloudflare bindings are environment-scoped only in `wrangler.jsonc`; `DB`, `STORAGE`, Durable Object bindings, and Durable Object migrations live under `env.development` and `env.production`, not root config.
+- Any Wrangler command that needs Cloudflare bindings must pass the intended environment explicitly: use `--env development` for development and `--env production` only after production review.
 - `npm run db:migrate:remote` applies remote development. Production migration must use `wrangler d1 migrations apply DB --remote --env production` or a reviewed script.
-- `npm run db:migrate:local` exists but is not canonical for this project.
-- Regenerate Cloudflare binding types after binding changes with `npm run wrangler-types`.
+- `npm run db:migrate:local` exists but is not canonical for this project; it still targets development explicitly with `--env development`.
+- Regenerate Cloudflare binding types after binding changes with `npm run wrangler-types`; this generates development env binding types.
 - Use `import { env } from "cloudflare:workers"` only in adapters, infrastructure, app bridge, or integration wrappers where platform access is expected.
 - Do not import `cloudflare:workers` from pure domain rule modules.
 - Seed Super Admin through explicit script/review. Warn before replacing owner credentials or changing unique owner behavior.
@@ -264,4 +265,4 @@ For humans:
 - Remove rules once code structure makes them obvious.
 - Review after architecture artifact or major source reorganization.
 
-Last Updated: 2026-05-12
+Last Updated: 2026-05-13

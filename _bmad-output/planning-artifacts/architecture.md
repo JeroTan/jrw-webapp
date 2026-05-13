@@ -121,7 +121,7 @@ JRW is a brownfield full-stack Cloudflare Workers web application: Astro SSR she
 ### Starter Options Considered
 
 **Existing Astro + Cloudflare foundation**
-Selected. Current repo already has Astro server output, Cloudflare adapter, React integration, Tailwind Vite plugin, Wrangler bindings, D1, R2, and Durable Object scaffolding. Rebuild should reconcile this foundation, not scaffold over it.
+Selected. Current repo already has Astro server output, Cloudflare adapter, React integration, Tailwind Vite plugin, env-scoped Wrangler bindings, D1, R2, and Durable Object scaffolding. Rebuild should reconcile this foundation, not scaffold over it.
 
 **Cloudflare C3 Astro starter**
 Best clean-room option if starting from an empty repo. Official Cloudflare docs recommend `npm create cloudflare@latest -- my-astro-app --framework=astro`.
@@ -162,7 +162,7 @@ TypeScript on Node `>=22.12.0`, deployed to Cloudflare Workers. Astro 6 requires
 Tailwind CSS v4 through Vite plugin. JRW design tokens come from `docs/design-by-google-stitch.md`, not a generic component library.
 
 **Build Tooling:**
-Astro + Vite build pipeline, Cloudflare adapter, Wrangler deploys, D1/R2/Durable Object bindings in `wrangler.jsonc`.
+Astro + Vite build pipeline, Cloudflare adapter, Wrangler deploys, and env-scoped D1/R2/Durable Object bindings in `wrangler.jsonc`.
 
 **Testing Framework:**
 Vitest exists but tests are mostly absent. Starter provides tooling only; architecture must require domain, service, API contract, auth, inventory, payment, and RBAC tests.
@@ -234,7 +234,7 @@ State approach: URL/server data for browsable catalog, local React state for UI 
 
 ### Infrastructure & Deployment
 
-Cloudflare Workers hosts SSR/API. D1, R2, and Durable Objects are first-class bindings. Use `npm run dev` for app work, `npm run wrangler-dev` for Cloudflare behavior, `npm run check` for typed validation, and `npm run build-test` once tests exist.
+Cloudflare Workers hosts SSR/API. D1, R2, and Durable Objects are first-class bindings scoped under `env.development` and `env.production` in `wrangler.jsonc`; root Wrangler config does not define default D1/R2/Durable Object bindings. Wrangler commands that need bindings must pass an explicit environment. Use `npm run dev` for app work, `npm run wrangler-dev` for Cloudflare behavior, `npm run check` for typed validation, and `npm run build-test` once tests exist.
 
 ### Decision Impact Analysis
 
@@ -556,7 +556,7 @@ Prospect storefront reads published catalog. Customer checkout validates cart an
 ### File Organization Patterns
 
 **Configuration Files:**
-Root config owns Astro, Wrangler, Drizzle, TypeScript, Tailwind/Vite, Vitest, package scripts, and environment examples.
+Root config owns Astro, Wrangler, Drizzle, TypeScript, Tailwind/Vite, Vitest, package scripts, and environment examples. Wrangler binding config is env-scoped only; package scripts must not rely on root-level D1/R2/Durable Object bindings.
 
 **Source Organization:**
 Feature UI, shared components, domain rules, API layers, repositories, provider adapters, middleware, and utilities remain physically separate.
@@ -573,10 +573,10 @@ Static public assets live in `public/assets`. Uploaded product media lives in R2
 Astro dev runs pages and React islands. Elysia API is exposed through the Astro catch-all bridge, with the real app composed in `src/server/app.ts`.
 
 **Build Process Structure:**
-Astro builds for Cloudflare Workers. Wrangler deploys with D1, R2, and Durable Object bindings. Drizzle generates SQL into `migrations/`.
+Astro builds for Cloudflare Workers. Wrangler deploys with D1, R2, and Durable Object bindings selected by explicit environment. Drizzle generates SQL into `migrations/`.
 
 **Deployment Structure:**
-Remote development D1 receives migrations first. Production D1 migration is explicit review-only. Binding changes require regenerated Cloudflare types.
+Remote development D1 receives migrations first. Production D1 migration is explicit review-only. Binding changes require regenerated Cloudflare types for the intended environment; development type generation uses `wrangler types --env development`.
 
 ## Architecture Validation Results
 

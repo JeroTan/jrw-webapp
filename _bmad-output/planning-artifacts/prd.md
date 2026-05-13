@@ -36,7 +36,7 @@ projectName: "jrw-webapp"
 userName: "MR. JRW"
 createdDate: "2026-05-11"
 completedAt: "2026-05-11"
-lastEdited: "2026-05-11"
+lastEdited: "2026-05-13"
 projectContext: "brownfield_rebuild_with_existing_tangram_docs_and_partial_api_implementation"
 classification:
   projectType:
@@ -139,6 +139,7 @@ Technical targets:
 - Business rules are testable without HTTP transport, database persistence, third-party providers, or UI runtime.
 - Tests cover domain/service rules before checkout, inventory, and admin dashboards depend on them.
 - Source reorganization has a documented migration/deprecation plan for legacy API code.
+- Cloudflare binding configuration is environment-scoped in `wrangler.jsonc`; D1, R2, and Durable Object binding commands must target the intended Wrangler environment explicitly.
 
 ### Measurable Outcomes
 
@@ -543,6 +544,7 @@ Architecture must explicitly address:
 - Third-party integration wrappers for PayMongo, Resend, Google OAuth, product image storage, error tracking, and cryptography.
 - API contract strategy and generated/readable docs.
 - Database migration strategy for development and production.
+- Wrangler environment and binding strategy for development and production, including explicit environment selection for D1/R2/Durable Object commands.
 - Inventory concurrency strategy.
 - Request ID, structured logging, and error tracking propagation.
 - Testing strategy for domain rules, API contracts, auth/authorization, inventory, payment webhooks, and checkout.

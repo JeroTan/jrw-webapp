@@ -14,7 +14,7 @@ workflowStatus: "complete"
 projectName: "jrw-webapp"
 userName: "MR. JRW"
 createdDate: "2026-05-11"
-lastUpdated: "2026-05-12"
+lastUpdated: "2026-05-13"
 completedAt: "2026-05-12"
 ---
 
@@ -275,6 +275,7 @@ NFR45: Existing helpers and utilities must be inventoried before replacement to 
 - Canonical backend home is `src/server/**`; Astro API catch-all remains thin bridge into Elysia.
 - API flow must follow Route -> Controller -> Service -> Domain/Repository.
 - D1 plus Drizzle is relational source of truth; migrations are remote-first with development before production review.
+- Wrangler bindings for D1, R2, and Durable Objects are environment-scoped under `env.development` and `env.production`; scripts using bindings must pass the intended `--env`.
 - TypeBox/Elysia schemas drive route contracts and OpenAPI; Zod remains for forms and non-Elysia parsing.
 - Browser authentication must use secure HttpOnly cookies backed by server-side session records.
 - `jose` token helpers remain approved for email verification, password reset, OAuth state, and signed short-lived internal tokens.
