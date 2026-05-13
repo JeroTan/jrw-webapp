@@ -1,6 +1,6 @@
 # Story 1.6: Seed Unique Super Admin and Deprecated Role Alias
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -22,51 +22,51 @@ so that JRW has a controlled governance root and legacy `STORE_ADMIN` data canno
 
 ## Tasks / Subtasks
 
-- [ ] Establish canonical role domain helpers. (AC: 3, 4)
-  - [ ] Add pure role constants and types under `src/domain/auth/roles.ts` or closest existing domain path.
-  - [ ] Define active user roles exactly as `SUPER_ADMIN`, `ADMIN`, `CUSTOMER`, `PROSPECT`.
-  - [ ] Define `STORE_ADMIN` only as deprecated input alias, never as active output role.
-  - [ ] Implement role normalization so `STORE_ADMIN` maps to `ADMIN`; unknown roles fail with existing stable error code `VALIDATION_FAILED` or `CONFLICT_STATE` where state conflict is the reason.
-  - [ ] Reuse role type in request context, OpenAPI route metadata, operational logging, and audit types where practical so role lists do not drift.
+- [x] Establish canonical role domain helpers. (AC: 3, 4)
+  - [x] Add pure role constants and types under `src/domain/auth/roles.ts` or closest existing domain path.
+  - [x] Define active user roles exactly as `SUPER_ADMIN`, `ADMIN`, `CUSTOMER`, `PROSPECT`.
+  - [x] Define `STORE_ADMIN` only as deprecated input alias, never as active output role.
+  - [x] Implement role normalization so `STORE_ADMIN` maps to `ADMIN`; unknown roles fail with existing stable error code `VALIDATION_FAILED` or `CONFLICT_STATE` where state conflict is the reason.
+  - [x] Reuse role type in request context, OpenAPI route metadata, operational logging, and audit types where practical so role lists do not drift.
 
-- [ ] Enforce unique owner invariant in schema and migration plan. (AC: 1, 2, 6, 7)
-  - [ ] Review existing `admins` shape in `src/domain/schema/identity.ts`: `email`, `password_hash`, `is_owner`, timestamps.
-  - [ ] Prefer a D1/SQLite unique partial index that allows many non-owner admins but only one owner: `CREATE UNIQUE INDEX ... ON admins (is_owner) WHERE is_owner = 1`.
-  - [ ] If Drizzle Kit cannot emit the partial index safely, keep `src/domain/schema/identity.ts` aligned and hand-review generated SQL before applying.
-  - [ ] Run `npm run db:generate` if schema changes are made.
-  - [ ] Do not apply production migration. Development remote migration needs explicit evidence if run.
+- [x] Enforce unique owner invariant in schema and migration plan. (AC: 1, 2, 6, 7)
+  - [x] Review existing `admins` shape in `src/domain/schema/identity.ts`: `email`, `password_hash`, `is_owner`, timestamps.
+  - [x] Prefer a D1/SQLite unique partial index that allows many non-owner admins but only one owner: `CREATE UNIQUE INDEX ... ON admins (is_owner) WHERE is_owner = 1`.
+  - [x] If Drizzle Kit cannot emit the partial index safely, keep `src/domain/schema/identity.ts` aligned and hand-review generated SQL before applying.
+  - [x] Run `npm run db:generate` if schema changes are made.
+  - [x] Do not apply production migration. Development remote migration needs explicit evidence if run.
 
-- [ ] Replace unsafe Super Admin seed flow. (AC: 1, 2, 5, 7)
-  - [ ] Rename or replace `scripts/seed-admin.ts` with canonical `scripts/seed-super-admin.ts`; keep a thin compatibility wrapper only if useful.
-  - [ ] Align script env names with `.env.example`: `SEED_SUPER_ADMIN_EMAIL`, `SEED_SUPER_ADMIN_PASSWORD`.
-  - [ ] Remove `dotenv/config` dependency unless `dotenv` is intentionally added; current package does not include `dotenv`.
-  - [ ] Add package script if useful, preferably using Node 22 `--env-file=.env` with TSX import instead of adding a new env loader.
-  - [ ] Validate email/password before building SQL. Never log password, hash, pepper, JWT secret, tokens, or raw env.
-  - [ ] Preflight owner count before insert/update. If owner count is greater than zero, default behavior must exit non-zero without changing credentials.
-  - [ ] Allow credential replacement only through explicit reviewed flag or confirmation token. Output must warn that owner credentials will be replaced before doing it.
-  - [ ] Use temporary SQL files safely and remove them in `finally`, or use a safer D1 access path. Do not commit generated seed SQL.
-  - [ ] Target development remote only unless production review flag and human runbook evidence exist.
+- [x] Replace unsafe Super Admin seed flow. (AC: 1, 2, 5, 7)
+  - [x] Rename or replace `scripts/seed-admin.ts` with canonical `scripts/seed-super-admin.ts`; keep a thin compatibility wrapper only if useful.
+  - [x] Align script env names with `.env.example`: `SEED_SUPER_ADMIN_EMAIL`, `SEED_SUPER_ADMIN_PASSWORD`.
+  - [x] Remove `dotenv/config` dependency unless `dotenv` is intentionally added; current package does not include `dotenv`.
+  - [x] Add package script if useful, preferably using Node 22 `--env-file=.env` with TSX import instead of adding a new env loader.
+  - [x] Validate email/password before building SQL. Never log password, hash, pepper, JWT secret, tokens, or raw env.
+  - [x] Preflight owner count before insert/update. If owner count is greater than zero, default behavior must exit non-zero without changing credentials.
+  - [x] Allow credential replacement only through explicit reviewed flag or confirmation token. Output must warn that owner credentials will be replaced before doing it.
+  - [x] Use temporary SQL files safely and remove them in `finally`, or use a safer D1 access path. Do not commit generated seed SQL.
+  - [x] Target development remote only unless production review flag and human runbook evidence exist.
 
-- [ ] Add pure tests for role and seed decisions. (AC: 1, 2, 3, 4, 5)
-  - [ ] Add `src/domain/auth/roles.test.ts` for active role list, alias normalization, active role output, and unknown-role rejection.
-  - [ ] Extract seed decision rules into pure testable helper, for example `src/domain/auth/super-admin-seed.ts`, so tests do not call Wrangler or D1.
-  - [ ] Test no-owner plan creates exactly one owner insert.
-  - [ ] Test existing-owner default refuses duplicate/credential replacement.
-  - [ ] Test explicit credential replacement path requires reviewed confirmation and never returns secrets in logs/messages.
-  - [ ] Add script smoke test only if it can run without remote D1; otherwise document manual command evidence requirement.
+- [x] Add pure tests for role and seed decisions. (AC: 1, 2, 3, 4, 5)
+  - [x] Add `src/domain/auth/roles.test.ts` for active role list, alias normalization, active role output, and unknown-role rejection.
+  - [x] Extract seed decision rules into pure testable helper, for example `src/domain/auth/super-admin-seed.ts`, so tests do not call Wrangler or D1.
+  - [x] Test no-owner plan creates exactly one owner insert.
+  - [x] Test existing-owner default refuses duplicate/credential replacement.
+  - [x] Test explicit credential replacement path requires reviewed confirmation and never returns secrets in logs/messages.
+  - [x] Add script smoke test only if it can run without remote D1; otherwise document manual command evidence requirement.
 
-- [ ] Update project docs and baselines. (AC: 3, 4, 6, 7)
-  - [ ] Update `.env.example` comments only if command or variable wording changes.
-  - [ ] Update `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md` completion/evidence note if migration or owner invariant policy changes materially.
-  - [ ] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` only if an API route/contract changes; this story should not need new public endpoint contracts.
-  - [ ] Keep `src/api/**` frozen. New canonical auth/admin route work belongs to later stories under `src/server/**`.
+- [x] Update project docs and baselines. (AC: 3, 4, 6, 7)
+  - [x] Update `.env.example` comments only if command or variable wording changes.
+  - [x] Update `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md` completion/evidence note if migration or owner invariant policy changes materially.
+  - [x] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` only if an API route/contract changes; this story should not need new public endpoint contracts.
+  - [x] Keep `src/api/**` frozen. New canonical auth/admin route work belongs to later stories under `src/server/**`.
 
-- [ ] Validate and record evidence. (AC: 5, 7)
-  - [ ] Run `npm run check`.
-  - [ ] Run targeted Vitest for changed role/seed tests.
-  - [ ] Run `npm run build-test` if migration, schema, or broader auth code changes make full gate valuable.
-  - [ ] Record whether `npm run db:generate` was run and list generated migration file, if any.
-  - [ ] Record that no production D1 seed or migration was run.
+- [x] Validate and record evidence. (AC: 5, 7)
+  - [x] Run `npm run check`.
+  - [x] Run targeted Vitest for changed role/seed tests.
+  - [x] Run `npm run build-test` if migration, schema, or broader auth code changes make full gate valuable.
+  - [x] Record whether `npm run db:generate` was run and list generated migration file, if any.
+  - [x] Record that no production D1 seed or migration was run.
 
 ## Dev Notes
 
@@ -226,10 +226,54 @@ Ultimate context engine analysis completed - comprehensive developer guide creat
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
+- `npx vitest run src/domain/auth/roles.test.ts` failed before `src/domain/auth/roles.ts` existed, then passed after role helper implementation.
+- `npx vitest run src/domain/auth/super-admin-seed.test.ts` failed before `src/domain/auth/super-admin-seed.ts` existed, then passed after seed decision helper implementation.
+- `npx vitest run src/domain/schema-invariants.test.ts` failed before owner partial index existed, then passed after `admins_single_owner_idx`.
+- First `npm run db:generate` attempt hit Drizzle schema glob importing a colocated schema test; test moved outside `src/domain/schema/*.ts`, then `npm run db:generate` succeeded.
+- `npm run db:generate` generated `migrations/0007_stormy_nighthawk.sql` with `CREATE UNIQUE INDEX admins_single_owner_idx ON admins (is_owner) WHERE "admins"."is_owner" = 1`.
+- `node --import tsx scripts/seed-super-admin.ts --dry-run` with placeholder credentials exited non-zero before any D1 call, proving fail-closed validation path.
+- `node --import tsx scripts/seed-super-admin.ts --env production --dry-run` with valid fake credentials exited non-zero before any D1 call because reviewed production confirmation was missing.
+- `npm run check` passed with existing warnings in frozen legacy/mock `src/api/**`.
+- `npm run build-test` passed: Astro check, 10 Vitest files / 35 tests, Astro build.
+
 ### Completion Notes List
 
+- Added canonical active user role domain helpers and `STORE_ADMIN` deprecated alias normalization. Active outputs remain only `SUPER_ADMIN`, `ADMIN`, `CUSTOMER`, and `PROSPECT`.
+- Reused central role types in request context, OpenAPI metadata, operational logs, and audit actor types to prevent role-list drift.
+- Added Drizzle owner invariant and generated migration `migrations/0007_stormy_nighthawk.sql`; migration contains only owner partial unique index, no unrelated table churn.
+- Replaced unsafe seed flow with canonical `scripts/seed-super-admin.ts`, env names matching `.env.example`, Node 22 `--env-file=.env` package scripts, temp SQL cleanup in `finally`, owner-count preflight, masked operator output, production fail-closed gate, and explicit reviewed replacement confirmation.
+- Kept `scripts/seed-admin.ts` as thin compatibility wrapper.
+- Added pure tests for role normalization, seed decisions, credential validation safety, and schema invariant.
+- Updated `.env.example` guardrail comments and Story 1.4 D1 migration baseline. No API route/contract changed, so endpoint catalog stayed unchanged.
+- No production D1 seed, production D1 migration, development remote seed, or development remote migration was run.
+
 ### File List
+
+- `.env.example`
+- `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md`
+- `_bmad-output/implementation-artifacts/1-6-seed-unique-super-admin-and-deprecated-role-alias.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `migrations/0007_stormy_nighthawk.sql`
+- `migrations/meta/0007_snapshot.json`
+- `migrations/meta/_journal.json`
+- `package.json`
+- `scripts/seed-admin.ts`
+- `scripts/seed-super-admin.ts`
+- `src/adapter/infrastructure/logging/operational-log.ts`
+- `src/domain/audit/events.ts`
+- `src/domain/auth/roles.test.ts`
+- `src/domain/auth/roles.ts`
+- `src/domain/auth/super-admin-seed.test.ts`
+- `src/domain/auth/super-admin-seed.ts`
+- `src/domain/schema-invariants.test.ts`
+- `src/domain/schema/identity.ts`
+- `src/server/context/request-context.ts`
+- `src/server/openapi/route-metadata.ts`
+
+## Change Log
+
+- 2026-05-13: Implemented canonical roles, Super Admin seed guardrails, owner unique partial index migration, tests, validation evidence, and D1 baseline update.

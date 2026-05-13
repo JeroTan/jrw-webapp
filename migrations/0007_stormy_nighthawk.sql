@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `admins_single_owner_idx` ON `admins` (`is_owner`) WHERE "admins"."is_owner" = 1;

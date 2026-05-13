@@ -6,8 +6,8 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
+    "dev": "cross-env CLOUDFLARE_ENV=development astro dev",
+    "start": "npm run dev",
     "build-test": "astro check && vitest run && astro build",
     "build": "astro check && astro build",
     "preview": "astro preview",
@@ -16,11 +16,13 @@
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote --env development",
     "wrangler-types": "wrangler types",
-    "wrangler-dev": "astro build && wrangler dev",
+    "wrangler-dev": "astro build && wrangler dev --env development",
     "deploy-development": "npx wrangler@latest deploy --env=\"development\"",
     "deploy-production": "npx wrangler@latest deploy --env=\"production\"",
     "check": "astro check",
     "test": "vitest",
+    "seed:super-admin": "node --env-file=.env --import tsx scripts/seed-super-admin.ts",
+    "seed:admin": "node --env-file=.env --import tsx scripts/seed-admin.ts",
     "prettier": "prettier --write ."
   },
   "dependencies": {

@@ -1,12 +1,9 @@
+import type { ActiveUserRole } from "@/domain/auth/roles";
 import type { ErrorCodeType } from "@/utils/general/error";
 
 export type RouteAuthMode = "public" | "optional" | "required";
 
-export type RouteRole =
-  | "SUPER_ADMIN"
-  | "ADMIN"
-  | "CUSTOMER"
-  | "PROSPECT";
+export type RouteRole = ActiveUserRole;
 
 export type RouteAuthMetadata = {
   mode: RouteAuthMode;
@@ -40,7 +37,9 @@ export function routeDetail(input: RouteDetailInput) {
     tags: [...input.tags],
     ...(input.deprecated === undefined ? {} : { deprecated: input.deprecated }),
     ...(input.auth ? { "x-auth": input.auth } : {}),
-    ...(input.rateLimitClass ? { "x-rate-limit-class": input.rateLimitClass } : {}),
+    ...(input.rateLimitClass
+      ? { "x-rate-limit-class": input.rateLimitClass }
+      : {}),
     ...(input.errorCodes ? { "x-error-codes": input.errorCodes } : {}),
   };
 }

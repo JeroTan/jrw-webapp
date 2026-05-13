@@ -15,35 +15,6 @@
     "enabled": true,
     "head_sampling_rate": 1,
   },
-  "r2_buckets": [
-    {
-      "binding": "STORAGE",
-      "bucket_name": "jrw-ecommerce-storage-development",
-      "remote": true,
-    },
-  ],
-  "durable_objects": {
-    "bindings": [
-      {
-        "class_name": "InventoryDurableObject",
-        "name": "INVENTORY_DURABLE_OBJECT",
-      },
-    ],
-  },
-  "d1_databases": [
-    {
-      "binding": "DB",
-      "database_name": "jrw-database-development",
-      "database_id": "beabfd98-8611-4d58-8f1b-7a972b8af1ed",
-      "remote": true,
-    },
-  ],
-  "migrations": [
-    {
-      "tag": "v1",
-      "new_sqlite_classes": ["InventoryDurableObject"],
-    },
-  ],
   "env": {
     "development": {
       "name": "jrw-ecommerce-development",

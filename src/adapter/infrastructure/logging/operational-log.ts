@@ -1,14 +1,9 @@
+import type { ActorRole } from "@/domain/auth/roles";
 import { GeneralError, type ErrorCodeType } from "@/utils/general/error";
 
 export const REDACTED_LOG_VALUE = "[REDACTED]";
 
-export type OperationalActorRole =
-  | "SUPER_ADMIN"
-  | "ADMIN"
-  | "CUSTOMER"
-  | "PROSPECT"
-  | "SYSTEM"
-  | "UNKNOWN";
+export type OperationalActorRole = ActorRole;
 
 export type OperationalLogDetails = Record<string, unknown>;
 

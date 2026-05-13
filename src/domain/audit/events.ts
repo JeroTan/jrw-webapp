@@ -1,4 +1,5 @@
 import { createId } from "@paralleldrive/cuid2";
+import type { ActorRole } from "@/domain/auth/roles";
 
 export const auditEntityTypes = [
   "account",
@@ -54,13 +55,7 @@ export const auditActionTypes = [
 
 export type AuditActionType = (typeof auditActionTypes)[number];
 
-export type AuditActorRole =
-  | "SUPER_ADMIN"
-  | "ADMIN"
-  | "CUSTOMER"
-  | "PROSPECT"
-  | "SYSTEM"
-  | "UNKNOWN";
+export type AuditActorRole = ActorRole;
 
 export type AuditActor = {
   type: "user" | "system" | "provider";
@@ -149,12 +144,16 @@ function shouldRedactAuditString(value: string): boolean {
     /^ya29\./i.test(value) ||
     /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value) ||
     /\b(password|secret|token|jwt|cookie|paymongo|raw payment|provider payload|stack)\b/i.test(
-      value,
+      value
     )
   );
 }
 
-function scrubAuditValue(value: unknown, key = "", seen = new WeakSet<object>()): unknown {
+function scrubAuditValue(
+  value: unknown,
+  key = "",
+  seen = new WeakSet<object>()
+): unknown {
   if (key && shouldRedactAuditKey(key)) {
     return AUDIT_REDACTED_VALUE;
   }
@@ -198,14 +197,16 @@ function scrubAuditValue(value: unknown, key = "", seen = new WeakSet<object>())
       Object.entries(value).map(([entryKey, entryValue]) => [
         entryKey,
         scrubAuditValue(entryValue, entryKey, seen),
-      ]),
+      ])
     );
   }
 
   return value;
 }
 
-export function scrubAuditDetails(details?: AuditSafeDetails): AuditSafeDetails | undefined {
+export function scrubAuditDetails(
+  details?: AuditSafeDetails
+): AuditSafeDetails | undefined {
   if (!details) return undefined;
 
   return scrubAuditValue(details) as AuditSafeDetails;

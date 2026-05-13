@@ -1,8 +1,9 @@
 import { Elysia } from "elysia";
+import type { ActorRole } from "@/domain/auth/roles";
 import { getOrCreateRequestId, REQUEST_ID_HEADER } from "@/utils/request-id";
 
 export type RequestActorContext = {
-  role?: "SUPER_ADMIN" | "ADMIN" | "CUSTOMER" | "PROSPECT" | "SYSTEM" | "UNKNOWN";
+  role?: ActorRole;
   safeActorId?: string;
 };
 
@@ -24,20 +25,19 @@ export function buildRequestContext(headers: Headers): ServerRequestContext {
 
 export function setRequestIdResponseHeader(
   set: { headers: Record<string, string | number> },
-  requestId: string,
+  requestId: string
 ): void {
   set.headers[REQUEST_ID_HEADER] = requestId;
 }
 
-export const requestContextPlugin = new Elysia({ name: "request-context" }).derive(
-  { as: "scoped" },
-  ({ request, set }) => {
-    const requestContext = buildRequestContext(request.headers);
-    setRequestIdResponseHeader(set, requestContext.requestId);
+export const requestContextPlugin = new Elysia({
+  name: "request-context",
+}).derive({ as: "scoped" }, ({ request, set }) => {
+  const requestContext = buildRequestContext(request.headers);
+  setRequestIdResponseHeader(set, requestContext.requestId);
 
-    return {
-      requestContext,
-      requestId: requestContext.requestId,
-    };
-  },
-);
+  return {
+    requestContext,
+    requestId: requestContext.requestId,
+  };
+});
