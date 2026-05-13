@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { createId } from "@paralleldrive/cuid2";
 import {
   buildOwnerCountSql,
+  buildSeededOwnerCountSql,
   buildSuperAdminSeedSql,
   decideSuperAdminSeedOperation,
   maskEmailForOperator,
@@ -18,6 +19,7 @@ type CliOptions = {
   replaceOwnerCredentialsConfirmation?: string;
   productionSeedConfirmation?: string;
   dryRun: boolean;
+  remoteValidate: boolean;
 };
 
 type CliEnv = NodeJS.ProcessEnv &
@@ -25,25 +27,45 @@ type CliEnv = NodeJS.ProcessEnv &
     Record<
       | "SEED_SUPER_ADMIN_EMAIL"
       | "SEED_SUPER_ADMIN_PASSWORD"
-      | "SEED_SUPER_ADMIN_TARGET_ENV"
-      | "SEED_SUPER_ADMIN_REPLACE_OWNER_CONFIRMATION"
-      | "SEED_SUPER_ADMIN_PRODUCTION_CONFIRMATION",
+      | "SEED_SUPER_ADMIN_TARGET_ENV",
       string
     >
   >;
 
-function cleanEnv(value: string | undefined): string | undefined {
+function cleanOptionalEnvValue(value: string | undefined): string | undefined {
   return value?.trim().replace(/;$/, "").replace(/^"/, "").replace(/"$/, "");
 }
 
-function readFlagValue(args: string[], index: number): string | undefined {
+function readRequiredFlagValue(
+  args: string[],
+  index: number,
+  flagName: string
+): string {
   const value = args[index + 1];
-  return value && !value.startsWith("--") ? value : undefined;
+  if (!value || value.startsWith("--")) {
+    throw new Error(`${flagName} requires a value.`);
+  }
+
+  return value;
+}
+
+function readInlineFlagValue(
+  arg: string,
+  prefix: string,
+  flagName: string
+): string {
+  const value = arg.slice(prefix.length);
+  if (!value) {
+    throw new Error(`${flagName} requires a value.`);
+  }
+
+  return value;
 }
 
 function parseCliArgs(args: string[]): CliOptions {
   const options: CliOptions = {
     dryRun: false,
+    remoteValidate: false,
   };
 
   for (let index = 0; index < args.length; index += 1) {
@@ -54,40 +76,57 @@ function parseCliArgs(args: string[]): CliOptions {
       continue;
     }
 
+    if (arg === "--remote-validate") {
+      options.remoteValidate = true;
+      continue;
+    }
+
     if (arg.startsWith("--env=")) {
-      options.targetEnv = arg.slice("--env=".length);
+      options.targetEnv = readInlineFlagValue(arg, "--env=", "--env");
       continue;
     }
 
     if (arg === "--env") {
-      options.targetEnv = readFlagValue(args, index);
-      index += options.targetEnv ? 1 : 0;
+      options.targetEnv = readRequiredFlagValue(args, index, "--env");
+      index += 1;
       continue;
     }
 
     if (arg.startsWith("--replace-owner-credentials=")) {
-      options.replaceOwnerCredentialsConfirmation = arg.slice(
-        "--replace-owner-credentials=".length
+      options.replaceOwnerCredentialsConfirmation = readInlineFlagValue(
+        arg,
+        "--replace-owner-credentials=",
+        "--replace-owner-credentials"
       );
       continue;
     }
 
     if (arg === "--replace-owner-credentials") {
-      options.replaceOwnerCredentialsConfirmation = readFlagValue(args, index);
-      index += options.replaceOwnerCredentialsConfirmation ? 1 : 0;
+      options.replaceOwnerCredentialsConfirmation = readRequiredFlagValue(
+        args,
+        index,
+        "--replace-owner-credentials"
+      );
+      index += 1;
       continue;
     }
 
     if (arg.startsWith("--production-reviewed=")) {
-      options.productionSeedConfirmation = arg.slice(
-        "--production-reviewed=".length
+      options.productionSeedConfirmation = readInlineFlagValue(
+        arg,
+        "--production-reviewed=",
+        "--production-reviewed"
       );
       continue;
     }
 
     if (arg === "--production-reviewed") {
-      options.productionSeedConfirmation = readFlagValue(args, index);
-      index += options.productionSeedConfirmation ? 1 : 0;
+      options.productionSeedConfirmation = readRequiredFlagValue(
+        args,
+        index,
+        "--production-reviewed"
+      );
+      index += 1;
     }
   }
 
@@ -114,6 +153,7 @@ function runWranglerD1(targetEnv: string, args: readonly string[]): string {
     {
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
+      timeout: 120_000,
     }
   );
 }
@@ -172,10 +212,12 @@ export async function main(
   env: CliEnv = process.env
 ): Promise<void> {
   const cli = parseCliArgs(args);
-  const email = cleanEnv(env.SEED_SUPER_ADMIN_EMAIL);
-  const password = cleanEnv(env.SEED_SUPER_ADMIN_PASSWORD);
+  const email = cleanOptionalEnvValue(env.SEED_SUPER_ADMIN_EMAIL);
+  const password = env.SEED_SUPER_ADMIN_PASSWORD;
   const targetEnv =
-    cli.targetEnv ?? cleanEnv(env.SEED_SUPER_ADMIN_TARGET_ENV) ?? "development";
+    cli.targetEnv ??
+    cleanOptionalEnvValue(env.SEED_SUPER_ADMIN_TARGET_ENV) ??
+    "development";
 
   const credentials = validateSuperAdminSeedCredentials({
     email,
@@ -191,11 +233,8 @@ export async function main(
   console.log(`Seed email: ${maskEmailForOperator(credentials.email)}`);
 
   const replaceOwnerCredentialsConfirmation =
-    cli.replaceOwnerCredentialsConfirmation ??
-    cleanEnv(env.SEED_SUPER_ADMIN_REPLACE_OWNER_CONFIRMATION);
-  const productionSeedConfirmation =
-    cli.productionSeedConfirmation ??
-    cleanEnv(env.SEED_SUPER_ADMIN_PRODUCTION_CONFIRMATION);
+    cli.replaceOwnerCredentialsConfirmation;
+  const productionSeedConfirmation = cli.productionSeedConfirmation;
   const targetGate = decideSuperAdminSeedOperation({
     ownerCount: 0,
     targetEnv,
@@ -209,6 +248,13 @@ export async function main(
   ) {
     console.error(targetGate.message);
     process.exit(1);
+  }
+
+  if (cli.dryRun && !cli.remoteValidate) {
+    console.log(
+      "Dry run: credentials and target gate validated. No remote D1 query or seed SQL executed."
+    );
+    return;
   }
 
   const ownerCountOutput = runWranglerD1(targetEnv, [
@@ -238,7 +284,7 @@ export async function main(
 
   if (cli.dryRun) {
     console.log(
-      `Dry run: ${decision.operation} validated. No seed SQL executed.`
+      `Remote dry run: ${decision.operation} validated. No seed SQL executed.`
     );
     return;
   }
@@ -261,6 +307,25 @@ export async function main(
     });
 
     runWranglerD1(targetEnv, ["--file", tempFile, "--yes"]);
+    const finalOwnerCountOutput = runWranglerD1(targetEnv, [
+      "--command",
+      buildOwnerCountSql(),
+      "--json",
+    ]);
+    const finalOwnerCount = parseOwnerCount(finalOwnerCountOutput);
+    const seededOwnerCountOutput = runWranglerD1(targetEnv, [
+      "--command",
+      buildSeededOwnerCountSql(credentials.email),
+      "--json",
+    ]);
+    const seededOwnerCount = parseOwnerCount(seededOwnerCountOutput);
+
+    if (finalOwnerCount !== 1 || seededOwnerCount !== 1) {
+      throw new Error(
+        "Super Admin seed verification failed. Expected exactly one owner matching the seed email."
+      );
+    }
+
     console.log(`Super Admin seed completed: ${decision.operation}`);
   } finally {
     rmSync(tempDir, {

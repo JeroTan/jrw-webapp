@@ -25,8 +25,8 @@ export const admins = sqliteTable(
   },
   (table) => [
     uniqueIndex("admins_single_owner_idx")
-      .on(table.is_owner)
-      .where(sql`${table.is_owner} = 1`),
+      .on(sql`1`)
+      .where(sql`${table.is_owner} <> 0`),
   ]
 );
 

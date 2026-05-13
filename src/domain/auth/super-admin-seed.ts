@@ -155,10 +155,12 @@ export function decideSuperAdminSeedOperation(input: {
 }
 
 function hasPlaceholderValue(value: string): boolean {
+  const normalizedValue = value.trim().toLowerCase();
+
   return (
-    value === "super-admin@example.com" ||
-    value.startsWith("replace-with-") ||
-    value.includes("example-placeholder")
+    normalizedValue === "super-admin@example.com" ||
+    normalizedValue.startsWith("replace-with-") ||
+    normalizedValue.includes("example-placeholder")
   );
 }
 
@@ -167,11 +169,14 @@ export function validateSuperAdminSeedCredentials(input: {
   password?: string;
 }): SuperAdminSeedCredentialValidation {
   const email = input.email?.trim().toLowerCase();
-  const password = input.password?.trim();
+  const password = input.password;
+  const passwordForValidation = password?.trim();
   const emailIsValid = Boolean(
     email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
   );
-  const passwordIsValid = Boolean(password && password.length >= 16);
+  const passwordIsValid = Boolean(
+    password && passwordForValidation && passwordForValidation.length >= 16
+  );
 
   if (
     !email ||
@@ -200,7 +205,7 @@ function sqlString(value: string): string {
 }
 
 export function buildOwnerCountSql(): string {
-  return "SELECT COUNT(*) AS owner_count FROM admins WHERE is_owner = 1;";
+  return "SELECT COUNT(*) AS owner_count FROM admins WHERE is_owner <> 0;";
 }
 
 export function buildSuperAdminSeedSql(input: SuperAdminSeedSqlInput): string {
@@ -210,7 +215,7 @@ export function buildSuperAdminSeedSql(input: SuperAdminSeedSqlInput): string {
       `SET email = ${sqlString(input.email)},`,
       `password_hash = ${sqlString(input.passwordHash)},`,
       "updated_at = CURRENT_TIMESTAMP",
-      "WHERE is_owner = 1;",
+      "WHERE is_owner <> 0;",
     ].join(" ");
   }
 
@@ -223,7 +228,19 @@ export function buildSuperAdminSeedSql(input: SuperAdminSeedSqlInput): string {
       sqlString(input.passwordHash),
       "1",
     ].join(", "),
-    ");",
+    ")",
+    "ON CONFLICT (email) DO UPDATE SET",
+    "password_hash = excluded.password_hash,",
+    "is_owner = 1,",
+    "updated_at = CURRENT_TIMESTAMP",
+    "WHERE NOT EXISTS (SELECT 1 FROM admins WHERE is_owner <> 0);",
+  ].join(" ");
+}
+
+export function buildSeededOwnerCountSql(email: string): string {
+  return [
+    "SELECT COUNT(*) AS owner_count FROM admins",
+    `WHERE is_owner <> 0 AND email = ${sqlString(email)};`,
   ].join(" ");
 }
 

@@ -57,6 +57,13 @@
       "when": 1778631885214,
       "tag": "0007_stormy_nighthawk",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1778637176488,
+      "tag": "0008_boring_yellowjacket",
+      "breakpoints": true
     }
   ]
 }

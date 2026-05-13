@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   REVIEWED_OWNER_CREDENTIAL_REPLACEMENT_CONFIRMATION,
   REVIEWED_PRODUCTION_SUPER_ADMIN_SEED_CONFIRMATION,
+  buildOwnerCountSql,
+  buildSeededOwnerCountSql,
+  buildSuperAdminSeedSql,
   decideSuperAdminSeedOperation,
   validateSuperAdminSeedCredentials,
 } from "./super-admin-seed";
@@ -78,7 +81,7 @@ describe("super admin seed decision", () => {
   });
 
   it("validates credentials without returning secret material", () => {
-    const password = "correct horse battery staple";
+    const password = "  correct horse battery staple  ";
 
     expect(
       validateSuperAdminSeedCredentials({
@@ -93,7 +96,7 @@ describe("super admin seed decision", () => {
 
     const invalid = validateSuperAdminSeedCredentials({
       email: "owner@example.test",
-      password: "replace-with-a-long-random-initial-password",
+      password: "Replace-With-A-Long-Random-Initial-Password",
     });
 
     expect(invalid).toEqual({
@@ -102,7 +105,7 @@ describe("super admin seed decision", () => {
       message: "Super Admin seed credentials are missing or invalid.",
     });
     expect(JSON.stringify(invalid)).not.toContain(
-      "replace-with-a-long-random-initial-password"
+      "Replace-With-A-Long-Random-Initial-Password"
     );
   });
 
@@ -119,5 +122,32 @@ describe("super admin seed decision", () => {
       message:
         "Multiple Super Admin owners already exist. Manual remediation required before seeding.",
     });
+  });
+
+  it("uses non-zero owner checks and safe no-owner upsert SQL", () => {
+    expect(buildOwnerCountSql()).toBe(
+      "SELECT COUNT(*) AS owner_count FROM admins WHERE is_owner <> 0;"
+    );
+    expect(buildSeededOwnerCountSql("owner'o@example.test")).toBe(
+      "SELECT COUNT(*) AS owner_count FROM admins WHERE is_owner <> 0 AND email = 'owner''o@example.test';"
+    );
+    expect(
+      buildSuperAdminSeedSql({
+        id: "admin_1",
+        email: "owner@example.test",
+        passwordHash: "hash'value",
+        operation: "create-owner",
+      })
+    ).toContain(
+      "ON CONFLICT (email) DO UPDATE SET password_hash = excluded.password_hash, is_owner = 1, updated_at = CURRENT_TIMESTAMP WHERE NOT EXISTS (SELECT 1 FROM admins WHERE is_owner <> 0);"
+    );
+    expect(
+      buildSuperAdminSeedSql({
+        id: "unused",
+        email: "owner@example.test",
+        passwordHash: "hash",
+        operation: "replace-owner-credentials",
+      })
+    ).toContain("WHERE is_owner <> 0;");
   });
 });

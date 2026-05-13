@@ -1,6 +1,6 @@
 # Story 1.6: Seed Unique Super Admin and Deprecated Role Alias
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -68,6 +68,18 @@ so that JRW has a controlled governance root and legacy `STORE_ADMIN` data canno
   - [x] Record whether `npm run db:generate` was run and list generated migration file, if any.
   - [x] Record that no production D1 seed or migration was run.
 
+### Review Findings
+
+- [x] [Review][Patch] Keep Wrangler bindings env-only and update default scripts to target development explicitly [package.json:16]
+- [x] [Review][Patch] Do not allow destructive seed confirmations to persist through environment variables [scripts/seed-super-admin.ts:193]
+- [x] [Review][Patch] Harden owner invariant against non-boolean `is_owner` values and assert exact predicate in tests [src/domain/schema/identity.ts:27]
+- [x] [Review][Patch] Handle stale owner-count race and existing non-owner seed email before reporting seed success [src/domain/auth/super-admin-seed.ts:207]
+- [x] [Review][Patch] Make seed dry-run avoid remote D1 access or rename it to clarify remote validation [scripts/seed-super-admin.ts:214]
+- [x] [Review][Patch] Preserve operator-supplied password bytes instead of trimming or quote-stripping secrets [src/domain/auth/super-admin-seed.ts:169]
+- [x] [Review][Patch] Reject CLI flags that require values when value is missing [scripts/seed-super-admin.ts:62]
+- [x] [Review][Patch] Add timeout to Wrangler child process calls [scripts/seed-super-admin.ts:101]
+- [x] [Review][Patch] Make placeholder credential detection case-insensitive [src/domain/auth/super-admin-seed.ts:157]
+
 ## Dev Notes
 
 ### Current State
@@ -103,8 +115,8 @@ so that JRW has a controlled governance root and legacy `STORE_ADMIN` data canno
 
 ```sql
 CREATE UNIQUE INDEX admins_single_owner_idx
-ON admins (is_owner)
-WHERE is_owner = 1;
+ON admins (1)
+WHERE is_owner <> 0;
 ```
 
 - Before creating a unique partial index, verify development data has zero or one owner. If more than one owner exists, stop and document remediation; do not auto-demote.
@@ -239,13 +251,27 @@ GPT-5 Codex
 - `node --import tsx scripts/seed-super-admin.ts --env production --dry-run` with valid fake credentials exited non-zero before any D1 call because reviewed production confirmation was missing.
 - `npm run check` passed with existing warnings in frozen legacy/mock `src/api/**`.
 - `npm run build-test` passed: Astro check, 10 Vitest files / 35 tests, Astro build.
+- Review patch changed env-only Wrangler support by adding `--env development` to local migration and Wrangler type scripts while keeping remote migration as `--remote --env development`.
+- Review patch removed persistent destructive confirmation env vars; owner replacement and production seed confirmation now require CLI flags.
+- Review patch hardened owner invariant to a unique partial expression index over `is_owner <> 0` and generated `migrations/0008_boring_yellowjacket.sql`.
+- Review patch made seed `--dry-run` avoid remote D1 unless `--remote-validate` is supplied, preserved password bytes, rejected missing CLI flag values, added Wrangler child-process timeout, and verified final owner count plus target owner email.
+- `npx vitest run src/domain/auth/roles.test.ts src/domain/auth/super-admin-seed.test.ts src/domain/schema-invariants.test.ts` passed after review patches: 3 files / 12 tests.
+- `node --import tsx scripts/seed-super-admin.ts --dry-run` with valid fake credentials passed without remote D1 access after review patches.
+- `node --import tsx scripts/seed-super-admin.ts --env --dry-run` exited non-zero with `--env requires a value.`
+- `npm run db:generate` generated `migrations/0008_boring_yellowjacket.sql`.
+- `npm run check` passed after review patches: 0 errors, existing frozen legacy hints only.
+- `npm run build-test` passed after review patches: Astro check, 10 Vitest files / 36 tests, Astro build.
 
 ### Completion Notes List
 
 - Added canonical active user role domain helpers and `STORE_ADMIN` deprecated alias normalization. Active outputs remain only `SUPER_ADMIN`, `ADMIN`, `CUSTOMER`, and `PROSPECT`.
 - Reused central role types in request context, OpenAPI metadata, operational logs, and audit actor types to prevent role-list drift.
 - Added Drizzle owner invariant and generated migration `migrations/0007_stormy_nighthawk.sql`; migration contains only owner partial unique index, no unrelated table churn.
+- Hardened owner invariant with follow-up migration `migrations/0008_boring_yellowjacket.sql`, using a unique partial expression index for all non-zero owner rows.
 - Replaced unsafe seed flow with canonical `scripts/seed-super-admin.ts`, env names matching `.env.example`, Node 22 `--env-file=.env` package scripts, temp SQL cleanup in `finally`, owner-count preflight, masked operator output, production fail-closed gate, and explicit reviewed replacement confirmation.
+- Review patches keep Wrangler bindings env-only while making default local migration and type-generation scripts target development explicitly.
+- Destructive seed confirmations now come from CLI flags only; `.env.example` documents that confirmations must not be persisted in env files.
+- Seed dry-run now stays local unless `--remote-validate` is supplied; real seed execution verifies exactly one owner and that the seed email is the owner before reporting success.
 - Kept `scripts/seed-admin.ts` as thin compatibility wrapper.
 - Added pure tests for role normalization, seed decisions, credential validation safety, and schema invariant.
 - Updated `.env.example` guardrail comments and Story 1.4 D1 migration baseline. No API route/contract changed, so endpoint catalog stayed unchanged.
@@ -258,7 +284,9 @@ GPT-5 Codex
 - `_bmad-output/implementation-artifacts/1-6-seed-unique-super-admin-and-deprecated-role-alias.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `migrations/0007_stormy_nighthawk.sql`
+- `migrations/0008_boring_yellowjacket.sql`
 - `migrations/meta/0007_snapshot.json`
+- `migrations/meta/0008_snapshot.json`
 - `migrations/meta/_journal.json`
 - `package.json`
 - `scripts/seed-admin.ts`
@@ -277,3 +305,4 @@ GPT-5 Codex
 ## Change Log
 
 - 2026-05-13: Implemented canonical roles, Super Admin seed guardrails, owner unique partial index migration, tests, validation evidence, and D1 baseline update.
+- 2026-05-13: Applied code-review patches for env-only Wrangler scripts, destructive seed confirmation handling, dry-run behavior, owner invariant hardening, and seed verification.
