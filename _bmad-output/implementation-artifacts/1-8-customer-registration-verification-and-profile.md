@@ -1,6 +1,6 @@
 # Story 1.8: Customer Registration, Verification, and Profile
 
-Status: ready-for-dev
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -23,64 +23,64 @@ so that I can build trusted checkout/account identity before buying from JRW.
 
 ## Tasks / Subtasks
 
-- [ ] Add customer registration, verification-token, and profile schema changes. (AC: 1, 3, 5, 7)
-  - [ ] Extend `src/domain/schema/identity.ts` for customer profile gaps: `display_name` and an email preference field such as `email_marketing_opt_in`; preserve existing `first_name`, `last_name`, `phone`, `street_address`, `barangay`, `city_province`, `postal_code`, and `avatar_url`.
-  - [ ] Add `email_verification_tokens` or equivalent focused table with `id`, `customer_id`, `token_hash`, `expires_at`, `used_at`, `created_request_id`, optional safe source hash, and timestamps.
-  - [ ] Store only token hash, never raw verification token. Token must have at least 128 bits entropy and expire within 24 hours.
-  - [ ] Add indexes for token hash lookup, customer lookup, active/unexpired lookup, and cleanup by `expires_at`.
-  - [ ] Generate migration with `npm run db:generate`; inspect SQL for unrelated churn and D1-safe table rebuild behavior before accepting.
-  - [ ] Update `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md` with generated migration filename, token/profile ownership, and any remote-development evidence or blocker.
+- [x] Add customer registration, verification-token, and profile schema changes. (AC: 1, 3, 5, 7)
+  - [x] Extend `src/domain/schema/identity.ts` for customer profile gaps: `display_name` and an email preference field such as `email_marketing_opt_in`; preserve existing `first_name`, `last_name`, `phone`, `street_address`, `barangay`, `city_province`, `postal_code`, and `avatar_url`.
+  - [x] Add `email_verification_tokens` or equivalent focused table with `id`, `customer_id`, `token_hash`, `expires_at`, `used_at`, `created_request_id`, optional safe source hash, and timestamps.
+  - [x] Store only token hash, never raw verification token. Token must have at least 128 bits entropy and expire within 24 hours.
+  - [x] Add indexes for token hash lookup, customer lookup, active/unexpired lookup, and cleanup by `expires_at`.
+  - [x] Generate migration with `npm run db:generate`; inspect SQL for unrelated churn and D1-safe table rebuild behavior before accepting.
+  - [x] Update `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md` with generated migration filename, token/profile ownership, and any remote-development evidence or blocker.
 
-- [ ] Build pure customer identity/domain helpers. (AC: 1-5, 7)
-  - [ ] Reuse `src/lib/crypto/password.ts` for PBKDF2-SHA256 password hashing with secret pepper; do not use legacy `src/lib/crypto/hash.ts`.
-  - [ ] Reuse `src/lib/crypto/session-token.ts` entropy/hash primitives or add a small focused wrapper under `src/domain/auth/**` for verification tokens.
-  - [ ] Normalize customer emails to lowercase before lookup and insert; add tests for case-insensitive duplicate prevention.
-  - [ ] Define registration decisions for new customer, duplicate email, invalid password/profile input, and provider/email send failure.
-  - [ ] Define verification decisions for valid token, expired token, already-used token, invalid token, and customer not found.
-  - [ ] Define profile update validation for `displayName`, `phone`, address/contact fields, and email preference. Transactional emails are required and must not be disabled by marketing preference.
-  - [ ] Customer role remains derived from actor kind (`CUSTOMER`), not a new persisted role string.
+- [x] Build pure customer identity/domain helpers. (AC: 1-5, 7)
+  - [x] Reuse `src/lib/crypto/password.ts` for PBKDF2-SHA256 password hashing with secret pepper; do not use legacy `src/lib/crypto/hash.ts`.
+  - [x] Reuse `src/lib/crypto/session-token.ts` entropy/hash primitives or add a small focused wrapper under `src/domain/auth/**` for verification tokens.
+  - [x] Normalize customer emails to lowercase before lookup and insert; add tests for case-insensitive duplicate prevention.
+  - [x] Define registration decisions for new customer, duplicate email, invalid password/profile input, and provider/email send failure.
+  - [x] Define verification decisions for valid token, expired token, already-used token, invalid token, and customer not found.
+  - [x] Define profile update validation for `displayName`, `phone`, address/contact fields, and email preference. Transactional emails are required and must not be disabled by marketing preference.
+  - [x] Customer role remains derived from actor kind (`CUSTOMER`), not a new persisted role string.
 
-- [ ] Add repositories/services/controllers under canonical backend. (AC: 1-7)
-  - [ ] Add customer repository methods under `src/server/repositories/**` or `src/adapter/infrastructure/db/**` for customer create/read/update, duplicate email lookup, token create/read/use, and email-token rate-limit bucket if reused.
-  - [ ] Add `CustomerAccountService` or equivalent under `src/server/services/**` for registration, verification, profile read/update, and verification email dispatch orchestration.
-  - [ ] Add `CustomerAccountController` or equivalent under `src/server/controllers/**` to map service results to public envelopes.
-  - [ ] Keep route handlers thin: Route -> Controller -> Service -> Domain/Repository.
-  - [ ] Do not add canonical code under frozen `src/api/**`.
+- [x] Add repositories/services/controllers under canonical backend. (AC: 1-7)
+  - [x] Add customer repository methods under `src/server/repositories/**` or `src/adapter/infrastructure/db/**` for customer create/read/update, duplicate email lookup, token create/read/use, and email-token rate-limit bucket if reused.
+  - [x] Add `CustomerAccountService` or equivalent under `src/server/services/**` for registration, verification, profile read/update, and verification email dispatch orchestration.
+  - [x] Add `CustomerAccountController` or equivalent under `src/server/controllers/**` to map service results to public envelopes.
+  - [x] Keep route handlers thin: Route -> Controller -> Service -> Domain/Repository.
+  - [x] Do not add canonical code under frozen `src/api/**`.
 
-- [ ] Add Resend notification boundary for verification email. (AC: 1, 6, 7)
-  - [ ] Add provider-free email/notification port under `src/domain/notifications/**` or service-local interface.
-  - [ ] Add Resend adapter under `src/adapter/infrastructure/resend/**` or `src/lib/resend/**` per architecture. Do not put provider calls in `src/utils/**`.
-  - [ ] Runtime config should require safe sender/base URL values, for example `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and app base URL. Missing config maps to safe provider/internal error.
-  - [ ] Send verification email with raw token only inside email link/body. Do not return token in API response, persist it, log it, or expose it in OpenAPI examples.
-  - [ ] If no queue exists, do not claim queued delivery. Direct send failure must map to a stable safe error or retryable state, log safe context, and leave unverified account/token recoverable by Story 1.9 resend flow.
+- [x] Add Resend notification boundary for verification email. (AC: 1, 6, 7)
+  - [x] Add provider-free email/notification port under `src/domain/notifications/**` or service-local interface.
+  - [x] Add Resend adapter under `src/adapter/infrastructure/resend/**` or `src/lib/resend/**` per architecture. Do not put provider calls in `src/utils/**`.
+  - [x] Runtime config should require safe sender/base URL values, for example `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and app base URL. Missing config maps to safe provider/internal error.
+  - [x] Send verification email with raw token only inside email link/body. Do not return token in API response, persist it, log it, or expose it in OpenAPI examples.
+  - [x] If no queue exists, do not claim queued delivery. Direct send failure must map to a stable safe error or retryable state, log safe context, and leave unverified account/token recoverable by Story 1.9 resend flow.
 
-- [ ] Add route contracts and wire auth/customer endpoints. (AC: 1-6)
-  - [ ] Implement `POST /api/customers` for public customer registration.
-  - [ ] Implement `POST /api/email-verifications` for verification-token confirmation.
-  - [ ] Implement `GET /api/customers/me` for authenticated customer profile summary.
-  - [ ] Implement `PATCH /api/customers/me` for authenticated customer profile update.
-  - [ ] Use TypeBox/Elysia `t` schemas in route contracts and reusable envelope schemas from `src/lib/typebox/api.ts`.
-  - [ ] Add OpenAPI `routeDetail(...)` metadata: tags, summary, description, auth mode, roles, rate-limit class, and error codes.
-  - [ ] Wire new route group through `src/server/routes/index.ts` without disrupting `foundationRoutes` or existing auth session routes.
-  - [ ] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` rows with concrete customer/profile contracts.
+- [x] Add route contracts and wire auth/customer endpoints. (AC: 1-6)
+  - [x] Implement `POST /api/customers` for public customer registration.
+  - [x] Implement `POST /api/email-verifications` for verification-token confirmation.
+  - [x] Implement `GET /api/customers/me` for authenticated customer profile summary.
+  - [x] Implement `PATCH /api/customers/me` for authenticated customer profile update.
+  - [x] Use TypeBox/Elysia `t` schemas in route contracts and reusable envelope schemas from `src/lib/typebox/api.ts`.
+  - [x] Add OpenAPI `routeDetail(...)` metadata: tags, summary, description, auth mode, roles, rate-limit class, and error codes.
+  - [x] Wire new route group through `src/server/routes/index.ts` without disrupting `foundationRoutes` or existing auth session routes.
+  - [x] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` rows with concrete customer/profile contracts.
 
-- [ ] Enforce auth, privacy, and rate-limit behavior. (AC: 2, 5-7)
-  - [ ] Registration duplicate email must not reveal verification state, suspension state, provider linkage, password presence, or account internals.
-  - [ ] `GET/PATCH /api/customers/me` requires authenticated `CUSTOMER`. Missing session returns `AUTH_REQUIRED`; non-customer actor returns `AUTH_FORBIDDEN`.
-  - [ ] Do not build broad RBAC middleware ahead of Story 1.12; add only the minimal customer guard needed here or a clearly reusable helper.
-  - [ ] Apply `email-token` rate limiting for verification token creation/send attempts: max 3 per hour per normalized email and safe source scope, or document exact release blocker.
-  - [ ] Logs and error details must scrub password, password hash/salt, verification token/hash, session cookie/token, phone, address, and email where unnecessary.
-  - [ ] Public responses must not include password hash/salt, token hash, raw token, provider metadata, raw account status internals, or unnecessary PII.
+- [x] Enforce auth, privacy, and rate-limit behavior. (AC: 2, 5-7)
+  - [x] Registration duplicate email must not reveal verification state, suspension state, provider linkage, password presence, or account internals.
+  - [x] `GET/PATCH /api/customers/me` requires authenticated `CUSTOMER`. Missing session returns `AUTH_REQUIRED`; non-customer actor returns `AUTH_FORBIDDEN`.
+  - [x] Do not build broad RBAC middleware ahead of Story 1.12; add only the minimal customer guard needed here or a clearly reusable helper.
+  - [x] Apply `email-token` rate limiting for verification token creation/send attempts: max 3 per hour per normalized email and safe source scope, or document exact release blocker.
+  - [x] Logs and error details must scrub password, password hash/salt, verification token/hash, session cookie/token, phone, address, and email where unnecessary.
+  - [x] Public responses must not include password hash/salt, token hash, raw token, provider metadata, raw account status internals, or unnecessary PII.
 
-- [ ] Add required tests and validation. (AC: 1-8)
-  - [ ] Add schema/invariant tests for customer profile fields and verification token table/indexes.
-  - [ ] Add domain tests for password hashing path, email normalization, duplicate decisions, token expiry, token reuse prevention, and profile validation.
-  - [ ] Add service/controller/route tests for registration success, duplicate registration, invalid registration, provider failure, valid verification, expired/invalid/used token, token reuse no-op/failure, profile read, profile update, non-customer denial, and missing-session denial.
-  - [ ] Add integration-style test proving Story 1.7 sign-in blocks unverified customer and succeeds after verification when credentials are compatible.
-  - [ ] Add safe logging/redaction tests covering raw password, raw token, token hash, phone, address, session cookie, and provider error payload.
-  - [ ] Run targeted Vitest for changed customer/auth/email tests.
-  - [ ] Run `npm run check`.
-  - [ ] Run `npm run build-test` after schema/routes/provider work unless blocked; record exact blocker.
+- [x] Add required tests and validation. (AC: 1-8)
+  - [x] Add schema/invariant tests for customer profile fields and verification token table/indexes.
+  - [x] Add domain tests for password hashing path, email normalization, duplicate decisions, token expiry, token reuse prevention, and profile validation.
+  - [x] Add service/controller/route tests for registration success, duplicate registration, invalid registration, provider failure, valid verification, expired/invalid/used token, token reuse no-op/failure, profile read, profile update, non-customer denial, and missing-session denial.
+  - [x] Add integration-style test proving Story 1.7 sign-in blocks unverified customer and succeeds after verification when credentials are compatible.
+  - [x] Add safe logging/redaction tests covering raw password, raw token, token hash, phone, address, session cookie, and provider error payload.
+  - [x] Run targeted Vitest for changed customer/auth/email tests.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run build-test` after schema/routes/provider work unless blocked; record exact blocker.
 
 ## Dev Notes
 
@@ -271,10 +271,123 @@ Ultimate context engine analysis completed - comprehensive developer guide creat
 
 ### Agent Model Used
 
-TBD by dev agent
+GPT-5 Codex
+
+### Implementation Plan
+
+- Extend identity schema and D1 migration first so registration/profile/token storage has durable tables and indexes.
+- Keep customer account rules in pure domain helpers, then orchestrate effects through repository/service/controller layers.
+- Hide Resend behind a provider-free notification port and keep raw verification tokens out of persistence, logs, responses, and OpenAPI examples.
+- Wire thin Elysia routes with TypeBox contracts, standard envelopes, OpenAPI metadata, and minimal customer-only profile guard.
 
 ### Debug Log References
 
+- 2026-05-13: `npx vitest src/domain/schema-invariants.test.ts --run` failed after red-phase schema tests, then passed after schema/table/index implementation.
+- 2026-05-13: `npm run db:generate` generated `migrations/0011_sticky_avengers.sql`; SQL review found only token table/indexes and customer profile columns, no table rebuild.
+- 2026-05-13: `npx vitest src/domain/customers/customer-account.test.ts src/domain/auth/email-verification-token.test.ts --run` failed for missing red-phase modules, then passed after domain helper implementation.
+- 2026-05-13: `npx vitest src/server/services/CustomerAccountService.test.ts src/server/controllers/CustomerAccountController.test.ts --run` failed for missing red-phase modules, then passed after service/controller implementation and safe controller messages.
+- 2026-05-13: `npx vitest src/adapter/infrastructure/resend/CustomerVerificationEmailNotifier.test.ts src/server/services/CustomerAccountService.test.ts --run` failed for missing red-phase Resend adapter, then passed after notification port/adapter implementation.
+- 2026-05-13: `npx vitest src/server/routes/customer.routes.test.ts --run` failed for missing red-phase routes, then passed after customer route wiring and catalog update.
+- 2026-05-13: `npx vitest src/server/services/CustomerAccountService.test.ts src/server/routes/customer.routes.test.ts --run` passed after hardening assertions for email-token rate-limit scope and profile field rejection.
+- 2026-05-13: `npx vitest src/server/services/AuthService.test.ts src/adapter/infrastructure/logging/operational-log.test.ts --run` passed after Story 1.7 customer sign-in compatibility and expanded redaction coverage.
+- 2026-05-13: `npx vitest src/domain/schema-invariants.test.ts src/domain/customers/customer-account.test.ts src/domain/auth/email-verification-token.test.ts src/server/services/CustomerAccountService.test.ts src/server/controllers/CustomerAccountController.test.ts src/server/routes/customer.routes.test.ts src/server/routes/auth.routes.test.ts src/server/services/AuthService.test.ts src/adapter/infrastructure/resend/CustomerVerificationEmailNotifier.test.ts src/adapter/infrastructure/logging/operational-log.test.ts src/lib/api/response.test.ts --run` passed: 45 tests.
+- 2026-05-13: `npm run check` passed with existing legacy warnings only.
+- 2026-05-13: `npm run build-test` passed: `astro check`, 100 Vitest tests, and `astro build`.
+- 2026-05-13: `npx vitest src/domain/auth/super-admin-seed.test.ts src/server/routes/auth.routes.test.ts src/server/routes/customer.routes.test.ts --run` passed after enforcing canonical `PASSWORD_PEPPER` usage only.
+- 2026-05-13: `npm run build-test` initially hit a stale Vite optimizer cache after timeout; stopped stale local `jrw-webapp` dev-server Node processes, cleared `node_modules/.vite`, then reran successfully.
+- 2026-05-13: `npm run check` passed after D1 batch atomicity fix for email verification.
+- 2026-05-13: `npx vitest src/server/services/CustomerAccountService.test.ts src/server/controllers/CustomerAccountController.test.ts src/server/routes/customer.routes.test.ts --run` passed after D1 batch atomicity fix.
+- 2026-05-13: Final `npm run build-test` passed after review fixes: `astro check`, 100 Vitest tests, and `astro build`.
+
 ### Completion Notes List
 
+- Added customer profile schema fields and hashed email verification token storage with lookup/cleanup indexes.
+- Documented Story 1.8 migration filename, SQL scope, and remote-development blocker in D1 migration plan.
+- Added pure customer account helpers for normalized registration/profile validation, duplicate decisions, verification token state, PBKDF2 password creation, and verification-token hash/TTL generation.
+- Added customer repository, account service, and controller for registration, verification, profile read/update, safe provider failure handling, and minimal customer actor guard.
+- Added provider-free verification email port plus Resend adapter requiring `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, and app base URL; missing config returns safe provider failure.
+- Added customer route contracts/OpenAPI metadata for registration, email verification, profile read, and profile update; updated endpoint catalog to complete Story 1.8 rows.
+- Enforced minimal customer-only profile guard, duplicate safe conflict behavior, hashed 3/hour email-token rate-limit scope, and route rejection for unsupported profile mutation fields.
+- Added Story 1.7 auth compatibility test proving unverified customer sign-in is blocked and verified PBKDF2 customer credentials can sign in.
+- Enforced canonical `PASSWORD_PEPPER` usage in docs, auth route, customer route, and seed script; `JWT_SECRET` remains JWT signing secret only.
+- Fixed review finding: email verification now batches token consumption and customer email verification so both DB updates commit together.
+- Full validation passed. Remote D1 migration apply remains intentionally unrun and documented as development evidence blocker.
+
 ### File List
+
+- `src/domain/schema/identity.ts`
+- `src/domain/schema-invariants.test.ts`
+- `migrations/0011_sticky_avengers.sql`
+- `migrations/meta/0011_snapshot.json`
+- `migrations/meta/_journal.json`
+- `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md`
+- `src/domain/auth/email-verification-token.ts`
+- `src/domain/auth/email-verification-token.test.ts`
+- `src/domain/customers/customer-account.ts`
+- `src/domain/customers/customer-account.test.ts`
+- `src/domain/notifications/customer-verification-email.ts`
+- `src/server/repositories/CustomerAccountRepository.ts`
+- `src/server/services/CustomerAccountService.ts`
+- `src/server/services/CustomerAccountService.test.ts`
+- `src/server/controllers/CustomerAccountController.ts`
+- `src/server/controllers/CustomerAccountController.test.ts`
+- `src/adapter/infrastructure/resend/CustomerVerificationEmailNotifier.ts`
+- `src/adapter/infrastructure/resend/CustomerVerificationEmailNotifier.test.ts`
+- `.env.example`
+- `src/server/routes/customer.routes.ts`
+- `src/server/routes/customer.routes.test.ts`
+- `src/server/routes/index.ts`
+- `src/server/routes/route-groups.ts`
+- `src/server/openapi/route-metadata.ts`
+- `src/server/app.ts`
+- `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md`
+- `src/server/services/AuthService.test.ts`
+- `src/adapter/infrastructure/logging/operational-log.test.ts`
+- `src/server/routes/auth.routes.ts`
+- `scripts/seed-super-admin.ts`
+
+### Change Log
+
+- 2026-05-13: Implemented Story 1.8 customer registration, verification, profile APIs, schema migration, Resend boundary, privacy/rate-limit guardrails, tests, and validation.
+- 2026-05-13: Code review completed; fixed canonical `PASSWORD_PEPPER` alignment and atomic email verification update, then moved story to `done`.
+
+## Senior Developer Review (AI)
+
+### Review Outcome
+
+Approve
+
+### Review Date
+
+2026-05-13
+
+### Action Items
+
+- [x] [High] Enforce canonical `PASSWORD_PEPPER` usage only across runtime routes, seed script, and example env.
+- [x] [Medium] Make email verification token consumption and customer email verification commit together through D1 batch.
+
+### Summary
+
+Clean review after fixes. No unresolved decision-needed, patch, or deferred items remain.
+
+## Handoff Note for BMad Quick Dev
+
+Added 2026-05-13 after runtime smoke-test pause.
+
+Next work should focus on local runtime verification, not feature work:
+
+- `astro.config.mjs` now excludes server-only deps from Vite client/SSR optimizer: `elysia`, `@elysiajs/openapi`, `drizzle-orm`, `drizzle-orm/d1`. This targets reported missing `node_modules/.vite/deps_ssr/chunk-*.js` reload errors.
+- Runtime code and seed script now use `PASSWORD_PEPPER` only for password hashing. Do not restore `JWT_SECRET` fallback.
+- User's failing `POST /api/auth/sessions` payload used placeholder email/password. Earlier `.env` inspection also showed placeholder `PASSWORD_PEPPER`; with placeholder pepper, auth route correctly returns `INTERNAL_ERROR` before credential check.
+- Before auth curl can pass, replace local `.env` placeholders with real non-placeholder values: `PASSWORD_PEPPER`, `JWT_SECRET`, `SEED_SUPER_ADMIN_EMAIL`, `SEED_SUPER_ADMIN_PASSWORD`. Also set `RESEND_FROM_EMAIL` and `APP_BASE_URL` before customer registration email tests.
+- Run/check DB setup for same environment used by dev server. Current `seed:super-admin` script executes Wrangler D1 remote by design; if `astro dev` uses local D1, add/use local seed path or test with matching remote-backed runtime.
+- Suggested fast smoke commands after env/DB ready:
+  - `npm run dev -- --host 127.0.0.1 --port 4322 --force`
+  - `curl.exe -i http://127.0.0.1:4322/api/openapi/json`
+  - `curl.exe -i -X POST http://127.0.0.1:4322/api/auth/sessions -H "content-type: application/json" --data-raw "{\"email\":\"<seed email>\",\"password\":\"<seed password>\"}"`
+  - `curl.exe -i http://127.0.0.1:4322/api/auth/session --cookie "<jrw_session cookie from sign-in>"`
+- If `.vite` cache deletion is needed on Windows, stop any `jrw-webapp` dev Node process first. Locked cache files caused `Access to the path is denied` during cleanup.
+- Latest validation before pause:
+  - `npx vitest src/domain/auth/super-admin-seed.test.ts src/server/routes/auth.routes.test.ts src/server/routes/customer.routes.test.ts --run` passed: 16 tests.
+  - `npm run check` passed: 0 errors; existing legacy unused-parameter hints only.
+- Runtime curl was not completed. Dev server attempts were interrupted/blocked during smoke setup, so API runtime status remains pending.

@@ -15,8 +15,8 @@ D1 plus Drizzle remains relational source of truth. Drizzle schema source stays 
 | Area | Current source | Notes |
 | --- | --- | --- |
 | Schema files | `src/domain/schema/identity.ts`, `src/domain/schema/catalog.ts`, `src/domain/schema/transactions.ts`, `src/domain/schema/audit.ts` | Current brownfield schema, not final PRD model. |
-| Migration files | `migrations/0000_classy_menace.sql` through `migrations/0008_boring_yellowjacket.sql` | Nine migration entries tracked. Story 1.6 adds then hardens owner-only partial unique index. |
-| Migration journal | `migrations/meta/_journal.json` | Version `7`, dialect `sqlite`, entries idx `0` through `8`. |
+| Migration files | `migrations/0000_classy_menace.sql` through `migrations/0011_sticky_avengers.sql` | Twelve migration entries tracked. Story 1.8 adds customer profile fields and email verification tokens. |
+| Migration journal | `migrations/meta/_journal.json` | Version `7`, dialect `sqlite`, entries idx `0` through `11`. |
 | Drizzle config | `drizzle.config.ts` | Schema glob `./src/domain/schema/*.ts`, output `./migrations`, driver `d1-http`. |
 | Development D1 | `jrw-database-development` / `beabfd98-8611-4d58-8f1b-7a972b8af1ed` | Remote-first development target. |
 | Production D1 | `jrw-database-production` / `fd08e264-2046-4648-9164-84f66948533e` | Human review required before any migration. |
@@ -38,6 +38,12 @@ wrangler d1 migrations apply DB --remote --env production
 ```
 
 Do not use Worker deploy rollback as database rollback. D1 data/schema rollback needs separate reviewed SQL/data recovery plan. For table rebuilds or foreign-key-sensitive migrations, evaluate `PRAGMA defer_foreign_keys = true` or equivalent D1-safe migration ordering during generated SQL review.
+
+## Story 1.8 Migration Evidence
+
+| Timestamp | Command | Target | Migration | SQL review | Remote development evidence |
+| --- | --- | --- | --- | --- | --- |
+| 2026-05-13 | `npm run db:generate` | Local Drizzle generation for development D1 schema | `migrations/0011_sticky_avengers.sql` | Adds `email_verification_tokens`, four token indexes, `customers.display_name`, and `customers.email_marketing_opt_in`; no unrelated table rebuild generated. | Not applied remotely during implementation. Remote apply remains pending with `npm run db:migrate:remote` against `jrw-database-development` / `beabfd98-8611-4d58-8f1b-7a972b8af1ed`. |
 
 ## Table And Schema Group Plan
 

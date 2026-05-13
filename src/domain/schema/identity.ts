@@ -53,6 +53,7 @@ export const customers = sqliteTable("customers", {
     .default("ACTIVE"),
   email_verified_at: text("email_verified_at"),
   avatar_url: text("avatar_url"), // Profile picture URL
+  display_name: text("display_name"),
   first_name: text("first_name"),
   last_name: text("last_name"),
   phone: text("phone"),
@@ -60,6 +61,11 @@ export const customers = sqliteTable("customers", {
   barangay: text("barangay"),
   city_province: text("city_province"),
   postal_code: text("postal_code"),
+  email_marketing_opt_in: integer("email_marketing_opt_in", {
+    mode: "boolean",
+  })
+    .notNull()
+    .default(false),
   created_at: text("created_at")
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
@@ -67,6 +73,37 @@ export const customers = sqliteTable("customers", {
     .notNull()
     .default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const email_verification_tokens = sqliteTable(
+  "email_verification_tokens",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    customer_id: text("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    token_hash: text("token_hash").notNull(),
+    expires_at: text("expires_at").notNull(),
+    used_at: text("used_at"),
+    created_request_id: text("created_request_id"),
+    source_hash: text("source_hash"),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("email_verification_tokens_token_hash_idx").on(table.token_hash),
+    index("email_verification_tokens_customer_idx").on(table.customer_id),
+    index("email_verification_tokens_customer_active_idx")
+      .on(table.customer_id, table.expires_at)
+      .where(sql`${table.used_at} IS NULL`),
+    index("email_verification_tokens_expires_at_idx").on(table.expires_at),
+  ]
+);
 
 export const customer_providers = sqliteTable("customer_providers", {
   id: text("id")
@@ -150,6 +187,7 @@ export const auth_rate_limits = sqliteTable(
 
 export const customersRelations = relations(customers, ({ many }) => ({
   providers: many(customer_providers),
+  verificationTokens: many(email_verification_tokens),
 }));
 
 export const customerProvidersRelations = relations(
@@ -157,6 +195,16 @@ export const customerProvidersRelations = relations(
   ({ one }) => ({
     customer: one(customers, {
       fields: [customer_providers.customer_id],
+      references: [customers.id],
+    }),
+  })
+);
+
+export const emailVerificationTokensRelations = relations(
+  email_verification_tokens,
+  ({ one }) => ({
+    customer: one(customers, {
+      fields: [email_verification_tokens.customer_id],
       references: [customers.id],
     }),
   })

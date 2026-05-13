@@ -17,8 +17,13 @@ describe("operational logging foundation", () => {
       timestamp: "2026-05-12T03:00:00.000Z",
       details: {
         password: "raw-password",
+        rawToken: "raw-token",
+        tokenHash: "hashed-token",
         authorization: "Bearer token",
         email: "customer@example.test",
+        phone: "0917 123 4567",
+        streetAddress: "123 Sample St",
+        sessionCookie: "jrw_session=raw-session-token",
         safeStatus: "PAYMENT_PENDING",
         providerPayload: { unsafe: "raw-provider" },
         rawProviderPayload: { unsafe: "raw-provider" },
@@ -44,8 +49,13 @@ describe("operational logging foundation", () => {
     });
     expect(event.details).toMatchObject({
       password: REDACTED_LOG_VALUE,
+      rawToken: REDACTED_LOG_VALUE,
+      tokenHash: REDACTED_LOG_VALUE,
       authorization: REDACTED_LOG_VALUE,
       email: REDACTED_LOG_VALUE,
+      phone: REDACTED_LOG_VALUE,
+      streetAddress: REDACTED_LOG_VALUE,
+      sessionCookie: REDACTED_LOG_VALUE,
       safeStatus: "PAYMENT_PENDING",
       providerPayload: REDACTED_LOG_VALUE,
       rawProviderPayload: REDACTED_LOG_VALUE,

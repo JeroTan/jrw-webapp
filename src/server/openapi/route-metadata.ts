@@ -15,6 +15,7 @@ export type RouteRateLimitClass =
   | "public-read"
   | "auth-password"
   | "email-token"
+  | "customer-write"
   | "checkout-payment"
   | "admin-write"
   | "asset-upload"

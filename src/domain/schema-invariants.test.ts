@@ -1,7 +1,13 @@
 import { SQL } from "drizzle-orm";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 import { describe, expect, it } from "vitest";
-import { admins, auth_rate_limits, sessions } from "./schema/identity";
+import {
+  admins,
+  auth_rate_limits,
+  customers,
+  email_verification_tokens,
+  sessions,
+} from "./schema/identity";
 
 function getColumnName(column: unknown): string | undefined {
   if (typeof column !== "object" || column === null || !("name" in column)) {
@@ -125,5 +131,75 @@ describe("identity schema invariants", () => {
         (index) => index.config.name === "auth_rate_limits_scope_window_idx"
       )?.config.unique
     ).toBe(true);
+  });
+
+  it("stores customer profile fields without adding role or secret columns", () => {
+    const customerConfig = getTableConfig(customers);
+    const columnNames = customerConfig.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+
+    expect(columnNames).toEqual(
+      expect.arrayContaining([
+        "display_name",
+        "email_marketing_opt_in",
+        "first_name",
+        "last_name",
+        "phone",
+        "street_address",
+        "barangay",
+        "city_province",
+        "postal_code",
+        "avatar_url",
+      ])
+    );
+    expect(columnNames).not.toEqual(
+      expect.arrayContaining(["role", "raw_password", "verification_token"])
+    );
+  });
+
+  it("stores email verification tokens as hashes with lookup and cleanup indexes", () => {
+    const tokenConfig = getTableConfig(email_verification_tokens);
+    const columnNames = tokenConfig.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const indexNames = tokenConfig.indexes.map((index) => index.config.name);
+
+    expect(columnNames).toEqual(
+      expect.arrayContaining([
+        "id",
+        "customer_id",
+        "token_hash",
+        "expires_at",
+        "used_at",
+        "created_request_id",
+        "source_hash",
+        "created_at",
+        "updated_at",
+      ])
+    );
+    expect(columnNames).not.toEqual(
+      expect.arrayContaining(["token", "raw_token", "email", "password"])
+    );
+    expect(indexNames).toEqual(
+      expect.arrayContaining([
+        "email_verification_tokens_token_hash_idx",
+        "email_verification_tokens_customer_idx",
+        "email_verification_tokens_customer_active_idx",
+        "email_verification_tokens_expires_at_idx",
+      ])
+    );
+    expect(
+      tokenConfig.indexes.find(
+        (index) => index.config.name === "email_verification_tokens_token_hash_idx"
+      )?.config.unique
+    ).toBe(true);
+    expect(
+      getSqlQuery(
+        tokenConfig.indexes.find(
+          (index) => index.config.name === "email_verification_tokens_customer_active_idx"
+        )?.config.where
+      )
+    ).toBe('"used_at" IS NULL');
   });
 });

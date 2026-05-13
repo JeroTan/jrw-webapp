@@ -80,17 +80,13 @@ export type AuthRoutesOptions = {
   operationalLogger?: OperationalLogger;
 };
 
-function getRuntimeSecret(
+function getRuntimePasswordPepper(
   runtimeEnv: (Partial<Env> & Record<string, unknown>) | undefined
 ): string | undefined {
   const passwordPepper = runtimeEnv?.PASSWORD_PEPPER;
-  const jwtSecret = runtimeEnv?.JWT_SECRET;
 
-  return typeof passwordPepper === "string"
-    ? passwordPepper
-    : typeof jwtSecret === "string"
-      ? jwtSecret
-      : undefined;
+  if (typeof passwordPepper === "string") return passwordPepper;
+  return undefined;
 }
 
 function createRuntimeController(
@@ -98,7 +94,9 @@ function createRuntimeController(
   options: AuthRoutesOptions
 ): AuthController {
   const db = input.runtimeEnv?.DB;
-  const pepper = validatePasswordPepper(getRuntimeSecret(input.runtimeEnv));
+  const pepper = validatePasswordPepper(
+    getRuntimePasswordPepper(input.runtimeEnv)
+  );
 
   if (!db || !pepper.ok) {
     throw new GeneralError({}, "INTERNAL_ERROR");

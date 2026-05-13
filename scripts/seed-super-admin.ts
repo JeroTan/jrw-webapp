@@ -29,8 +29,7 @@ type CliEnv = NodeJS.ProcessEnv &
       | "SEED_SUPER_ADMIN_EMAIL"
       | "SEED_SUPER_ADMIN_PASSWORD"
       | "SEED_SUPER_ADMIN_TARGET_ENV"
-      | "PASSWORD_PEPPER"
-      | "JWT_SECRET",
+      | "PASSWORD_PEPPER",
       string
     >
   >;
@@ -226,10 +225,7 @@ export async function main(
     email,
     password,
   });
-  const pepper = validatePasswordPepper(
-    cleanOptionalEnvValue(env.PASSWORD_PEPPER) ??
-      cleanOptionalEnvValue(env.JWT_SECRET)
-  );
+  const pepper = validatePasswordPepper(cleanOptionalEnvValue(env.PASSWORD_PEPPER));
 
   if (!credentials.ok) {
     console.error(credentials.message);

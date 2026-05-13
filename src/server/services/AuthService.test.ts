@@ -230,6 +230,59 @@ describe("AuthService", () => {
     expect(sessions.createdSessions).toHaveLength(0);
   });
 
+  it("blocks unverified customer sign-in and allows same PBKDF2 credential after verification", async () => {
+    const unverifiedCustomer = await createAccount({
+      actorKind: "CUSTOMER",
+      id: "customer_1",
+      email: "buyer@example.test",
+      isOwner: false,
+      emailVerifiedAt: null,
+      approvedAt: null,
+    });
+    const verifiedCustomer = await createAccount({
+      actorKind: "CUSTOMER",
+      id: "customer_2",
+      email: "verified@example.test",
+      isOwner: false,
+      emailVerifiedAt: "2026-05-13T00:00:00.000Z",
+      approvedAt: null,
+    });
+    const sessions = new FakeSessionRepository();
+    const service = new AuthService({
+      accounts: new FakeAccountRepository([
+        unverifiedCustomer,
+        verifiedCustomer,
+      ]),
+      sessions,
+      passwordPepper: "test-pepper-value",
+      now: () => new Date("2026-05-13T00:00:00.000Z"),
+    });
+
+    await expect(
+      service.signIn({
+        email: "buyer@example.test",
+        password: "correct horse battery staple",
+        requestId: "req_unverified",
+      })
+    ).resolves.toMatchObject({ error: { code: "EMAIL_NOT_VERIFIED" } });
+
+    const verified = await service.signIn({
+      email: "verified@example.test",
+      password: "correct horse battery staple",
+      requestId: "req_verified",
+    });
+
+    expect(verified.error).toBeNull();
+    expect(verified.content?.actor).toMatchObject({
+      id: "customer_2",
+      role: "CUSTOMER",
+      accountStatus: {
+        emailVerified: true,
+      },
+    });
+    expect(sessions.createdSessions).toHaveLength(1);
+  });
+
   it("rate limits after five failed credential attempts", async () => {
     const account = await createAccount();
     const rateLimiter = new FakeRateLimiter();
