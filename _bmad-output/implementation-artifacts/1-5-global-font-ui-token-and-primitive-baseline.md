@@ -1,6 +1,6 @@
 # Story 1.5: Global Font, UI Token, and Primitive Baseline
 
-Status: in-progress
+Status: done
 
 ## Story
 
@@ -21,33 +21,40 @@ so that Epic 1 and later features share one typography, control, state, and acce
 
 ## Tasks / Subtasks
 
-- [ ] Configure global style surface and font assets. (AC: 1, 2, 3)
-  - [ ] Create `src/styles/global.css` with `@import "tailwindcss";`.
-  - [ ] Add `@font-face` rules for Satoshi and Space Mono from `public/fonts/**` using `.woff2` and `font-display: swap`.
-  - [ ] Define Tailwind v4 `@theme` variables for font families, JRW colors, radius, border widths, compact spacing, focus, disabled/loading/error/status colors, and tabular data where useful.
-  - [ ] Add base styles for `html`, `body`, focus-visible, selection, form defaults, disabled elements, and reduced motion without shadows, blur, gradients, or rounded corners.
+- [x] Configure global style surface and font assets. (AC: 1, 2, 3)
+  - [x] Create `src/styles/global.css` with `@import "tailwindcss";`.
+  - [x] Add `@font-face` rules for Satoshi and Space Mono from `public/fonts/**` using `.woff2` and `font-display: swap`.
+  - [x] Define Tailwind v4 `@theme` variables for font families, JRW colors, radius, border widths, compact spacing, focus, disabled/loading/error/status colors, and tabular data where useful.
+  - [x] Add base styles for `html`, `body`, focus-visible, selection, form defaults, disabled elements, and reduced motion without shadows, blur, gradients, or rounded corners.
 
-- [ ] Import global styles once through a shared page/layout entry. (AC: 2, 8)
-  - [ ] Create `src/layouts/BaseLayout.astro` or equivalent shared layout that imports `../styles/global.css` once.
-  - [ ] Update `src/pages/index.astro` to use the shared layout and stop rendering default `Astro` placeholder page.
-  - [ ] Keep page content minimal and implementation-focused; do not build a marketing landing page in this story.
+- [x] Import global styles once through a shared page/layout entry. (AC: 2, 8)
+  - [x] Create `src/layouts/BaseLayout.astro` or equivalent shared layout that imports `../styles/global.css` once.
+  - [x] Update `src/pages/index.astro` to use the shared layout and stop rendering default `Astro` placeholder page.
+  - [x] Keep page content minimal and implementation-focused; do not build a marketing landing page in this story.
 
-- [ ] Implement baseline shared primitives under `src/components/**`. (AC: 4, 5, 6)
-  - [ ] Create shared primitive folders and barrel exports, preferring architecture categories: `src/components/ui/**`, `src/components/feedback/**`, and `src/components/data-display/**`.
-  - [ ] Implement `Button`, `IconButton`, `Input`, `Textarea`, `Select`, `Checkbox`, `Toggle`, `Badge`, `StatusBadge`, `Tabs`, `DataTable`, `Modal`, `Toast`, `ConfirmDialog`, `EmptyState`, and `Skeleton`.
-  - [ ] Ensure every primitive supports accessible names/labels, visible focus, disabled state, loading/pending state where applicable, error state where applicable, stable dimensions, text overflow handling, and no color-only meaning.
-  - [ ] `IconButton` must require an accessible label and expose tooltip-ready metadata such as `title` or `aria-label`; do not add an icon package unless explicitly approved later.
-  - [ ] `Modal` and `ConfirmDialog` must implement focus trap/restore or document a blocker if a safe focus trap cannot be completed without adding a dependency.
+- [x] Implement baseline shared primitives under `src/components/**`. (AC: 4, 5, 6)
+  - [x] Create shared primitive folders and barrel exports, preferring architecture categories: `src/components/ui/**`, `src/components/feedback/**`, and `src/components/data-display/**`.
+  - [x] Implement `Button`, `IconButton`, `Input`, `Textarea`, `Select`, `Checkbox`, `Toggle`, `Badge`, `StatusBadge`, `Tabs`, `DataTable`, `Modal`, `Toast`, `ConfirmDialog`, `EmptyState`, and `Skeleton`.
+  - [x] Ensure every primitive supports accessible names/labels, visible focus, disabled state, loading/pending state where applicable, error state where applicable, stable dimensions, text overflow handling, and no color-only meaning.
+  - [x] `IconButton` must require an accessible label and expose tooltip-ready metadata such as `title` or `aria-label`; do not add an icon package unless explicitly approved later.
+  - [x] `Modal` and `ConfirmDialog` must implement focus trap/restore or document a blocker if a safe focus trap cannot be completed without adding a dependency.
 
-- [ ] Add primitive smoke coverage. (AC: 5, 7, 8)
-  - [ ] Add targeted Vitest/React tests only if the current test stack can render React components without new tooling churn.
-  - [ ] At minimum, verify exports compile through `npm run check` and add manual smoke notes for font loading, focus states, disabled/loading/error states, and primitive rendering.
-  - [ ] If test tooling is insufficient for DOM/focus checks, document blocker and use Story 1.4 UI QA baseline for future Playwright/axe setup.
+- [x] Add primitive smoke coverage. (AC: 5, 7, 8)
+  - [x] Add targeted Vitest/React tests only if the current test stack can render React components without new tooling churn.
+  - [x] At minimum, verify exports compile through `npm run check` and add manual smoke notes for font loading, focus states, disabled/loading/error states, and primitive rendering.
+  - [x] If test tooling is insufficient for DOM/focus checks, document blocker and use Story 1.4 UI QA baseline for future Playwright/axe setup.
 
-- [ ] Record completion evidence. (AC: 7, 8)
-  - [ ] Run `npm run check`.
-  - [ ] Run `npx vitest run` if component tests, test config, or source logic beyond styling/layout changes are added.
-  - [ ] List created/updated files, smoke evidence, and any blockers in Dev Agent Record completion notes.
+- [x] Record completion evidence. (AC: 7, 8)
+  - [x] Run `npm run check`.
+  - [x] Run `npx vitest run` if component tests, test config, or source logic beyond styling/layout changes are added.
+  - [x] List created/updated files, smoke evidence, and any blockers in Dev Agent Record completion notes.
+
+### Review Findings
+
+- [x] [Review][Patch] Tabs arrow navigation updates selection but leaves focus on the old tab [src/components/ui/Tabs.tsx:73]
+- [x] [Review][Patch] Modal focus restore runs during open re-renders when `onClose` identity changes [src/components/ui/Modal.tsx:100]
+- [x] [Review][Patch] Checkbox and toggle disabled visuals only affect hidden inputs [src/styles/global.css:145]
+- [x] [Review][Patch] Story completion evidence and smoke/blocker notes are missing [C:/dev/Web Application/jrw-webapp/_bmad-output/implementation-artifacts/1-5-global-font-ui-token-and-primitive-baseline.md:206]
 
 ## Dev Notes
 
@@ -202,7 +209,42 @@ GPT-5 Codex
 ### Debug Log References
 
 - 2026-05-12T15:42:46+08:00: Story moved to in-progress in sprint tracking.
+- Code review patches applied: tabs roving focus now programmatically focuses the newly selected tab; modal close callback is ref-backed so focus restore only runs on close/unmount; checkbox/toggle disabled states now affect visible controls.
 
 ### Completion Notes List
 
+- `npm run check` passed with 0 errors and existing unrelated hints.
+- `npx vitest run src/components/primitives.test.ts` passed 6 primitive smoke tests.
+- `npm run build` passed.
+- UX alignment checked against `_bmad-output/planning-artifacts/ux-design-directions.html`: sharp 0px radius, 1px line system, cobalt focus/active states, Satoshi/Space Mono usage, visible disabled state, and no shadows/blur/orb styling preserved.
+- Browser visual smoke attempted. `127.0.0.1:4321` is occupied by another app, and isolated JRW dev server on `127.0.0.1:4322` returned an empty body/hung in the in-app browser despite successful build/check. Track full browser/viewport verification through Story 1.4 UI QA baseline when Playwright/axe tooling is added.
+
 ### File List
+
+- `src/styles/global.css`
+- `src/layouts/BaseLayout.astro`
+- `src/pages/index.astro`
+- `src/components/index.ts`
+- `src/components/utils.ts`
+- `src/components/primitives.test.ts`
+- `src/components/ui/Button.tsx`
+- `src/components/ui/Checkbox.tsx`
+- `src/components/ui/ConfirmDialog.tsx`
+- `src/components/ui/IconButton.tsx`
+- `src/components/ui/Input.tsx`
+- `src/components/ui/Modal.tsx`
+- `src/components/ui/Select.tsx`
+- `src/components/ui/Tabs.tsx`
+- `src/components/ui/Textarea.tsx`
+- `src/components/ui/Toggle.tsx`
+- `src/components/ui/index.ts`
+- `src/components/feedback/Badge.tsx`
+- `src/components/feedback/EmptyState.tsx`
+- `src/components/feedback/Skeleton.tsx`
+- `src/components/feedback/StatusBadge.tsx`
+- `src/components/feedback/Toast.tsx`
+- `src/components/feedback/index.ts`
+- `src/components/data-display/DataTable.tsx`
+- `src/components/data-display/index.ts`
+- `_bmad-output/implementation-artifacts/1-5-global-font-ui-token-and-primitive-baseline.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`

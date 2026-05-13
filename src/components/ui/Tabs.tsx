@@ -1,6 +1,7 @@
 import * as React from "react";
 import {
   useId,
+  useRef,
   useState,
   type KeyboardEvent,
   type ReactNode,
@@ -33,13 +34,16 @@ export function Tabs({
   value,
 }: TabsProps) {
   const baseId = useId();
+  const tabRefs = useRef(new Map<string, HTMLButtonElement>());
   const firstEnabledTab = tabs.find((tab) => !tab.disabled);
   const [internalValue, setInternalValue] = useState(
     defaultValue ?? firstEnabledTab?.id ?? tabs[0]?.id,
   );
   const selectedValue = value ?? internalValue;
   const selectedTab =
-    tabs.find((tab) => tab.id === selectedValue) ?? firstEnabledTab ?? tabs[0];
+    tabs.find((tab) => tab.id === selectedValue && !tab.disabled) ??
+    firstEnabledTab ??
+    tabs[0];
 
   function selectTab(tab: TabItem) {
     if (tab.disabled) {
@@ -57,21 +61,28 @@ export function Tabs({
 
     event.preventDefault();
     const enabledTabs = tabs.filter((tab) => !tab.disabled);
+    if (enabledTabs.length === 0) {
+      return;
+    }
+
     const currentEnabledIndex = enabledTabs.findIndex(
       (tab) => tab.id === tabs[index]?.id,
     );
+    const safeCurrentIndex =
+      currentEnabledIndex >= 0 ? currentEnabledIndex : 0;
     const nextIndex =
       event.key === "Home"
         ? 0
         : event.key === "End"
           ? enabledTabs.length - 1
           : event.key === "ArrowRight"
-            ? (currentEnabledIndex + 1) % enabledTabs.length
-            : (currentEnabledIndex - 1 + enabledTabs.length) %
+            ? (safeCurrentIndex + 1) % enabledTabs.length
+            : (safeCurrentIndex - 1 + enabledTabs.length) %
               enabledTabs.length;
     const nextTab = enabledTabs[nextIndex];
     if (nextTab) {
       selectTab(nextTab);
+      tabRefs.current.get(nextTab.id)?.focus();
     }
   }
 
@@ -93,6 +104,14 @@ export function Tabs({
               key={tab.id}
               onClick={() => selectTab(tab)}
               onKeyDown={(event) => handleKeyDown(event, index)}
+              ref={(element) => {
+                if (element) {
+                  tabRefs.current.set(tab.id, element);
+                  return;
+                }
+
+                tabRefs.current.delete(tab.id);
+              }}
               role="tab"
               tabIndex={selected ? 0 : -1}
               type="button"

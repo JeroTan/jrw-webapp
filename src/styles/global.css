@@ -441,6 +441,20 @@ textarea.jrw-field__control {
   background: var(--jrw-color-cobalt);
 }
 
+.jrw-checkbox__input:disabled + .jrw-checkbox__box,
+.jrw-toggle__input:disabled + .jrw-toggle__track {
+  border-color: var(--jrw-color-disabled);
+  background: var(--jrw-color-border);
+  color: var(--jrw-color-disabled);
+}
+
+.jrw-checkbox:has(.jrw-checkbox__input:disabled),
+.jrw-toggle:has(.jrw-toggle__input:disabled) {
+  color: var(--jrw-color-disabled);
+  cursor: not-allowed;
+  opacity: 0.72;
+}
+
 .jrw-checkbox__input:focus-visible + .jrw-checkbox__box,
 .jrw-toggle__input:focus-visible + .jrw-toggle__track {
   outline: var(--jrw-focus-width) solid var(--jrw-color-cobalt);
