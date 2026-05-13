@@ -6,6 +6,7 @@ import {
   buildSeededOwnerCountSql,
   buildSuperAdminSeedSql,
   decideSuperAdminSeedOperation,
+  validatePasswordPepper,
   validateSuperAdminSeedCredentials,
 } from "./super-admin-seed";
 
@@ -109,6 +110,22 @@ describe("super admin seed decision", () => {
     );
   });
 
+  it("requires a non-placeholder password pepper without echoing it", () => {
+    expect(validatePasswordPepper("secret-pepper-value")).toEqual({
+      ok: true,
+      pepper: "secret-pepper-value",
+    });
+
+    const invalid = validatePasswordPepper("replace-with-secret-pepper");
+
+    expect(invalid).toEqual({
+      ok: false,
+      code: "VALIDATION_FAILED",
+      message: "Password pepper is missing or invalid.",
+    });
+    expect(JSON.stringify(invalid)).not.toContain("replace-with-secret-pepper");
+  });
+
   it("rejects multiple owners as state conflict", () => {
     expect(
       decideSuperAdminSeedOperation({
@@ -136,18 +153,22 @@ describe("super admin seed decision", () => {
         id: "admin_1",
         email: "owner@example.test",
         passwordHash: "hash'value",
+        passwordSalt: "salt'value",
         operation: "create-owner",
       })
     ).toContain(
-      "ON CONFLICT (email) DO UPDATE SET password_hash = excluded.password_hash, is_owner = 1, updated_at = CURRENT_TIMESTAMP WHERE NOT EXISTS (SELECT 1 FROM admins WHERE is_owner <> 0);"
+      "ON CONFLICT (email) DO UPDATE SET password_hash = excluded.password_hash, password_salt = excluded.password_salt, is_owner = 1, status = 'ACTIVE', email_verified_at = CURRENT_TIMESTAMP, approved_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE NOT EXISTS (SELECT 1 FROM admins WHERE is_owner <> 0);"
     );
     expect(
       buildSuperAdminSeedSql({
         id: "unused",
         email: "owner@example.test",
         passwordHash: "hash",
+        passwordSalt: "salt",
         operation: "replace-owner-credentials",
       })
-    ).toContain("WHERE is_owner <> 0;");
+    ).toContain(
+      "password_salt = 'salt', status = 'ACTIVE', email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP), approved_at = COALESCE(approved_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE is_owner <> 0;"
+    );
   });
 });

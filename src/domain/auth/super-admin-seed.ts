@@ -50,10 +50,22 @@ export type SuperAdminSeedCredentialValidation =
       message: string;
     };
 
+export type PasswordPepperValidation =
+  | {
+      ok: true;
+      pepper: string;
+    }
+  | {
+      ok: false;
+      code: Extract<ErrorCodeType, "VALIDATION_FAILED">;
+      message: string;
+    };
+
 export type SuperAdminSeedSqlInput = {
   id: string;
   email: string;
   passwordHash: string;
+  passwordSalt: string;
   operation: SuperAdminSeedOperation;
 };
 
@@ -200,6 +212,29 @@ export function validateSuperAdminSeedCredentials(input: {
   };
 }
 
+export function validatePasswordPepper(
+  pepper: string | undefined
+): PasswordPepperValidation {
+  const normalizedPepper = pepper?.trim();
+
+  if (
+    !normalizedPepper ||
+    normalizedPepper.length < 16 ||
+    hasPlaceholderValue(normalizedPepper)
+  ) {
+    return {
+      ok: false,
+      code: "VALIDATION_FAILED",
+      message: "Password pepper is missing or invalid.",
+    };
+  }
+
+  return {
+    ok: true,
+    pepper: normalizedPepper,
+  };
+}
+
 function sqlString(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
@@ -214,24 +249,36 @@ export function buildSuperAdminSeedSql(input: SuperAdminSeedSqlInput): string {
       "UPDATE admins",
       `SET email = ${sqlString(input.email)},`,
       `password_hash = ${sqlString(input.passwordHash)},`,
+      `password_salt = ${sqlString(input.passwordSalt)},`,
+      "status = 'ACTIVE',",
+      "email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP),",
+      "approved_at = COALESCE(approved_at, CURRENT_TIMESTAMP),",
       "updated_at = CURRENT_TIMESTAMP",
       "WHERE is_owner <> 0;",
     ].join(" ");
   }
 
   return [
-    "INSERT INTO admins (id, email, password_hash, is_owner)",
+    "INSERT INTO admins (id, email, password_hash, password_salt, is_owner, status, email_verified_at, approved_at)",
     "VALUES (",
     [
       sqlString(input.id),
       sqlString(input.email),
       sqlString(input.passwordHash),
+      sqlString(input.passwordSalt),
       "1",
+      "'ACTIVE'",
+      "CURRENT_TIMESTAMP",
+      "CURRENT_TIMESTAMP",
     ].join(", "),
     ")",
     "ON CONFLICT (email) DO UPDATE SET",
     "password_hash = excluded.password_hash,",
+    "password_salt = excluded.password_salt,",
     "is_owner = 1,",
+    "status = 'ACTIVE',",
+    "email_verified_at = CURRENT_TIMESTAMP,",
+    "approved_at = CURRENT_TIMESTAMP,",
     "updated_at = CURRENT_TIMESTAMP",
     "WHERE NOT EXISTS (SELECT 1 FROM admins WHERE is_owner <> 0);",
   ].join(" ");

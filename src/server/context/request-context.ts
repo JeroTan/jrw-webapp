@@ -1,10 +1,26 @@
 import { Elysia } from "elysia";
+import type { AccountStatus } from "@/domain/auth/auth-decisions";
 import type { ActorRole } from "@/domain/auth/roles";
+import { SESSION_COOKIE_NAME } from "@/server/auth/session-cookie";
+import { createAuthRepositories } from "@/server/repositories/AuthRepository";
+import { AuthService } from "@/server/services/AuthService";
 import { getOrCreateRequestId, REQUEST_ID_HEADER } from "@/utils/request-id";
 
 export type RequestActorContext = {
-  role?: ActorRole;
+  authenticated: boolean;
+  role: ActorRole;
+  actorId?: string;
   safeActorId?: string;
+  accountStatus?: {
+    status: AccountStatus;
+    emailVerified: boolean;
+    approved: boolean;
+  };
+  eligibility: {
+    active: boolean;
+    emailVerified: boolean;
+    approved: boolean;
+  };
 };
 
 export type ServerRequestContext = {
@@ -17,9 +33,98 @@ export type RequestContextDecorations = {
   requestId: string;
 };
 
-export function buildRequestContext(headers: Headers): ServerRequestContext {
+export type SessionActorResolverInput = {
+  request: Request;
+  requestId: string;
+  sessionToken?: string;
+  runtimeEnv?: Partial<Env> & Record<string, unknown>;
+};
+
+export type SessionActorResolver = (
+  input: SessionActorResolverInput
+) => Promise<RequestActorContext | undefined>;
+
+export type RequestContextPluginOptions = {
+  resolveActorFromSession?: SessionActorResolver;
+};
+
+export function anonymousActorContext(): RequestActorContext {
   return {
-    requestId: getOrCreateRequestId(headers),
+    authenticated: false,
+    role: "PROSPECT",
+    eligibility: {
+      active: false,
+      emailVerified: false,
+      approved: false,
+    },
+  };
+}
+
+function parseCookieHeader(headers: Headers, cookieName: string): string | undefined {
+  const cookieHeader = headers.get("cookie");
+  if (!cookieHeader) return undefined;
+
+  for (const cookiePart of cookieHeader.split(";")) {
+    const [name, ...valueParts] = cookiePart.trim().split("=");
+    if (name === cookieName) {
+      const value = valueParts.join("=");
+      return value ? decodeURIComponent(value) : undefined;
+    }
+  }
+
+  return undefined;
+}
+
+function actorContextFromInspection(
+  inspection: Awaited<ReturnType<AuthService["inspectSession"]>>["content"]
+): RequestActorContext {
+  if (!inspection?.authenticated || !inspection.actor) {
+    return anonymousActorContext();
+  }
+
+  return {
+    authenticated: true,
+    role: inspection.actor.role,
+    actorId: inspection.actor.id,
+    safeActorId: inspection.actor.id,
+    accountStatus: inspection.actor.accountStatus,
+    eligibility: {
+      active: inspection.actor.accountStatus.status === "ACTIVE",
+      emailVerified: inspection.actor.accountStatus.emailVerified,
+      approved: inspection.actor.accountStatus.approved,
+    },
+  };
+}
+
+async function defaultSessionActorResolver({
+  sessionToken,
+  runtimeEnv,
+  requestId,
+}: SessionActorResolverInput): Promise<RequestActorContext | undefined> {
+  if (!sessionToken || !runtimeEnv?.DB) {
+    return anonymousActorContext();
+  }
+
+  const repositories = createAuthRepositories(runtimeEnv.DB as D1Database);
+  const service = new AuthService({
+    ...repositories,
+    passwordPepper: "unused-request-context-pepper",
+  });
+  const inspection = await service.inspectSession({ sessionToken, requestId });
+
+  return inspection.error
+    ? anonymousActorContext()
+    : actorContextFromInspection(inspection.content);
+}
+
+export function buildRequestContext(
+  headers: Headers,
+  actor: RequestActorContext = anonymousActorContext(),
+  requestId = getOrCreateRequestId(headers)
+): ServerRequestContext {
+  return {
+    requestId,
+    actor,
   };
 }
 
@@ -30,14 +135,39 @@ export function setRequestIdResponseHeader(
   set.headers[REQUEST_ID_HEADER] = requestId;
 }
 
-export const requestContextPlugin = new Elysia({
-  name: "request-context",
-}).derive({ as: "scoped" }, ({ request, set }) => {
-  const requestContext = buildRequestContext(request.headers);
-  setRequestIdResponseHeader(set, requestContext.requestId);
+export function createRequestContextPlugin(
+  options: RequestContextPluginOptions = {}
+) {
+  const resolveActorFromSession =
+    options.resolveActorFromSession ?? defaultSessionActorResolver;
 
-  return {
-    requestContext,
-    requestId: requestContext.requestId,
-  };
-});
+  return new Elysia({
+    name: "request-context",
+  }).derive({ as: "scoped" }, async (ctx) => {
+    const { request, set } = ctx;
+    const runtimeEnv = (
+      ctx as typeof ctx & {
+        runtimeEnv?: Partial<Env> & Record<string, unknown>;
+      }
+    ).runtimeEnv;
+    const requestId = getOrCreateRequestId(request.headers);
+    const sessionToken = parseCookieHeader(request.headers, SESSION_COOKIE_NAME);
+    const actor =
+      (await resolveActorFromSession({
+        request,
+        requestId,
+        sessionToken,
+        runtimeEnv,
+      })) ?? anonymousActorContext();
+    const requestContext = buildRequestContext(request.headers, actor, requestId);
+
+    setRequestIdResponseHeader(set, requestId);
+
+    return {
+      requestContext,
+      requestId: requestContext.requestId,
+    };
+  });
+}
+
+export const requestContextPlugin = createRequestContextPlugin();

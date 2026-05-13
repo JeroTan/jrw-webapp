@@ -64,6 +64,20 @@
       "when": 1778637176488,
       "tag": "0008_boring_yellowjacket",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "6",
+      "when": 1778641826942,
+      "tag": "0009_luxuriant_wendigo",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1778646614296,
+      "tag": "0010_bent_liz_osborn",
+      "breakpoints": true
     }
   ]
 }

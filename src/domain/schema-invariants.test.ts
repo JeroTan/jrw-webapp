@@ -1,7 +1,7 @@
 import { SQL } from "drizzle-orm";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 import { describe, expect, it } from "vitest";
-import { admins } from "./schema/identity";
+import { admins, auth_rate_limits, sessions } from "./schema/identity";
 
 function getColumnName(column: unknown): string | undefined {
   if (typeof column !== "object" || column === null || !("name" in column)) {
@@ -41,5 +41,89 @@ describe("identity schema invariants", () => {
     ).toEqual([undefined]);
     expect(getSqlQuery(ownerIndex?.config.columns[0])).toBe("1");
     expect(getSqlQuery(ownerIndex?.config.where)).toBe('"is_owner" <> 0');
+  });
+
+  it("stores server-side sessions without raw secret material and with lookup indexes", () => {
+    const sessionConfig = getTableConfig(sessions);
+    const columnNames = sessionConfig.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const indexNames = sessionConfig.indexes.map((index) => index.config.name);
+
+    expect(columnNames).toEqual(
+      expect.arrayContaining([
+        "id",
+        "token_hash",
+        "actor_kind",
+        "actor_id",
+        "status",
+        "expires_at",
+        "revoked_at",
+        "last_used_at",
+        "created_request_id",
+        "created_ip_hash",
+        "created_at",
+        "updated_at",
+      ])
+    );
+    expect(columnNames).not.toEqual(
+      expect.arrayContaining([
+        "token",
+        "raw_token",
+        "cookie",
+        "jwt",
+        "password",
+        "pepper",
+        "provider_token",
+      ])
+    );
+    expect(indexNames).toEqual(
+      expect.arrayContaining([
+        "sessions_token_hash_idx",
+        "sessions_actor_idx",
+        "sessions_actor_active_idx",
+        "sessions_active_expiry_idx",
+        "sessions_revoked_at_idx",
+      ])
+    );
+    expect(
+      sessionConfig.indexes.find(
+        (index) => index.config.name === "sessions_token_hash_idx"
+      )?.config.unique
+    ).toBe(true);
+  });
+
+  it("stores auth rate-limit buckets by hashed scope and window", () => {
+    const rateLimitConfig = getTableConfig(auth_rate_limits);
+    const columnNames = rateLimitConfig.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const indexNames = rateLimitConfig.indexes.map((index) => index.config.name);
+
+    expect(columnNames).toEqual(
+      expect.arrayContaining([
+        "id",
+        "scope_hash",
+        "window_start",
+        "attempt_count",
+        "expires_at",
+        "created_at",
+        "updated_at",
+      ])
+    );
+    expect(columnNames).not.toEqual(
+      expect.arrayContaining(["email", "ip_address", "raw_ip", "password"])
+    );
+    expect(indexNames).toEqual(
+      expect.arrayContaining([
+        "auth_rate_limits_scope_window_idx",
+        "auth_rate_limits_expires_at_idx",
+      ])
+    );
+    expect(
+      rateLimitConfig.indexes.find(
+        (index) => index.config.name === "auth_rate_limits_scope_window_idx"
+      )?.config.unique
+    ).toBe(true);
   });
 });

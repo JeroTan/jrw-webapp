@@ -10,9 +10,10 @@ import {
   buildSuperAdminSeedSql,
   decideSuperAdminSeedOperation,
   maskEmailForOperator,
+  validatePasswordPepper,
   validateSuperAdminSeedCredentials,
 } from "../src/domain/auth/super-admin-seed";
-import { hash } from "../src/lib/crypto/hash";
+import { hashPassword } from "../src/lib/crypto/password";
 
 type CliOptions = {
   targetEnv?: string;
@@ -27,7 +28,9 @@ type CliEnv = NodeJS.ProcessEnv &
     Record<
       | "SEED_SUPER_ADMIN_EMAIL"
       | "SEED_SUPER_ADMIN_PASSWORD"
-      | "SEED_SUPER_ADMIN_TARGET_ENV",
+      | "SEED_SUPER_ADMIN_TARGET_ENV"
+      | "PASSWORD_PEPPER"
+      | "JWT_SECRET",
       string
     >
   >;
@@ -223,9 +226,18 @@ export async function main(
     email,
     password,
   });
+  const pepper = validatePasswordPepper(
+    cleanOptionalEnvValue(env.PASSWORD_PEPPER) ??
+      cleanOptionalEnvValue(env.JWT_SECRET)
+  );
 
   if (!credentials.ok) {
     console.error(credentials.message);
+    process.exit(1);
+  }
+
+  if (!pepper.ok) {
+    console.error(pepper.message);
     process.exit(1);
   }
 
@@ -289,11 +301,15 @@ export async function main(
     return;
   }
 
-  const passwordHash = await hash(credentials.password);
+  const { passwordHash, passwordSalt } = await hashPassword(
+    credentials.password,
+    pepper.pepper
+  );
   const sql = buildSuperAdminSeedSql({
     id: createId(),
     email: credentials.email,
     passwordHash,
+    passwordSalt,
     operation: decision.operation,
   });
 

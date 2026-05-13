@@ -1,6 +1,6 @@
 # Story 1.7: Secure Session Authentication
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -23,72 +23,72 @@ so that role-protected areas can identify me without exposing credentials or tok
 
 ## Tasks / Subtasks
 
-- [ ] Add canonical session schema and migration. (AC: 1, 4, 5, 6)
-  - [ ] Extend `src/domain/schema/identity.ts` with server-side session records for Admin and Customer actors, or create `src/domain/schema/sessions.ts` if separation keeps schema clearer.
-  - [ ] Store only hashed session token, actor type/ID, active/revoked state, expiry, created/updated timestamps, optional last-used timestamp, and safe request metadata needed for audit/debug.
-  - [ ] Do not store raw session token, raw cookie value, JWT, password, pepper, or provider token.
-  - [ ] Add indexes for token hash lookup, actor lookup, active/expiry cleanup, and revoked/session invalidation paths.
-  - [ ] Generate Drizzle migration with `npm run db:generate`; inspect SQL for unrelated churn before accepting.
+- [x] Add canonical session schema and migration. (AC: 1, 4, 5, 6)
+  - [x] Extend `src/domain/schema/identity.ts` with server-side session records for Admin and Customer actors, or create `src/domain/schema/sessions.ts` if separation keeps schema clearer.
+  - [x] Store only hashed session token, actor type/ID, active/revoked state, expiry, created/updated timestamps, optional last-used timestamp, and safe request metadata needed for audit/debug.
+  - [x] Do not store raw session token, raw cookie value, JWT, password, pepper, or provider token.
+  - [x] Add indexes for token hash lookup, actor lookup, active/expiry cleanup, and revoked/session invalidation paths.
+  - [x] Generate Drizzle migration with `npm run db:generate`; inspect SQL for unrelated churn before accepting.
 
-- [ ] Build pure auth/session domain behavior. (AC: 1, 2, 3, 4, 5, 6)
-  - [ ] Reuse `src/domain/auth/roles.ts` active roles: `SUPER_ADMIN`, `ADMIN`, `CUSTOMER`, `PROSPECT`; keep `STORE_ADMIN` as deprecated input alias only.
-  - [ ] Reuse `src/lib/crypto/password.ts` for PBKDF2 password verification with secret pepper; do not use legacy `src/lib/crypto/hash.ts` for new password verification.
-  - [ ] Reuse `src/lib/crypto/session-token.ts` for random token generation and token hashing.
-  - [ ] Add pure helpers under `src/domain/auth/**` for account eligibility, credential failure mapping, session expiry/revocation decisions, and actor role derivation.
-  - [ ] For current Admin records, derive `SUPER_ADMIN` from `admins.is_owner`; derive non-owner Admin as `ADMIN`.
-  - [ ] Customer password sign-in may use existing `customers.password_hash` only if the current hash is compatible with Story 1.7 peppered PBKDF2 requirements; otherwise document customer password sign-in as blocked until Story 1.8 migrates customer registration/password shape.
+- [x] Build pure auth/session domain behavior. (AC: 1, 2, 3, 4, 5, 6)
+  - [x] Reuse `src/domain/auth/roles.ts` active roles: `SUPER_ADMIN`, `ADMIN`, `CUSTOMER`, `PROSPECT`; keep `STORE_ADMIN` as deprecated input alias only.
+  - [x] Reuse `src/lib/crypto/password.ts` for PBKDF2 password verification with secret pepper; do not use legacy `src/lib/crypto/hash.ts` for new password verification.
+  - [x] Reuse `src/lib/crypto/session-token.ts` for random token generation and token hashing.
+  - [x] Add pure helpers under `src/domain/auth/**` for account eligibility, credential failure mapping, session expiry/revocation decisions, and actor role derivation.
+  - [x] For current Admin records, derive `SUPER_ADMIN` from `admins.is_owner`; derive non-owner Admin as `ADMIN`.
+  - [x] Customer password sign-in may use existing `customers.password_hash` only if the current hash is compatible with Story 1.7 peppered PBKDF2 requirements; otherwise document customer password sign-in as blocked until Story 1.8 migrates customer registration/password shape.
 
-- [ ] Add repository/service/controller layers under canonical backend. (AC: 1, 2, 3, 4, 5)
-  - [ ] Add repositories under `src/server/repositories/**` or `src/adapter/infrastructure/db/**` to load Admin/Customer accounts and create/read/revoke sessions through D1/Drizzle or existing project DB access pattern.
-  - [ ] Add `src/server/services/AuthService.ts` or local equivalent to orchestrate sign-in, sign-out, and session inspection without business rules in routes.
-  - [ ] Add `src/server/controllers/AuthController.ts` or local equivalent to adapt service results to public envelopes.
-  - [ ] Keep transport handlers thin: Route -> Controller -> Service -> Domain/Repository.
-  - [ ] Do not add new canonical code under frozen `src/api/**`.
+- [x] Add repository/service/controller layers under canonical backend. (AC: 1, 2, 3, 4, 5)
+  - [x] Add repositories under `src/server/repositories/**` or `src/adapter/infrastructure/db/**` to load Admin/Customer accounts and create/read/revoke sessions through D1/Drizzle or existing project DB access pattern.
+  - [x] Add `src/server/services/AuthService.ts` or local equivalent to orchestrate sign-in, sign-out, and session inspection without business rules in routes.
+  - [x] Add `src/server/controllers/AuthController.ts` or local equivalent to adapt service results to public envelopes.
+  - [x] Keep transport handlers thin: Route -> Controller -> Service -> Domain/Repository.
+  - [x] Do not add new canonical code under frozen `src/api/**`.
 
-- [ ] Add auth route contracts and wire route group. (AC: 1, 2, 3, 4, 5, 7)
-  - [ ] Add `src/server/routes/auth.routes.ts`.
-  - [ ] Implement `POST /api/auth/sessions` for email/password sign-in.
-  - [ ] Implement `DELETE /api/auth/sessions/current` for sign-out and cookie clear.
-  - [ ] Implement `GET /api/auth/session` for current session/actor inspection.
-  - [ ] Wire route in `src/server/routes/index.ts` without disrupting `foundationRoutes`.
-  - [ ] Use TypeBox request/response schemas from `elysia` `t` and reusable response helpers from `src/lib/typebox/api.ts`.
-  - [ ] Add OpenAPI `routeDetail(...)` metadata: tags, summary, description, auth mode, roles, rate-limit class, and error codes.
-  - [ ] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` rows from planned/TBD to concrete auth contracts.
+- [x] Add auth route contracts and wire route group. (AC: 1, 2, 3, 4, 5, 7)
+  - [x] Add `src/server/routes/auth.routes.ts`.
+  - [x] Implement `POST /api/auth/sessions` for email/password sign-in.
+  - [x] Implement `DELETE /api/auth/sessions/current` for sign-out and cookie clear.
+  - [x] Implement `GET /api/auth/session` for current session/actor inspection.
+  - [x] Wire route in `src/server/routes/index.ts` without disrupting `foundationRoutes`.
+  - [x] Use TypeBox request/response schemas from `elysia` `t` and reusable response helpers from `src/lib/typebox/api.ts`.
+  - [x] Add OpenAPI `routeDetail(...)` metadata: tags, summary, description, auth mode, roles, rate-limit class, and error codes.
+  - [x] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` rows from planned/TBD to concrete auth contracts.
 
-- [ ] Issue and clear secure cookies through Elysia/Astro bridge safely. (AC: 1, 4, 5, 8)
-  - [ ] Use Elysia cookie API for set/remove behavior; set `httpOnly: true`, `secure: true` outside local development if needed by current dev mode, `sameSite: "lax"` unless architecture approves stricter behavior, explicit `path: "/"`, and bounded `maxAge` aligned with session expiry.
-  - [ ] Cookie value must be opaque random session token, not actor ID and not JWT payload.
-  - [ ] Prefer signed cookie support only if it improves tamper detection without replacing server-side token hash lookup; server-side session record remains authority.
-  - [ ] Clear cookie on sign-out even if session record is already expired/revoked.
-  - [ ] Ensure cookie handling works through `src/pages/api/[...slug].ts` and `src/server/app.ts` without global mutable state.
+- [x] Issue and clear secure cookies through Elysia/Astro bridge safely. (AC: 1, 4, 5, 8)
+  - [x] Use Elysia cookie API for set/remove behavior; set `httpOnly: true`, `secure: true` outside local development if needed by current dev mode, `sameSite: "lax"` unless architecture approves stricter behavior, explicit `path: "/"`, and bounded `maxAge` aligned with session expiry.
+  - [x] Cookie value must be opaque random session token, not actor ID and not JWT payload.
+  - [x] Prefer signed cookie support only if it improves tamper detection without replacing server-side token hash lookup; server-side session record remains authority.
+  - [x] Clear cookie on sign-out even if session record is already expired/revoked.
+  - [x] Ensure cookie handling works through `src/pages/api/[...slug].ts` and `src/server/app.ts` without global mutable state.
 
-- [ ] Extend request context with actor derivation. (AC: 5, 8)
-  - [ ] Update `src/server/context/request-context.ts` so scoped derive can read session cookie, load active session/account, and expose typed actor data.
-  - [ ] Actor context must include actor ID, active role, account status/eligibility flags, and request ID.
-  - [ ] Preserve existing `requestId` behavior and `x-request-id` response header.
-  - [ ] Avoid cross-request module state; no cached current actor in globals.
-  - [ ] Map missing/expired/revoked/invalid cookie to anonymous/Prospect context for public routes and `AUTH_REQUIRED` for protected route use.
+- [x] Extend request context with actor derivation. (AC: 5, 8)
+  - [x] Update `src/server/context/request-context.ts` so scoped derive can read session cookie, load active session/account, and expose typed actor data.
+  - [x] Actor context must include actor ID, active role, account status/eligibility flags, and request ID.
+  - [x] Preserve existing `requestId` behavior and `x-request-id` response header.
+  - [x] Avoid cross-request module state; no cached current actor in globals.
+  - [x] Map missing/expired/revoked/invalid cookie to anonymous/Prospect context for public routes and `AUTH_REQUIRED` for protected route use.
 
-- [ ] Implement safe failure behavior and logging. (AC: 2, 3, 7, 8)
-  - [ ] Invalid email/password returns non-enumerating `AUTHENTICATION` or chosen stable safe code with generic message.
-  - [ ] Suspended/inactive/unverified/not-approved dashboard access returns safe code such as `ACCOUNT_SUSPENDED`, `EMAIL_NOT_VERIFIED`, `ADMIN_APPROVAL_REQUIRED`, or `AUTH_FORBIDDEN` where appropriate.
-  - [ ] Reuse `src/lib/api/errors.ts`, `src/lib/api/response.ts`, and existing error-code catalog instead of inventing ad hoc strings.
-  - [ ] Log only safe context through operational logger: request ID, safe actor ID if known, role if known, target resource type, stable error code, timestamp.
-  - [ ] Add or update redaction tests if logs/errors can include auth details.
+- [x] Implement safe failure behavior and logging. (AC: 2, 3, 7, 8)
+  - [x] Invalid email/password returns non-enumerating `AUTHENTICATION` or chosen stable safe code with generic message.
+  - [x] Suspended/inactive/unverified/not-approved dashboard access returns safe code such as `ACCOUNT_SUSPENDED`, `EMAIL_NOT_VERIFIED`, `ADMIN_APPROVAL_REQUIRED`, or `AUTH_FORBIDDEN` where appropriate.
+  - [x] Reuse `src/lib/api/errors.ts`, `src/lib/api/response.ts`, and existing error-code catalog instead of inventing ad hoc strings.
+  - [x] Log only safe context through operational logger: request ID, safe actor ID if known, role if known, target resource type, stable error code, timestamp.
+  - [x] Add or update redaction tests if logs/errors can include auth details.
 
-- [ ] Address rate limiting release gate. (AC: 7)
-  - [ ] Implement max 5 failed auth attempts per 15 minutes per account/email and source IP if feasible in this story.
-  - [ ] If durable/session-safe rate limit storage is not ready, document explicit release blocker in story completion notes and endpoint catalog.
-  - [ ] Public error for rate limit must be `RATE_LIMITED`; no account existence leak.
+- [x] Address rate limiting release gate. (AC: 7)
+  - [x] Implement max 5 failed auth attempts per 15 minutes per account/email and source IP if feasible in this story.
+  - [x] If durable/session-safe rate limit storage is not ready, document explicit release blocker in story completion notes and endpoint catalog.
+  - [x] Public error for rate limit must be `RATE_LIMITED`; no account existence leak.
 
-- [ ] Add required tests and validation. (AC: 1-8)
-  - [ ] Add domain tests for role derivation, account eligibility, credential failure mapping, session expiry, and revocation decisions.
-  - [ ] Add service/controller or route tests for valid sign-in, invalid password, unknown email generic failure, suspended/inactive account denial, sign-out invalidation, cookie clear, missing session, expired session, and revoked session.
-  - [ ] Add request-context tests proving actor is request-scoped and request ID still propagates.
-  - [ ] Add API envelope/OpenAPI metadata tests where existing pattern supports it.
-  - [ ] Run `npm run check`.
-  - [ ] Run targeted Vitest for changed auth/session tests.
-  - [ ] Run `npm run build-test` after schema/routes/session work unless blocked; record exact blocker.
+- [x] Add required tests and validation. (AC: 1-8)
+  - [x] Add domain tests for role derivation, account eligibility, credential failure mapping, session expiry, and revocation decisions.
+  - [x] Add service/controller or route tests for valid sign-in, invalid password, unknown email generic failure, suspended/inactive account denial, sign-out invalidation, cookie clear, missing session, expired session, and revoked session.
+  - [x] Add request-context tests proving actor is request-scoped and request ID still propagates.
+  - [x] Add API envelope/OpenAPI metadata tests where existing pattern supports it.
+  - [x] Run `npm run check`.
+  - [x] Run targeted Vitest for changed auth/session tests.
+  - [x] Run `npm run build-test` after schema/routes/session work unless blocked; record exact blocker.
 
 ## Dev Notes
 
@@ -269,6 +269,64 @@ GPT-5 Codex
 
 ### Debug Log References
 
+- 2026-05-13T11:02:17+08:00 - Started Story 1.7 and moved sprint status to in-progress.
+- 2026-05-13T11:14:37+08:00 - Added session/account auth schema, generated migration, ran `npx vitest run src/domain/schema-invariants.test.ts`, and ran `npm run check` (pass with existing legacy hints).
+- 2026-05-13T11:25:50+08:00 - Added pure auth decisions and PBKDF2 credential verification, updated Super Admin seed SQL to store password salt, ran targeted auth Vitest, and ran `npm run check` (pass with existing legacy hints).
+- 2026-05-13T11:29:40+08:00 - Added session credential helper using opaque token generation plus token hashing; targeted session credential Vitest passed.
+- 2026-05-13T11:45:40+08:00 - Added AuthService, AuthController, and Drizzle auth repositories; targeted service/controller/domain tests passed and `npm run check` passed after rerun with longer timeout (existing legacy hints only).
+- 2026-05-13T12:10:45+08:00 - Added auth routes, wired route group, updated endpoint catalog, ran auth/app route tests, and ran `npm run check` (pass with existing legacy hints).
+- 2026-05-13T12:10:45+08:00 - Verified Elysia cookie set/clear behavior through `createApp().handle(...)` route tests.
+- 2026-05-13T12:19:57+08:00 - Extended request context actor derivation, added request-scoped tests, ran context/routes/app/service tests, and ran `npm run check` (pass with existing legacy hints).
+- 2026-05-13T12:24:38+08:00 - Added safe auth failure operational logging with no raw credential/hash/salt leakage in service tests; app/routes/context/service tests and `npm run check` passed.
+- 2026-05-13T12:32:48+08:00 - Added hashed D1 auth rate-limit buckets, generated migration, verified SQL, ran schema/service/routes/app tests, and ran `npm run check` (pass with existing legacy hints).
+- 2026-05-13T12:42:06+08:00 - Ran explicit targeted auth/session suite (`11` files, `51` tests) and full `npm run build-test` (`17` files, `65` tests, Astro build pass). First `build-test` attempt failed with sandbox `spawn EPERM`; rerun with approval passed.
+
 ### Completion Notes List
 
+- Added canonical server-side `sessions` table storing token hash only, actor kind/ID, status, expiry/revocation timestamps, last-used timestamp, and safe request metadata. Added lookup/cleanup indexes and scoped account auth columns for PBKDF2 salts and status gates.
+- Added pure auth/session decisions for role derivation, account eligibility, safe credential failure mapping, and session active/expired/revoked state. Password credential verification now rejects legacy or unsalted hashes as unsupported with generic authentication failure; existing customer rows without PBKDF2 salt remain blocked for password sign-in until Story 1.8 migrates credential shape.
+- Added session credential helper so auth service can issue raw opaque cookie tokens while storing only SHA-256 token hashes.
+- Added canonical AuthService orchestration for sign-in, sign-out, and session inspection with safe generic credential failures and account status denials. Added AuthController envelope mapping that never returns raw session tokens in response bodies. Added Drizzle repositories for Admin/Customer lookup and session create/read/revoke/touch.
+- Added canonical `POST /api/auth/sessions`, `DELETE /api/auth/sessions/current`, and `GET /api/auth/session` route contracts with TypeBox schemas, OpenAPI metadata, standard envelopes, and endpoint catalog status update.
+- Session cookie handling uses the Elysia cookie API with opaque raw cookie token only, server-side token hash authority, bounded expiry/max age, and clear-cookie behavior on sign-out regardless of session revocation state.
+- Request context now derives anonymous Prospect or authenticated actor context per request from `jrw_session`, preserving request ID headers and avoiding module-level current actor state.
+- Auth failures now use stable safe public codes and operational logs containing request ID, safe actor ID/role when known, target `auth-session`, timestamp, and error code only.
+- Auth password attempts are rate-limited with D1-backed hashed scope buckets: max 5 failed credential attempts per 15-minute window for email plus source IP hash; sixth attempt returns `RATE_LIMITED` without account-existence leak. No release blocker remains for AC7.
+- Validation complete: `npm run check`, targeted auth/session Vitest, full Vitest, and Astro build pass. Existing Astro check output still includes legacy unused-parameter hints under frozen `src/api/**`.
+
+### Change Log
+
+- 2026-05-13 - Implemented Story 1.7 secure session authentication and moved status to review.
+
 ### File List
+
+- src/domain/schema/identity.ts
+- src/domain/schema-invariants.test.ts
+- migrations/0009_luxuriant_wendigo.sql
+- migrations/0010_bent_liz_osborn.sql
+- migrations/meta/0009_snapshot.json
+- migrations/meta/0010_snapshot.json
+- migrations/meta/_journal.json
+- scripts/seed-super-admin.ts
+- src/domain/auth/auth-decisions.ts
+- src/domain/auth/auth-decisions.test.ts
+- src/domain/auth/password-credentials.ts
+- src/domain/auth/password-credentials.test.ts
+- src/domain/auth/session-credentials.ts
+- src/domain/auth/session-credentials.test.ts
+- src/domain/auth/super-admin-seed.ts
+- src/domain/auth/super-admin-seed.test.ts
+- src/adapter/infrastructure/db/client.ts
+- src/server/controllers/AuthController.ts
+- src/server/controllers/AuthController.test.ts
+- src/server/auth/session-cookie.ts
+- src/server/context/request-context.ts
+- src/server/context/request-context.test.ts
+- src/server/repositories/AuthRepository.ts
+- src/server/routes/auth.routes.ts
+- src/server/routes/auth.routes.test.ts
+- src/server/routes/index.ts
+- src/server/services/AuthService.ts
+- src/server/services/AuthService.test.ts
+- src/server/app.ts
+- _bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md

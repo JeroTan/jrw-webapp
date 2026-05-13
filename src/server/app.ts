@@ -11,18 +11,21 @@ import { errorCodeToHttpStatus, publicErrorMessage } from "@/lib/api/errors";
 import { apiErrorWithRequestId } from "@/lib/api/response";
 import { astroBridgeDecorations } from "@/lib/elysia/astroBridgeContext";
 import {
-  requestContextPlugin,
+  createRequestContextPlugin,
   setRequestIdResponseHeader,
+  type RequestContextPluginOptions,
   type RequestContextDecorations,
 } from "@/server/context/request-context";
 import { corsMiddleware } from "@/server/middleware/cors";
 import { openApiDocumentation } from "@/server/openapi/documentation";
-import { serverRoutes } from "@/server/routes";
+import { serverRoutes, type ServerRoutesOptions } from "@/server/routes";
 import { ERROR_CODE, type ErrorCodeType } from "@/utils/general/error";
 import { getOrCreateRequestId } from "@/utils/request-id";
 
 export type CreateAppOptions = {
   operationalLogger?: OperationalLogger;
+  requestContext?: RequestContextPluginOptions;
+  routes?: ServerRoutesOptions;
 };
 
 const knownErrorCodes = new Set<string>(ERROR_CODE);
@@ -118,6 +121,14 @@ function getErrorRequestId(
 
 export function createApp(options: CreateAppOptions = {}) {
   const operationalLogger = options.operationalLogger ?? consoleOperationalLogger;
+  const routes: ServerRoutesOptions = {
+    ...options.routes,
+    auth: {
+      ...options.routes?.auth,
+      operationalLogger:
+        options.routes?.auth?.operationalLogger ?? operationalLogger,
+    },
+  };
 
   return new Elysia({
     prefix: "/api",
@@ -159,8 +170,8 @@ export function createApp(options: CreateAppOptions = {}) {
       return apiErrorWithRequestId(errorCode, publicErrorMessage(errorCode), requestId);
     })
     .use(astroBridgeDecorations)
-    .use(requestContextPlugin)
-    .use(serverRoutes);
+    .use(createRequestContextPlugin(options.requestContext))
+    .use((app) => serverRoutes(app, routes));
 }
 
 export type App = ReturnType<typeof createApp>;
