@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { hashPassword } from "@/lib/crypto/password";
-import { verifyPasswordCredential } from "./password-credentials";
+import {
+  verifyPasswordCredential,
+  verifyPasswordCredentialTimingDummy,
+} from "./password-credentials";
 
 describe("password credential verification", () => {
   it("accepts correct peppered PBKDF2 credentials", async () => {
@@ -54,5 +57,14 @@ describe("password credential verification", () => {
       code: "AUTHENTICATION",
       reason: "UNSUPPORTED_PASSWORD_HASH",
     });
+  });
+
+  it("runs the timing dummy through Web Crypto without throwing", async () => {
+    await expect(
+      verifyPasswordCredentialTimingDummy({
+        password: "missing-account-password",
+        pepper: "test-pepper",
+      })
+    ).resolves.toBeUndefined();
   });
 });

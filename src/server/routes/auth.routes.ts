@@ -241,12 +241,13 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
             "EMAIL_NOT_VERIFIED",
             "ADMIN_APPROVAL_REQUIRED",
             "RATE_LIMITED",
+            "PROVIDER_UNAVAILABLE",
             "INTERNAL_ERROR",
           ],
         }),
         response: {
           200: tboxApiSuccess(tboxSignInData),
-          ...openApiErrorResponses([400, 401, 403, 429, 500]),
+          ...openApiErrorResponses([400, 401, 403, 429, 500, 503]),
         },
       }
     )
@@ -291,11 +292,15 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
             roles: ["PROSPECT", "CUSTOMER", "ADMIN", "SUPER_ADMIN"],
           },
           rateLimitClass: "auth-password",
-          errorCodes: ["AUTHENTICATION", "INTERNAL_ERROR"],
+          errorCodes: [
+            "AUTHENTICATION",
+            "PROVIDER_UNAVAILABLE",
+            "INTERNAL_ERROR",
+          ],
         }),
         response: {
           200: tboxApiSuccess(tboxSignOutData),
-          ...openApiErrorResponses([401, 500]),
+          ...openApiErrorResponses([401, 500, 503]),
         },
       }
     )
@@ -333,11 +338,15 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
             roles: ["PROSPECT", "CUSTOMER", "ADMIN", "SUPER_ADMIN"],
           },
           rateLimitClass: "public-read",
-          errorCodes: ["AUTH_REQUIRED", "INTERNAL_ERROR"],
+          errorCodes: [
+            "AUTH_REQUIRED",
+            "PROVIDER_UNAVAILABLE",
+            "INTERNAL_ERROR",
+          ],
         }),
         response: {
           200: tboxApiSuccess(tboxSessionInspectionData),
-          ...openApiErrorResponses([401, 500]),
+          ...openApiErrorResponses([401, 500, 503]),
         },
       }
     );

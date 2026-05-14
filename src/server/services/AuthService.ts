@@ -12,7 +12,10 @@ import {
   type AuthActorKind,
   type SessionStatus,
 } from "@/domain/auth/auth-decisions";
-import { verifyPasswordCredential } from "@/domain/auth/password-credentials";
+import {
+  verifyPasswordCredential,
+  verifyPasswordCredentialTimingDummy,
+} from "@/domain/auth/password-credentials";
 import { createSessionCredential } from "@/domain/auth/session-credentials";
 import { hashSessionToken } from "@/lib/crypto/session-token";
 import { GeneralError, type ErrorCodeType } from "@/utils/general/error";
@@ -330,6 +333,10 @@ export class AuthService {
     );
 
     if (!account) {
+      await verifyPasswordCredentialTimingDummy({
+        password: input.password,
+        pepper: this.passwordPepper,
+      });
       return this.credentialFailure(
         evaluateCredentialFailure("UNKNOWN_ACCOUNT").code,
         input.requestId,

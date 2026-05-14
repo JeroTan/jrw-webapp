@@ -25,6 +25,7 @@ describe("auth routes", () => {
             "x-auth"?: { mode?: string; roles?: string[] };
             "x-rate-limit-class"?: string;
             "x-error-codes"?: string[];
+            responses?: Record<string, unknown>;
           }
         >
       >;
@@ -43,8 +44,14 @@ describe("auth routes", () => {
     });
     expect(createSession?.["x-rate-limit-class"]).toBe("auth-password");
     expect(createSession?.["x-error-codes"]).toContain("RATE_LIMITED");
+    expect(createSession?.["x-error-codes"]).toContain("PROVIDER_UNAVAILABLE");
+    expect(createSession?.responses).toHaveProperty("503");
     expect(deleteSession?.["x-auth"]?.mode).toBe("optional");
+    expect(deleteSession?.["x-error-codes"]).toContain("PROVIDER_UNAVAILABLE");
+    expect(deleteSession?.responses).toHaveProperty("503");
     expect(inspectSession?.["x-rate-limit-class"]).toBe("public-read");
+    expect(inspectSession?.["x-error-codes"]).toContain("PROVIDER_UNAVAILABLE");
+    expect(inspectSession?.responses).toHaveProperty("503");
   });
 
   it("creates a session and sets a secure HttpOnly cookie", async () => {

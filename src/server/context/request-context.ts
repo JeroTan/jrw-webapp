@@ -68,7 +68,11 @@ function parseCookieHeader(headers: Headers, cookieName: string): string | undef
     const [name, ...valueParts] = cookiePart.trim().split("=");
     if (name === cookieName) {
       const value = valueParts.join("=");
-      return value ? decodeURIComponent(value) : undefined;
+      try {
+        return value ? decodeURIComponent(value) : undefined;
+      } catch {
+        return undefined;
+      }
     }
   }
 

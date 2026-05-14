@@ -1,6 +1,6 @@
 # Story 1.7: Secure Session Authentication
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -89,6 +89,12 @@ so that role-protected areas can identify me without exposing credentials or tok
   - [x] Run `npm run check`.
   - [x] Run targeted Vitest for changed auth/session tests.
   - [x] Run `npm run build-test` after schema/routes/session work unless blocked; record exact blocker.
+
+### Review Findings
+
+- [x] [Review][Patch] Invalid percent-encoded session cookie causes a 500 before anonymous fallback [src/server/context/request-context.ts:71]
+- [x] [Review][Patch] Auth routes can return `PROVIDER_UNAVAILABLE` but OpenAPI metadata/catalog omit that error contract [src/server/routes/auth.routes.ts:237]
+- [x] [Review][Patch] Unknown email path skips PBKDF2 verification and leaves an account-enumeration timing side channel [src/server/services/AuthService.ts:328]
 
 ## Dev Notes
 
@@ -280,6 +286,7 @@ GPT-5 Codex
 - 2026-05-13T12:24:38+08:00 - Added safe auth failure operational logging with no raw credential/hash/salt leakage in service tests; app/routes/context/service tests and `npm run check` passed.
 - 2026-05-13T12:32:48+08:00 - Added hashed D1 auth rate-limit buckets, generated migration, verified SQL, ran schema/service/routes/app tests, and ran `npm run check` (pass with existing legacy hints).
 - 2026-05-13T12:42:06+08:00 - Ran explicit targeted auth/session suite (`11` files, `51` tests) and full `npm run build-test` (`17` files, `65` tests, Astro build pass). First `build-test` attempt failed with sandbox `spawn EPERM`; rerun with approval passed.
+- 2026-05-14T19:53:08+08:00 - Code review patches applied: malformed cookie fallback, auth `PROVIDER_UNAVAILABLE` OpenAPI/catalog contract, and PBKDF2 timing dummy for unknown/unsupported credential paths. Targeted auth Vitest passed (`7` files, `31` tests). `npm run check` passed with existing legacy hints. `npm run build-test` passed (`24` files, `105` tests, Astro build pass).
 
 ### Completion Notes List
 
@@ -297,6 +304,27 @@ GPT-5 Codex
 ### Change Log
 
 - 2026-05-13 - Implemented Story 1.7 secure session authentication and moved status to review.
+- 2026-05-14 - Code review completed; applied all review patches and moved status to done.
+
+## Senior Developer Review (AI)
+
+### Review Outcome
+
+Approve
+
+### Review Date
+
+2026-05-14
+
+### Action Items
+
+- [x] [Medium] Treat malformed session cookies as anonymous instead of returning `500`.
+- [x] [Medium] Document `PROVIDER_UNAVAILABLE`/`503` in auth OpenAPI metadata and endpoint catalog.
+- [x] [Medium] Run Web Crypto PBKDF2 dummy verification for unknown/unsupported credential paths to reduce account-enumeration timing leakage.
+
+### Summary
+
+Review patches complete. No unresolved decision-needed, patch, or deferred items remain.
 
 ### File List
 

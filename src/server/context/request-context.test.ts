@@ -93,4 +93,29 @@ describe("request context plugin", () => {
       role: "PROSPECT",
     });
   });
+
+  it("treats malformed session cookies as anonymous instead of failing request context", async () => {
+    const app = new Elysia()
+      .use(createRequestContextPlugin())
+      .get("/ctx", (ctx) => {
+        const { requestContext } = ctx as typeof ctx & RequestContextDecorations;
+        return requestContext.actor;
+      });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/ctx", {
+        headers: {
+          cookie: "jrw_session=%E0%A4%A",
+          "x-request-id": "req_bad_cookie",
+        },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      authenticated: false,
+      role: "PROSPECT",
+    });
+    expect(response.headers.get("x-request-id")).toBe("req_bad_cookie");
+  });
 });
