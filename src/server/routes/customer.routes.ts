@@ -118,8 +118,18 @@ function createRuntimeController(
     getRuntimePasswordPepper(input.runtimeEnv)
   );
 
-  if (!db || !pepper.ok) {
-    throw new GeneralError({}, "INTERNAL_ERROR");
+  if (!db) {
+    throw new GeneralError(
+      { reason: "missing_db_binding" },
+      "PROVIDER_UNAVAILABLE"
+    );
+  }
+
+  if (!pepper.ok) {
+    throw new GeneralError(
+      { reason: "invalid_password_pepper" },
+      "PROVIDER_UNAVAILABLE"
+    );
   }
 
   const repositories = createCustomerAccountRepositories(db as D1Database);
@@ -127,7 +137,8 @@ function createRuntimeController(
     ...repositories,
     passwordPepper: pepper.pepper,
     verificationEmails: createCustomerVerificationEmailNotifier(
-      input.runtimeEnv ?? {}
+      input.runtimeEnv ?? {},
+      { requestUrl: input.request.url }
     ),
     operationalLogger: options.operationalLogger,
   });
@@ -139,7 +150,10 @@ function getController(
   input: CustomerControllerFactoryInput,
   options: CustomerRoutesOptions
 ): CustomerAccountController {
-  return options.controllerFactory?.(input) ?? createRuntimeController(input, options);
+  return (
+    options.controllerFactory?.(input) ??
+    createRuntimeController(input, options)
+  );
 }
 
 function customerActor(

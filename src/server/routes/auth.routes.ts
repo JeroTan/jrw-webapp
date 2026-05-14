@@ -98,8 +98,18 @@ function createRuntimeController(
     getRuntimePasswordPepper(input.runtimeEnv)
   );
 
-  if (!db || !pepper.ok) {
-    throw new GeneralError({}, "INTERNAL_ERROR");
+  if (!db) {
+    throw new GeneralError(
+      { reason: "missing_db_binding" },
+      "PROVIDER_UNAVAILABLE"
+    );
+  }
+
+  if (!pepper.ok) {
+    throw new GeneralError(
+      { reason: "invalid_password_pepper" },
+      "PROVIDER_UNAVAILABLE"
+    );
   }
 
   const repositories = createAuthRepositories(db as D1Database);
@@ -117,7 +127,10 @@ function getController(
   input: AuthControllerFactoryInput,
   options: AuthRoutesOptions
 ): AuthController {
-  return options.controllerFactory?.(input) ?? createRuntimeController(input, options);
+  return (
+    options.controllerFactory?.(input) ??
+    createRuntimeController(input, options)
+  );
 }
 
 function getSessionCookieValue(
@@ -188,11 +201,14 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
       async (ctx) => {
         const { request, set, cookie, runtimeEnv, body, requestId } =
           ctx as typeof ctx &
-          RequestContextDecorations & {
-            runtimeEnv?: Partial<Env> & Record<string, unknown>;
-            cookie: Record<string, { set: (config: Record<string, unknown>) => unknown }>;
-            body: { email: string; password: string };
-          };
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              cookie: Record<
+                string,
+                { set: (config: Record<string, unknown>) => unknown }
+              >;
+              body: { email: string; password: string };
+            };
         const controller = getController(
           { request, runtimeEnv, requestId },
           options
@@ -239,16 +255,16 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
       async (ctx) => {
         const { request, set, cookie, runtimeEnv, requestId } =
           ctx as typeof ctx &
-          RequestContextDecorations & {
-            runtimeEnv?: Partial<Env> & Record<string, unknown>;
-            cookie: Record<
-              string,
-              {
-                value: unknown;
-                set: (config: Record<string, unknown>) => unknown;
-              }
-            >;
-          };
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              cookie: Record<
+                string,
+                {
+                  value: unknown;
+                  set: (config: Record<string, unknown>) => unknown;
+                }
+              >;
+            };
         const controller = getController(
           { request, runtimeEnv, requestId },
           options
@@ -270,7 +286,10 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
           description:
             "Invalidates the current server-side session when present and clears the browser session cookie.",
           tags: ["Auth"],
-          auth: { mode: "optional", roles: ["PROSPECT", "CUSTOMER", "ADMIN", "SUPER_ADMIN"] },
+          auth: {
+            mode: "optional",
+            roles: ["PROSPECT", "CUSTOMER", "ADMIN", "SUPER_ADMIN"],
+          },
           rateLimitClass: "auth-password",
           errorCodes: ["AUTHENTICATION", "INTERNAL_ERROR"],
         }),
@@ -285,10 +304,10 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
       async (ctx) => {
         const { request, set, cookie, runtimeEnv, requestId } =
           ctx as typeof ctx &
-          RequestContextDecorations & {
-            runtimeEnv?: Partial<Env> & Record<string, unknown>;
-            cookie: Record<string, { value: unknown }>;
-          };
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              cookie: Record<string, { value: unknown }>;
+            };
         const controller = getController(
           { request, runtimeEnv, requestId },
           options
@@ -309,7 +328,10 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
           description:
             "Returns the current actor/session summary when the session cookie maps to an active server-side session.",
           tags: ["Auth"],
-          auth: { mode: "optional", roles: ["PROSPECT", "CUSTOMER", "ADMIN", "SUPER_ADMIN"] },
+          auth: {
+            mode: "optional",
+            roles: ["PROSPECT", "CUSTOMER", "ADMIN", "SUPER_ADMIN"],
+          },
           rateLimitClass: "public-read",
           errorCodes: ["AUTH_REQUIRED", "INTERNAL_ERROR"],
         }),

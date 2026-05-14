@@ -7,10 +7,11 @@ import {
 } from "./CustomerVerificationEmailNotifier";
 
 describe("Resend customer verification email notifier", () => {
-  it("requires safe provider and app URL config", () => {
+  it("requires safe provider config and resolves app URL fallback order", () => {
     expect(resolveResendVerificationEmailConfig({}).error?.code).toBe(
       "PROVIDER_UNAVAILABLE"
     );
+
     expect(
       resolveResendVerificationEmailConfig({
         RESEND_API_KEY: "re_test",
@@ -22,6 +23,31 @@ describe("Resend customer verification email notifier", () => {
       fromEmail: "JRW <noreply@example.test>",
       appBaseUrl: "https://jrw.test",
     });
+
+    expect(
+      resolveResendVerificationEmailConfig(
+        {
+          RESEND_API_KEY: "re_test",
+          RESEND_FROM_EMAIL: "JRW <noreply@example.test>",
+        },
+        { requestUrl: "https://request-origin.test/api/customers" }
+      ).content?.appBaseUrl
+    ).toBe("https://request-origin.test");
+
+    expect(
+      resolveResendVerificationEmailConfig({
+        RESEND_API_KEY: "re_test",
+        RESEND_FROM_EMAIL: "JRW <noreply@example.test>",
+      }).content?.appBaseUrl
+    ).toBe("http://localhost:4321");
+
+    expect(
+      resolveResendVerificationEmailConfig({
+        RESEND_API_KEY: "re_test",
+        RESEND_FROM_EMAIL: "JRW <noreply@example.test>",
+        APP_BASE_URL: "not a url",
+      }).error?.code
+    ).toBe("PROVIDER_UNAVAILABLE");
   });
 
   it("sends verification email with raw token only in email body/link", async () => {
@@ -72,7 +98,8 @@ describe("Resend customer verification email notifier", () => {
       fromEmail: "JRW <noreply@example.test>",
       appBaseUrl: "https://jrw.test",
     });
-    const missingConfigNotifier = new FailingCustomerVerificationEmailNotifier();
+    const missingConfigNotifier =
+      new FailingCustomerVerificationEmailNotifier();
 
     await expect(
       providerNotifier.sendVerificationEmail({

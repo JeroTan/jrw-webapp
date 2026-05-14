@@ -19,7 +19,11 @@ import {
 import { corsMiddleware } from "@/server/middleware/cors";
 import { openApiDocumentation } from "@/server/openapi/documentation";
 import { serverRoutes, type ServerRoutesOptions } from "@/server/routes";
-import { ERROR_CODE, type ErrorCodeType } from "@/utils/general/error";
+import {
+  ERROR_CODE,
+  GeneralError,
+  type ErrorCodeType,
+} from "@/utils/general/error";
 import { getOrCreateRequestId } from "@/utils/request-id";
 
 export type CreateAppOptions = {
@@ -78,7 +82,9 @@ function mapElysiaErrorCode(code: unknown, error: unknown): ErrorCodeType {
   if (isErrorCodeType(code)) {
     switch (code) {
       case "VALIDATION":
-        return isResponseValidationError(error) ? "INTERNAL_ERROR" : "VALIDATION_FAILED";
+        return isResponseValidationError(error)
+          ? "INTERNAL_ERROR"
+          : "VALIDATION_FAILED";
       case "NOT_FOUND":
         return "RESOURCE_NOT_FOUND";
       case "AUTHENTICATION":
@@ -99,7 +105,9 @@ function mapElysiaErrorCode(code: unknown, error: unknown): ErrorCodeType {
 
   switch (code) {
     case "VALIDATION":
-      return isResponseValidationError(error) ? "INTERNAL_ERROR" : "VALIDATION_FAILED";
+      return isResponseValidationError(error)
+        ? "INTERNAL_ERROR"
+        : "VALIDATION_FAILED";
     case "NOT_FOUND":
       return "RESOURCE_NOT_FOUND";
     case "PARSE":
@@ -114,13 +122,18 @@ function mapElysiaErrorCode(code: unknown, error: unknown): ErrorCodeType {
 }
 
 function getErrorRequestId(
-  context: { request: Request } & Partial<RequestContextDecorations>,
+  context: { request: Request } & Partial<RequestContextDecorations>
 ): string {
-  return context.requestId ?? context.requestContext?.requestId ?? getOrCreateRequestId(context.request.headers);
+  return (
+    context.requestId ??
+    context.requestContext?.requestId ??
+    getOrCreateRequestId(context.request.headers)
+  );
 }
 
 export function createApp(options: CreateAppOptions = {}) {
-  const operationalLogger = options.operationalLogger ?? consoleOperationalLogger;
+  const operationalLogger =
+    options.operationalLogger ?? consoleOperationalLogger;
   const routes: ServerRoutesOptions = {
     ...options.routes,
     auth: {
@@ -144,13 +157,23 @@ export function createApp(options: CreateAppOptions = {}) {
     .use(
       openapi({
         documentation: openApiDocumentation,
-      }),
+      })
     )
     .use(corsMiddleware())
     .onError((context) => {
       const { code, error, set } = context;
       const requestId = getErrorRequestId(context);
-      const errorCode = mapElysiaErrorCode(code, error);
+      const errorCode =
+        error instanceof GeneralError
+          ? error.code
+          : mapElysiaErrorCode(code, error);
+      const details =
+        error instanceof GeneralError &&
+        typeof error.data === "object" &&
+        error.data !== null &&
+        Object.keys(error.data).length > 0
+          ? error.data
+          : undefined;
 
       set.status = errorCodeToHttpStatus(errorCode);
       setRequestIdResponseHeader(set, requestId);
@@ -165,14 +188,22 @@ export function createApp(options: CreateAppOptions = {}) {
                 elysiaCode: code,
                 error,
               },
-            }),
+            })
           );
         } catch {
           // Logging must never mask the original safe error response.
         }
       }
 
-      return apiErrorWithRequestId(errorCode, publicErrorMessage(errorCode), requestId);
+      return apiErrorWithRequestId(
+        errorCode,
+        publicErrorMessage(
+          errorCode,
+          error instanceof GeneralError ? error.message : undefined
+        ),
+        requestId,
+        details
+      );
     })
     .use(astroBridgeDecorations)
     .use(createRequestContextPlugin(options.requestContext))

@@ -92,6 +92,44 @@ describe("AuthController", () => {
     expect(result.cookie).toBeUndefined();
   });
 
+  it("includes safe service error reason details", async () => {
+    const controller = new AuthController(
+      createServiceStub({
+        signIn: async () =>
+          Result.error(
+            new GeneralError(
+              {
+                reason: "auth_storage_unavailable",
+                operation: "sign-in",
+              },
+              "PROVIDER_UNAVAILABLE"
+            )
+          ),
+      })
+    );
+
+    const result = await controller.createSession({
+      body: {
+        email: "owner@example.test",
+        password: "correct horse battery staple",
+      },
+      requestId: "req_test",
+    });
+
+    expect(result.status).toBe(503);
+    expect(result.body).toEqual({
+      error: {
+        code: "PROVIDER_UNAVAILABLE",
+        message: "A required provider is unavailable. Please try again later.",
+        details: {
+          reason: "auth_storage_unavailable",
+          operation: "sign-in",
+          requestId: "req_test",
+        },
+      },
+    });
+  });
+
   it("always asks transport to clear cookie on sign-out", async () => {
     const controller = new AuthController(
       createServiceStub({

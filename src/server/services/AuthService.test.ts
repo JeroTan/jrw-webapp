@@ -18,13 +18,25 @@ class FakeAccountRepository implements AuthAccountRepository {
     return this.accounts.find((account) => account.email === email) ?? null;
   }
 
-  async findByActor(actorKind: AuthAccountRecord["actorKind"], actorId: string) {
+  async findByActor(
+    actorKind: AuthAccountRecord["actorKind"],
+    actorId: string
+  ) {
     return (
       this.accounts.find(
-        (account) =>
-          account.actorKind === actorKind && account.id === actorId
+        (account) => account.actorKind === actorKind && account.id === actorId
       ) ?? null
     );
+  }
+}
+
+class FailingAccountRepository implements AuthAccountRepository {
+  async findByEmail(): Promise<AuthAccountRecord | null> {
+    throw new Error("D1_ERROR: no such table: auth_rate_limits");
+  }
+
+  async findByActor(): Promise<AuthAccountRecord | null> {
+    throw new Error("D1_ERROR: no such table: sessions");
   }
 }
 
@@ -34,7 +46,9 @@ class FakeSessionRepository implements AuthSessionRepository {
 
   constructor(private readonly sessions: AuthSessionRecord[] = []) {}
 
-  async createSession(input: Parameters<AuthSessionRepository["createSession"]>[0]) {
+  async createSession(
+    input: Parameters<AuthSessionRepository["createSession"]>[0]
+  ) {
     const session: AuthSessionRecord = {
       id: `session_${this.createdSessions.length + 1}`,
       tokenHash: input.tokenHash,
@@ -50,7 +64,9 @@ class FakeSessionRepository implements AuthSessionRepository {
   }
 
   async findByTokenHash(tokenHash: string) {
-    return this.sessions.find((session) => session.tokenHash === tokenHash) ?? null;
+    return (
+      this.sessions.find((session) => session.tokenHash === tokenHash) ?? null
+    );
   }
 
   async revokeByTokenHash(tokenHash: string) {
@@ -132,9 +148,7 @@ describe("AuthService", () => {
         approved: true,
       },
     });
-    expect(result.content?.session.expiresAt).toBe(
-      "2026-05-13T00:01:00.000Z"
-    );
+    expect(result.content?.session.expiresAt).toBe("2026-05-13T00:01:00.000Z");
     expect(result.content?.session.token).toEqual(expect.any(String));
     expect(sessions.createdSessions[0]?.tokenHash).not.toBe(
       result.content?.session.token
@@ -195,6 +209,40 @@ describe("AuthService", () => {
     expect(JSON.stringify(events)).not.toContain("wrong password");
     expect(JSON.stringify(events)).not.toContain(account.passwordHash);
     expect(JSON.stringify(events)).not.toContain(account.passwordSalt ?? "");
+  });
+
+  it("maps storage/schema failures to safe provider-unavailable errors", async () => {
+    const events: OperationalLogEvent[] = [];
+    const service = new AuthService({
+      accounts: new FailingAccountRepository(),
+      sessions: new FakeSessionRepository(),
+      passwordPepper: "test-pepper-value",
+      operationalLogger: {
+        record: (event) => events.push(event),
+      },
+    });
+
+    const result = await service.signIn({
+      email: "owner@example.test",
+      password: "correct horse battery staple",
+      requestId: "req_storage",
+    });
+
+    expect(result.error?.code).toBe("PROVIDER_UNAVAILABLE");
+    expect(result.error?.data).toEqual({
+      reason: "auth_storage_unavailable",
+      operation: "sign-in",
+    });
+    expect(events[0]).toMatchObject({
+      requestId: "req_storage",
+      errorCode: "PROVIDER_UNAVAILABLE",
+      targetResourceId: "auth-storage",
+      details: {
+        reason: "auth_storage_unavailable",
+        operation: "sign-in",
+      },
+    });
+    expect(JSON.stringify(events)).not.toContain("no such table");
   });
 
   it("denies suspended and inactive accounts without creating sessions", async () => {
@@ -397,7 +445,9 @@ describe("AuthService", () => {
       now: () => new Date("2026-05-13T00:00:00.000Z"),
     });
 
-    await expect(service.inspectSession({ requestId: "req_test" })).resolves.toMatchObject({
+    await expect(
+      service.inspectSession({ requestId: "req_test" })
+    ).resolves.toMatchObject({
       content: { authenticated: false, actor: null, session: null },
     });
     await expect(

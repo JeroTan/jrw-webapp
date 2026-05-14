@@ -135,14 +135,21 @@ function parseCliArgs(args: string[]): CliOptions {
   return options;
 }
 
-function npxExecutable(): string {
-  return process.platform === "win32" ? "npx.cmd" : "npx";
+function npxInvocation(): { command: string; argsPrefix: string[] } {
+  if (process.platform === "win32") {
+    return { command: "cmd.exe", argsPrefix: ["/c", "npx"] };
+  }
+
+  return { command: "npx", argsPrefix: [] };
 }
 
 function runWranglerD1(targetEnv: string, args: readonly string[]): string {
+  const npx = npxInvocation();
+
   return execFileSync(
-    npxExecutable(),
+    npx.command,
     [
+      ...npx.argsPrefix,
       "wrangler@latest",
       "d1",
       "execute",
@@ -225,7 +232,9 @@ export async function main(
     email,
     password,
   });
-  const pepper = validatePasswordPepper(cleanOptionalEnvValue(env.PASSWORD_PEPPER));
+  const pepper = validatePasswordPepper(
+    cleanOptionalEnvValue(env.PASSWORD_PEPPER)
+  );
 
   if (!credentials.ok) {
     console.error(credentials.message);

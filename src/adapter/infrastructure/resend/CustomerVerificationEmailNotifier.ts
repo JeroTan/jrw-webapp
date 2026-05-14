@@ -26,11 +26,17 @@ export type ResendVerificationEmailConfig = {
   appBaseUrl: string;
 };
 
+export type ResendVerificationEmailConfigOptions = {
+  requestUrl?: string;
+};
+
 export type ResendCustomerVerificationEmailNotifierOptions = {
   client: ResendEmailClient;
   fromEmail: string;
   appBaseUrl: string;
 };
+
+const LOCAL_DEV_APP_BASE_URL = "http://localhost:4321";
 
 function configError(): GeneralError<Record<string, never>> {
   return new GeneralError({}, "PROVIDER_UNAVAILABLE");
@@ -67,14 +73,17 @@ function verificationUrl(baseUrl: string, token: string): string {
 }
 
 export function resolveResendVerificationEmailConfig(
-  runtimeEnv: Partial<Env> & Record<string, unknown>
+  runtimeEnv: Partial<Env> & Record<string, unknown>,
+  options: ResendVerificationEmailConfigOptions = {}
 ): AppResult<ResendVerificationEmailConfig> {
   const apiKey = cleanString(runtimeEnv.RESEND_API_KEY);
   const fromEmail = cleanString(runtimeEnv.RESEND_FROM_EMAIL);
-  const appBaseUrl = normalizeBaseUrl(
+  const configuredBaseUrl =
     cleanString(runtimeEnv.APP_BASE_URL) ??
-      cleanString(runtimeEnv.PUBLIC_APP_BASE_URL)
-  );
+    cleanString(runtimeEnv.PUBLIC_APP_BASE_URL);
+  const appBaseUrl = configuredBaseUrl
+    ? normalizeBaseUrl(configuredBaseUrl)
+    : (normalizeBaseUrl(options.requestUrl) ?? LOCAL_DEV_APP_BASE_URL);
 
   if (!apiKey || !fromEmail || !appBaseUrl) {
     return Result.error(configError());
@@ -87,9 +96,7 @@ export function resolveResendVerificationEmailConfig(
   });
 }
 
-export class FailingCustomerVerificationEmailNotifier
-  implements CustomerVerificationEmailNotifier
-{
+export class FailingCustomerVerificationEmailNotifier implements CustomerVerificationEmailNotifier {
   async sendVerificationEmail(_input: CustomerVerificationEmailInput) {
     return {
       ok: false as const,
@@ -98,9 +105,7 @@ export class FailingCustomerVerificationEmailNotifier
   }
 }
 
-export class ResendCustomerVerificationEmailNotifier
-  implements CustomerVerificationEmailNotifier
-{
+export class ResendCustomerVerificationEmailNotifier implements CustomerVerificationEmailNotifier {
   private readonly client: ResendEmailClient;
   private readonly fromEmail: string;
   private readonly appBaseUrl: string;
@@ -108,7 +113,8 @@ export class ResendCustomerVerificationEmailNotifier
   constructor(options: ResendCustomerVerificationEmailNotifierOptions) {
     this.client = options.client;
     this.fromEmail = options.fromEmail;
-    this.appBaseUrl = normalizeBaseUrl(options.appBaseUrl) ?? options.appBaseUrl;
+    this.appBaseUrl =
+      normalizeBaseUrl(options.appBaseUrl) ?? options.appBaseUrl;
   }
 
   async sendVerificationEmail(
@@ -143,9 +149,10 @@ export class ResendCustomerVerificationEmailNotifier
 }
 
 export function createCustomerVerificationEmailNotifier(
-  runtimeEnv: Partial<Env> & Record<string, unknown>
+  runtimeEnv: Partial<Env> & Record<string, unknown>,
+  options: ResendVerificationEmailConfigOptions = {}
 ): CustomerVerificationEmailNotifier {
-  const config = resolveResendVerificationEmailConfig(runtimeEnv);
+  const config = resolveResendVerificationEmailConfig(runtimeEnv, options);
 
   if (config.error) {
     return new FailingCustomerVerificationEmailNotifier();

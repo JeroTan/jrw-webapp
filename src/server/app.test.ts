@@ -5,6 +5,7 @@ import {
   type OperationalLogEvent,
 } from "@/adapter/infrastructure/logging/operational-log";
 import { tboxApiSuccess } from "@/lib/typebox/api";
+import { GeneralError } from "@/utils/general/error";
 import { createApp } from "./app";
 
 describe("createApp", () => {
@@ -25,7 +26,9 @@ describe("createApp", () => {
 
   it("exposes JRW OpenAPI metadata from the canonical server composer", async () => {
     const app = createApp();
-    const response = await app.handle(new Request("https://jrw.test/api/openapi/json"));
+    const response = await app.handle(
+      new Request("https://jrw.test/api/openapi/json")
+    );
     const body = (await response.json()) as {
       info?: {
         title?: string;
@@ -41,7 +44,9 @@ describe("createApp", () => {
 
   it("documents the completed Foundation endpoint with safe OpenAPI contract metadata", async () => {
     const app = createApp();
-    const response = await app.handle(new Request("https://jrw.test/api/openapi/json"));
+    const response = await app.handle(
+      new Request("https://jrw.test/api/openapi/json")
+    );
     const specText = await response.text();
     const body = JSON.parse(specText) as {
       paths?: {
@@ -67,21 +72,29 @@ describe("createApp", () => {
 
     const foundationOperation = body.paths?.["/api/"]?.get;
     const successSchema =
-      foundationOperation?.responses?.["200"]?.content?.["application/json"]?.schema;
+      foundationOperation?.responses?.["200"]?.content?.["application/json"]
+        ?.schema;
     const errorSchema =
-      foundationOperation?.responses?.["500"]?.content?.["application/json"]?.schema;
+      foundationOperation?.responses?.["500"]?.content?.["application/json"]
+        ?.schema;
 
     expect(foundationOperation?.summary).toBe("API foundation");
-    expect(foundationOperation?.description).toContain("Reports canonical JRW API ownership");
+    expect(foundationOperation?.description).toContain(
+      "Reports canonical JRW API ownership"
+    );
     expect(foundationOperation?.tags).toContain("Foundation");
     expect(successSchema?.type).toBe("object");
     expect(successSchema?.properties?.data?.type).toBe("object");
     expect(successSchema?.properties?.data?.properties?.name).toBeDefined();
-    expect(successSchema?.properties?.data?.properties?.routeGroups?.type).toBe("array");
+    expect(successSchema?.properties?.data?.properties?.routeGroups?.type).toBe(
+      "array"
+    );
     expect(successSchema?.properties?.meta?.type).toBe("object");
     expect(errorSchema?.type).toBe("object");
     expect(errorSchema?.properties?.error?.properties?.code).toBeDefined();
-    expect(errorSchema?.properties?.error?.properties?.message?.type).toBe("string");
+    expect(errorSchema?.properties?.error?.properties?.message?.type).toBe(
+      "string"
+    );
     expect(foundationOperation?.["x-auth"]).toEqual({
       mode: "public",
       roles: ["PROSPECT"],
@@ -89,7 +102,7 @@ describe("createApp", () => {
     expect(foundationOperation?.["x-rate-limit-class"]).toBe("public-read");
     expect(foundationOperation?.["x-error-codes"]).toEqual(["INTERNAL_ERROR"]);
     expect(specText).not.toMatch(
-      /QR Resto|DATABASE_URL|PAYMONGO_SECRET|RESEND_API_KEY|JWT_SECRET|raw provider payload|sk_live_|sk_test_|Bearer\s+[A-Za-z0-9._-]+/i,
+      /QR Resto|DATABASE_URL|PAYMONGO_SECRET|RESEND_API_KEY|JWT_SECRET|raw provider payload|sk_live_|sk_test_|Bearer\s+[A-Za-z0-9._-]+/i
     );
   });
 
@@ -114,7 +127,7 @@ describe("createApp", () => {
     const response = await app.handle(
       new Request("https://jrw.test/api/", {
         headers: { "x-request-id": "req_client_provided" },
-      }),
+      })
     );
     const body = (await response.json()) as {
       meta?: {
@@ -146,7 +159,7 @@ describe("createApp", () => {
     const response = await app.handle(
       new Request("https://jrw.test/api/missing", {
         headers: { "x-request-id": "req_missing" },
-      }),
+      })
     );
     const body = (await response.json()) as {
       error?: {
@@ -166,14 +179,17 @@ describe("createApp", () => {
   });
 
   it("returns safe request-aware envelopes for unexpected errors", async () => {
-    const app = createApp({ operationalLogger: noopOperationalLogger }).get("/boom", () => {
-      throw new Error("raw db password secret stack should not leak");
-    });
+    const app = createApp({ operationalLogger: noopOperationalLogger }).get(
+      "/boom",
+      () => {
+        throw new Error("raw db password secret stack should not leak");
+      }
+    );
 
     const response = await app.handle(
       new Request("https://jrw.test/api/boom", {
         headers: { "x-request-id": "req_boom" },
-      }),
+      })
     );
     const body = (await response.json()) as {
       error?: {
@@ -195,6 +211,44 @@ describe("createApp", () => {
     expect(JSON.stringify(body)).not.toContain("stack");
   });
 
+  it("returns safe reason details for known operational errors", async () => {
+    const app = createApp({ operationalLogger: noopOperationalLogger }).get(
+      "/missing-auth-storage",
+      () => {
+        throw new GeneralError(
+          { reason: "missing_db_binding" },
+          "PROVIDER_UNAVAILABLE"
+        );
+      }
+    );
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/missing-auth-storage", {
+        headers: { "x-request-id": "req_missing_storage" },
+      })
+    );
+    const body = (await response.json()) as {
+      error?: {
+        code?: string;
+        message?: string;
+        details?: {
+          reason?: string;
+          requestId?: string;
+        };
+      };
+    };
+
+    expect(response.status).toBe(503);
+    expect(body.error).toEqual({
+      code: "PROVIDER_UNAVAILABLE",
+      message: "A required provider is unavailable. Please try again later.",
+      details: {
+        reason: "missing_db_binding",
+        requestId: "req_missing_storage",
+      },
+    });
+  });
+
   it("keeps generated request ID stable across context, error response, and logs", async () => {
     const logs: OperationalLogEvent[] = [];
     let routeRequestId: string | undefined;
@@ -207,7 +261,9 @@ describe("createApp", () => {
       throw new Error("boom");
     });
 
-    const response = await app.handle(new Request("https://jrw.test/api/boom-generated"));
+    const response = await app.handle(
+      new Request("https://jrw.test/api/boom-generated")
+    );
     const body = (await response.json()) as {
       error?: {
         details?: {
@@ -237,7 +293,7 @@ describe("createApp", () => {
     const response = await app.handle(
       new Request("https://jrw.test/api/logger-fails", {
         headers: { "x-request-id": "req_logger_fails" },
-      }),
+      })
     );
     const body = (await response.json()) as {
       error?: {
@@ -261,29 +317,30 @@ describe("createApp", () => {
       },
     }).get(
       "/bad-response-contract",
-      (ctx) => ({
-        data: {
-          name: "wrong-shape",
-        },
-        meta: {
-          requestId: (ctx as typeof ctx & { requestId: string }).requestId,
-        },
-      }) as never,
+      (ctx) =>
+        ({
+          data: {
+            name: "wrong-shape",
+          },
+          meta: {
+            requestId: (ctx as typeof ctx & { requestId: string }).requestId,
+          },
+        }) as never,
       {
         response: {
           200: tboxApiSuccess(
             t.Object({
               ok: t.Boolean(),
-            }),
+            })
           ),
         },
-      },
+      }
     );
 
     const response = await app.handle(
       new Request("https://jrw.test/api/bad-response-contract", {
         headers: { "x-request-id": "req_bad_response" },
-      }),
+      })
     );
     const body = (await response.json()) as {
       error?: {

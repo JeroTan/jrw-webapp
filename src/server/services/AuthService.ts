@@ -151,6 +151,27 @@ function authError(code: ErrorCodeType): GeneralError<Record<string, never>> {
   return new GeneralError({}, code);
 }
 
+function authStorageError(operation: string): GeneralError<{
+  reason: "auth_storage_unavailable";
+  operation: string;
+}> {
+  return new GeneralError(
+    {
+      reason: "auth_storage_unavailable",
+      operation,
+    },
+    "PROVIDER_UNAVAILABLE"
+  );
+}
+
+function isAuthStorageError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+
+  return /D1_|SQLITE_|database|no such table|no such column|prepare|execute|query/i.test(
+    error.message
+  );
+}
+
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
@@ -244,7 +265,34 @@ export class AuthService {
     return Result.error(authError(code));
   }
 
-  private async rateLimitInput(input: SignInInput): Promise<AuthRateLimitInput> {
+  private authStorageFailure(
+    operation: string,
+    requestId: string,
+    cause: unknown
+  ) {
+    try {
+      this.operationalLogger.record(
+        createOperationalLogEvent({
+          requestId,
+          errorCode: "PROVIDER_UNAVAILABLE",
+          targetResourceId: "auth-storage",
+          details: {
+            reason: "auth_storage_unavailable",
+            operation,
+            cause,
+          },
+        })
+      );
+    } catch {
+      // Logging must not change authentication outcomes.
+    }
+
+    return Result.error(authStorageError(operation));
+  }
+
+  private async rateLimitInput(
+    input: SignInInput
+  ): Promise<AuthRateLimitInput> {
     const sourceHash = input.sourceIpHash ?? "unknown-source";
     const scopeHash = await hashSessionToken(
       `auth-password:${normalizeEmail(input.email)}:${sourceHash}`
@@ -268,14 +316,18 @@ export class AuthService {
     return this.authFailure(code, requestId, account);
   }
 
-  async signIn(input: SignInInput): Promise<AppResult<SignInResult>> {
+  private async signInWithStorage(
+    input: SignInInput
+  ): Promise<AppResult<SignInResult>> {
     const rateLimit = await this.rateLimitInput(input);
 
     if (await this.rateLimiter.isLimited(rateLimit)) {
       return this.authFailure("RATE_LIMITED", input.requestId);
     }
 
-    const account = await this.accounts.findByEmail(normalizeEmail(input.email));
+    const account = await this.accounts.findByEmail(
+      normalizeEmail(input.email)
+    );
 
     if (!account) {
       return this.credentialFailure(
@@ -304,7 +356,9 @@ export class AuthService {
     const eligibility = evaluateAccountEligibility({
       actorKind: account.actorKind,
       status: account.status,
-      hasPasswordCredential: Boolean(account.passwordHash && account.passwordSalt),
+      hasPasswordCredential: Boolean(
+        account.passwordHash && account.passwordSalt
+      ),
       isOwner: account.isOwner,
       emailVerifiedAt: account.emailVerifiedAt,
       approvedAt: account.approvedAt,
@@ -338,7 +392,21 @@ export class AuthService {
     });
   }
 
-  async signOut(input: SignOutInput): Promise<AppResult<SignOutResult>> {
+  async signIn(input: SignInInput): Promise<AppResult<SignInResult>> {
+    try {
+      return await this.signInWithStorage(input);
+    } catch (error) {
+      if (isAuthStorageError(error)) {
+        return this.authStorageFailure("sign-in", input.requestId, error);
+      }
+
+      throw error;
+    }
+  }
+
+  private async signOutWithStorage(
+    input: SignOutInput
+  ): Promise<AppResult<SignOutResult>> {
     if (!input.sessionToken) {
       return Result.okay({
         cleared: true,
@@ -358,7 +426,19 @@ export class AuthService {
     });
   }
 
-  async inspectSession(
+  async signOut(input: SignOutInput): Promise<AppResult<SignOutResult>> {
+    try {
+      return await this.signOutWithStorage(input);
+    } catch (error) {
+      if (isAuthStorageError(error)) {
+        return this.authStorageFailure("sign-out", input.requestId, error);
+      }
+
+      throw error;
+    }
+  }
+
+  private async inspectSessionWithStorage(
     input: InspectSessionInput
   ): Promise<AppResult<SessionInspectionResult>> {
     if (!input.sessionToken) {
@@ -400,5 +480,23 @@ export class AuthService {
         expiresAt: session.expiresAt,
       },
     });
+  }
+
+  async inspectSession(
+    input: InspectSessionInput
+  ): Promise<AppResult<SessionInspectionResult>> {
+    try {
+      return await this.inspectSessionWithStorage(input);
+    } catch (error) {
+      if (isAuthStorageError(error)) {
+        return this.authStorageFailure(
+          "inspect-session",
+          input.requestId,
+          error
+        );
+      }
+
+      throw error;
+    }
   }
 }

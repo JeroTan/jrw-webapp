@@ -62,12 +62,20 @@ function errorResult<T>(
     throw new Error("Expected error result.");
   }
 
+  const details =
+    typeof result.error.data === "object" &&
+    result.error.data !== null &&
+    Object.keys(result.error.data).length > 0
+      ? result.error.data
+      : undefined;
+
   return {
     status: errorCodeToHttpStatus(result.error.code),
     body: apiErrorWithRequestId(
       result.error.code,
       publicErrorMessage(result.error.code, result.error.message),
-      requestId
+      requestId,
+      details
     ),
   };
 }

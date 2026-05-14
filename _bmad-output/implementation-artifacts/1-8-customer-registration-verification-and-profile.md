@@ -376,10 +376,10 @@ Added 2026-05-13 after runtime smoke-test pause.
 
 Next work should focus on local runtime verification, not feature work:
 
-- `astro.config.mjs` now excludes server-only deps from Vite client/SSR optimizer: `elysia`, `@elysiajs/openapi`, `drizzle-orm`, `drizzle-orm/d1`. This targets reported missing `node_modules/.vite/deps_ssr/chunk-*.js` reload errors.
+- `astro.config.mjs` now keeps server-only deps out of the client optimizer and precompiles Worker server deps through a Vite `configEnvironment` plugin. This targets Cloudflare `workerd` dev failures from CommonJS-only dependency output.
 - Runtime code and seed script now use `PASSWORD_PEPPER` only for password hashing. Do not restore `JWT_SECRET` fallback.
 - User's failing `POST /api/auth/sessions` payload used placeholder email/password. Earlier `.env` inspection also showed placeholder `PASSWORD_PEPPER`; with placeholder pepper, auth route correctly returns `INTERNAL_ERROR` before credential check.
-- Before auth curl can pass, replace local `.env` placeholders with real non-placeholder values: `PASSWORD_PEPPER`, `JWT_SECRET`, `SEED_SUPER_ADMIN_EMAIL`, `SEED_SUPER_ADMIN_PASSWORD`. Also set `RESEND_FROM_EMAIL` and `APP_BASE_URL` before customer registration email tests.
+- Before auth curl can pass, replace local `.env` placeholders with real non-placeholder values: `PASSWORD_PEPPER`, `JWT_SECRET`, `SEED_SUPER_ADMIN_EMAIL`, `SEED_SUPER_ADMIN_PASSWORD`. Also set `RESEND_FROM_EMAIL` before customer registration email tests. Verification links use `APP_BASE_URL`/`PUBLIC_APP_BASE_URL` first, request URL origin second, and `http://localhost:4321` last.
 - Run/check DB setup for same environment used by dev server. Current `seed:super-admin` script executes Wrangler D1 remote by design; if `astro dev` uses local D1, add/use local seed path or test with matching remote-backed runtime.
 - Suggested fast smoke commands after env/DB ready:
   - `npm run dev -- --host 127.0.0.1 --port 4322 --force`
@@ -390,4 +390,19 @@ Next work should focus on local runtime verification, not feature work:
 - Latest validation before pause:
   - `npx vitest src/domain/auth/super-admin-seed.test.ts src/server/routes/auth.routes.test.ts src/server/routes/customer.routes.test.ts --run` passed: 16 tests.
   - `npm run check` passed: 0 errors; existing legacy unused-parameter hints only.
-- Runtime curl was not completed. Dev server attempts were interrupted/blocked during smoke setup, so API runtime status remains pending.
+- 2026-05-14 runtime smoke follow-up:
+  - `npm ci` restored missing local packages; before install, `npm run check` failed because `astro` bin was missing from `node_modules`.
+  - `npm run check` passed after dependency restore and config update: 0 errors; existing legacy unused-parameter hints only.
+  - `npm run dev -- --host 127.0.0.1 --port 4322 --force` via local Astro bin starts successfully.
+  - `curl.exe -i http://127.0.0.1:4322/api/openapi/json` now returns `200 OK` with OpenAPI JSON. Earlier `module is not defined` Worker dev failure is fixed.
+  - `curl.exe -i http://127.0.0.1:4322/api/auth/session` and placeholder `POST /api/auth/sessions` returned standard JSON `INTERNAL_ERROR` while `.env` lacked a valid `PASSWORD_PEPPER`. Shell-only `PASSWORD_PEPPER=...` did not reach Cloudflare Worker env; set it in `.env`.
+  - `npm run build-test` passed: `astro check`, 100 Vitest tests, and `astro build`.
+  - Admin auth curl was retried after `.env` had a valid `PASSWORD_PEPPER`. `npm run wrangler-dev` needed `cross-env CLOUDFLARE_ENV=development` during `astro build`; without it, generated `dist/server/wrangler.json` omitted env-scoped `DB`/`STORAGE`/Durable Object bindings.
+  - After the `wrangler-dev` script fix, `GET /api/auth/session` returned `200 OK` unauthenticated through Wrangler dev with `DB` bound.
+  - `npm run dev -- --host 127.0.0.1 --port 4322 --force` was then used for the actual Astro dev target. `curl.exe http://127.0.0.1:4322/api/openapi/json` returned `200 OK`; `curl.exe http://127.0.0.1:4322/api/auth/session` returned `200 OK` unauthenticated; `POST /api/auth/sessions` returned `500 INTERNAL_ERROR`.
+  - `POST /api/auth/sessions` still fails because remote development D1 has only migrations `0000` through `0006` applied. Current auth needs at least `0009_luxuriant_wendigo.sql` (`sessions`, admin `password_salt`/`status`/verification columns) and `0010_bent_liz_osborn.sql` (`auth_rate_limits`). Apply reviewed remote development migrations before expecting admin sign-in to work.
+  - 2026-05-14 follow-up: `npm run db:migrate:remote` applied remote development migrations `0007` through `0011`.
+  - Existing owner row was preserved, `.env` seed email was aligned to that owner, and `npm run seed:super-admin -- --replace-owner-credentials REVIEWED_OWNER_CREDENTIAL_REPLACEMENT` replaced development owner credentials with the `.env` password and set owner active/verified/approved.
+  - `scripts/seed-super-admin.ts` now launches Wrangler through `cmd.exe /c npx` on Windows Node so the seed script works from this WSL-backed workspace.
+  - Astro dev auth curl passed on the selected dev port: `POST /api/auth/sessions` returned `200 OK` with `SUPER_ADMIN`; `GET /api/auth/session` with the cookie returned `200 OK` authenticated.
+  - Auth storage/config failures now return safe actionable details instead of a bare `500`: missing `DB`/invalid `PASSWORD_PEPPER` maps to `PROVIDER_UNAVAILABLE` with safe `reason`, and D1/schema storage exceptions map to `PROVIDER_UNAVAILABLE` with `reason: auth_storage_unavailable`.

@@ -13,10 +13,12 @@ import type {
 import type { AppResult } from "@/utils/general/result";
 
 export type CustomerAccountServiceLike = {
-  registerCustomer(input: Record<string, unknown> & {
-    requestId: string;
-    sourceIpHash?: string;
-  }): Promise<AppResult<RegisterCustomerResult>>;
+  registerCustomer(
+    input: Record<string, unknown> & {
+      requestId: string;
+      sourceIpHash?: string;
+    }
+  ): Promise<AppResult<RegisterCustomerResult>>;
   verifyEmail(input: {
     token: unknown;
     requestId: string;
@@ -68,12 +70,20 @@ function errorResult<T>(
     throw new Error("Expected error result.");
   }
 
+  const details =
+    typeof result.error.data === "object" &&
+    result.error.data !== null &&
+    Object.keys(result.error.data).length > 0
+      ? result.error.data
+      : undefined;
+
   return {
     status: errorCodeToHttpStatus(result.error.code),
     body: apiErrorWithRequestId(
       result.error.code,
       publicErrorMessage(result.error.code),
-      requestId
+      requestId,
+      details
     ),
   };
 }
