@@ -228,16 +228,38 @@ export class DrizzleAuthRateLimiter implements AuthRateLimiter {
         updated_at: now,
       })
       .onConflictDoUpdate({
-        target: [
-          auth_rate_limits.scope_hash,
-          auth_rate_limits.window_start,
-        ],
+        target: [auth_rate_limits.scope_hash, auth_rate_limits.window_start],
         set: {
           attempt_count: sql`${auth_rate_limits.attempt_count} + 1`,
           expires_at: rateLimitWindowExpiry(input),
           updated_at: now,
         },
       });
+  }
+
+  async consumeAttempt(input: AuthRateLimitInput): Promise<boolean> {
+    const now = input.now.toISOString();
+    const [bucket] = await this.db
+      .insert(auth_rate_limits)
+      .values({
+        scope_hash: input.scopeHash,
+        window_start: rateLimitWindowStart(input),
+        attempt_count: 1,
+        expires_at: rateLimitWindowExpiry(input),
+        updated_at: now,
+      })
+      .onConflictDoUpdate({
+        target: [auth_rate_limits.scope_hash, auth_rate_limits.window_start],
+        set: {
+          attempt_count: sql`${auth_rate_limits.attempt_count} + 1`,
+          expires_at: rateLimitWindowExpiry(input),
+          updated_at: now,
+        },
+        setWhere: sql`${auth_rate_limits.attempt_count} < ${input.maxAttempts}`,
+      })
+      .returning({ attemptCount: auth_rate_limits.attempt_count });
+
+    return Boolean(bucket);
   }
 
   async reset(input: Pick<AuthRateLimitInput, "scopeHash">): Promise<void> {

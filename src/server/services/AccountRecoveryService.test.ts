@@ -37,7 +37,8 @@ class FakeRecoveryRepository implements AccountRecoveryRepository {
     input: Parameters<AccountRecoveryRepository["createPasswordResetToken"]>[0]
   ) {
     const account = [...this.admins, ...this.customers].find(
-      (entry) => entry.actorKind === input.actorKind && entry.id === input.actorId
+      (entry) =>
+        entry.actorKind === input.actorKind && entry.id === input.actorId
     );
 
     if (!account) return null;
@@ -56,9 +57,13 @@ class FakeRecoveryRepository implements AccountRecoveryRepository {
   }
 
   async createEmailVerificationToken(
-    input: Parameters<AccountRecoveryRepository["createEmailVerificationToken"]>[0]
+    input: Parameters<
+      AccountRecoveryRepository["createEmailVerificationToken"]
+    >[0]
   ) {
-    const customer = this.customers.find((entry) => entry.id === input.customerId);
+    const customer = this.customers.find(
+      (entry) => entry.id === input.customerId
+    );
     if (!customer) return null;
 
     const token: RecoveryEmailVerificationTokenRecord = {
@@ -74,7 +79,9 @@ class FakeRecoveryRepository implements AccountRecoveryRepository {
   }
 
   async findPasswordResetTokenByHash(tokenHash: string) {
-    return this.resetTokens.find((token) => token.tokenHash === tokenHash) ?? null;
+    return (
+      this.resetTokens.find((token) => token.tokenHash === tokenHash) ?? null
+    );
   }
 
   async consumePasswordResetToken(
@@ -104,15 +111,26 @@ class FakeRateLimiter implements AuthRateLimiter {
   attempts = 0;
   limited = false;
   lastInput?: AuthRateLimitInput;
+  inputs: AuthRateLimitInput[] = [];
 
   async isLimited(input: AuthRateLimitInput) {
     this.lastInput = input;
+    this.inputs.push(input);
     return this.limited;
   }
 
   async recordFailure(input: AuthRateLimitInput) {
     this.lastInput = input;
+    this.inputs.push(input);
     this.attempts += 1;
+  }
+
+  async consumeAttempt(input: AuthRateLimitInput) {
+    this.lastInput = input;
+    this.inputs.push(input);
+    if (this.limited) return false;
+    this.attempts += 1;
+    return true;
   }
 
   async reset() {
@@ -135,19 +153,28 @@ function account(overrides: Partial<RecoveryAccountRecord> = {}) {
   };
 }
 
-function createNotifier(options: {
-  failReset?: boolean;
-  failVerification?: boolean;
-  resetSent?: Parameters<AccountEmailNotifier["sendPasswordResetEmail"]>[0][];
-  verificationSent?: Parameters<
-    AccountEmailNotifier["sendVerificationEmail"]
-  >[0][];
-} = {}): AccountEmailNotifier {
+function createNotifier(
+  options: {
+    failReset?: boolean;
+    failVerification?: boolean;
+    resetSent?: Parameters<AccountEmailNotifier["sendPasswordResetEmail"]>[0][];
+    verificationSent?: Parameters<
+      AccountEmailNotifier["sendVerificationEmail"]
+    >[0][];
+  } = {}
+): AccountEmailNotifier {
   return {
     sendPasswordResetEmail: async (input) => {
       options.resetSent?.push(input);
       return options.failReset
-        ? { ok: false, error: new Error("provider raw-token password 0917") }
+        ? {
+            ok: false,
+            error: {
+              name: "validation_error",
+              message: "Domain not verified for buyer@example.test",
+              statusCode: 403,
+            },
+          }
         : { ok: true };
     },
     sendVerificationEmail: async (input) => {
@@ -162,12 +189,14 @@ function createNotifier(options: {
   };
 }
 
-function createService(input: {
-  repository?: FakeRecoveryRepository;
-  notifier?: AccountEmailNotifier;
-  rateLimiter?: AuthRateLimiter;
-  logs?: OperationalLogEvent[];
-} = {}) {
+function createService(
+  input: {
+    repository?: FakeRecoveryRepository;
+    notifier?: AccountEmailNotifier;
+    rateLimiter?: AuthRateLimiter;
+    logs?: OperationalLogEvent[];
+  } = {}
+) {
   return new AccountRecoveryService({
     repository: input.repository ?? new FakeRecoveryRepository(),
     accountEmails: input.notifier ?? createNotifier(),
@@ -230,15 +259,50 @@ describe("AccountRecoveryService", () => {
       windowSeconds: 60 * 60,
       maxAttempts: 3,
     });
-    expect(rateLimiter.lastInput?.scopeHash).not.toContain("buyer@example.test");
+    expect(rateLimiter.lastInput?.scopeHash).not.toContain(
+      "buyer@example.test"
+    );
     expect(rateLimiter.lastInput?.scopeHash).not.toContain("source_hash");
+  });
+
+  it("uses one email-token rate limit bucket across reset and verification sources", async () => {
+    const repository = new FakeRecoveryRepository();
+    repository.customers.push(account({ emailVerifiedAt: null }));
+    const rateLimiter = new FakeRateLimiter();
+    const service = createService({ repository, rateLimiter });
+
+    await expect(
+      service.requestPasswordReset({
+        email: "buyer@example.test",
+        requestId: "req_reset_one",
+        sourceIpHash: "source_one",
+      })
+    ).resolves.toMatchObject({ content: { accepted: true }, error: null });
+    await expect(
+      service.requestEmailVerification({
+        email: "buyer@example.test",
+        requestId: "req_verify_two",
+        sourceIpHash: "source_two",
+      })
+    ).resolves.toMatchObject({ content: { accepted: true }, error: null });
+
+    expect(rateLimiter.inputs).toHaveLength(2);
+    expect(rateLimiter.inputs[0]?.scopeHash).toBe(
+      rateLimiter.inputs[1]?.scopeHash
+    );
+    expect(rateLimiter.attempts).toBe(2);
   });
 
   it("keeps missing, ineligible, ambiguous, and provider-failed reset requests publicly identical", async () => {
     const publicBodies: unknown[] = [];
     const logs: OperationalLogEvent[] = [];
 
-    for (const scenario of ["missing", "ineligible", "ambiguous", "provider"] as const) {
+    for (const scenario of [
+      "missing",
+      "ineligible",
+      "ambiguous",
+      "provider",
+    ] as const) {
       const repository = new FakeRecoveryRepository();
       if (scenario === "ineligible") {
         repository.customers.push(account({ emailVerifiedAt: null }));

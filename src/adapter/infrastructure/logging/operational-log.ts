@@ -69,6 +69,7 @@ function shouldRedactString(value: string): boolean {
     /^Bearer\s+/i.test(value) ||
     /^(sk|pk)_(test|live)_/i.test(value) ||
     /^ya29\./i.test(value) ||
+    /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i.test(value) ||
     /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/.test(value) ||
     /\b(password|secret|token|jwt|cookie|paymongo|raw payment|provider payload|stack)\b/i.test(
       value

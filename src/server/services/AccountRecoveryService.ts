@@ -88,7 +88,9 @@ export type AccountRecoveryRepository = {
   findPasswordResetTokenByHash(
     tokenHash: string
   ): Promise<PasswordResetTokenRecord | null>;
-  consumePasswordResetToken(input: ConsumePasswordResetTokenInput): Promise<boolean>;
+  consumePasswordResetToken(
+    input: ConsumePasswordResetTokenInput
+  ): Promise<boolean>;
 };
 
 export type RecoveryAcceptedResult = {
@@ -147,7 +149,9 @@ const noopRateLimiter: AuthRateLimiter = {
   reset: async () => undefined,
 };
 
-function serviceError(code: ErrorCodeType): GeneralError<Record<string, never>> {
+function serviceError(
+  code: ErrorCodeType
+): GeneralError<Record<string, never>> {
   return new GeneralError({}, code);
 }
 
@@ -258,9 +262,7 @@ export class AccountRecoveryService {
     sourceIpHash?: string;
   }): Promise<AuthRateLimitInput> {
     return {
-      scopeHash: await hashSessionToken(
-        `email-token:${input.email}:${input.sourceIpHash ?? "unknown-source"}`
-      ),
+      scopeHash: await hashSessionToken(`email-token:${input.email}`),
       now: this.now(),
       windowSeconds: this.rateLimitWindowSeconds,
       maxAttempts: this.rateLimitMaxAttempts,
@@ -283,10 +285,19 @@ export class AccountRecoveryService {
     };
   }
 
-  private async recordAcceptedAttempt(
+  private async consumeAcceptedAttempt(
     rateLimit: AuthRateLimitInput
-  ): Promise<void> {
+  ): Promise<boolean> {
+    if (this.rateLimiter.consumeAttempt) {
+      return this.rateLimiter.consumeAttempt(rateLimit);
+    }
+
+    if (await this.rateLimiter.isLimited(rateLimit)) {
+      return false;
+    }
+
     await this.rateLimiter.recordFailure(rateLimit);
+    return true;
   }
 
   private logNonTokenDecision(input: {
@@ -318,11 +329,9 @@ export class AccountRecoveryService {
         sourceIpHash: input.sourceIpHash,
       });
 
-      if (await this.rateLimiter.isLimited(rateLimit)) {
+      if (!(await this.consumeAcceptedAttempt(rateLimit))) {
         return Result.error(serviceError("RATE_LIMITED"));
       }
-
-      await this.recordAcceptedAttempt(rateLimit);
 
       const lookup = await this.repository.findAccountsByEmail(
         validation.value.email
@@ -382,7 +391,11 @@ export class AccountRecoveryService {
       return Result.okay(ACCEPTED_RESULT);
     } catch (error) {
       if (isStorageError(error)) {
-        return this.storageFailure("request-password-reset", input.requestId, error);
+        return this.storageFailure(
+          "request-password-reset",
+          input.requestId,
+          error
+        );
       }
 
       throw error;
@@ -447,7 +460,11 @@ export class AccountRecoveryService {
       return Result.okay({ reset: true });
     } catch (error) {
       if (isStorageError(error)) {
-        return this.storageFailure("confirm-password-reset", input.requestId, error);
+        return this.storageFailure(
+          "confirm-password-reset",
+          input.requestId,
+          error
+        );
       }
 
       throw error;
@@ -469,11 +486,9 @@ export class AccountRecoveryService {
         sourceIpHash: input.sourceIpHash,
       });
 
-      if (await this.rateLimiter.isLimited(rateLimit)) {
+      if (!(await this.consumeAcceptedAttempt(rateLimit))) {
         return Result.error(serviceError("RATE_LIMITED"));
       }
-
-      await this.recordAcceptedAttempt(rateLimit);
 
       const lookup = await this.repository.findAccountsByEmail(
         validation.value.email

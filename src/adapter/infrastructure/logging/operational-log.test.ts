@@ -86,6 +86,23 @@ describe("operational logging foundation", () => {
     });
   });
 
+  it("scrubs email addresses from provider messages", () => {
+    const details = scrubLogDetails({
+      providerError: {
+        name: "validation_error",
+        message: "Domain not verified for buyer@example.test",
+        statusCode: 403,
+      },
+    });
+
+    expect(JSON.stringify(details)).not.toContain("buyer@example.test");
+    expect(details?.providerError).toMatchObject({
+      name: "validation_error",
+      message: REDACTED_LOG_VALUE,
+      statusCode: 403,
+    });
+  });
+
   it("scrubs non-Error GeneralError instances and circular details", () => {
     const circular: Record<string, unknown> = { safe: "ok", count: 1n };
     circular.self = circular;

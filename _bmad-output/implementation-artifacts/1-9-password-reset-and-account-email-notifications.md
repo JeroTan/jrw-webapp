@@ -1,6 +1,6 @@
 # Story 1.9: Password Reset and Account Email Notifications
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -41,7 +41,7 @@ so that account recovery and account lifecycle events work without leaking secre
   - [x] Lookup normalized email across `admins` and `customers`. If same normalized email maps to both tables, return safe public acceptance but create no token and log internal safe conflict.
   - [x] Create reset token only for eligible active accounts. Do not create reset tokens for missing, suspended, inactive, or unverified accounts; public response remains indistinguishable.
   - [x] Confirm reset by atomically marking token used and updating target account password hash/salt. Follow Story 1.8 batch pattern: no state where token is used but password unchanged, or password changed while token remains reusable.
-  - [x] Reuse `DrizzleAuthRateLimiter` and `email-token` scope. Combined reset and verification resend attempts must cap at 3 per hour per normalized email plus safe source hash.
+  - [x] Reuse `DrizzleAuthRateLimiter` and `email-token` scope. Combined reset and verification resend attempts must cap at 3 per hour per normalized email.
 
 - [x] Add service/controller layer for reset and resend flows. (AC: 1-8)
   - [x] Add `AccountRecoveryService` / `AccountRecoveryController` or carefully extend `CustomerAccountService` / `CustomerAccountController` without creating a God service.
@@ -78,6 +78,11 @@ so that account recovery and account lifecycle events work without leaking secre
   - [x] Schema invariant tests: reset table exists with indexes and no raw token column.
   - [x] Run targeted Vitest for changed auth/customer/recovery/email tests.
   - [x] Run `npm run check`. Because story touches schema/routes/provider code, run `npm run build-test` unless blocked; record exact blocker.
+
+### Review Findings
+
+- [x] [Review][Patch] Provider failure logging can leak recipient email from raw provider errors [`src/server/services/AccountRecoveryService.ts:386`]
+- [x] [Review][Patch] Email-token limiter is scoped by email plus source and uses non-atomic check/increment, so it does not enforce the required max 3 requests per hour per email [`src/server/services/AccountRecoveryService.ts:260`]
 
 ## Dev Notes
 
@@ -241,6 +246,9 @@ GPT-5 Codex
 - `npm run check` passed with 0 errors; legacy unused-parameter hints remain in old `src/api/**` scaffold.
 - `npm exec vitest run` passed: 28 files, 120 tests.
 - `npm run build-test` passed: Astro check, Vitest, and Astro build.
+- Code review fixes: `npm exec vitest run src/adapter/infrastructure/logging/operational-log.test.ts src/server/services/AccountRecoveryService.test.ts src/domain/auth/password-reset-token.test.ts src/domain/auth/account-recovery.test.ts src/server/routes/account-recovery.routes.test.ts src/domain/schema-invariants.test.ts src/adapter/infrastructure/resend/CustomerVerificationEmailNotifier.test.ts` passed: 7 files, 29 tests.
+- Code review fixes: `npm run check` passed with 0 errors; legacy unused-parameter hints remain in old `src/api/**` scaffold.
+- Code review fixes: `npm run build-test` passed: Astro check, Vitest 29 files / 124 tests, and Astro build.
 
 ### Completion Notes List
 
@@ -252,6 +260,7 @@ GPT-5 Codex
 - Updated endpoint catalog and D1 migration plan; remote development migration apply remains documented release blocker because implementation did not run `npm run db:migrate:remote`.
 - Added focused domain, service, route, notifier, and schema invariant tests; full validation passed.
 - Refactored Resend email rendering through shared template helpers for frame, title, body, metadata, and action-link blocks; inline email styles now mirror `src/styles/global.css` and `src/pages/index.astro` baseline tokens: Satoshi headings, Space Mono body/system text, cobalt primary action, sharp 1px borders, no radius/shadow.
+- Code review fixes redacted email addresses embedded in provider error messages and changed password reset / verification resend rate limiting to an atomic per-email consume path.
 
 ### File List
 
@@ -275,11 +284,15 @@ GPT-5 Codex
 - `src/domain/schema-invariants.test.ts`
 - `src/domain/schema/identity.ts`
 - `src/server/app.ts`
+- `src/adapter/infrastructure/logging/operational-log.test.ts`
+- `src/adapter/infrastructure/logging/operational-log.ts`
 - `src/server/controllers/AccountRecoveryController.ts`
 - `src/server/repositories/AccountRecoveryRepository.ts`
+- `src/server/repositories/AuthRepository.ts`
 - `src/server/routes/account-recovery.routes.test.ts`
 - `src/server/routes/account-recovery.routes.ts`
 - `src/server/routes/index.ts`
+- `src/server/services/AuthService.ts`
 - `src/server/services/AccountRecoveryService.test.ts`
 - `src/server/services/AccountRecoveryService.ts`
 
@@ -287,3 +300,4 @@ GPT-5 Codex
 
 - 2026-05-15: Implemented Story 1.9 password reset, verification resend, account email notification boundary, migration/docs updates, and validation; status set to review.
 - 2026-05-15: Modularized Resend email template rendering with shared layout/frame helpers, aligned styles to JRW global tokens, and added tests.
+- 2026-05-15: Applied code review fixes for provider error redaction and atomic per-email recovery rate limiting; status set to done.

@@ -77,6 +77,7 @@ export type AuthRateLimitInput = {
 export type AuthRateLimiter = {
   isLimited(input: AuthRateLimitInput): Promise<boolean>;
   recordFailure(input: AuthRateLimitInput): Promise<void>;
+  consumeAttempt?(input: AuthRateLimitInput): Promise<boolean>;
   reset(input: Pick<AuthRateLimitInput, "scopeHash">): Promise<void>;
 };
 
