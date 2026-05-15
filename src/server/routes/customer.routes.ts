@@ -209,7 +209,7 @@ export function customerRoutes(
         detail: routeDetail({
           summary: "Register customer",
           description:
-            "Creates an unverified customer account and sends a verification email through the notification boundary.",
+            "Creates an unverified customer account and sends a verification email through the notification boundary. Only email and password are required for signup. Optional profile/contact fields are accepted for early profile setup, but the intended storefront flow collects name, phone, and delivery details later through PATCH /customers/me or the checkout contact/delivery step.",
           tags: ["Customers"],
           auth: { mode: "public", roles: ["PROSPECT"] },
           rateLimitClass: "email-token",

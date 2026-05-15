@@ -46,6 +46,7 @@ describe("customer account routes", () => {
           string,
           {
             summary?: string;
+            description?: string;
             tags?: string[];
             "x-auth"?: { mode?: string; roles?: string[] };
             "x-rate-limit-class"?: string;
@@ -61,6 +62,11 @@ describe("customer account routes", () => {
     const updateProfile = body.paths?.["/api/customers/me"]?.patch;
 
     expect(register?.summary).toBe("Register customer");
+    expect(register?.description).toContain(
+      "Only email and password are required for signup"
+    );
+    expect(register?.description).toContain("PATCH /customers/me");
+    expect(register?.description).toContain("checkout contact/delivery step");
     expect(register?.tags).toContain("Customers");
     expect(register?.["x-auth"]).toEqual({
       mode: "public",
