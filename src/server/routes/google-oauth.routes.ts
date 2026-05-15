@@ -24,6 +24,10 @@ const tboxGoogleOAuthCallbackQuery = t.Object({
   code: t.Optional(t.String({ minLength: 1, maxLength: 4096 })),
   state: t.Optional(t.String({ minLength: 1, maxLength: 4096 })),
   error: t.Optional(t.String({ minLength: 1, maxLength: 1024 })),
+  iss: t.Optional(t.String({ maxLength: 2048 })),
+  scope: t.Optional(t.String({ maxLength: 4096 })),
+  authuser: t.Optional(t.String({ maxLength: 128 })),
+  prompt: t.Optional(t.String({ maxLength: 1024 })),
 });
 
 const tboxSessionCookie = t.Cookie({

@@ -127,6 +127,45 @@ describe("google oauth routes", () => {
     await expect(response.text()).resolves.toBe("");
   });
 
+  it("accepts Google callback query extras and ignores them", async () => {
+    const app = createApp({
+      routes: {
+        googleOAuth: {
+          controllerFactory: () =>
+            createController({
+              handleCallback: async () =>
+                Result.okay({
+                  actor: {
+                    id: "customer_1",
+                    role: "CUSTOMER",
+                    accountStatus: {
+                      status: "ACTIVE",
+                      emailVerified: true,
+                      approved: true,
+                    },
+                  },
+                  session: {
+                    token: "raw-session-token",
+                    expiresAt: "2026-05-22T00:00:00.000Z",
+                  },
+                  redirectPath: "/checkout",
+                }),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request(
+        "https://jrw.test/api/oauth/google/callback?state=raw-state&iss=https%3A%2F%2Faccounts.google.com&code=authorization-code&scope=email+profile+openid&authuser=0&prompt=consent",
+        { headers: { "x-request-id": "req_callback" } }
+      )
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe("/checkout");
+  });
+
   it("returns safe standard error envelope on callback failure", async () => {
     const app = createApp({
       routes: {
