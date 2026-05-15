@@ -141,6 +141,12 @@ export function createApp(options: CreateAppOptions = {}) {
       operationalLogger:
         options.routes?.auth?.operationalLogger ?? operationalLogger,
     },
+    accountRecovery: {
+      ...options.routes?.accountRecovery,
+      operationalLogger:
+        options.routes?.accountRecovery?.operationalLogger ??
+        operationalLogger,
+    },
     customers: {
       ...options.routes?.customers,
       operationalLogger:

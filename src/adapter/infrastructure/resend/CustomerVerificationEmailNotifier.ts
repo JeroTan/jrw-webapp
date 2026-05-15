@@ -1,10 +1,19 @@
-import { Resend } from "resend";
 import type {
+  AccountEmailNotifier,
+  AdminLifecycleEmailInput,
   CustomerVerificationEmailInput,
   CustomerVerificationEmailNotifier,
-} from "@/domain/notifications/customer-verification-email";
+  PasswordResetEmailInput,
+} from "@/domain/notifications/account-emails";
 import { GeneralError } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
+import {
+  emailActionLink,
+  emailBody,
+  emailFrame,
+  emailMeta,
+  emailTitle,
+} from "./email-template";
 
 export type ResendEmailPayload = {
   from: string;
@@ -38,6 +47,18 @@ export type ResendCustomerVerificationEmailNotifierOptions = {
 
 const LOCAL_DEV_APP_BASE_URL = "http://localhost:4321";
 
+class LazyResendEmailClient implements ResendEmailClient {
+  readonly emails = {
+    send: async (payload: ResendEmailPayload): Promise<unknown> => {
+      const { Resend } = await import("resend");
+      const client = new Resend(this.apiKey);
+      return client.emails.send(payload);
+    },
+  };
+
+  constructor(private readonly apiKey: string) {}
+}
+
 function configError(): GeneralError<Record<string, never>> {
   return new GeneralError({}, "PROVIDER_UNAVAILABLE");
 }
@@ -58,18 +79,26 @@ function normalizeBaseUrl(value: string | undefined): string | undefined {
   }
 }
 
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;");
-}
-
 function verificationUrl(baseUrl: string, token: string): string {
   const url = new URL("/verify-email", baseUrl);
   url.searchParams.set("token", token);
   return url.toString();
+}
+
+function passwordResetUrl(baseUrl: string, token: string): string {
+  const url = new URL("/reset-password", baseUrl);
+  url.searchParams.set("token", token);
+  return url.toString();
+}
+
+function optionalActionUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+
+  try {
+    return new URL(value).toString();
+  } catch {
+    return null;
+  }
 }
 
 export function resolveResendVerificationEmailConfig(
@@ -105,7 +134,44 @@ export class FailingCustomerVerificationEmailNotifier implements CustomerVerific
   }
 }
 
-export class ResendCustomerVerificationEmailNotifier implements CustomerVerificationEmailNotifier {
+export class FailingAccountEmailNotifier implements AccountEmailNotifier {
+  async sendVerificationEmail(_input: CustomerVerificationEmailInput) {
+    return {
+      ok: false as const,
+      error: configError(),
+    };
+  }
+
+  async sendPasswordResetEmail(_input: PasswordResetEmailInput) {
+    return {
+      ok: false as const,
+      error: configError(),
+    };
+  }
+
+  async sendAdminInvitationEmail(_input: AdminLifecycleEmailInput) {
+    return {
+      ok: false as const,
+      error: configError(),
+    };
+  }
+
+  async sendAdminApprovalEmail(_input: AdminLifecycleEmailInput) {
+    return {
+      ok: false as const,
+      error: configError(),
+    };
+  }
+
+  async sendAdminRejectionEmail(_input: AdminLifecycleEmailInput) {
+    return {
+      ok: false as const,
+      error: configError(),
+    };
+  }
+}
+
+export class ResendCustomerVerificationEmailNotifier implements AccountEmailNotifier {
   private readonly client: ResendEmailClient;
   private readonly fromEmail: string;
   private readonly appBaseUrl: string;
@@ -121,24 +187,133 @@ export class ResendCustomerVerificationEmailNotifier implements CustomerVerifica
     input: CustomerVerificationEmailInput
   ): Promise<{ ok: true } | { ok: false; error?: unknown }> {
     const url = verificationUrl(this.appBaseUrl, input.token);
-    const safeUrl = escapeHtml(url);
-    const safeExpiry = escapeHtml(input.expiresAt);
+    const template = emailFrame({
+      title: "Verify your JRW account",
+      blocks: [
+        emailTitle({ content: "Verify your JRW account" }),
+        emailBody({
+          content:
+            "Confirm this email address to finish setting up your JRW account.",
+        }),
+        emailActionLink({ label: "Verify email", url }),
+        emailMeta({ label: "Expires at", value: input.expiresAt }),
+      ],
+    });
 
     try {
       await this.client.emails.send({
         from: this.fromEmail,
         to: input.toEmail,
         subject: "Verify your JRW account",
-        text: [
-          "Verify your JRW account:",
-          url,
-          `This link expires at ${input.expiresAt}.`,
-        ].join("\n"),
-        html: [
-          "<p>Verify your JRW account:</p>",
-          `<p><a href="${safeUrl}">${safeUrl}</a></p>`,
-          `<p>This link expires at ${safeExpiry}.</p>`,
-        ].join(""),
+        text: template.text,
+        html: template.html,
+      });
+
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error };
+    }
+  }
+
+  async sendPasswordResetEmail(
+    input: PasswordResetEmailInput
+  ): Promise<{ ok: true } | { ok: false; error?: unknown }> {
+    const url = passwordResetUrl(this.appBaseUrl, input.token);
+    const template = emailFrame({
+      title: "Reset your JRW password",
+      blocks: [
+        emailTitle({ content: "Reset your JRW password" }),
+        emailBody({
+          content:
+            "Use this link to set a new password. If you did not request this, ignore this email.",
+        }),
+        emailActionLink({ label: "Reset password", url }),
+        emailMeta({ label: "Expires at", value: input.expiresAt }),
+      ],
+    });
+
+    try {
+      await this.client.emails.send({
+        from: this.fromEmail,
+        to: input.toEmail,
+        subject: "Reset your JRW password",
+        text: template.text,
+        html: template.html,
+      });
+
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, error };
+    }
+  }
+
+  async sendAdminInvitationEmail(
+    input: AdminLifecycleEmailInput
+  ): Promise<{ ok: true } | { ok: false; error?: unknown }> {
+    return this.sendAdminLifecycleEmail({
+      input,
+      subject: "JRW admin invitation",
+      intro: "You have been invited to JRW Admin.",
+    });
+  }
+
+  async sendAdminApprovalEmail(
+    input: AdminLifecycleEmailInput
+  ): Promise<{ ok: true } | { ok: false; error?: unknown }> {
+    return this.sendAdminLifecycleEmail({
+      input,
+      subject: "JRW admin account approved",
+      intro: "Your JRW Admin account has been approved.",
+    });
+  }
+
+  async sendAdminRejectionEmail(
+    input: AdminLifecycleEmailInput
+  ): Promise<{ ok: true } | { ok: false; error?: unknown }> {
+    return this.sendAdminLifecycleEmail({
+      input,
+      subject: "JRW admin account update",
+      intro: "Your JRW Admin account request was not approved.",
+    });
+  }
+
+  private async sendAdminLifecycleEmail(input: {
+    input: AdminLifecycleEmailInput;
+    subject: string;
+    intro: string;
+  }): Promise<{ ok: true } | { ok: false; error?: unknown }> {
+    const actionUrl = optionalActionUrl(input.input.actionUrl);
+    const displayName = input.input.displayName
+      ? ` ${input.input.displayName.trim()}`
+      : "";
+    const template = emailFrame({
+      title: input.subject,
+      blocks: [
+        emailTitle({ content: input.subject }),
+        emailBody({
+          content: `${input.intro}${displayName ? ` (${displayName.trim()})` : ""}`,
+        }),
+        ...(input.input.statusLabel
+          ? [
+              emailMeta({
+                label: "Status",
+                value: input.input.statusLabel,
+              }),
+            ]
+          : []),
+        ...(actionUrl
+          ? [emailActionLink({ label: "Open JRW Admin", url: actionUrl })]
+          : []),
+      ],
+    });
+
+    try {
+      await this.client.emails.send({
+        from: this.fromEmail,
+        to: input.input.toEmail,
+        subject: input.subject,
+        text: template.text,
+        html: template.html,
       });
 
       return { ok: true };
@@ -159,7 +334,24 @@ export function createCustomerVerificationEmailNotifier(
   }
 
   return new ResendCustomerVerificationEmailNotifier({
-    client: new Resend(config.content.apiKey) as ResendEmailClient,
+    client: new LazyResendEmailClient(config.content.apiKey),
+    fromEmail: config.content.fromEmail,
+    appBaseUrl: config.content.appBaseUrl,
+  });
+}
+
+export function createAccountEmailNotifier(
+  runtimeEnv: Partial<Env> & Record<string, unknown>,
+  options: ResendVerificationEmailConfigOptions = {}
+): AccountEmailNotifier {
+  const config = resolveResendVerificationEmailConfig(runtimeEnv, options);
+
+  if (config.error) {
+    return new FailingAccountEmailNotifier();
+  }
+
+  return new ResendCustomerVerificationEmailNotifier({
+    client: new LazyResendEmailClient(config.content.apiKey),
     fromEmail: config.content.fromEmail,
     appBaseUrl: config.content.appBaseUrl,
   });

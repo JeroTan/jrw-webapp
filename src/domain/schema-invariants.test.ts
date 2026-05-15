@@ -6,6 +6,7 @@ import {
   auth_rate_limits,
   customers,
   email_verification_tokens,
+  password_reset_tokens,
   sessions,
 } from "./schema/identity";
 
@@ -198,6 +199,58 @@ describe("identity schema invariants", () => {
       getSqlQuery(
         tokenConfig.indexes.find(
           (index) => index.config.name === "email_verification_tokens_customer_active_idx"
+        )?.config.where
+      )
+    ).toBe('"used_at" IS NULL');
+  });
+
+  it("stores password reset tokens as hashes with polymorphic actor indexes", () => {
+    const tokenConfig = getTableConfig(password_reset_tokens);
+    const columnNames = tokenConfig.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const indexNames = tokenConfig.indexes.map((index) => index.config.name);
+
+    expect(columnNames).toEqual(
+      expect.arrayContaining([
+        "id",
+        "actor_kind",
+        "actor_id",
+        "token_hash",
+        "expires_at",
+        "used_at",
+        "created_request_id",
+        "source_hash",
+        "created_at",
+        "updated_at",
+      ])
+    );
+    expect(columnNames).not.toEqual(
+      expect.arrayContaining([
+        "token",
+        "raw_token",
+        "email",
+        "password",
+        "pepper",
+      ])
+    );
+    expect(indexNames).toEqual(
+      expect.arrayContaining([
+        "password_reset_tokens_token_hash_idx",
+        "password_reset_tokens_actor_idx",
+        "password_reset_tokens_actor_active_idx",
+        "password_reset_tokens_expires_at_idx",
+      ])
+    );
+    expect(
+      tokenConfig.indexes.find(
+        (index) => index.config.name === "password_reset_tokens_token_hash_idx"
+      )?.config.unique
+    ).toBe(true);
+    expect(
+      getSqlQuery(
+        tokenConfig.indexes.find(
+          (index) => index.config.name === "password_reset_tokens_actor_active_idx"
         )?.config.where
       )
     ).toBe('"used_at" IS NULL');

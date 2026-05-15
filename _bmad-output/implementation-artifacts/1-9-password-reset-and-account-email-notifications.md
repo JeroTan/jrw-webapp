@@ -1,6 +1,6 @@
 # Story 1.9: Password Reset and Account Email Notifications
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,61 +23,61 @@ so that account recovery and account lifecycle events work without leaking secre
 
 ## Tasks / Subtasks
 
-- [ ] Add password reset data model and migration. (AC: 1-4, 8)
-  - [ ] Extend `src/domain/schema/identity.ts` with `password_reset_tokens` or equivalent table: `id`, `actor_kind` (`ADMIN` or `CUSTOMER`), `actor_id`, `token_hash`, `expires_at`, `used_at`, `created_request_id`, optional `source_hash`, `created_at`, `updated_at`.
-  - [ ] Add unique index on `token_hash`, actor lookup index, active actor+expiry index where `used_at IS NULL`, and cleanup index on `expires_at`.
-  - [ ] If using polymorphic `actor_kind` plus `actor_id`, repository must verify actor existence before token creation and before password update. Do not pretend DB foreign keys protect both admin and customer rows.
-  - [ ] Generate Drizzle migration in `migrations/` with `npm run db:generate`; review SQL for no unrelated table rebuilds.
-  - [ ] Update `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md` with generated filename, reset token ownership, remote development apply evidence or blocker, and dependency on Story 1.8 migration `0011_sticky_avengers.sql`.
+- [x] Add password reset data model and migration. (AC: 1-4, 8)
+  - [x] Extend `src/domain/schema/identity.ts` with `password_reset_tokens` or equivalent table: `id`, `actor_kind` (`ADMIN` or `CUSTOMER`), `actor_id`, `token_hash`, `expires_at`, `used_at`, `created_request_id`, optional `source_hash`, `created_at`, `updated_at`.
+  - [x] Add unique index on `token_hash`, actor lookup index, active actor+expiry index where `used_at IS NULL`, and cleanup index on `expires_at`.
+  - [x] If using polymorphic `actor_kind` plus `actor_id`, repository must verify actor existence before token creation and before password update. Do not pretend DB foreign keys protect both admin and customer rows.
+  - [x] Generate Drizzle migration in `migrations/` with `npm run db:generate`; review SQL for no unrelated table rebuilds.
+  - [x] Update `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md` with generated filename, reset token ownership, remote development apply evidence or blocker, and dependency on Story 1.8 migration `0011_sticky_avengers.sql`.
 
-- [ ] Add token and password-reset domain helpers. (AC: 1-4, 8)
-  - [ ] Add `src/domain/auth/password-reset-token.ts` plus tests, mirroring `email-verification-token.ts` but clamping TTL to 30 minutes.
-  - [ ] Reuse `generateSessionToken(32)` and SHA-256 hashing from `src/lib/crypto/session-token.ts`; raw reset token exists only while composing email link/body.
-  - [ ] Add account recovery decisions under `src/domain/auth/**` or a focused domain file: valid account, missing account, inactive/suspended account, unverified account, ambiguous admin+customer email collision, expired token, used token, invalid token, password validation failure.
-  - [ ] Use approved `hashPassword(...)` / `createCustomerPasswordCredential(...)` PBKDF2-SHA256 flow with `PASSWORD_PEPPER`; do not use `src/lib/crypto/hash.ts` or Node-only crypto.
+- [x] Add token and password-reset domain helpers. (AC: 1-4, 8)
+  - [x] Add `src/domain/auth/password-reset-token.ts` plus tests, mirroring `email-verification-token.ts` but clamping TTL to 30 minutes.
+  - [x] Reuse `generateSessionToken(32)` and SHA-256 hashing from `src/lib/crypto/session-token.ts`; raw reset token exists only while composing email link/body.
+  - [x] Add account recovery decisions under `src/domain/auth/**` or a focused domain file: valid account, missing account, inactive/suspended account, unverified account, ambiguous admin+customer email collision, expired token, used token, invalid token, password validation failure.
+  - [x] Use approved `hashPassword(...)` / `createCustomerPasswordCredential(...)` PBKDF2-SHA256 flow with `PASSWORD_PEPPER`; do not use `src/lib/crypto/hash.ts` or Node-only crypto.
 
-- [ ] Add repository operations with atomic token consumption. (AC: 1-4, 8)
-  - [ ] Extend `src/server/repositories/CustomerAccountRepository.ts` or create `AccountRecoveryRepository.ts`; keep D1/Drizzle access out of domain and routes.
-  - [ ] Lookup normalized email across `admins` and `customers`. If same normalized email maps to both tables, return safe public acceptance but create no token and log internal safe conflict.
-  - [ ] Create reset token only for eligible active accounts. Do not create reset tokens for missing, suspended, inactive, or unverified accounts; public response remains indistinguishable.
-  - [ ] Confirm reset by atomically marking token used and updating target account password hash/salt. Follow Story 1.8 batch pattern: no state where token is used but password unchanged, or password changed while token remains reusable.
-  - [ ] Reuse `DrizzleAuthRateLimiter` and `email-token` scope. Combined reset and verification resend attempts must cap at 3 per hour per normalized email plus safe source hash.
+- [x] Add repository operations with atomic token consumption. (AC: 1-4, 8)
+  - [x] Extend `src/server/repositories/CustomerAccountRepository.ts` or create `AccountRecoveryRepository.ts`; keep D1/Drizzle access out of domain and routes.
+  - [x] Lookup normalized email across `admins` and `customers`. If same normalized email maps to both tables, return safe public acceptance but create no token and log internal safe conflict.
+  - [x] Create reset token only for eligible active accounts. Do not create reset tokens for missing, suspended, inactive, or unverified accounts; public response remains indistinguishable.
+  - [x] Confirm reset by atomically marking token used and updating target account password hash/salt. Follow Story 1.8 batch pattern: no state where token is used but password unchanged, or password changed while token remains reusable.
+  - [x] Reuse `DrizzleAuthRateLimiter` and `email-token` scope. Combined reset and verification resend attempts must cap at 3 per hour per normalized email plus safe source hash.
 
-- [ ] Add service/controller layer for reset and resend flows. (AC: 1-8)
-  - [ ] Add `AccountRecoveryService` / `AccountRecoveryController` or carefully extend `CustomerAccountService` / `CustomerAccountController` without creating a God service.
-  - [ ] `POST /api/password-resets`: body `{ email }`; public, `email-token`; valid input returns standard success envelope with `{ accepted: true }` for existing, missing, ineligible, and provider-failed accounts unless rate-limited or request body invalid.
-  - [ ] `POST /api/password-resets/confirmations`: body `{ token, password }`; public, `email-token`; valid token updates password and returns `{ reset: true }`; invalid/expired/used token returns safe `RESOURCE_NOT_FOUND` or `CONFLICT_STATE`.
-  - [ ] `POST /api/email-verifications/requests`: body `{ email }`; public, `email-token`; returns `{ accepted: true }` without revealing account existence or verification state. For eligible unverified customers, creates new verification credential with <=24h expiry and sends verification email.
-  - [ ] Provider failure on reset/resend request should be logged with request ID and safe context, then treated as retryable internal state with public `{ accepted: true }` to prevent enumeration. Confirm endpoint may return stable safe provider/storage errors when applicable.
-  - [ ] Do not issue or revoke session cookies during password reset. User signs in through Story 1.7 session route after reset.
+- [x] Add service/controller layer for reset and resend flows. (AC: 1-8)
+  - [x] Add `AccountRecoveryService` / `AccountRecoveryController` or carefully extend `CustomerAccountService` / `CustomerAccountController` without creating a God service.
+  - [x] `POST /api/password-resets`: body `{ email }`; public, `email-token`; valid input returns standard success envelope with `{ accepted: true }` for existing, missing, ineligible, and provider-failed accounts unless rate-limited or request body invalid.
+  - [x] `POST /api/password-resets/confirmations`: body `{ token, password }`; public, `email-token`; valid token updates password and returns `{ reset: true }`; invalid/expired/used token returns safe `RESOURCE_NOT_FOUND` or `CONFLICT_STATE`.
+  - [x] `POST /api/email-verifications/requests`: body `{ email }`; public, `email-token`; returns `{ accepted: true }` without revealing account existence or verification state. For eligible unverified customers, creates new verification credential with <=24h expiry and sends verification email.
+  - [x] Provider failure on reset/resend request should be logged with request ID and safe context, then treated as retryable internal state with public `{ accepted: true }` to prevent enumeration. Confirm endpoint may return stable safe provider/storage errors when applicable.
+  - [x] Do not issue or revoke session cookies during password reset. User signs in through Story 1.7 session route after reset.
 
-- [ ] Extend notification boundary for reset and account lifecycle emails. (AC: 1, 5, 6, 8)
-  - [ ] Keep Resend behind provider-free domain ports under `src/domain/notifications/**` and adapter code under `src/adapter/infrastructure/resend/**`.
-  - [ ] Refactor existing verification notifier only as needed; preserve its config behavior: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `APP_BASE_URL` / `PUBLIC_APP_BASE_URL`, request URL origin fallback, local dev fallback.
-  - [ ] Add reset email method with link target such as `/reset-password?token=...`; escape URL and expiry in HTML; include plain text.
-  - [ ] Add Admin invitation/approval/rejection notifier contracts with safe payload fields only. Actual Admin state transitions belong to Story 1.11; this story should provide the boundary and tests without implementing admin account management early.
-  - [ ] Never persist, log, return, or document raw password, raw reset token, token hash, provider response body, email provider secret, cookie, or pepper.
+- [x] Extend notification boundary for reset and account lifecycle emails. (AC: 1, 5, 6, 8)
+  - [x] Keep Resend behind provider-free domain ports under `src/domain/notifications/**` and adapter code under `src/adapter/infrastructure/resend/**`.
+  - [x] Refactor existing verification notifier only as needed; preserve its config behavior: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `APP_BASE_URL` / `PUBLIC_APP_BASE_URL`, request URL origin fallback, local dev fallback.
+  - [x] Add reset email method with link target such as `/reset-password?token=...`; escape URL and expiry in HTML; include plain text.
+  - [x] Add Admin invitation/approval/rejection notifier contracts with safe payload fields only. Actual Admin state transitions belong to Story 1.11; this story should provide the boundary and tests without implementing admin account management early.
+  - [x] Never persist, log, return, or document raw password, raw reset token, token hash, provider response body, email provider secret, cookie, or pepper.
 
-- [ ] Wire route contracts and endpoint catalog. (AC: 6-8)
-  - [ ] Add TypeBox schemas, response schemas, `routeDetail(...)` metadata, auth metadata, rate-limit class, and error codes.
-  - [ ] Add routes in `src/server/routes/auth.routes.ts` or a small route module included by `src/server/routes/index.ts`. Keep route handlers thin.
-  - [ ] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` from planned to concrete rows for password reset request/confirmation and verification resend.
-  - [ ] Preserve standard envelopes from `src/lib/api/response.ts`: success `{ data, meta }`; error `{ error: { code, message, details? } }`.
+- [x] Wire route contracts and endpoint catalog. (AC: 6-8)
+  - [x] Add TypeBox schemas, response schemas, `routeDetail(...)` metadata, auth metadata, rate-limit class, and error codes.
+  - [x] Add routes in `src/server/routes/auth.routes.ts` or a small route module included by `src/server/routes/index.ts`. Keep route handlers thin.
+  - [x] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` from planned to concrete rows for password reset request/confirmation and verification resend.
+  - [x] Preserve standard envelopes from `src/lib/api/response.ts`: success `{ data, meta }`; error `{ error: { code, message, details? } }`.
 
-- [ ] Enforce privacy, logging, and account-enumeration rules. (AC: 1, 5-8)
-  - [ ] Public reset/resend request success bodies must be identical for existing, missing, already verified, suspended/inactive, ambiguous, and provider-failed accounts.
-  - [ ] Logs may include request ID, stable error code, safe actor/resource id, and safe reason labels. Logs must not include email unless already hashed/minimized, raw token, token hash, password, provider payload, phone, address, cookie, JWT, pepper, or stack trace.
-  - [ ] Keep customer transactional emails independent from `emailMarketingOptIn`; marketing opt-in cannot disable verification/reset/order/payment/fulfillment notices.
-  - [ ] Use stable error codes already in `src/utils/general/error.ts`; add new codes only if absolutely necessary and update `src/lib/api/errors.ts` plus tests.
+- [x] Enforce privacy, logging, and account-enumeration rules. (AC: 1, 5-8)
+  - [x] Public reset/resend request success bodies must be identical for existing, missing, already verified, suspended/inactive, ambiguous, and provider-failed accounts.
+  - [x] Logs may include request ID, stable error code, safe actor/resource id, and safe reason labels. Logs must not include email unless already hashed/minimized, raw token, token hash, password, provider payload, phone, address, cookie, JWT, pepper, or stack trace.
+  - [x] Keep customer transactional emails independent from `emailMarketingOptIn`; marketing opt-in cannot disable verification/reset/order/payment/fulfillment notices.
+  - [x] Use stable error codes already in `src/utils/general/error.ts`; add new codes only if absolutely necessary and update `src/lib/api/errors.ts` plus tests.
 
-- [ ] Add focused tests and run validation. (AC: 1-8)
-  - [ ] Domain tests: reset credential entropy/hash/30-minute TTL, password validation, token state decisions, ambiguous account email decision, ineligible account no-token decision.
-  - [ ] Repository/service tests: reset request for existing/missing/ineligible/ambiguous/provider-failed accounts returns same public success, eligible account creates hashed token only, rate limit caps 3/hour across reset/resend, valid reset updates hash/salt and consumes token, invalid/expired/used token does not mutate password.
-  - [ ] Controller/route tests: OpenAPI metadata, standard envelopes, no raw token/password/hash/salt in response, request ID propagation, TypeBox validation, provider/storage errors mapped safely.
-  - [ ] Resend adapter tests: reset, verification resend, Admin invitation/approval/rejection payloads, URL escaping, missing config, provider throw with raw payload scrubbed by logging tests.
-  - [ ] Schema invariant tests: reset table exists with indexes and no raw token column.
-  - [ ] Run targeted Vitest for changed auth/customer/recovery/email tests.
-  - [ ] Run `npm run check`. Because story touches schema/routes/provider code, run `npm run build-test` unless blocked; record exact blocker.
+- [x] Add focused tests and run validation. (AC: 1-8)
+  - [x] Domain tests: reset credential entropy/hash/30-minute TTL, password validation, token state decisions, ambiguous account email decision, ineligible account no-token decision.
+  - [x] Repository/service tests: reset request for existing/missing/ineligible/ambiguous/provider-failed accounts returns same public success, eligible account creates hashed token only, rate limit caps 3/hour across reset/resend, valid reset updates hash/salt and consumes token, invalid/expired/used token does not mutate password.
+  - [x] Controller/route tests: OpenAPI metadata, standard envelopes, no raw token/password/hash/salt in response, request ID propagation, TypeBox validation, provider/storage errors mapped safely.
+  - [x] Resend adapter tests: reset, verification resend, Admin invitation/approval/rejection payloads, URL escaping, missing config, provider throw with raw payload scrubbed by logging tests.
+  - [x] Schema invariant tests: reset table exists with indexes and no raw token column.
+  - [x] Run targeted Vitest for changed auth/customer/recovery/email tests.
+  - [x] Run `npm run check`. Because story touches schema/routes/provider code, run `npm run build-test` unless blocked; record exact blocker.
 
 ## Dev Notes
 
@@ -232,17 +232,58 @@ so that account recovery and account lifecycle events work without leaking secre
 
 ### Agent Model Used
 
-TBD by dev agent.
+GPT-5 Codex
 
 ### Debug Log References
 
-TBD by dev agent.
+- `npm run db:generate` generated `migrations/0012_public_morlocks.sql`; SQL review showed only `password_reset_tokens` table and indexes, no unrelated rebuilds.
+- `npm exec vitest run src/domain/auth/password-reset-token.test.ts src/domain/auth/account-recovery.test.ts src/server/services/AccountRecoveryService.test.ts src/server/routes/account-recovery.routes.test.ts src/domain/schema-invariants.test.ts src/adapter/infrastructure/resend/CustomerVerificationEmailNotifier.test.ts` passed: 6 files, 23 tests.
+- `npm run check` passed with 0 errors; legacy unused-parameter hints remain in old `src/api/**` scaffold.
+- `npm exec vitest run` passed: 28 files, 120 tests.
+- `npm run build-test` passed: Astro check, Vitest, and Astro build.
 
 ### Completion Notes List
 
 - Story context created from sprint status next backlog item on 2026-05-14.
 - Ultimate context engine analysis completed - comprehensive developer guide created.
+- Added hashed password reset token schema, migration, domain helper, and account recovery decisions for eligible/missing/ineligible/ambiguous accounts and invalid/expired/used tokens.
+- Added `AccountRecoveryService`, controller, repository, and route module for password reset request, reset confirmation, and email verification resend with standard envelopes, route metadata, `email-token` rate limiting, safe logs, and no session side effects.
+- Extended Resend notification boundary with reset email and Admin invitation/approval/rejection contracts while preserving verification config fallback behavior.
+- Updated endpoint catalog and D1 migration plan; remote development migration apply remains documented release blocker because implementation did not run `npm run db:migrate:remote`.
+- Added focused domain, service, route, notifier, and schema invariant tests; full validation passed.
+- Refactored Resend email rendering through shared template helpers for frame, title, body, metadata, and action-link blocks; inline email styles now mirror `src/styles/global.css` and `src/pages/index.astro` baseline tokens: Satoshi headings, Space Mono body/system text, cobalt primary action, sharp 1px borders, no radius/shadow.
 
 ### File List
 
+- `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md`
+- `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md`
 - `_bmad-output/implementation-artifacts/1-9-password-reset-and-account-email-notifications.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `migrations/0012_public_morlocks.sql`
+- `migrations/meta/_journal.json`
+- `migrations/meta/0012_snapshot.json`
+- `src/adapter/infrastructure/resend/CustomerVerificationEmailNotifier.test.ts`
+- `src/adapter/infrastructure/resend/CustomerVerificationEmailNotifier.ts`
+- `src/adapter/infrastructure/resend/email-template.test.ts`
+- `src/adapter/infrastructure/resend/email-template.ts`
+- `src/domain/auth/account-recovery.test.ts`
+- `src/domain/auth/account-recovery.ts`
+- `src/domain/auth/password-reset-token.test.ts`
+- `src/domain/auth/password-reset-token.ts`
+- `src/domain/notifications/account-emails.ts`
+- `src/domain/notifications/customer-verification-email.ts`
+- `src/domain/schema-invariants.test.ts`
+- `src/domain/schema/identity.ts`
+- `src/server/app.ts`
+- `src/server/controllers/AccountRecoveryController.ts`
+- `src/server/repositories/AccountRecoveryRepository.ts`
+- `src/server/routes/account-recovery.routes.test.ts`
+- `src/server/routes/account-recovery.routes.ts`
+- `src/server/routes/index.ts`
+- `src/server/services/AccountRecoveryService.test.ts`
+- `src/server/services/AccountRecoveryService.ts`
+
+### Change Log
+
+- 2026-05-15: Implemented Story 1.9 password reset, verification resend, account email notification boundary, migration/docs updates, and validation; status set to review.
+- 2026-05-15: Modularized Resend email template rendering with shared layout/frame helpers, aligned styles to JRW global tokens, and added tests.

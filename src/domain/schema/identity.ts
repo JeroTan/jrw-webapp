@@ -105,6 +105,39 @@ export const email_verification_tokens = sqliteTable(
   ]
 );
 
+export const password_reset_tokens = sqliteTable(
+  "password_reset_tokens",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    actor_kind: text("actor_kind", { enum: sessionActorKinds }).notNull(),
+    actor_id: text("actor_id").notNull(),
+    token_hash: text("token_hash").notNull(),
+    expires_at: text("expires_at").notNull(),
+    used_at: text("used_at"),
+    created_request_id: text("created_request_id"),
+    source_hash: text("source_hash"),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("password_reset_tokens_token_hash_idx").on(table.token_hash),
+    index("password_reset_tokens_actor_idx").on(
+      table.actor_kind,
+      table.actor_id
+    ),
+    index("password_reset_tokens_actor_active_idx")
+      .on(table.actor_kind, table.actor_id, table.expires_at)
+      .where(sql`${table.used_at} IS NULL`),
+    index("password_reset_tokens_expires_at_idx").on(table.expires_at),
+  ]
+);
+
 export const customer_providers = sqliteTable("customer_providers", {
   id: text("id")
     .primaryKey()

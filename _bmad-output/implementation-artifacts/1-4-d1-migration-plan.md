@@ -2,7 +2,7 @@
 
 Status: baseline
 Owner: Story 1.4
-Last updated: 2026-05-13
+Last updated: 2026-05-15
 
 ## Purpose
 
@@ -15,8 +15,8 @@ D1 plus Drizzle remains relational source of truth. Drizzle schema source stays 
 | Area | Current source | Notes |
 | --- | --- | --- |
 | Schema files | `src/domain/schema/identity.ts`, `src/domain/schema/catalog.ts`, `src/domain/schema/transactions.ts`, `src/domain/schema/audit.ts` | Current brownfield schema, not final PRD model. |
-| Migration files | `migrations/0000_classy_menace.sql` through `migrations/0011_sticky_avengers.sql` | Twelve migration entries tracked. Story 1.8 adds customer profile fields and email verification tokens. |
-| Migration journal | `migrations/meta/_journal.json` | Version `7`, dialect `sqlite`, entries idx `0` through `11`. |
+| Migration files | `migrations/0000_classy_menace.sql` through `migrations/0012_public_morlocks.sql` | Thirteen migration entries tracked. Story 1.9 adds password reset tokens after Story 1.8 migration `0011_sticky_avengers.sql`. |
+| Migration journal | `migrations/meta/_journal.json` | Version `7`, dialect `sqlite`, entries idx `0` through `12`. |
 | Drizzle config | `drizzle.config.ts` | Schema glob `./src/domain/schema/*.ts`, output `./migrations`, driver `d1-http`. |
 | Development D1 | `jrw-database-development` / `beabfd98-8611-4d58-8f1b-7a972b8af1ed` | Remote-first development target. |
 | Production D1 | `jrw-database-production` / `fd08e264-2046-4648-9164-84f66948533e` | Human review required before any migration. |
@@ -45,6 +45,12 @@ Do not use Worker deploy rollback as database rollback. D1 data/schema rollback 
 | --- | --- | --- | --- | --- | --- |
 | 2026-05-13 | `npm run db:generate` | Local Drizzle generation for development D1 schema | `migrations/0011_sticky_avengers.sql` | Adds `email_verification_tokens`, four token indexes, `customers.display_name`, and `customers.email_marketing_opt_in`; no unrelated table rebuild generated. | Not applied remotely during implementation. Remote apply remains pending with `npm run db:migrate:remote` against `jrw-database-development` / `beabfd98-8611-4d58-8f1b-7a972b8af1ed`. |
 
+## Story 1.9 Migration Evidence
+
+| Timestamp | Command | Target | Migration | SQL review | Remote development evidence |
+| --- | --- | --- | --- | --- | --- |
+| 2026-05-15T08:12+08:00 | `npm run db:generate` | Local Drizzle generation for development D1 schema | `migrations/0012_public_morlocks.sql` | Adds `password_reset_tokens` with polymorphic `actor_kind`/`actor_id`, hashed token column, 30-minute-capable expiry/used timestamps, request/source metadata, unique token hash index, actor lookup index, active actor+expiry partial index, and expiry cleanup index. No unrelated table rebuild generated. Depends on Story 1.8 migration `0011_sticky_avengers.sql`. Reset token ownership is application-verified because the table intentionally has no DB foreign key across both `admins` and `customers`. | Not applied remotely during implementation. Remote apply remains pending with `npm run db:migrate:remote` against `jrw-database-development` / `beabfd98-8611-4d58-8f1b-7a972b8af1ed`; release blocker until development apply evidence is recorded. |
+
 ## Table And Schema Group Plan
 
 | Current/proposed table or group | Current state | Owning story | Purpose | Main relationships | Migration timing | Destructive-change risk | Remote development evidence policy | Production gate |
@@ -53,7 +59,7 @@ Do not use Worker deploy rollback as database rollback. D1 data/schema rollback 
 | Admin sessions/tokens | Missing. | Story 1.7 | HttpOnly admin sessions and authentication state. | `admins`, audit, request context. | Epic 1 before admin-protected workflows. | Medium: token invalidation and session retention. | Record generated migration, auth/session tests, target D1, and success output. | Security review for cookie flags, token hashing, expiration, and revocation. |
 | `customers` | Exists with email, nullable password hash, avatar, profile/address fields. | Stories 1.8, 1.10 | Customer identity, profile, delivery/contact data. | `customer_providers`, sessions/tokens, orders, reviews. | Epic 1. | Medium: PII retention and nullable auth fields. | Record migration command, target D1, migration file, profile/privacy checks, and success output. | Privacy notice and retention owner review before production launch. |
 | `customer_providers` | Exists with provider, provider user id, JSON metadata. | Story 1.10 | OAuth provider identity link. | `customers`. | Epic 1. | Medium: raw provider metadata retention and uniqueness. | Record migration command, target D1, metadata scrub policy, and OAuth link tests. | Review safe provider metadata, verified-email auto-link rules, and deletion behavior. |
-| Verification/reset/OAuth state tables | Missing. | Stories 1.8, 1.9, 1.10 | Email verification, password reset, and OAuth state/nonce tracking. | Customers, email provider, OAuth provider. | Epic 1. | Medium: token replay, expiry, and PII. | Record migration command, token hashing/expiry test evidence, target D1. | Security review for token hashing, TTL, single-use behavior. |
+| Verification/reset/OAuth state tables | `email_verification_tokens` and `password_reset_tokens` exist; OAuth state/nonce tables missing. Password reset uses polymorphic `actor_kind`/`actor_id` with repository actor existence checks instead of DB foreign keys. | Stories 1.8, 1.9, 1.10 | Email verification, password reset, and OAuth state/nonce tracking. | Customers, Admins, email provider, OAuth provider. | Epic 1. | Medium: token replay, expiry, and PII. | Record migration command, token hashing/expiry test evidence, target D1. Story 1.9 generated `migrations/0012_public_morlocks.sql`; remote development apply remains pending. | Security review for token hashing, TTL, single-use behavior. |
 | Brand tables | Missing. | Stories 2.1-2.5 | Brand catalog groups and collaboration membership. | Admins, products, future brand membership history. | Epic 2. | Medium: product ownership refactor from plain text brand. | Record migration command, target D1, backfill strategy from `products.brand`, and success output. | Confirm brand is not tenant/store/merchant; review membership access scope. |
 | `categories` | Exists with `name` and legacy `type`. | Story 3.1 | Product category taxonomy. | `product_categories`, products. | Epic 3. | Low to medium: legacy `type` may not match final taxonomy. | Record generated SQL, target D1, category seed/backfill output if any. | Review final category model and storefront filter needs. |
 | `product_categories` | Exists join table. | Story 3.3 | Product-category many-to-many assignment. | `products`, `categories`. | Epic 3. | Low if shape remains. | Record migration command and relation tests when altered. | Review cascade behavior and category deletion rules. |
@@ -77,7 +83,7 @@ Do not use Worker deploy rollback as database rollback. D1 data/schema rollback 
 - Money fields currently use SQLite `real` in `product_variants.price`, `orders.total_amount`, and `order_snapshots.price_at_purchase`. Future stories must migrate API/domain/provider boundaries to integer centavos.
 - Product brand currently uses plain `products.brand` text. Future brand stories must migrate to brand relationship and membership-aware product access without treating brands as stores, tenants, merchants, sellers, or PayMongo accounts.
 - Orders currently use a combined `status`; future checkout/order stories must split payment state from fulfillment/order state.
-- Reservation, payment, webhook, return/refund, audit activity, session, verification, and reset structures are missing or minimal.
+- Reservation, payment, webhook, return/refund, audit activity, and OAuth state structures are missing or minimal; session, verification, and reset structures now exist but still require remote development migration evidence before release.
 - Existing migrations include table rebuilds with `PRAGMA foreign_keys=OFF`; future D1 migration review must verify D1-safe foreign key behavior and wrong-target prevention.
 
 ## Production Launch Blockers
