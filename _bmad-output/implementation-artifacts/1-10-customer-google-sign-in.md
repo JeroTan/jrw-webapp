@@ -1,6 +1,6 @@
 # Story 1.10: Customer Google Sign-In
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,73 +23,73 @@ so that I can access JRW checkout/account flows without creating separate passwo
 
 ## Tasks / Subtasks
 
-- [ ] Add OAuth state data model and migration. (AC: 1, 5, 8)
-  - [ ] Extend `src/domain/schema/identity.ts` with an OAuth state table, suggested name `oauth_state_tokens`: `id`, `provider` (`GOOGLE`), `state_hash`, `nonce_hash`, `redirect_path`, `expires_at`, `used_at`, `created_request_id`, optional `source_hash`, `created_at`, `updated_at`.
-  - [ ] Add unique index on `state_hash`, active state lookup index on `provider/state_hash/expires_at` where `used_at IS NULL`, and expiry cleanup index.
-  - [ ] Keep raw state, nonce, authorization code, access token, refresh token, ID token, cookies, and provider payloads out of D1.
-  - [ ] Review existing `customer_providers`: use `provider = "GOOGLE"` and `provider_user_id = Google sub`. Do not use email as provider identity key.
-  - [ ] If changing provider indexes, prefer composite uniqueness on `(provider, provider_user_id)` while preserving current data. If migration risk is high, keep current unique `provider_user_id` for Google-only MVP and document future multi-provider debt.
-  - [ ] Generate Drizzle migration with `npm run db:generate`; review SQL for only OAuth-state/provider-index changes.
-  - [ ] Update `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md` with generated filename, OAuth state table ownership, provider metadata scrub policy, and remote development apply evidence or blocker.
+- [x] Add OAuth state data model and migration. (AC: 1, 5, 8)
+  - [x] Extend `src/domain/schema/identity.ts` with an OAuth state table, suggested name `oauth_state_tokens`: `id`, `provider` (`GOOGLE`), `state_hash`, `nonce_hash`, `redirect_path`, `expires_at`, `used_at`, `created_request_id`, optional `source_hash`, `created_at`, `updated_at`.
+  - [x] Add unique index on `state_hash`, active state lookup index on `provider/state_hash/expires_at` where `used_at IS NULL`, and expiry cleanup index.
+  - [x] Keep raw state, nonce, authorization code, access token, refresh token, ID token, cookies, and provider payloads out of D1.
+  - [x] Review existing `customer_providers`: use `provider = "GOOGLE"` and `provider_user_id = Google sub`. Do not use email as provider identity key.
+  - [x] If changing provider indexes, prefer composite uniqueness on `(provider, provider_user_id)` while preserving current data. If migration risk is high, keep current unique `provider_user_id` for Google-only MVP and document future multi-provider debt.
+  - [x] Generate Drizzle migration with `npm run db:generate`; review SQL for only OAuth-state/provider-index changes.
+  - [x] Update `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md` with generated filename, OAuth state table ownership, provider metadata scrub policy, and remote development apply evidence or blocker.
 
-- [ ] Add provider-free Google OAuth domain decisions. (AC: 1-5, 8)
-  - [ ] Add `src/domain/auth/google-oauth.ts` plus tests.
-  - [ ] Reuse `generateSessionToken(32)` / SHA-256 helpers from `src/lib/crypto/session-token.ts` for OAuth state and nonce; TTL must clamp to 10 minutes.
-  - [ ] Validate `returnTo` / redirect path as same-origin relative path only. Reject absolute URLs, protocol-relative URLs, control chars, and unsafe paths; default to `/`.
-  - [ ] Model decisions for state missing/expired/used, provider error, missing code, missing `sub`, missing email, `email_verified !== true`, unsafe admin/customer email collision, provider `sub` linked to another Customer, inactive/suspended Customer, and safe existing Customer link.
-  - [ ] Safe auto-link rule: normalized verified Google email may link only to an active Customer when no Admin has same normalized email, the Google `sub` is not linked elsewhere, and existing local profile fields remain authoritative unless empty.
-  - [ ] Existing unverified Customer may be marked verified only when Google `email_verified` is true, normalized email matches exactly, and all safe-link checks pass.
+- [x] Add provider-free Google OAuth domain decisions. (AC: 1-5, 8)
+  - [x] Add `src/domain/auth/google-oauth.ts` plus tests.
+  - [x] Reuse `generateSessionToken(32)` / SHA-256 helpers from `src/lib/crypto/session-token.ts` for OAuth state and nonce; TTL must clamp to 10 minutes.
+  - [x] Validate `returnTo` / redirect path as same-origin relative path only. Reject absolute URLs, protocol-relative URLs, control chars, and unsafe paths; default to `/`.
+  - [x] Model decisions for state missing/expired/used, provider error, missing code, missing `sub`, missing email, `email_verified !== true`, unsafe admin/customer email collision, provider `sub` linked to another Customer, inactive/suspended Customer, and safe existing Customer link.
+  - [x] Safe auto-link rule: normalized verified Google email may link only to an active Customer when no Admin has same normalized email, the Google `sub` is not linked elsewhere, and existing local profile fields remain authoritative unless empty.
+  - [x] Existing unverified Customer may be marked verified only when Google `email_verified` is true, normalized email matches exactly, and all safe-link checks pass.
 
-- [ ] Add Google OAuth provider boundary. (AC: 2-6, 8)
-  - [ ] Add provider-facing code under `src/lib/google/**` or `src/adapter/infrastructure/google-oauth/**`; keep HTTP/JWKS/provider details out of domain and routes.
-  - [ ] Build authorization URL with `response_type=code`, `scope=openid email profile`, `client_id`, registered `redirect_uri`, `state`, and `nonce`.
-  - [ ] Use `access_type=online`; do not request offline access or persist refresh tokens for sign-in-only MVP.
-  - [ ] Exchange callback code with `POST https://oauth2.googleapis.com/token` using form-urlencoded `client_id`, `client_secret`, `code`, `grant_type=authorization_code`, and exact `redirect_uri`.
-  - [ ] Verify Google ID token locally with `jose` and Google JWKS. Required checks: signed token, issuer `https://accounts.google.com` or `accounts.google.com`, audience equals `GOOGLE_CLIENT_ID`, `exp` not expired, nonce matches stored nonce hash, `sub` present, `email` present, `email_verified === true`.
-  - [ ] Treat Google `sub` as stable provider identity. Use email only for safe auto-link and profile bootstrap.
-  - [ ] Ignore unrecognized Google token response fields. Never return, persist, or log access token, refresh token, ID token, auth code, nonce, or raw provider response.
-  - [ ] Map Google/network/config failures to `PROVIDER_UNAVAILABLE` or safe `AUTHENTICATION`/`CONFLICT_STATE` decisions with scrubbed logs.
+- [x] Add Google OAuth provider boundary. (AC: 2-6, 8)
+  - [x] Add provider-facing code under `src/lib/google/**` or `src/adapter/infrastructure/google-oauth/**`; keep HTTP/JWKS/provider details out of domain and routes.
+  - [x] Build authorization URL with `response_type=code`, `scope=openid email profile`, `client_id`, registered `redirect_uri`, `state`, and `nonce`.
+  - [x] Use `access_type=online`; do not request offline access or persist refresh tokens for sign-in-only MVP.
+  - [x] Exchange callback code with `POST https://oauth2.googleapis.com/token` using form-urlencoded `client_id`, `client_secret`, `code`, `grant_type=authorization_code`, and exact `redirect_uri`.
+  - [x] Verify Google ID token locally with `jose` and Google JWKS. Required checks: signed token, issuer `https://accounts.google.com` or `accounts.google.com`, audience equals `GOOGLE_CLIENT_ID`, `exp` not expired, nonce matches stored nonce hash, `sub` present, `email` present, `email_verified === true`.
+  - [x] Treat Google `sub` as stable provider identity. Use email only for safe auto-link and profile bootstrap.
+  - [x] Ignore unrecognized Google token response fields. Never return, persist, or log access token, refresh token, ID token, auth code, nonce, or raw provider response.
+  - [x] Map Google/network/config failures to `PROVIDER_UNAVAILABLE` or safe `AUTHENTICATION`/`CONFLICT_STATE` decisions with scrubbed logs.
 
-- [ ] Add repository operations with atomic state consumption and linking. (AC: 1-5, 8)
-  - [ ] Add `src/server/repositories/GoogleOAuthRepository.ts` or equivalent focused repository.
-  - [ ] Operations needed: create OAuth state, find state by hash, atomically consume state once, find provider link by `provider/providerUserId`, find Customer by normalized email, detect Admin email collision, create Customer for Google, create provider link, update only empty Customer profile fields from Google claims, mark email verified when safe, and create server-side session.
-  - [ ] State consumption must happen before account linking/session creation and must be single-use. Replayed callback must return conflict/not found and create no session.
-  - [ ] Link/create Customer and provider link in one D1 batch/transactional sequence where possible. Avoid state where provider link exists for missing Customer or session exists before link decision.
-  - [ ] Preserve `customers.password_hash` and `customers.password_salt` as nullable for OAuth-created accounts; do not create password credentials.
-  - [ ] Store provider metadata as minimal safe JSON only, e.g. provider `sub`, normalized email, `email_verified`, optional `name`/`picture` if used for empty fields. Exclude tokens, raw JWT, raw provider payload, locale, and unnecessary PII.
+- [x] Add repository operations with atomic state consumption and linking. (AC: 1-5, 8)
+  - [x] Add `src/server/repositories/GoogleOAuthRepository.ts` or equivalent focused repository.
+  - [x] Operations needed: create OAuth state, find state by hash, atomically consume state once, find provider link by `provider/providerUserId`, find Customer by normalized email, detect Admin email collision, create Customer for Google, create provider link, update only empty Customer profile fields from Google claims, mark email verified when safe, and create server-side session.
+  - [x] State consumption must happen before account linking/session creation and must be single-use. Replayed callback must return conflict/not found and create no session.
+  - [x] Link/create Customer and provider link in one D1 batch/transactional sequence where possible. Avoid state where provider link exists for missing Customer or session exists before link decision.
+  - [x] Preserve `customers.password_hash` and `customers.password_salt` as nullable for OAuth-created accounts; do not create password credentials.
+  - [x] Store provider metadata as minimal safe JSON only, e.g. provider `sub`, normalized email, `email_verified`, optional `name`/`picture` if used for empty fields. Exclude tokens, raw JWT, raw provider payload, locale, and unnecessary PII.
 
-- [ ] Add service/controller/route layer. (AC: 1-7)
-  - [ ] Add `GoogleOAuthService` / `GoogleOAuthController`, or extend auth service only if it stays focused. Avoid a God service.
-  - [ ] Add canonical routes under `src/server/routes/**`, suggested:
+- [x] Add service/controller/route layer. (AC: 1-7)
+  - [x] Add `GoogleOAuthService` / `GoogleOAuthController`, or extend auth service only if it stays focused. Avoid a God service.
+  - [x] Add canonical routes under `src/server/routes/**`, suggested:
     - `GET /api/oauth/google/sessions`: creates state and redirects to Google authorization URL.
     - `GET /api/oauth/google/callback`: validates callback, consumes state, links/creates Customer, creates session, sets cookie, and redirects to safe `returnTo` or default path.
-  - [ ] If implementing Google Identity Services popup mode too, add a separate `POST /api/oauth/google/sessions` only with explicit state/header validation; do not mix popup and redirect semantics in one handler.
-  - [ ] Factor session cookie helpers from `src/server/routes/auth.routes.ts` into `src/server/auth/session-cookie.ts` or another shared auth helper so OAuth uses same `jrw_session` flags: HttpOnly, SameSite=Lax, Secure outside local HTTP, path `/`, expiry aligned to session expiry.
-  - [ ] Add route options through `src/server/routes/index.ts` and `src/server/app.ts` so operational logger injection works like Auth, AccountRecovery, and Customers.
-  - [ ] Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` / `APP_BASE_URL` config resolver. Missing or invalid config must fail safely with `PROVIDER_UNAVAILABLE`.
-  - [ ] Update `.env.example` if exact redirect URI env is required. Do not expose secrets in generated docs.
-  - [ ] Use route metadata: tags `Auth`, public auth mode with `PROSPECT`/`CUSTOMER` where applicable, rate-limit class `oauth-login` or documented chosen class, and error codes `VALIDATION_FAILED`, `AUTHENTICATION`, `AUTH_FORBIDDEN`, `CONFLICT_STATE`, `RATE_LIMITED`, `PROVIDER_UNAVAILABLE`, `INTERNAL_ERROR`.
+  - [x] If implementing Google Identity Services popup mode too, add a separate `POST /api/oauth/google/sessions` only with explicit state/header validation; do not mix popup and redirect semantics in one handler.
+  - [x] Factor session cookie helpers from `src/server/routes/auth.routes.ts` into `src/server/auth/session-cookie.ts` or another shared auth helper so OAuth uses same `jrw_session` flags: HttpOnly, SameSite=Lax, Secure outside local HTTP, path `/`, expiry aligned to session expiry.
+  - [x] Add route options through `src/server/routes/index.ts` and `src/server/app.ts` so operational logger injection works like Auth, AccountRecovery, and Customers.
+  - [x] Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` / `APP_BASE_URL` config resolver. Missing or invalid config must fail safely with `PROVIDER_UNAVAILABLE`.
+  - [x] Update `.env.example` if exact redirect URI env is required. Do not expose secrets in generated docs.
+  - [x] Use route metadata: tags `Auth`, public auth mode with `PROSPECT`/`CUSTOMER` where applicable, rate-limit class `oauth-login` or documented chosen class, and error codes `VALIDATION_FAILED`, `AUTHENTICATION`, `AUTH_FORBIDDEN`, `CONFLICT_STATE`, `RATE_LIMITED`, `PROVIDER_UNAVAILABLE`, `INTERNAL_ERROR`.
 
-- [ ] Preserve customer account/profile behavior. (AC: 2-5)
-  - [ ] New Google-created Customer response/session role must be `CUSTOMER`; never create `ADMIN`, `SUPER_ADMIN`, `STORE_ADMIN`, approval state, or dashboard access from Google.
-  - [ ] Do not overwrite existing `display_name`, `first_name`, `last_name`, or `avatar_url` unless local value is null/empty.
-  - [ ] Do not modify phone, delivery/contact fields, email marketing preference, password hash/salt, or Admin fields from Google claims.
-  - [ ] Existing suspended/inactive Customer cannot sign in through Google. Existing Admin with same email blocks customer auto-link.
-  - [ ] Keep customer transactional email rules untouched; Google sign-in does not opt customer into marketing.
+- [x] Preserve customer account/profile behavior. (AC: 2-5)
+  - [x] New Google-created Customer response/session role must be `CUSTOMER`; never create `ADMIN`, `SUPER_ADMIN`, `STORE_ADMIN`, approval state, or dashboard access from Google.
+  - [x] Do not overwrite existing `display_name`, `first_name`, `last_name`, or `avatar_url` unless local value is null/empty.
+  - [x] Do not modify phone, delivery/contact fields, email marketing preference, password hash/salt, or Admin fields from Google claims.
+  - [x] Existing suspended/inactive Customer cannot sign in through Google. Existing Admin with same email blocks customer auto-link.
+  - [x] Keep customer transactional email rules untouched; Google sign-in does not opt customer into marketing.
 
-- [ ] Update endpoint catalog and docs. (AC: 7)
-  - [ ] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` from planned Story 1.10 row to concrete implemented routes, DTO/schema names, redirect behavior, rate-limit class, auth metadata, and error codes.
-  - [ ] Add docs note that `customer_providers.provider_user_id` stores Google `sub`, not email.
-  - [ ] OpenAPI/docs must not include example auth codes, state values, ID tokens, access tokens, refresh tokens, client secret, raw Google response, or provider payload.
+- [x] Update endpoint catalog and docs. (AC: 7)
+  - [x] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` from planned Story 1.10 row to concrete implemented routes, DTO/schema names, redirect behavior, rate-limit class, auth metadata, and error codes.
+  - [x] Add docs note that `customer_providers.provider_user_id` stores Google `sub`, not email.
+  - [x] OpenAPI/docs must not include example auth codes, state values, ID tokens, access tokens, refresh tokens, client secret, raw Google response, or provider payload.
 
-- [ ] Add focused tests and run validation. (AC: 1-8)
-  - [ ] Domain tests: state/nonce entropy, hash-only state storage, 10-minute TTL clamp, return path safety, provider identity decisions, verified email auto-link, unsafe collision decisions.
-  - [ ] Schema invariant tests: OAuth state table exists with hashed state/nonce and indexes; no raw token/code columns; provider table stores safe link fields only.
-  - [ ] Service/repository tests: start creates hashed state; callback consumes state once; valid new Customer path; existing provider path; existing Customer auto-link path; suspended/inactive/customer-admin collision rejection; profile fields preserved.
-  - [ ] Provider adapter tests: token exchange request shape, ID token verification claims, provider error mapping, no raw token/provider response in logs.
-  - [ ] Route/controller tests: redirect status/location, set-cookie flags, safe error redirect/envelope, OpenAPI metadata, request ID propagation, no token leakage in response bodies.
-  - [ ] Run targeted Vitest for new domain/service/route/adapter/schema tests.
-  - [ ] Run `npm run check`. Because story touches schema/routes/provider code, run `npm run build-test` unless blocked; record exact blocker.
+- [x] Add focused tests and run validation. (AC: 1-8)
+  - [x] Domain tests: state/nonce entropy, hash-only state storage, 10-minute TTL clamp, return path safety, provider identity decisions, verified email auto-link, unsafe collision decisions.
+  - [x] Schema invariant tests: OAuth state table exists with hashed state/nonce and indexes; no raw token/code columns; provider table stores safe link fields only.
+  - [x] Service/repository tests: start creates hashed state; callback consumes state once; valid new Customer path; existing provider path; existing Customer auto-link path; suspended/inactive/customer-admin collision rejection; profile fields preserved.
+  - [x] Provider adapter tests: token exchange request shape, ID token verification claims, provider error mapping, no raw token/provider response in logs.
+  - [x] Route/controller tests: redirect status/location, set-cookie flags, safe error redirect/envelope, OpenAPI metadata, request ID propagation, no token leakage in response bodies.
+  - [x] Run targeted Vitest for new domain/service/route/adapter/schema tests.
+  - [x] Run `npm run check`. Because story touches schema/routes/provider code, run `npm run build-test` unless blocked; record exact blocker.
 
 ## Dev Notes
 
@@ -227,13 +227,56 @@ so that I can access JRW checkout/account flows without creating separate passwo
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
+
+- `npx vitest run src/domain/schema-invariants.test.ts` red phase failed before `oauth_state_tokens`/provider index existed, then passed after schema implementation: 1 file, 8 tests.
+- `npm run db:generate` generated `migrations/0013_wakeful_crystal.sql`; SQL review showed only `oauth_state_tokens` table/indexes plus `customer_providers` provider/customer indexes, no table rebuilds or unrelated schema changes.
+- `npx vitest run src/domain/auth/google-oauth.test.ts src/lib/google/oauth.test.ts src/server/services/GoogleOAuthService.test.ts src/server/routes/google-oauth.routes.test.ts src/domain/schema-invariants.test.ts src/server/routes/auth.routes.test.ts` passed: 6 files, 32 tests.
+- Initial `npm run check` hit 120s timeout; rerun with longer timeout passed with 0 errors and existing legacy hints in old scaffold files.
+- `npx vitest run` passed: 33 files, 146 tests.
+- `npm run build-test` passed: Astro check, Vitest, and Astro build.
 
 ### Completion Notes List
 
 - Story context created from sprint status next backlog item on 2026-05-15.
 - Ultimate context engine analysis completed - comprehensive developer guide created.
+- Added `oauth_state_tokens` with hashed state/nonce material, 10-minute state expiry support, single-use indexes, and generated migration `0013_wakeful_crystal.sql`.
+- Added provider-free Google OAuth domain decisions for return path safety, state lifecycle, verified-email linking, Admin collision blocking, suspended/inactive Customer rejection, and empty-field-only profile updates.
+- Added Workers-compatible Google OAuth provider boundary using `jose` ID-token verification, online access only, form-urlencoded code exchange, safe config resolution, and no token/raw payload persistence or responses.
+- Added Google OAuth repository/service/controller/routes for redirect start and callback flows, atomic state consumption before provider exchange, Customer-only account creation/linking, provider `sub` identity, and shared secure `jrw_session` cookie handling.
+- Updated endpoint catalog, migration plan, `.env.example`, and sprint status. Remote development D1 migration apply remains documented release blocker because implementation did not run `npm run db:migrate:remote`.
+- Added focused schema, domain, provider adapter, service, and route tests; full validation passed.
 
 ### File List
+
+- `.env.example`
+- `_bmad-output/implementation-artifacts/1-10-customer-google-sign-in.md`
+- `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md`
+- `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `migrations/0013_wakeful_crystal.sql`
+- `migrations/meta/_journal.json`
+- `migrations/meta/0013_snapshot.json`
+- `src/domain/auth/google-oauth.test.ts`
+- `src/domain/auth/google-oauth.ts`
+- `src/domain/schema-invariants.test.ts`
+- `src/domain/schema/identity.ts`
+- `src/lib/google/oauth.test.ts`
+- `src/lib/google/oauth.ts`
+- `src/server/app.ts`
+- `src/server/auth/session-cookie.ts`
+- `src/server/controllers/GoogleOAuthController.ts`
+- `src/server/openapi/route-metadata.ts`
+- `src/server/repositories/GoogleOAuthRepository.ts`
+- `src/server/routes/auth.routes.ts`
+- `src/server/routes/google-oauth.routes.test.ts`
+- `src/server/routes/google-oauth.routes.ts`
+- `src/server/routes/index.ts`
+- `src/server/services/GoogleOAuthService.test.ts`
+- `src/server/services/GoogleOAuthService.ts`
+
+### Change Log
+
+- 2026-05-15: Implemented Story 1.10 Customer Google Sign-In with OAuth state migration, domain/provider/repository/service/route layers, docs updates, and full validation; status set to review.

@@ -11,6 +11,7 @@ import { relations, sql } from "drizzle-orm";
 export const accountStatusValues = ["ACTIVE", "INACTIVE", "SUSPENDED"] as const;
 export const sessionActorKinds = ["ADMIN", "CUSTOMER"] as const;
 export const sessionStatusValues = ["ACTIVE", "REVOKED"] as const;
+export const oauthProviderValues = ["GOOGLE"] as const;
 
 export const admins = sqliteTable(
   "admins",
@@ -138,20 +139,60 @@ export const password_reset_tokens = sqliteTable(
   ]
 );
 
-export const customer_providers = sqliteTable("customer_providers", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => createId()),
-  customer_id: text("customer_id")
-    .notNull()
-    .references(() => customers.id, { onDelete: "cascade" }),
-  provider: text("provider").notNull(), // e.g., 'GOOGLE', 'FACEBOOK'
-  provider_user_id: text("provider_user_id").notNull().unique(), // ID from the provider (e.g., 'sub' in Google)
-  metadata: text("metadata", { mode: "json" }), // Original provider snapshot
-  created_at: text("created_at")
-    .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
-});
+export const oauth_state_tokens = sqliteTable(
+  "oauth_state_tokens",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    provider: text("provider", { enum: oauthProviderValues }).notNull(),
+    state_hash: text("state_hash").notNull(),
+    nonce_hash: text("nonce_hash").notNull(),
+    redirect_path: text("redirect_path").notNull().default("/"),
+    expires_at: text("expires_at").notNull(),
+    used_at: text("used_at"),
+    created_request_id: text("created_request_id"),
+    source_hash: text("source_hash"),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("oauth_state_tokens_state_hash_idx").on(table.state_hash),
+    index("oauth_state_tokens_provider_active_idx")
+      .on(table.provider, table.state_hash, table.expires_at)
+      .where(sql`${table.used_at} IS NULL`),
+    index("oauth_state_tokens_expires_at_idx").on(table.expires_at),
+  ]
+);
+
+export const customer_providers = sqliteTable(
+  "customer_providers",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    customer_id: text("customer_id")
+      .notNull()
+      .references(() => customers.id, { onDelete: "cascade" }),
+    provider: text("provider", { enum: oauthProviderValues }).notNull(),
+    provider_user_id: text("provider_user_id").notNull().unique(),
+    metadata: text("metadata", { mode: "json" }),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("customer_providers_provider_user_idx").on(
+      table.provider,
+      table.provider_user_id
+    ),
+    index("customer_providers_customer_idx").on(table.customer_id),
+  ]
+);
 
 export const sessions = sqliteTable(
   "sessions",

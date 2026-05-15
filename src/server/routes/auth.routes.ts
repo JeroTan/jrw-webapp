@@ -2,12 +2,14 @@ import { t } from "elysia";
 import { validatePasswordPepper } from "@/domain/auth/super-admin-seed";
 import { hashSessionToken } from "@/lib/crypto/session-token";
 import { tboxApiSuccess, openApiErrorResponses } from "@/lib/typebox/api";
-import { SESSION_COOKIE_NAME } from "@/server/auth/session-cookie";
-import type { OperationalLogger } from "@/adapter/infrastructure/logging/operational-log";
 import {
-  AuthController,
-  type AuthCookieInstruction,
-} from "@/server/controllers/AuthController";
+  SESSION_COOKIE_NAME,
+  applySessionCookieInstruction,
+  getSessionCookieValue,
+  type SessionCookieJar,
+} from "@/server/auth/session-cookie";
+import type { OperationalLogger } from "@/adapter/infrastructure/logging/operational-log";
+import { AuthController } from "@/server/controllers/AuthController";
 import { createAuthRepositories } from "@/server/repositories/AuthRepository";
 import { AuthService } from "@/server/services/AuthService";
 import type { RequestContextDecorations } from "@/server/context/request-context";
@@ -133,59 +135,6 @@ function getController(
   );
 }
 
-function getSessionCookieValue(
-  cookie: Record<string, { value: unknown }>
-): string | undefined {
-  const value = cookie[SESSION_COOKIE_NAME]?.value;
-  return typeof value === "string" && value.length > 0 ? value : undefined;
-}
-
-function shouldSecureCookie(request: Request): boolean {
-  const url = new URL(request.url);
-  const localHostnames = new Set(["localhost", "127.0.0.1", "::1"]);
-
-  return !(url.protocol === "http:" && localHostnames.has(url.hostname));
-}
-
-function secondsUntil(expiresAt: string, now = new Date()): number {
-  return Math.max(
-    0,
-    Math.floor((new Date(expiresAt).getTime() - now.getTime()) / 1000)
-  );
-}
-
-function applyCookieInstruction(
-  cookie: Record<string, { set: (config: Record<string, unknown>) => unknown }>,
-  request: Request,
-  instruction: AuthCookieInstruction | undefined
-): void {
-  if (!instruction) return;
-
-  const baseCookie = {
-    httpOnly: true,
-    secure: shouldSecureCookie(request),
-    sameSite: "lax",
-    path: "/",
-  };
-
-  if (instruction.kind === "set") {
-    cookie[SESSION_COOKIE_NAME]?.set({
-      ...baseCookie,
-      value: instruction.token,
-      expires: new Date(instruction.expiresAt),
-      maxAge: secondsUntil(instruction.expiresAt),
-    });
-    return;
-  }
-
-  cookie[SESSION_COOKIE_NAME]?.set({
-    ...baseCookie,
-    value: "",
-    expires: new Date(0),
-    maxAge: 0,
-  });
-}
-
 async function sourceIpHash(request: Request): Promise<string | undefined> {
   const sourceIp =
     request.headers.get("cf-connecting-ip") ??
@@ -220,7 +169,11 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
         });
 
         set.status = result.status;
-        applyCookieInstruction(cookie, request, result.cookie);
+        applySessionCookieInstruction(
+          cookie as SessionCookieJar,
+          request,
+          result.cookie
+        );
 
         return result.body as never;
       },
@@ -276,7 +229,11 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
         });
 
         set.status = result.status;
-        applyCookieInstruction(cookie, request, result.cookie);
+        applySessionCookieInstruction(
+          cookie as SessionCookieJar,
+          request,
+          result.cookie
+        );
 
         return result.body as never;
       },

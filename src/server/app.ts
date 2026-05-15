@@ -152,6 +152,11 @@ export function createApp(options: CreateAppOptions = {}) {
       operationalLogger:
         options.routes?.customers?.operationalLogger ?? operationalLogger,
     },
+    googleOAuth: {
+      ...options.routes?.googleOAuth,
+      operationalLogger:
+        options.routes?.googleOAuth?.operationalLogger ?? operationalLogger,
+    },
   };
 
   return new Elysia({

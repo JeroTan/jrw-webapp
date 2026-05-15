@@ -6,6 +6,8 @@ import {
   auth_rate_limits,
   customers,
   email_verification_tokens,
+  customer_providers,
+  oauth_state_tokens,
   password_reset_tokens,
   sessions,
 } from "./schema/identity";
@@ -254,5 +256,77 @@ describe("identity schema invariants", () => {
         )?.config.where
       )
     ).toBe('"used_at" IS NULL');
+  });
+
+  it("stores OAuth state and nonce material as hashes with single-use indexes", () => {
+    const stateConfig = getTableConfig(oauth_state_tokens);
+    const columnNames = stateConfig.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const indexNames = stateConfig.indexes.map((index) => index.config.name);
+
+    expect(columnNames).toEqual(
+      expect.arrayContaining([
+        "id",
+        "provider",
+        "state_hash",
+        "nonce_hash",
+        "redirect_path",
+        "expires_at",
+        "used_at",
+        "created_request_id",
+        "source_hash",
+        "created_at",
+        "updated_at",
+      ])
+    );
+    expect(columnNames).not.toEqual(
+      expect.arrayContaining([
+        "state",
+        "raw_state",
+        "nonce",
+        "raw_nonce",
+        "authorization_code",
+        "access_token",
+        "refresh_token",
+        "id_token",
+        "provider_payload",
+      ])
+    );
+    expect(indexNames).toEqual(
+      expect.arrayContaining([
+        "oauth_state_tokens_state_hash_idx",
+        "oauth_state_tokens_provider_active_idx",
+        "oauth_state_tokens_expires_at_idx",
+      ])
+    );
+    expect(
+      stateConfig.indexes.find(
+        (index) => index.config.name === "oauth_state_tokens_state_hash_idx"
+      )?.config.unique
+    ).toBe(true);
+    expect(
+      getSqlQuery(
+        stateConfig.indexes.find(
+          (index) => index.config.name === "oauth_state_tokens_provider_active_idx"
+        )?.config.where
+      )
+    ).toBe('"used_at" IS NULL');
+  });
+
+  it("keeps provider identity unique by provider and provider user id", () => {
+    const providerConfig = getTableConfig(customer_providers);
+    const indexNames = providerConfig.indexes.map((index) => index.config.name);
+    const providerIdentityIndex = providerConfig.indexes.find(
+      (index) => index.config.name === "customer_providers_provider_user_idx"
+    );
+
+    expect(indexNames).toContain("customer_providers_provider_user_idx");
+    expect(providerIdentityIndex?.config.unique).toBe(true);
+    expect(
+      providerIdentityIndex?.config.columns.map((column) =>
+        getColumnName(column)
+      )
+    ).toEqual(["provider", "provider_user_id"]);
   });
 });

@@ -1,5 +1,5 @@
 # generated: 2026-05-12T08:38:32+08:00
-# last_updated: 2026-05-15T14:52:49+08:00
+# last_updated: 2026-05-15T15:48:54+08:00
 # project: jrw-webapp
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-12T08:38:32+08:00"
-last_updated: "2026-05-15T14:52:49+08:00"
+last_updated: "2026-05-15T15:48:54+08:00"
 project: jrw-webapp
 project_key: NOKEY
 tracking_system: file-system
@@ -52,7 +52,7 @@ development_status:
   1-7-secure-session-authentication: done
   1-8-customer-registration-verification-and-profile: done
   1-9-password-reset-and-account-email-notifications: done
-  1-10-customer-google-sign-in: ready-for-dev
+  1-10-customer-google-sign-in: review
   1-11-admin-account-management-and-approval: backlog
   1-12-server-side-rbac-guards: backlog
   1-13-ownership-transfer-governance: backlog
