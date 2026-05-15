@@ -33,6 +33,7 @@ export type ResendVerificationEmailConfig = {
   apiKey: string;
   fromEmail: string;
   appBaseUrl: string;
+  debugEmailSend: boolean;
 };
 
 export type ResendVerificationEmailConfigOptions = {
@@ -43,6 +44,7 @@ export type ResendCustomerVerificationEmailNotifierOptions = {
   client: ResendEmailClient;
   fromEmail: string;
   appBaseUrl: string;
+  debugEmailSend?: boolean;
 };
 
 const LOCAL_DEV_APP_BASE_URL = "http://localhost:4321";
@@ -67,6 +69,108 @@ function cleanString(value: unknown): string | undefined {
   return typeof value === "string" && value.trim().length > 0
     ? value.trim()
     : undefined;
+}
+
+function cleanBoolean(value: unknown): boolean {
+  return typeof value === "string" && /^(1|true|yes|on)$/i.test(value.trim());
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function emailDomain(value: string): string | null {
+  const email = value.match(/<([^>]+)>/)?.[1] ?? value;
+  const domain = email.match(/@([^@\s>]+)$/)?.[1];
+  return domain ? domain.toLowerCase() : null;
+}
+
+function scrubProviderMessage(value: unknown): string | undefined {
+  if (typeof value !== "string" || value.trim().length === 0) {
+    return undefined;
+  }
+
+  const scrubbed = value
+    .replace(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi, "[REDACTED_EMAIL]")
+    .replace(/token=[^&\s"')]+/gi, "token=[REDACTED]")
+    .replace(/\b(re|sk|pk)_(test|live)?[A-Za-z0-9_=-]+\b/gi, "[REDACTED_KEY]")
+    .slice(0, 280);
+
+  return /\b(password|secret|jwt|cookie|raw provider payload|raw-token)\b/i.test(
+    scrubbed
+  )
+    ? "[REDACTED]"
+    : scrubbed;
+}
+
+function providerErrorSummary(error: unknown): Record<string, unknown> {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: scrubProviderMessage(error.message),
+    };
+  }
+
+  if (isRecord(error)) {
+    return {
+      name: typeof error.name === "string" ? error.name : undefined,
+      statusCode:
+        typeof error.statusCode === "number" ? error.statusCode : undefined,
+      message: scrubProviderMessage(error.message),
+    };
+  }
+
+  return {
+    name: typeof error,
+  };
+}
+
+function resendMessageId(response: unknown): string | undefined {
+  if (!isRecord(response)) return undefined;
+
+  if (typeof response.id === "string") return response.id;
+
+  const data = response.data;
+  if (isRecord(data) && typeof data.id === "string") {
+    return data.id;
+  }
+
+  return undefined;
+}
+
+function resendProviderError(response: unknown): unknown | undefined {
+  return isRecord(response) && response.error ? response.error : undefined;
+}
+
+function logEmailSendResult(input: {
+  debugEmailSend: boolean;
+  requestId: string;
+  operation: string;
+  from: string;
+  to: string;
+  response?: unknown;
+  error?: unknown;
+}): void {
+  const providerError = input.error ?? resendProviderError(input.response);
+
+  if (!providerError && !input.debugEmailSend) {
+    return;
+  }
+
+  const details = {
+    event: "resend.email_send",
+    requestId: input.requestId,
+    operation: input.operation,
+    ok: !providerError,
+    messageId: providerError ? undefined : resendMessageId(input.response),
+    fromDomain: emailDomain(input.from),
+    recipientDomain: emailDomain(input.to),
+    providerError: providerError
+      ? providerErrorSummary(providerError)
+      : undefined,
+  };
+
+  console.error(JSON.stringify(details));
 }
 
 function normalizeBaseUrl(value: string | undefined): string | undefined {
@@ -110,6 +214,9 @@ export function resolveResendVerificationEmailConfig(
   const configuredBaseUrl =
     cleanString(runtimeEnv.APP_BASE_URL) ??
     cleanString(runtimeEnv.PUBLIC_APP_BASE_URL);
+  const debugEmailSend =
+    cleanBoolean(runtimeEnv.RESEND_DEBUG) ||
+    cleanBoolean(runtimeEnv.EMAIL_DEBUG);
   const appBaseUrl = configuredBaseUrl
     ? normalizeBaseUrl(configuredBaseUrl)
     : (normalizeBaseUrl(options.requestUrl) ?? LOCAL_DEV_APP_BASE_URL);
@@ -122,6 +229,7 @@ export function resolveResendVerificationEmailConfig(
     apiKey,
     fromEmail,
     appBaseUrl,
+    debugEmailSend,
   });
 }
 
@@ -175,12 +283,14 @@ export class ResendCustomerVerificationEmailNotifier implements AccountEmailNoti
   private readonly client: ResendEmailClient;
   private readonly fromEmail: string;
   private readonly appBaseUrl: string;
+  private readonly debugEmailSend: boolean;
 
   constructor(options: ResendCustomerVerificationEmailNotifierOptions) {
     this.client = options.client;
     this.fromEmail = options.fromEmail;
     this.appBaseUrl =
       normalizeBaseUrl(options.appBaseUrl) ?? options.appBaseUrl;
+    this.debugEmailSend = options.debugEmailSend ?? false;
   }
 
   async sendVerificationEmail(
@@ -201,7 +311,7 @@ export class ResendCustomerVerificationEmailNotifier implements AccountEmailNoti
     });
 
     try {
-      await this.client.emails.send({
+      const response = await this.client.emails.send({
         from: this.fromEmail,
         to: input.toEmail,
         subject: "Verify your JRW account",
@@ -209,8 +319,31 @@ export class ResendCustomerVerificationEmailNotifier implements AccountEmailNoti
         html: template.html,
       });
 
+      logEmailSendResult({
+        debugEmailSend: this.debugEmailSend,
+        requestId: input.requestId,
+        operation: "customer-verification",
+        from: this.fromEmail,
+        to: input.toEmail,
+        response,
+      });
+
+      const providerError = resendProviderError(response);
+      if (providerError) {
+        return { ok: false, error: providerError };
+      }
+
       return { ok: true };
     } catch (error) {
+      logEmailSendResult({
+        debugEmailSend: this.debugEmailSend,
+        requestId: input.requestId,
+        operation: "customer-verification",
+        from: this.fromEmail,
+        to: input.toEmail,
+        error,
+      });
+
       return { ok: false, error };
     }
   }
@@ -233,7 +366,7 @@ export class ResendCustomerVerificationEmailNotifier implements AccountEmailNoti
     });
 
     try {
-      await this.client.emails.send({
+      const response = await this.client.emails.send({
         from: this.fromEmail,
         to: input.toEmail,
         subject: "Reset your JRW password",
@@ -241,8 +374,31 @@ export class ResendCustomerVerificationEmailNotifier implements AccountEmailNoti
         html: template.html,
       });
 
+      logEmailSendResult({
+        debugEmailSend: this.debugEmailSend,
+        requestId: input.requestId,
+        operation: "password-reset",
+        from: this.fromEmail,
+        to: input.toEmail,
+        response,
+      });
+
+      const providerError = resendProviderError(response);
+      if (providerError) {
+        return { ok: false, error: providerError };
+      }
+
       return { ok: true };
     } catch (error) {
+      logEmailSendResult({
+        debugEmailSend: this.debugEmailSend,
+        requestId: input.requestId,
+        operation: "password-reset",
+        from: this.fromEmail,
+        to: input.toEmail,
+        error,
+      });
+
       return { ok: false, error };
     }
   }
@@ -308,7 +464,7 @@ export class ResendCustomerVerificationEmailNotifier implements AccountEmailNoti
     });
 
     try {
-      await this.client.emails.send({
+      const response = await this.client.emails.send({
         from: this.fromEmail,
         to: input.input.toEmail,
         subject: input.subject,
@@ -316,8 +472,31 @@ export class ResendCustomerVerificationEmailNotifier implements AccountEmailNoti
         html: template.html,
       });
 
+      logEmailSendResult({
+        debugEmailSend: this.debugEmailSend,
+        requestId: input.input.requestId,
+        operation: "admin-lifecycle",
+        from: this.fromEmail,
+        to: input.input.toEmail,
+        response,
+      });
+
+      const providerError = resendProviderError(response);
+      if (providerError) {
+        return { ok: false, error: providerError };
+      }
+
       return { ok: true };
     } catch (error) {
+      logEmailSendResult({
+        debugEmailSend: this.debugEmailSend,
+        requestId: input.input.requestId,
+        operation: "admin-lifecycle",
+        from: this.fromEmail,
+        to: input.input.toEmail,
+        error,
+      });
+
       return { ok: false, error };
     }
   }
@@ -337,6 +516,7 @@ export function createCustomerVerificationEmailNotifier(
     client: new LazyResendEmailClient(config.content.apiKey),
     fromEmail: config.content.fromEmail,
     appBaseUrl: config.content.appBaseUrl,
+    debugEmailSend: config.content.debugEmailSend,
   });
 }
 
@@ -354,5 +534,6 @@ export function createAccountEmailNotifier(
     client: new LazyResendEmailClient(config.content.apiKey),
     fromEmail: config.content.fromEmail,
     appBaseUrl: config.content.appBaseUrl,
+    debugEmailSend: config.content.debugEmailSend,
   });
 }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   FailingAccountEmailNotifier,
   FailingCustomerVerificationEmailNotifier,
@@ -23,6 +23,7 @@ describe("Resend customer verification email notifier", () => {
       apiKey: "re_test",
       fromEmail: "JRW <noreply@example.test>",
       appBaseUrl: "https://jrw.test",
+      debugEmailSend: false,
     });
 
     expect(
@@ -41,6 +42,24 @@ describe("Resend customer verification email notifier", () => {
         RESEND_FROM_EMAIL: "JRW <noreply@example.test>",
       }).content?.appBaseUrl
     ).toBe("http://localhost:4321");
+
+    expect(
+      resolveResendVerificationEmailConfig({
+        RESEND_API_KEY: "re_test",
+        RESEND_FROM_EMAIL: "JRW <noreply@example.test>",
+        RESEND_DEBUG: "true",
+        APP_BASE_URL: "https://jrw.test",
+      }).content?.debugEmailSend
+    ).toBe(true);
+
+    expect(
+      resolveResendVerificationEmailConfig({
+        RESEND_API_KEY: "re_test",
+        RESEND_FROM_EMAIL: "JRW <noreply@example.test>",
+        EMAIL_DEBUG: "1",
+        APP_BASE_URL: "https://jrw.test",
+      }).content?.debugEmailSend
+    ).toBe(true);
 
     expect(
       resolveResendVerificationEmailConfig({
@@ -173,7 +192,53 @@ describe("Resend customer verification email notifier", () => {
     expect(JSON.stringify(sent)).not.toContain("auth state");
   });
 
+  it("treats Resend response errors as failed sends and logs safe provider context", async () => {
+    const logSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const client: ResendEmailClient = {
+      emails: {
+        send: async () => ({
+          data: null,
+          error: {
+            name: "validation_error",
+            message:
+              "Domain example.com is not verified for buyer@example.test token=raw-token",
+            statusCode: 403,
+          },
+        }),
+      },
+    };
+    const notifier = new ResendCustomerVerificationEmailNotifier({
+      client,
+      fromEmail: "JRW <noreply@example.com>",
+      appBaseUrl: "https://jrw.test",
+    });
+
+    const result = await notifier.sendVerificationEmail({
+      toEmail: "buyer@example.test",
+      token: "raw-token",
+      expiresAt: "2026-05-14T00:00:00.000Z",
+      requestId: "req_email",
+    });
+    const logOutput = logSpy.mock.calls
+      .map((call) => call.join(" "))
+      .join("\n");
+
+    expect(result).toMatchObject({ ok: false });
+    expect(logOutput).toContain("resend.email_send");
+    expect(logOutput).toContain("validation_error");
+    expect(logOutput).toContain("example.com");
+    expect(logOutput).not.toContain("buyer@example.test");
+    expect(logOutput).not.toContain("raw-token");
+
+    logSpy.mockRestore();
+  });
+
   it("maps provider and missing-config failures to safe notifier failure", async () => {
+    const logSpy = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
     const failingClient: ResendEmailClient = {
       emails: {
         send: async () => {
@@ -214,5 +279,8 @@ describe("Resend customer verification email notifier", () => {
         requestId: "req_email",
       })
     ).resolves.toMatchObject({ ok: false });
+
+    expect(JSON.stringify(logSpy.mock.calls)).not.toContain("raw-token");
+    logSpy.mockRestore();
   });
 });
