@@ -1,10 +1,11 @@
 import { createDb, type AppDb } from "@/adapter/infrastructure/db/client";
 import {
   admins,
+  customers,
   sessions,
   type accountStatusValues,
 } from "@/domain/schema/identity";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 
 type AccountStatusValue = (typeof accountStatusValues)[number];
 
@@ -38,6 +39,11 @@ export type AdminAccountRecord = {
   updatedAt: string;
 };
 
+export type AdminAccountCustomerConflictRecord = {
+  id: string;
+  email: string;
+};
+
 export type CreateAdminAccountInput = {
   email: string;
   passwordHash: string;
@@ -52,29 +58,36 @@ export type CreateAdminAccountInput = {
 export type UpdateAdminAccountInput = {
   adminAccountId: string;
   email: string;
+  expectedUpdatedAt: string;
   updatedAt: string;
 };
 
 export type ApproveAdminAccountInput = {
   adminAccountId: string;
+  expectedUpdatedAt: string;
   approvedAt: string;
   updatedAt: string;
 };
 
 export type RejectAdminAccountInput = {
   adminAccountId: string;
+  expectedStatus: AccountStatusValue;
+  expectedUpdatedAt: string;
   rejectionReason: string | null;
   updatedAt: string;
 };
 
 export type SuspendAdminAccountInput = {
   adminAccountId: string;
+  expectedUpdatedAt: string;
   suspensionReason: string | null;
   updatedAt: string;
 };
 
 export type ReactivateAdminAccountInput = {
   adminAccountId: string;
+  expectedStatus: Extract<AccountStatusValue, "INACTIVE" | "SUSPENDED">;
+  expectedUpdatedAt: string;
   updatedAt: string;
 };
 
@@ -84,6 +97,9 @@ export type AdminAccountRepository = {
     adminAccountId: string
   ): Promise<AdminAccountRecord | null>;
   findAdminAccountByEmail(email: string): Promise<AdminAccountRecord | null>;
+  findCustomerByEmail(
+    email: string
+  ): Promise<AdminAccountCustomerConflictRecord | null>;
   createAdminAccount(
     input: CreateAdminAccountInput
   ): Promise<AdminAccountRecord>;
@@ -189,6 +205,18 @@ export class DrizzleAdminAccountRepository
     return admin ? adminAccountRecordFromRow(admin) : null;
   }
 
+  async findCustomerByEmail(
+    email: string
+  ): Promise<AdminAccountCustomerConflictRecord | null> {
+    const [customer] = await this.db
+      .select({ id: customers.id, email: customers.email })
+      .from(customers)
+      .where(sql`lower(${customers.email}) = ${normalizeEmail(email)}`)
+      .limit(1);
+
+    return customer ?? null;
+  }
+
   async createAdminAccount(
     input: CreateAdminAccountInput
   ): Promise<AdminAccountRecord> {
@@ -221,7 +249,13 @@ export class DrizzleAdminAccountRepository
         email: normalizeEmail(input.email),
         updated_at: input.updatedAt,
       })
-      .where(and(eq(admins.id, input.adminAccountId), eq(admins.is_owner, false)))
+      .where(
+        and(
+          eq(admins.id, input.adminAccountId),
+          eq(admins.is_owner, false),
+          eq(admins.updated_at, input.expectedUpdatedAt)
+        )
+      )
       .returning();
 
     return admin ? adminAccountRecordFromRow(admin) : null;
@@ -238,7 +272,15 @@ export class DrizzleAdminAccountRepository
         rejection_reason: null,
         updated_at: input.updatedAt,
       })
-      .where(and(eq(admins.id, input.adminAccountId), eq(admins.is_owner, false)))
+      .where(
+        and(
+          eq(admins.id, input.adminAccountId),
+          eq(admins.is_owner, false),
+          eq(admins.updated_at, input.expectedUpdatedAt),
+          isNotNull(admins.email_verified_at),
+          isNull(admins.approved_at)
+        )
+      )
       .returning();
 
     return admin ? adminAccountRecordFromRow(admin) : null;
@@ -257,7 +299,12 @@ export class DrizzleAdminAccountRepository
           updated_at: input.updatedAt,
         })
         .where(
-          and(eq(admins.id, input.adminAccountId), eq(admins.is_owner, false))
+          and(
+            eq(admins.id, input.adminAccountId),
+            eq(admins.is_owner, false),
+            eq(admins.status, input.expectedStatus),
+            eq(admins.updated_at, input.expectedUpdatedAt)
+          )
         )
         .returning(),
       this.db
@@ -267,7 +314,13 @@ export class DrizzleAdminAccountRepository
           and(
             eq(sessions.actor_kind, "ADMIN"),
             eq(sessions.actor_id, input.adminAccountId),
-            eq(sessions.status, "ACTIVE")
+            eq(sessions.status, "ACTIVE"),
+            sql`EXISTS (
+              SELECT 1 FROM ${admins}
+              WHERE ${admins.id} = ${input.adminAccountId}
+                AND ${admins.status} = 'INACTIVE'
+                AND ${admins.updated_at} = ${input.updatedAt}
+            )`
           )
         )
         .returning({ id: sessions.id }),
@@ -289,7 +342,12 @@ export class DrizzleAdminAccountRepository
           updated_at: input.updatedAt,
         })
         .where(
-          and(eq(admins.id, input.adminAccountId), eq(admins.is_owner, false))
+          and(
+            eq(admins.id, input.adminAccountId),
+            eq(admins.is_owner, false),
+            eq(admins.status, "ACTIVE"),
+            eq(admins.updated_at, input.expectedUpdatedAt)
+          )
         )
         .returning(),
       this.db
@@ -299,7 +357,13 @@ export class DrizzleAdminAccountRepository
           and(
             eq(sessions.actor_kind, "ADMIN"),
             eq(sessions.actor_id, input.adminAccountId),
-            eq(sessions.status, "ACTIVE")
+            eq(sessions.status, "ACTIVE"),
+            sql`EXISTS (
+              SELECT 1 FROM ${admins}
+              WHERE ${admins.id} = ${input.adminAccountId}
+                AND ${admins.status} = 'SUSPENDED'
+                AND ${admins.updated_at} = ${input.updatedAt}
+            )`
           )
         )
         .returning({ id: sessions.id }),
@@ -320,7 +384,14 @@ export class DrizzleAdminAccountRepository
         rejection_reason: null,
         updated_at: input.updatedAt,
       })
-      .where(and(eq(admins.id, input.adminAccountId), eq(admins.is_owner, false)))
+      .where(
+        and(
+          eq(admins.id, input.adminAccountId),
+          eq(admins.is_owner, false),
+          eq(admins.status, input.expectedStatus),
+          eq(admins.updated_at, input.expectedUpdatedAt)
+        )
+      )
       .returning();
 
     return admin ? adminAccountRecordFromRow(admin) : null;

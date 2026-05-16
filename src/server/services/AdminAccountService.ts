@@ -88,6 +88,15 @@ function serviceError(code: ErrorCodeType): GeneralError<Record<string, never>> 
   return new GeneralError({}, code);
 }
 
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    /SQLITE_CONSTRAINT|UNIQUE constraint failed|constraint failed/i.test(
+      error.message
+    )
+  );
+}
+
 function toDomainRecord(record: AdminAccountRecord): DomainAdminAccountRecord {
   return {
     id: record.id,
@@ -208,16 +217,31 @@ export class AdminAccountService {
             ? ("approved" as const)
             : ("rejected" as const),
     };
-    const result =
-      input.type === "invitation"
-        ? await this.accountEmails.sendAdminInvitationEmail(payload)
-        : input.type === "approval"
-          ? await this.accountEmails.sendAdminApprovalEmail(payload)
-          : await this.accountEmails.sendAdminRejectionEmail(payload);
 
-    return result.ok
-      ? Result.okay({ sent: true })
-      : Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    try {
+      const result =
+        input.type === "invitation"
+          ? await this.accountEmails.sendAdminInvitationEmail(payload)
+          : input.type === "approval"
+            ? await this.accountEmails.sendAdminApprovalEmail(payload)
+            : await this.accountEmails.sendAdminRejectionEmail(payload);
+
+      return Result.okay({ sent: result.ok });
+    } catch {
+      return Result.okay({ sent: false });
+    }
+  }
+
+  private async emailConflictsWithExistingAccount(
+    email: string,
+    currentAdminId?: string
+  ): Promise<boolean> {
+    const [admin, customer] = await Promise.all([
+      this.repository.findAdminAccountByEmail(email),
+      this.repository.findCustomerByEmail(email),
+    ]);
+
+    return Boolean(customer || (admin && admin.id !== currentAdminId));
   }
 
   async listAdminAccounts(
@@ -260,10 +284,7 @@ export class AdminAccountService {
       return Result.error(serviceError(validation.code));
     }
 
-    const existing = await this.repository.findAdminAccountByEmail(
-      validation.value.email
-    );
-    if (existing) {
+    if (await this.emailConflictsWithExistingAccount(validation.value.email)) {
       return Result.error(serviceError("CONFLICT_STATE"));
     }
 
@@ -279,7 +300,16 @@ export class AdminAccountService {
       passwordSalt: passwordCredential.passwordSalt,
       now: createdAt,
     });
-    const admin = await this.repository.createAdminAccount(defaults);
+    let admin: AdminAccountRecord;
+    try {
+      admin = await this.repository.createAdminAccount(defaults);
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        return Result.error(serviceError("CONFLICT_STATE"));
+      }
+
+      throw error;
+    }
     const invitationEmail =
       validation.value.sendInvitationEmail && this.lifecycleEmailsEnabled
         ? await this.sendLifecycleEmail({
@@ -313,24 +343,36 @@ export class AdminAccountService {
       return Result.error(serviceError(validation.code));
     }
 
-    if (validation.value.email) {
-      const existing = await this.repository.findAdminAccountByEmail(
-        validation.value.email
-      );
-      if (existing && existing.id !== input.adminAccountId) {
-        return Result.error(serviceError("CONFLICT_STATE"));
-      }
+    const nextEmail = validation.value.email ?? target.content.email;
+    if (
+      validation.value.email &&
+      (await this.emailConflictsWithExistingAccount(
+        validation.value.email,
+        input.adminAccountId
+      ))
+    ) {
+      return Result.error(serviceError("CONFLICT_STATE"));
     }
 
-    const admin = await this.repository.updateAdminAccount({
-      adminAccountId: input.adminAccountId,
-      email: validation.value.email ?? target.content.email,
-      updatedAt: this.now().toISOString(),
-    });
+    let admin: AdminAccountRecord | null;
+    try {
+      admin = await this.repository.updateAdminAccount({
+        adminAccountId: input.adminAccountId,
+        email: nextEmail,
+        expectedUpdatedAt: target.content.updatedAt,
+        updatedAt: this.now().toISOString(),
+      });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        return Result.error(serviceError("CONFLICT_STATE"));
+      }
+
+      throw error;
+    }
 
     return admin
       ? Result.okay({ admin: toAdminDto(admin) })
-      : Result.error(serviceError("RESOURCE_NOT_FOUND"));
+      : Result.error(serviceError("CONFLICT_STATE"));
   }
 
   async approveAdminAccount(
@@ -353,11 +395,12 @@ export class AdminAccountService {
 
     const admin = await this.repository.approveAdminAccount({
       adminAccountId: input.adminAccountId,
+      expectedUpdatedAt: target.content.updatedAt,
       approvedAt: decision.patch.approvedAt ?? now,
       updatedAt: decision.patch.updatedAt,
     });
     if (!admin) {
-      return Result.error(serviceError("RESOURCE_NOT_FOUND"));
+      return Result.error(serviceError("CONFLICT_STATE"));
     }
 
     const email = await this.sendLifecycleEmail({
@@ -391,11 +434,13 @@ export class AdminAccountService {
 
     const admin = await this.repository.rejectAdminAccount({
       adminAccountId: input.adminAccountId,
+      expectedStatus: target.content.status,
+      expectedUpdatedAt: target.content.updatedAt,
       rejectionReason: decision.patch.rejectionReason ?? null,
       updatedAt: decision.patch.updatedAt,
     });
     if (!admin) {
-      return Result.error(serviceError("RESOURCE_NOT_FOUND"));
+      return Result.error(serviceError("CONFLICT_STATE"));
     }
 
     if (shouldSendRejectionEmail(input.body)) {
@@ -431,13 +476,14 @@ export class AdminAccountService {
 
     const admin = await this.repository.suspendAdminAccount({
       adminAccountId: input.adminAccountId,
+      expectedUpdatedAt: target.content.updatedAt,
       suspensionReason: decision.patch.suspensionReason ?? null,
       updatedAt: decision.patch.updatedAt,
     });
 
     return admin
       ? Result.okay({ admin: toAdminDto(admin) })
-      : Result.error(serviceError("RESOURCE_NOT_FOUND"));
+      : Result.error(serviceError("CONFLICT_STATE"));
   }
 
   async reactivateAdminAccount(
@@ -458,13 +504,17 @@ export class AdminAccountService {
       return Result.error(serviceError(decision.code));
     }
 
+    const expectedStatus =
+      target.content.status === "SUSPENDED" ? "SUSPENDED" : "INACTIVE";
     const admin = await this.repository.reactivateAdminAccount({
       adminAccountId: input.adminAccountId,
+      expectedStatus,
+      expectedUpdatedAt: target.content.updatedAt,
       updatedAt: decision.patch.updatedAt,
     });
 
     return admin
       ? Result.okay({ admin: toAdminDto(admin) })
-      : Result.error(serviceError("RESOURCE_NOT_FOUND"));
+      : Result.error(serviceError("CONFLICT_STATE"));
   }
 }

@@ -35,6 +35,7 @@ function adminRecord(
 
 class FakeAdminRepository implements AdminAccountRepository {
   admins: AdminAccountRecord[] = [];
+  customerEmails: string[] = [];
   created?: CreateAdminAccountInput;
   updated?: UpdateAdminAccountInput;
   approved?: ApproveAdminAccountInput;
@@ -58,6 +59,14 @@ class FakeAdminRepository implements AdminAccountRepository {
     );
   }
 
+  async findCustomerByEmail(email: string) {
+    const existing = this.customerEmails.find(
+      (customerEmail) => customerEmail.toLowerCase() === email.toLowerCase()
+    );
+
+    return existing ? { id: `customer_${existing}`, email: existing } : null;
+  }
+
   async createAdminAccount(input: CreateAdminAccountInput) {
     this.created = input;
     const record = adminRecord({
@@ -76,7 +85,7 @@ class FakeAdminRepository implements AdminAccountRepository {
   async updateAdminAccount(input: UpdateAdminAccountInput) {
     this.updated = input;
     const admin = await this.findAdminAccountById(input.adminAccountId);
-    if (!admin) return null;
+    if (!admin || admin.updatedAt !== input.expectedUpdatedAt) return null;
     admin.email = input.email;
     admin.updatedAt = input.updatedAt;
     return admin;
@@ -85,7 +94,14 @@ class FakeAdminRepository implements AdminAccountRepository {
   async approveAdminAccount(input: ApproveAdminAccountInput) {
     this.approved = input;
     const admin = await this.findAdminAccountById(input.adminAccountId);
-    if (!admin) return null;
+    if (
+      !admin ||
+      admin.updatedAt !== input.expectedUpdatedAt ||
+      !admin.emailVerifiedAt ||
+      admin.approvedAt
+    ) {
+      return null;
+    }
     admin.status = "ACTIVE";
     admin.approvedAt = input.approvedAt;
     admin.rejectionReason = null;
@@ -96,7 +112,13 @@ class FakeAdminRepository implements AdminAccountRepository {
   async rejectAdminAccount(input: RejectAdminAccountInput) {
     this.rejected = input;
     const admin = await this.findAdminAccountById(input.adminAccountId);
-    if (!admin) return null;
+    if (
+      !admin ||
+      admin.updatedAt !== input.expectedUpdatedAt ||
+      admin.status !== input.expectedStatus
+    ) {
+      return null;
+    }
     admin.status = "INACTIVE";
     admin.approvedAt = null;
     admin.rejectionReason = input.rejectionReason;
@@ -107,7 +129,13 @@ class FakeAdminRepository implements AdminAccountRepository {
   async suspendAdminAccount(input: SuspendAdminAccountInput) {
     this.suspended = input;
     const admin = await this.findAdminAccountById(input.adminAccountId);
-    if (!admin) return null;
+    if (
+      !admin ||
+      admin.updatedAt !== input.expectedUpdatedAt ||
+      admin.status !== "ACTIVE"
+    ) {
+      return null;
+    }
     admin.status = "SUSPENDED";
     admin.suspensionReason = input.suspensionReason;
     admin.updatedAt = input.updatedAt;
@@ -117,7 +145,13 @@ class FakeAdminRepository implements AdminAccountRepository {
   async reactivateAdminAccount(input: ReactivateAdminAccountInput) {
     this.reactivated = input;
     const admin = await this.findAdminAccountById(input.adminAccountId);
-    if (!admin) return null;
+    if (
+      !admin ||
+      admin.updatedAt !== input.expectedUpdatedAt ||
+      admin.status !== input.expectedStatus
+    ) {
+      return null;
+    }
     admin.status = "ACTIVE";
     admin.suspensionReason = null;
     admin.rejectionReason = null;
@@ -270,6 +304,7 @@ describe("AdminAccountService", () => {
     expect(repository.updated).toEqual({
       adminAccountId: "admin_1",
       email: "newops@example.test",
+      expectedUpdatedAt: now,
       updatedAt: now,
     });
   });
@@ -334,23 +369,14 @@ describe("AdminAccountService", () => {
     expect(sent).toEqual(["approval", "rejection"]);
   });
 
-  it("protects owner invariants and maps duplicates/provider failures safely", async () => {
+  it("protects owner invariants and blocks duplicate Admin or Customer emails", async () => {
     const repository = new FakeAdminRepository();
     repository.admins.push(
       adminRecord({ id: "owner_1", role: "SUPER_ADMIN", isOwner: true }),
       adminRecord({ id: "admin_2", email: "duplicate@example.test" })
     );
-    const service = createService({
-      repository,
-      lifecycleEmailsEnabled: true,
-      emails: {
-        ...notifier(),
-        sendAdminInvitationEmail: async () => ({
-          ok: false,
-          error: new Error("raw provider token leaked"),
-        }),
-      },
-    });
+    repository.customerEmails.push("customer@example.test");
+    const service = createService({ repository });
 
     await expect(
       service.suspendAdminAccount({
@@ -373,13 +399,78 @@ describe("AdminAccountService", () => {
     await expect(
       service.createAdminAccount({
         actor: ownerActor,
-        requestId: "req_email_fail",
+        requestId: "req_customer_duplicate",
         body: {
-          email: "new@example.test",
+          email: "CUSTOMER@example.test",
           password: "correct horse battery staple",
-          sendInvitationEmail: true,
         },
       })
-    ).resolves.toMatchObject({ error: { code: "PROVIDER_UNAVAILABLE" } });
+    ).resolves.toMatchObject({ error: { code: "CONFLICT_STATE" } });
+    await expect(
+      service.updateAdminAccount({
+        actor: ownerActor,
+        requestId: "req_update_customer_duplicate",
+        adminAccountId: "admin_2",
+        body: { email: "customer@example.test" },
+      })
+    ).resolves.toMatchObject({ error: { code: "CONFLICT_STATE" } });
+  });
+
+  it("keeps committed admin changes successful when lifecycle emails fail", async () => {
+    const repository = new FakeAdminRepository();
+    repository.admins.push(adminRecord({ approvedAt: null }));
+    const service = createService({
+      repository,
+      lifecycleEmailsEnabled: true,
+      emails: {
+        ...notifier(),
+        sendAdminInvitationEmail: async () => ({
+          ok: false,
+          error: new Error("raw provider token leaked"),
+        }),
+        sendAdminApprovalEmail: async () => ({
+          ok: false,
+          error: new Error("raw provider token leaked"),
+        }),
+        sendAdminRejectionEmail: async () => {
+          throw new Error("raw provider token leaked");
+        },
+      },
+    });
+
+    const created = await service.createAdminAccount({
+      actor: ownerActor,
+      requestId: "req_email_fail",
+      body: {
+        email: "new@example.test",
+        password: "correct horse battery staple",
+        sendInvitationEmail: true,
+      },
+    });
+    expect(created.error).toBeNull();
+    expect(created.content?.invitationEmail.sent).toBe(false);
+    expect(repository.admins.some((admin) => admin.email === "new@example.test")).toBe(
+      true
+    );
+
+    await expect(
+      service.approveAdminAccount({
+        actor: ownerActor,
+        requestId: "req_approve_fail",
+        adminAccountId: "admin_1",
+      })
+    ).resolves.toMatchObject({
+      content: { admin: { approved: true, status: "ACTIVE" } },
+    });
+    await expect(
+      service.rejectAdminAccount({
+        actor: ownerActor,
+        requestId: "req_reject_fail",
+        adminAccountId: "admin_1",
+        body: { reason: "No longer eligible", sendRejectionEmail: true },
+      })
+    ).resolves.toMatchObject({
+      content: { admin: { status: "INACTIVE", dashboardEligible: false } },
+    });
   });
 });
