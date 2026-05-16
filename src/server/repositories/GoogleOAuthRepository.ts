@@ -65,6 +65,7 @@ function stateRecord(row: OAuthStateRow): GoogleOAuthStateRecord {
     redirectPath: row.redirect_path,
     expiresAt: row.expires_at,
     usedAt: row.used_at,
+    sourceHash: row.source_hash,
   };
 }
 

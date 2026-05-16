@@ -86,6 +86,25 @@ function booleanFromRecord(value: Record<string, unknown>, key: string): boolean
   return value[key] === true;
 }
 
+function isLikelyJwksProviderError(error: unknown): boolean {
+  const name =
+    error instanceof Error
+      ? error.name
+      : isRecord(error) && typeof error.name === "string"
+        ? error.name
+        : "";
+  const code =
+    isRecord(error) && typeof error.code === "string" ? error.code : "";
+
+  return (
+    error instanceof TypeError ||
+    name === "AbortError" ||
+    name === "JWKSTimeout" ||
+    code === "ERR_JWKS_TIMEOUT" ||
+    code === "ERR_JWKS_FETCH_FAILED"
+  );
+}
+
 function envString(
   env: (Partial<Env> & Record<string, unknown>) | undefined,
   key: string
@@ -198,6 +217,10 @@ export async function verifyGoogleIdToken(
       return Result.error(authenticationFailure("google_email_missing"));
     }
 
+    if (typeof payload.exp !== "number") {
+      return Result.error(authenticationFailure("google_exp_missing"));
+    }
+
     if (payload.email_verified !== true) {
       return Result.error(authenticationFailure("google_email_unverified"));
     }
@@ -220,8 +243,12 @@ export async function verifyGoogleIdToken(
       familyName: stringFromRecord(payload, "family_name"),
       picture: stringFromRecord(payload, "picture"),
     });
-  } catch {
-    return Result.error(authenticationFailure("google_id_token_invalid"));
+  } catch (error) {
+    return Result.error(
+      isLikelyJwksProviderError(error)
+        ? providerUnavailable("google_jwks_unavailable")
+        : authenticationFailure("google_id_token_invalid")
+    );
   }
 }
 
@@ -261,27 +288,16 @@ export class GoogleOAuthClient implements GoogleOAuthProviderClient {
 }
 
 export function resolveGoogleOAuthConfig(
-  env: (Partial<Env> & Record<string, unknown>) | undefined,
-  input: { requestUrl?: string } = {}
+  env: (Partial<Env> & Record<string, unknown>) | undefined
 ): AppResult<GoogleOAuthConfig> {
   const clientId = envString(env, "GOOGLE_CLIENT_ID");
   const clientSecret = envString(env, "GOOGLE_CLIENT_SECRET");
   const explicitRedirectUri = envString(env, "GOOGLE_REDIRECT_URI");
   const appBaseUrl =
     envString(env, "APP_BASE_URL") ?? envString(env, "PUBLIC_APP_BASE_URL");
-  const requestOrigin = input.requestUrl
-    ? validatedAbsoluteUrl(input.requestUrl)
-    : undefined;
-  const fallbackOrigin = requestOrigin
-    ? new URL(requestOrigin).origin
-    : undefined;
   const redirectUri =
     explicitRedirectUri ??
-    (appBaseUrl
-      ? new URL(GOOGLE_CALLBACK_PATH, appBaseUrl).toString()
-      : fallbackOrigin
-        ? new URL(GOOGLE_CALLBACK_PATH, fallbackOrigin).toString()
-        : undefined);
+    (appBaseUrl ? new URL(GOOGLE_CALLBACK_PATH, appBaseUrl).toString() : undefined);
 
   if (!clientId || !clientSecret || !redirectUri) {
     return Result.error(providerUnavailable("google_oauth_config_missing"));
@@ -303,7 +319,7 @@ export function createGoogleOAuthClientFromEnv(
   env: (Partial<Env> & Record<string, unknown>) | undefined,
   input: { requestUrl?: string; fetch?: typeof fetch } = {}
 ): AppResult<GoogleOAuthClient> {
-  const config = resolveGoogleOAuthConfig(env, input);
+  const config = resolveGoogleOAuthConfig(env);
 
   return config.error
     ? config

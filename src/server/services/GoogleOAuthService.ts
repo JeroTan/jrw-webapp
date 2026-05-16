@@ -79,6 +79,14 @@ export type CreateGoogleCustomerLinkSessionInput = {
   createdAt: string;
 };
 
+type GoogleOAuthSessionCreationInput = {
+  sessionTokenHash: string;
+  sessionExpiresAt: string;
+  requestId: string;
+  sourceHash?: string;
+  createdAt: string;
+};
+
 export type GoogleOAuthRepository = {
   createOAuthState(input: CreateOAuthStateInput): Promise<GoogleOAuthStateRecord>;
   findOAuthStateByHash(input: {
@@ -192,6 +200,14 @@ function isStorageError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
 
   return /D1_|SQLITE_|database|no such table|no such column|prepare|execute|query/i.test(
+    error.message
+  );
+}
+
+function isUniqueConstraintError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+
+  return /UNIQUE constraint failed|SQLITE_CONSTRAINT|D1_.*constraint/i.test(
     error.message
   );
 }
@@ -360,6 +376,38 @@ export class GoogleOAuthService {
     return true;
   }
 
+  private async recoverConcurrentProviderLink(input: {
+    identity: GoogleOAuthIdentity;
+    session: GoogleOAuthSessionCreationInput;
+  }): Promise<GoogleOAuthCustomerRecord | null> {
+    const normalizedEmail = normalizeEmail(input.identity.email);
+    const [providerLink, customerByEmail, adminEmailExists] = await Promise.all([
+      this.repository.findProviderLink({
+        provider: GOOGLE_OAUTH_PROVIDER,
+        providerUserId: input.identity.sub,
+      }),
+      this.repository.findCustomerByEmail(normalizedEmail),
+      this.repository.adminEmailExists(normalizedEmail),
+    ]);
+    const decision = evaluateGoogleOAuthLinkDecision({
+      identity: input.identity,
+      providerLink,
+      customerByEmail,
+      adminEmailExists,
+    });
+
+    if (!decision.ok || decision.action !== "sign-in-linked") {
+      return null;
+    }
+
+    const created = await this.repository.createSessionForCustomer({
+      customerId: decision.customerId,
+      ...input.session,
+    });
+
+    return created ? decision.customer : null;
+  }
+
   async startSession(
     input: StartGoogleOAuthInput
   ): Promise<AppResult<GoogleOAuthStartResult>> {
@@ -448,6 +496,7 @@ export class GoogleOAuthService {
       const stateDecision = evaluateOAuthStateRecord({
         record: stateRecord,
         now,
+        sourceHash: input.sourceIpHash,
       });
 
       if (!stateDecision.ok) {
@@ -521,34 +570,45 @@ export class GoogleOAuthService {
       };
       let customer: GoogleOAuthCustomerRecord | null;
 
-      if (decision.action === "sign-in-linked") {
-        const created = await this.repository.createSessionForCustomer({
-          customerId: decision.customerId,
-          ...baseSessionInput,
-        });
-        customer = created ? decision.customer : null;
-      } else if (decision.action === "link-existing-customer") {
-        customer = await this.repository.linkCustomerAndCreateSession({
-          customerId: decision.customerId,
-          provider: GOOGLE_OAUTH_PROVIDER,
-          providerUserId: identity.sub,
-          providerMetadata,
-          profileUpdates: googleProfileUpdatesForEmptyFields({
-            customer: decision.customer,
-            identity,
-            now: issuedAt,
-          }),
-          ...baseSessionInput,
-        });
-      } else {
-        customer = await this.repository.createCustomerLinkAndSession({
-          email: normalizedEmail,
-          emailVerifiedAt: issuedAt.toISOString(),
-          provider: GOOGLE_OAUTH_PROVIDER,
-          providerUserId: identity.sub,
-          providerMetadata,
-          profile: profileFromIdentity(identity),
-          ...baseSessionInput,
+      try {
+        if (decision.action === "sign-in-linked") {
+          const created = await this.repository.createSessionForCustomer({
+            customerId: decision.customerId,
+            ...baseSessionInput,
+          });
+          customer = created ? decision.customer : null;
+        } else if (decision.action === "link-existing-customer") {
+          customer = await this.repository.linkCustomerAndCreateSession({
+            customerId: decision.customerId,
+            provider: GOOGLE_OAUTH_PROVIDER,
+            providerUserId: identity.sub,
+            providerMetadata,
+            profileUpdates: googleProfileUpdatesForEmptyFields({
+              customer: decision.customer,
+              identity,
+              now: issuedAt,
+            }),
+            ...baseSessionInput,
+          });
+        } else {
+          customer = await this.repository.createCustomerLinkAndSession({
+            email: normalizedEmail,
+            emailVerifiedAt: issuedAt.toISOString(),
+            provider: GOOGLE_OAUTH_PROVIDER,
+            providerUserId: identity.sub,
+            providerMetadata,
+            profile: profileFromIdentity(identity),
+            ...baseSessionInput,
+          });
+        }
+      } catch (error) {
+        if (!isUniqueConstraintError(error)) {
+          throw error;
+        }
+
+        customer = await this.recoverConcurrentProviderLink({
+          identity,
+          session: baseSessionInput,
         });
       }
 

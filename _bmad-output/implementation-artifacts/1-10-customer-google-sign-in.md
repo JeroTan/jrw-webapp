@@ -1,6 +1,6 @@
 # Story 1.10: Customer Google Sign-In
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -90,6 +90,14 @@ so that I can access JRW checkout/account flows without creating separate passwo
   - [x] Route/controller tests: redirect status/location, set-cookie flags, safe error redirect/envelope, OpenAPI metadata, request ID propagation, no token leakage in response bodies.
   - [x] Run targeted Vitest for new domain/service/route/adapter/schema tests.
   - [x] Run `npm run check`. Because story touches schema/routes/provider code, run `npm run build-test` unless blocked; record exact blocker.
+
+### Review Findings
+
+- [x] [Review][Patch] OAuth callback not bound to initiating source hash allows login CSRF/session swap [src/server/services/GoogleOAuthService.ts:459]
+- [x] [Review][Patch] OAuth callback returns internal decision reasons in API error details [src/server/controllers/GoogleOAuthController.ts:36]
+- [x] [Review][Patch] Google redirect URI falls back to request origin instead of failing safe on missing env config [src/lib/google/oauth.ts:278]
+- [x] [Review][Patch] ID token verification maps JWKS/provider outages to `AUTHENTICATION` instead of `PROVIDER_UNAVAILABLE` [src/lib/google/oauth.ts:223]
+- [x] [Review][Patch] Concurrent callback race can throw unique-constraint and surface `PROVIDER_UNAVAILABLE` instead of idempotent sign-in outcome [src/server/services/GoogleOAuthService.ts:531]
 
 ## Dev Notes
 
@@ -237,6 +245,7 @@ GPT-5 Codex
 - Initial `npm run check` hit 120s timeout; rerun with longer timeout passed with 0 errors and existing legacy hints in old scaffold files.
 - `npx vitest run` passed: 33 files, 146 tests.
 - `npm run build-test` passed: Astro check, Vitest, and Astro build.
+- Review patch validation passed after fixing OAuth callback source binding, safe error details, redirect config fallback, JWKS outage mapping, and concurrent link recovery: focused Vitest 4 files / 24 tests; `npm run check` 0 errors; `npm run build-test` 33 files / 150 tests plus Astro build.
 
 ### Completion Notes List
 
@@ -248,6 +257,7 @@ GPT-5 Codex
 - Added Google OAuth repository/service/controller/routes for redirect start and callback flows, atomic state consumption before provider exchange, Customer-only account creation/linking, provider `sub` identity, and shared secure `jrw_session` cookie handling.
 - Updated endpoint catalog, migration plan, `.env.example`, and sprint status. Remote development D1 migration apply remains documented release blocker because implementation did not run `npm run db:migrate:remote`.
 - Added focused schema, domain, provider adapter, service, and route tests; full validation passed.
+- Code review findings fixed: OAuth callback validates initiating source hash, callback errors no longer expose internal decision reasons, OAuth config no longer trusts request origin fallback, JWKS fetch outages map to `PROVIDER_UNAVAILABLE`, and concurrent provider-link races recover through idempotent Customer sign-in.
 
 ### File List
 
@@ -280,3 +290,4 @@ GPT-5 Codex
 ### Change Log
 
 - 2026-05-15: Implemented Story 1.10 Customer Google Sign-In with OAuth state migration, domain/provider/repository/service/route layers, docs updates, and full validation; status set to review.
+- 2026-05-16: Applied code review fixes, reran focused and full validation, reviewed remaining tests/docs chunk, and moved Story 1.10 to done.

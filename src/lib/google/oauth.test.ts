@@ -9,6 +9,7 @@ import { hashGoogleOAuthMaterial } from "@/domain/auth/google-oauth";
 import {
   buildGoogleAuthorizationUrl,
   exchangeGoogleAuthorizationCode,
+  resolveGoogleOAuthConfig,
   verifyGoogleIdToken,
 } from "./oauth";
 
@@ -85,6 +86,27 @@ describe("google oauth provider boundary", () => {
     expect(JSON.stringify(result)).not.toContain("raw authorization-code");
   });
 
+  it("requires explicit redirect config or app base URL", () => {
+    expect(
+      resolveGoogleOAuthConfig({
+        GOOGLE_CLIENT_ID: config.clientId,
+        GOOGLE_CLIENT_SECRET: config.clientSecret,
+      })
+    ).toMatchObject({ error: { code: "PROVIDER_UNAVAILABLE" } });
+    expect(
+      resolveGoogleOAuthConfig({
+        GOOGLE_CLIENT_ID: config.clientId,
+        GOOGLE_CLIENT_SECRET: config.clientSecret,
+        APP_BASE_URL: "https://jrw.test",
+      })
+    ).toMatchObject({
+      content: {
+        redirectUri: "https://jrw.test/api/oauth/google/callback",
+      },
+      error: null,
+    });
+  });
+
   it("verifies Google ID token claims and hashed nonce", async () => {
     const { publicKey, privateKey } = await generateKeyPair("RS256");
     const jwk = await exportJWK(publicKey);
@@ -132,5 +154,37 @@ describe("google oauth provider boundary", () => {
         jwks,
       })
     ).resolves.toMatchObject({ error: { code: "AUTHENTICATION" } });
+
+    const noExpirationToken = await new SignJWT({
+      sub: "google-sub-1",
+      email: "buyer@example.test",
+      email_verified: true,
+      nonce: "raw-nonce",
+    })
+      .setProtectedHeader({ alg: "RS256", kid: "kid1" })
+      .setIssuer("https://accounts.google.com")
+      .setAudience(config.clientId)
+      .setIssuedAt()
+      .sign(privateKey);
+
+    await expect(
+      verifyGoogleIdToken({
+        idToken: noExpirationToken,
+        clientId: config.clientId,
+        expectedNonceHash: nonceHash,
+        jwks,
+      })
+    ).resolves.toMatchObject({ error: { code: "AUTHENTICATION" } });
+
+    await expect(
+      verifyGoogleIdToken({
+        idToken,
+        clientId: config.clientId,
+        expectedNonceHash: nonceHash,
+        jwks: async () => {
+          throw new TypeError("fetch failed");
+        },
+      })
+    ).resolves.toMatchObject({ error: { code: "PROVIDER_UNAVAILABLE" } });
   });
 });

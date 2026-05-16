@@ -25,6 +25,7 @@ class FakeGoogleOAuthRepository implements GoogleOAuthRepository {
   operations: string[] = [];
   sessions: Array<{ customerId: string; tokenHash: string }> = [];
   createdStates: GoogleOAuthStateRecord[] = [];
+  simulateLinkUniqueRace = false;
 
   async createOAuthState(
     input: Parameters<GoogleOAuthRepository["createOAuthState"]>[0]
@@ -37,6 +38,7 @@ class FakeGoogleOAuthRepository implements GoogleOAuthRepository {
       redirectPath: input.redirectPath,
       expiresAt: input.expiresAt,
       usedAt: null,
+      sourceHash: input.sourceHash,
     };
     this.states.push(record);
     this.createdStates.push(record);
@@ -122,6 +124,19 @@ class FakeGoogleOAuthRepository implements GoogleOAuthRepository {
       (entry) => entry.id === input.customerId
     );
     if (!customer) return null;
+
+    if (this.simulateLinkUniqueRace) {
+      this.simulateLinkUniqueRace = false;
+      this.providerLinks.push({
+        provider: input.provider,
+        providerUserId: input.providerUserId,
+        customerId: input.customerId,
+        customer,
+      });
+      throw new Error(
+        "SQLITE_CONSTRAINT: UNIQUE constraint failed: customer_providers.provider, customer_providers.provider_user_id"
+      );
+    }
 
     customer.displayName = input.profileUpdates.displayName ?? customer.displayName;
     customer.firstName = input.profileUpdates.firstName ?? customer.firstName;
@@ -370,6 +385,47 @@ describe("GoogleOAuthService", () => {
     ).resolves.toMatchObject({ error: { code: "CONFLICT_STATE" } });
     expect(provider.exchangeCalls).toBe(0);
     expect(repository.sessions).toHaveLength(0);
+  });
+
+  it("rejects callbacks from a different source than the initiating request", async () => {
+    const repository = new FakeGoogleOAuthRepository();
+    const provider = new FakeGoogleProvider();
+    repository.states.push(await stateRecord({ sourceHash: "source_hash_start" }));
+    const service = createService({ repository, provider });
+
+    await expect(
+      service.handleCallback({
+        state: "raw-state",
+        code: "authorization-code",
+        requestId: "req_callback",
+        sourceIpHash: "source_hash_other",
+      })
+    ).resolves.toMatchObject({ error: { code: "CONFLICT_STATE" } });
+    expect(provider.exchangeCalls).toBe(0);
+    expect(repository.sessions).toHaveLength(0);
+  });
+
+  it("recovers concurrent provider-link races by signing in the linked customer", async () => {
+    const repository = new FakeGoogleOAuthRepository();
+    repository.states.push(await stateRecord());
+    repository.customers.push(customer());
+    repository.simulateLinkUniqueRace = true;
+    const service = createService({ repository });
+
+    const result = await service.handleCallback({
+      state: "raw-state",
+      code: "authorization-code",
+      requestId: "req_callback",
+    });
+
+    expect(result).toMatchObject({
+      content: { actor: { id: "customer_1", role: "CUSTOMER" } },
+      error: null,
+    });
+    expect(repository.operations).toEqual(
+      expect.arrayContaining(["link-customer-session", "create-session"])
+    );
+    expect(repository.sessions).toHaveLength(1);
   });
 
   it("rejects provider errors, unverified email, and Admin email collisions safely", async () => {

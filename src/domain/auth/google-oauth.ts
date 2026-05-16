@@ -33,6 +33,7 @@ export type GoogleOAuthStateRecord = {
   redirectPath: string;
   expiresAt: string;
   usedAt: string | null;
+  sourceHash?: string | null;
 };
 
 export type GoogleOAuthIdentity = {
@@ -69,7 +70,7 @@ export type OAuthStateDecision =
   | {
       ok: false;
       code: Extract<ErrorCodeType, "RESOURCE_NOT_FOUND" | "CONFLICT_STATE">;
-      reason: "MISSING" | "EXPIRED" | "USED";
+      reason: "MISSING" | "EXPIRED" | "USED" | "SOURCE_MISMATCH";
     };
 
 export type GoogleOAuthLinkDecision =
@@ -200,6 +201,7 @@ export async function createGoogleOAuthCredential(
 export function evaluateOAuthStateRecord(input: {
   record: GoogleOAuthStateRecord | null;
   now: Date;
+  sourceHash?: string;
 }): OAuthStateDecision {
   if (!input.record) {
     return {
@@ -222,6 +224,14 @@ export function evaluateOAuthStateRecord(input: {
       ok: false,
       code: "CONFLICT_STATE",
       reason: "EXPIRED",
+    };
+  }
+
+  if (input.record.sourceHash && input.record.sourceHash !== input.sourceHash) {
+    return {
+      ok: false,
+      code: "CONFLICT_STATE",
+      reason: "SOURCE_MISMATCH",
     };
   }
 

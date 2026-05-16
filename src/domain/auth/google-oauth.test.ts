@@ -97,6 +97,26 @@ describe("google oauth domain decisions", () => {
       code: "CONFLICT_STATE",
       reason: "USED",
     });
+    expect(
+      evaluateOAuthStateRecord({
+        record: {
+          id: "state_1",
+          provider: "GOOGLE",
+          stateHash,
+          nonceHash: "nonce-hash",
+          redirectPath: "/account",
+          expiresAt: "2026-05-16T00:00:00.000Z",
+          usedAt: null,
+          sourceHash: "source_hash_start",
+        },
+        now,
+        sourceHash: "source_hash_other",
+      })
+    ).toEqual({
+      ok: false,
+      code: "CONFLICT_STATE",
+      reason: "SOURCE_MISMATCH",
+    });
   });
 
   it("allows linked customers, safe auto-link, and new customer creation only for verified Google email", () => {

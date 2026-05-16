@@ -174,7 +174,13 @@ describe("google oauth routes", () => {
             createController({
               handleCallback: async () =>
                 Result.error(
-                  new GeneralError({ token: "raw-id-token" }, "AUTHENTICATION")
+                  new GeneralError(
+                    {
+                      reason: "ADMIN_EMAIL_COLLISION",
+                      token: "raw-id-token",
+                    },
+                    "AUTHENTICATION"
+                  )
                 ),
             }),
         },
@@ -197,5 +203,6 @@ describe("google oauth routes", () => {
       },
     });
     expect(JSON.stringify(body)).not.toContain("raw-id-token");
+    expect(JSON.stringify(body)).not.toContain("ADMIN_EMAIL_COLLISION");
   });
 });
