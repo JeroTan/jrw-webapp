@@ -1,5 +1,9 @@
 import type { AnyElysia } from "elysia";
 import {
+  adminAccountRoutes,
+  type AdminAccountRoutesOptions,
+} from "./admin-accounts.routes";
+import {
   accountRecoveryRoutes,
   type AccountRecoveryRoutesOptions,
 } from "./account-recovery.routes";
@@ -14,6 +18,7 @@ export { serverRouteGroups } from "./route-groups";
 
 export type ServerRoutesOptions = {
   accountRecovery?: AccountRecoveryRoutesOptions;
+  adminAccounts?: AdminAccountRoutesOptions;
   auth?: AuthRoutesOptions;
   customers?: CustomerRoutesOptions;
   googleOAuth?: GoogleOAuthRoutesOptions;
@@ -25,5 +30,6 @@ export function serverRoutes(app: AnyElysia, options: ServerRoutesOptions = {}) 
     .use((routes) => authRoutes(routes, options.auth))
     .use((routes) => googleOAuthRoutes(routes, options.googleOAuth))
     .use((routes) => accountRecoveryRoutes(routes, options.accountRecovery))
-    .use((routes) => customerRoutes(routes, options.customers));
+    .use((routes) => customerRoutes(routes, options.customers))
+    .use((routes) => adminAccountRoutes(routes, options.adminAccounts));
 }

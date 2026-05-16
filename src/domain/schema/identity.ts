@@ -28,6 +28,8 @@ export const admins = sqliteTable(
       .default("ACTIVE"),
     email_verified_at: text("email_verified_at"),
     approved_at: text("approved_at"),
+    suspension_reason: text("suspension_reason"),
+    rejection_reason: text("rejection_reason"),
     created_at: text("created_at")
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),

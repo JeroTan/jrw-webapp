@@ -207,6 +207,22 @@ function anonymousSession(): SessionInspectionResult {
   };
 }
 
+function sessionAccountEligible(account: AuthAccountRecord): boolean {
+  if (account.status !== "ACTIVE") {
+    return false;
+  }
+
+  if (account.actorKind === "CUSTOMER") {
+    return Boolean(account.emailVerifiedAt);
+  }
+
+  if (account.isOwner) {
+    return true;
+  }
+
+  return Boolean(account.emailVerifiedAt && account.approvedAt);
+}
+
 export class AuthService {
   private readonly accounts: AuthAccountRepository;
   private readonly sessions: AuthSessionRepository;
@@ -475,7 +491,7 @@ export class AuthService {
       session.actorId
     );
 
-    if (!account || account.status !== "ACTIVE") {
+    if (!account || !sessionAccountEligible(account)) {
       return Result.okay(anonymousSession());
     }
 

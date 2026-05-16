@@ -478,4 +478,40 @@ describe("AuthService", () => {
       },
     });
   });
+
+  it("treats unapproved Admin dashboard sessions as anonymous", async () => {
+    const unapprovedAdmin = await createAccount({
+      id: "admin_unapproved",
+      email: "pending-admin@example.test",
+      isOwner: false,
+      emailVerifiedAt: "2026-05-13T00:00:00.000Z",
+      approvedAt: null,
+    });
+    const tokenHash = await hashSessionToken("pending-admin-token");
+    const service = new AuthService({
+      accounts: new FakeAccountRepository([unapprovedAdmin]),
+      sessions: new FakeSessionRepository([
+        {
+          id: "session_pending",
+          tokenHash,
+          actorKind: "ADMIN",
+          actorId: "admin_unapproved",
+          status: "ACTIVE",
+          expiresAt: "2026-05-14T00:00:00.000Z",
+          revokedAt: null,
+        },
+      ]),
+      passwordPepper: "test-pepper-value",
+      now: () => new Date("2026-05-13T00:00:00.000Z"),
+    });
+
+    await expect(
+      service.inspectSession({
+        sessionToken: "pending-admin-token",
+        requestId: "req_pending_admin",
+      })
+    ).resolves.toMatchObject({
+      content: { authenticated: false, actor: null, session: null },
+    });
+  });
 });

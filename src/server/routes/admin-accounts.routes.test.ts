@@ -1,0 +1,265 @@
+import { describe, expect, it } from "vitest";
+import { Result } from "@/utils/general/result";
+import { createApp } from "@/server/app";
+import { AdminAccountController } from "@/server/controllers/AdminAccountController";
+import type { RequestActorContext } from "@/server/context/request-context";
+import type {
+  AdminAccountDto,
+  AdminAccountService,
+} from "@/server/services/AdminAccountService";
+
+function adminDto(overrides: Partial<AdminAccountDto> = {}): AdminAccountDto {
+  return {
+    id: "admin_1",
+    email: "ops@example.test",
+    role: "ADMIN",
+    status: "ACTIVE",
+    isOwner: false,
+    emailVerified: true,
+    approved: true,
+    dashboardEligible: true,
+    suspensionReason: null,
+    rejectionReason: null,
+    createdAt: "2026-05-16T12:33:19.000Z",
+    updatedAt: "2026-05-16T12:33:19.000Z",
+    ...overrides,
+  };
+}
+
+function createController(
+  service: Partial<AdminAccountService>
+): AdminAccountController {
+  return new AdminAccountController(service as AdminAccountService);
+}
+
+const ownerContext = {
+  authenticated: true,
+  role: "SUPER_ADMIN",
+  actorId: "owner_1",
+  safeActorId: "owner_1",
+  accountStatus: {
+    status: "ACTIVE" as const,
+    emailVerified: true,
+    approved: true,
+  },
+  eligibility: {
+    active: true,
+    emailVerified: true,
+    approved: true,
+  },
+} satisfies RequestActorContext;
+
+describe("admin account routes", () => {
+  it("documents Admin account endpoints with auth, schemas, errors, and rate-limit metadata", async () => {
+    const app = createApp();
+    const response = await app.handle(
+      new Request("https://jrw.test/api/openapi/json")
+    );
+    const body = (await response.json()) as {
+      paths?: Record<
+        string,
+        Record<
+          string,
+          {
+            summary?: string;
+            tags?: string[];
+            "x-auth"?: { mode?: string; roles?: string[] };
+            "x-rate-limit-class"?: string;
+            "x-error-codes"?: string[];
+          }
+        >
+      >;
+    };
+
+    const list = body.paths?.["/api/admin-accounts"]?.get;
+    const create = body.paths?.["/api/admin-accounts"]?.post;
+    const detail = body.paths?.["/api/admin-accounts/{adminAccountId}"]?.get;
+    const update = body.paths?.["/api/admin-accounts/{adminAccountId}"]?.patch;
+    const approvals =
+      body.paths?.["/api/admin-accounts/{adminAccountId}/approvals"]?.post;
+    const suspensions =
+      body.paths?.["/api/admin-accounts/{adminAccountId}/suspensions"]?.post;
+    const reactivations =
+      body.paths?.["/api/admin-accounts/{adminAccountId}/suspensions"]?.delete;
+
+    for (const operation of [
+      list,
+      create,
+      detail,
+      update,
+      approvals,
+      suspensions,
+      reactivations,
+    ]) {
+      expect(operation?.tags).toContain("Admin Accounts");
+      expect(operation?.["x-auth"]).toEqual({
+        mode: "required",
+        roles: ["SUPER_ADMIN"],
+      });
+      expect(operation?.["x-rate-limit-class"]).toBe("admin-write");
+      expect(operation?.["x-error-codes"]).toEqual(
+        expect.arrayContaining(["AUTH_REQUIRED", "AUTH_FORBIDDEN"])
+      );
+    }
+    expect(create?.summary).toBe("Create Admin account");
+    expect(approvals?.["x-error-codes"]).toEqual(
+      expect.arrayContaining(["CONFLICT_STATE", "PROVIDER_UNAVAILABLE"])
+    );
+  });
+
+  it("creates, lists, updates, suspends, and reactivates Admin accounts through controller boundary", async () => {
+    const calls: string[] = [];
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => ownerContext,
+      },
+      routes: {
+        adminAccounts: {
+          controllerFactory: () =>
+            createController({
+              createAdminAccount: async () => {
+                calls.push("create");
+                return Result.okay({
+                  admin: adminDto(),
+                  invitationEmail: { sent: true },
+                });
+              },
+              listAdminAccounts: async () => {
+                calls.push("list");
+                return Result.okay({ admins: [adminDto()] });
+              },
+              updateAdminAccount: async () => {
+                calls.push("update");
+                return Result.okay({
+                  admin: adminDto({ email: "newops@example.test" }),
+                });
+              },
+              suspendAdminAccount: async () => {
+                calls.push("suspend");
+                return Result.okay({
+                  admin: adminDto({
+                    status: "SUSPENDED",
+                    dashboardEligible: false,
+                    suspensionReason: "Policy review",
+                  }),
+                });
+              },
+              reactivateAdminAccount: async () => {
+                calls.push("reactivate");
+                return Result.okay({ admin: adminDto() });
+              },
+            }),
+        },
+      },
+    });
+
+    const baseHeaders = {
+      cookie: "jrw_session=owner-token",
+      "content-type": "application/json",
+    };
+    const createResponse = await app.handle(
+      new Request("https://jrw.test/api/admin-accounts", {
+        method: "POST",
+        headers: { ...baseHeaders, "x-request-id": "req_create" },
+        body: JSON.stringify({
+          email: "ops@example.test",
+          password: "correct horse battery staple",
+          sendInvitationEmail: true,
+        }),
+      })
+    );
+    const listResponse = await app.handle(
+      new Request("https://jrw.test/api/admin-accounts", {
+        headers: { cookie: "jrw_session=owner-token", "x-request-id": "req_list" },
+      })
+    );
+    const patchResponse = await app.handle(
+      new Request("https://jrw.test/api/admin-accounts/admin_1", {
+        method: "PATCH",
+        headers: { ...baseHeaders, "x-request-id": "req_patch" },
+        body: JSON.stringify({ email: "newops@example.test" }),
+      })
+    );
+    const suspendResponse = await app.handle(
+      new Request("https://jrw.test/api/admin-accounts/admin_1/suspensions", {
+        method: "POST",
+        headers: { ...baseHeaders, "x-request-id": "req_suspend" },
+        body: JSON.stringify({ reason: "Policy review" }),
+      })
+    );
+    const reactivateResponse = await app.handle(
+      new Request("https://jrw.test/api/admin-accounts/admin_1/suspensions", {
+        method: "DELETE",
+        headers: { cookie: "jrw_session=owner-token", "x-request-id": "req_reactivate" },
+      })
+    );
+
+    expect(createResponse.status).toBe(201);
+    await expect(createResponse.json()).resolves.toMatchObject({
+      data: {
+        admin: { id: "admin_1", role: "ADMIN" },
+        invitationEmail: { sent: true },
+      },
+      meta: { requestId: "req_create" },
+    });
+    await expect(listResponse.json()).resolves.toMatchObject({
+      data: { admins: [{ email: "ops@example.test" }] },
+      meta: { requestId: "req_list" },
+    });
+    await expect(patchResponse.json()).resolves.toMatchObject({
+      data: { admin: { email: "newops@example.test" } },
+      meta: { requestId: "req_patch" },
+    });
+    await expect(suspendResponse.json()).resolves.toMatchObject({
+      data: { admin: { status: "SUSPENDED", dashboardEligible: false } },
+      meta: { requestId: "req_suspend" },
+    });
+    await expect(reactivateResponse.json()).resolves.toMatchObject({
+      data: { admin: { status: "ACTIVE", dashboardEligible: true } },
+      meta: { requestId: "req_reactivate" },
+    });
+    expect(calls).toEqual(["create", "list", "update", "suspend", "reactivate"]);
+  });
+
+  it("rejects role/owner mutation fields before controller execution", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => ownerContext,
+      },
+      routes: {
+        adminAccounts: {
+          controllerFactory: () =>
+            createController({
+              updateAdminAccount: async () =>
+                Result.okay({ admin: adminDto({ role: "SUPER_ADMIN" }) }),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/admin-accounts/admin_1", {
+        method: "PATCH",
+        headers: {
+          cookie: "jrw_session=owner-token",
+          "content-type": "application/json",
+          "x-request-id": "req_bad_admin_patch",
+        },
+        body: JSON.stringify({
+          email: "ops@example.test",
+          role: "SUPER_ADMIN",
+          isOwner: true,
+        }),
+      })
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(400);
+    expect(body).toMatchObject({
+      error: {
+        code: "VALIDATION_FAILED",
+        details: { requestId: "req_bad_admin_patch" },
+      },
+    });
+  });
+});

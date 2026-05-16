@@ -1,6 +1,6 @@
 # Story 1.11: Admin Account Management and Approval
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -24,32 +24,32 @@ so that only trusted operators can access JRW dashboard.
 
 ## Tasks / Subtasks
 
-- [ ] Add admin-lifecycle domain decisions and input validation. (AC: 1-7, 9)
-  - [ ] Create `src/domain/admins/admin-account.ts` with pure decisions for create/update/approve/reject/suspend/reactivate transitions and actor authorization (`SUPER_ADMIN` only for privileged mutations).
-  - [ ] Add `src/domain/admins/admin-account.test.ts` covering happy-path and denied transitions.
-  - [ ] Keep `STORE_ADMIN -> ADMIN` alias behavior from `src/domain/auth/roles.ts`; no new active roles.
+- [x] Add admin-lifecycle domain decisions and input validation. (AC: 1-7, 9)
+  - [x] Create `src/domain/admins/admin-account.ts` with pure decisions for create/update/approve/reject/suspend/reactivate transitions and actor authorization (`SUPER_ADMIN` only for privileged mutations).
+  - [x] Add `src/domain/admins/admin-account.test.ts` covering happy-path and denied transitions.
+  - [x] Keep `STORE_ADMIN -> ADMIN` alias behavior from `src/domain/auth/roles.ts`; no new active roles.
 
-- [ ] Extend admin persistence model only where required by ACs. (AC: 1-5, 9)
-  - [ ] Reuse existing `admins.status`, `admins.email_verified_at`, and `admins.approved_at` before adding new columns.
-  - [ ] Add optional metadata fields only if needed to satisfy API/UX requirements (for example suspension reason and rejection reason) and keep migration minimal/surgical.
-  - [ ] Update `src/domain/schema/identity.ts` and `src/domain/schema-invariants.test.ts` for any new fields/indexes.
-  - [ ] If schema changes, generate migration and update `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md` with ownership and remote apply evidence/blocker.
+- [x] Extend admin persistence model only where required by ACs. (AC: 1-5, 9)
+  - [x] Reuse existing `admins.status`, `admins.email_verified_at`, and `admins.approved_at` before adding new columns.
+  - [x] Add optional metadata fields only if needed to satisfy API/UX requirements (for example suspension reason and rejection reason) and keep migration minimal/surgical.
+  - [x] Update `src/domain/schema/identity.ts` and `src/domain/schema-invariants.test.ts` for any new fields/indexes.
+  - [x] If schema changes, generate migration and update `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md` with ownership and remote apply evidence/blocker.
 
-- [ ] Implement Admin account repository with safe DTO mapping and atomic writes. (AC: 1-6)
-  - [ ] Add `src/server/repositories/AdminAccountRepository.ts` with methods for list/detail/create/update/status transitions.
-  - [ ] Never return `password_hash`, `password_salt`, reset token hashes, session token hashes, or provider metadata in response DTOs.
-  - [ ] Add atomic session invalidation helper for target Admin (`sessions.actor_kind = 'ADMIN'` and `actor_id = targetAdminId`) during suspend/reject flows.
+- [x] Implement Admin account repository with safe DTO mapping and atomic writes. (AC: 1-6)
+  - [x] Add `src/server/repositories/AdminAccountRepository.ts` with methods for list/detail/create/update/status transitions.
+  - [x] Never return `password_hash`, `password_salt`, reset token hashes, session token hashes, or provider metadata in response DTOs.
+  - [x] Add atomic session invalidation helper for target Admin (`sessions.actor_kind = 'ADMIN'` and `actor_id = targetAdminId`) during suspend/reject flows.
 
-- [ ] Implement service orchestration and authorization gates. (AC: 1-7, 9)
-  - [ ] Add `src/server/services/AdminAccountService.ts` returning `AppResult` + stable error codes.
-  - [ ] Enforce actor guard: only authenticated `SUPER_ADMIN` may mutate Admin accounts in this story.
-  - [ ] Keep owner invariant: no mutation path can create second owner or promote Admin to owner (ownership transfer belongs to Story 1.13).
-  - [ ] Ensure suspended/unapproved Admin cannot pass dashboard session inspection after status change.
+- [x] Implement service orchestration and authorization gates. (AC: 1-7, 9)
+  - [x] Add `src/server/services/AdminAccountService.ts` returning `AppResult` + stable error codes.
+  - [x] Enforce actor guard: only authenticated `SUPER_ADMIN` may mutate Admin accounts in this story.
+  - [x] Keep owner invariant: no mutation path can create second owner or promote Admin to owner (ownership transfer belongs to Story 1.13).
+  - [x] Ensure suspended/unapproved Admin cannot pass dashboard session inspection after status change.
 
-- [ ] Implement controller + routes + OpenAPI metadata. (AC: 1, 3, 6-8)
-  - [ ] Add `src/server/controllers/AdminAccountController.ts` with safe envelope mapping.
-  - [ ] Add `src/server/routes/admin-accounts.routes.ts` with TypeBox request/response contracts and `routeDetail(...)` metadata.
-  - [ ] Route set for this story:
+- [x] Implement controller + routes + OpenAPI metadata. (AC: 1, 3, 6-8)
+  - [x] Add `src/server/controllers/AdminAccountController.ts` with safe envelope mapping.
+  - [x] Add `src/server/routes/admin-accounts.routes.ts` with TypeBox request/response contracts and `routeDetail(...)` metadata.
+  - [x] Route set for this story:
     - `GET /api/admin-accounts`
     - `POST /api/admin-accounts`
     - `GET /api/admin-accounts/:adminAccountId`
@@ -57,25 +57,25 @@ so that only trusted operators can access JRW dashboard.
     - `POST /api/admin-accounts/:adminAccountId/approvals`
     - `POST /api/admin-accounts/:adminAccountId/suspensions`
     - `DELETE /api/admin-accounts/:adminAccountId/suspensions` (reactivate)
-  - [ ] Wire route module in `src/server/routes/index.ts` and `src/server/app.ts` through existing options pattern.
+  - [x] Wire route module in `src/server/routes/index.ts` and `src/server/app.ts` through existing options pattern.
 
-- [ ] Wire Admin lifecycle email notifications using existing Resend boundary. (AC: 1, 3)
-  - [ ] Reuse `createAccountEmailNotifier(...)` and `AccountEmailNotifier` methods (`sendAdminInvitationEmail`, `sendAdminApprovalEmail`, `sendAdminRejectionEmail`).
-  - [ ] Email send must be feature-flagged/config-gated (enabled vs disabled) and failures mapped safely (`PROVIDER_UNAVAILABLE` or non-blocking policy documented per endpoint).
-  - [ ] Log only safe provider context (request ID, operation, status); never log raw payload/tokens/addresses beyond existing scrub rules.
+- [x] Wire Admin lifecycle email notifications using existing Resend boundary. (AC: 1, 3)
+  - [x] Reuse `createAccountEmailNotifier(...)` and `AccountEmailNotifier` methods (`sendAdminInvitationEmail`, `sendAdminApprovalEmail`, `sendAdminRejectionEmail`).
+  - [x] Email send must be feature-flagged/config-gated (enabled vs disabled) and failures mapped safely (`PROVIDER_UNAVAILABLE` or non-blocking policy documented per endpoint).
+  - [x] Log only safe provider context (request ID, operation, status); never log raw payload/tokens/addresses beyond existing scrub rules.
 
-- [ ] Invalidate/deny dashboard sessions on suspension/rejection. (AC: 4, 5, 7)
-  - [ ] On suspend/reject, revoke active Admin sessions in persistence and ensure `AuthService.inspectSession` sees revoked/ineligible state.
-  - [ ] Preserve existing customer and owner session behavior.
-  - [ ] Add regression tests that previously-valid Admin cookie becomes unauthorized/anonymous after suspension.
+- [x] Invalidate/deny dashboard sessions on suspension/rejection. (AC: 4, 5, 7)
+  - [x] On suspend/reject, revoke active Admin sessions in persistence and ensure `AuthService.inspectSession` sees revoked/ineligible state.
+  - [x] Preserve existing customer and owner session behavior.
+  - [x] Add regression tests that previously-valid Admin cookie becomes unauthorized/anonymous after suspension.
 
-- [ ] Add tests and docs updates before marking complete. (AC: 8, 9)
-  - [ ] Domain tests: transition/authorization matrix.
-  - [ ] Repository tests: atomic state change + session invalidation.
-  - [ ] Service tests: create/inspect/update/suspend/reactivate/approve/reject + non-owner denial.
-  - [ ] Route tests: OpenAPI metadata (`x-auth`, `x-rate-limit-class`, `x-error-codes`) + envelope/codes.
-  - [ ] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` row for Story 1.11 from `planned` to `complete` with concrete schemas and codes.
-  - [ ] Run `npm run check` and record exact blocker if failing.
+- [x] Add tests and docs updates before marking complete. (AC: 8, 9)
+  - [x] Domain tests: transition/authorization matrix.
+  - [x] Repository tests: atomic state change + session invalidation.
+  - [x] Service tests: create/inspect/update/suspend/reactivate/approve/reject + non-owner denial.
+  - [x] Route tests: OpenAPI metadata (`x-auth`, `x-rate-limit-class`, `x-error-codes`) + envelope/codes.
+  - [x] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` row for Story 1.11 from `planned` to `complete` with concrete schemas and codes.
+  - [x] Run `npm run check` and record exact blocker if failing.
 
 ## Dev Notes
 
@@ -286,16 +286,63 @@ GPT-5 Codex
 ### Debug Log References
 
 - Story context generation run only (no feature implementation commands executed).
+- 2026-05-16T12:33+08:00: Activated `bmad-dev-story`, loaded workflow config, project context, sprint status, and Story 1.11.
+- 2026-05-16T12:40+08:00: Red domain test failed as expected: missing `src/domain/admins/admin-account.ts`.
+- 2026-05-16T12:56+08:00: Domain lifecycle tests passed (`src/domain/admins/admin-account.test.ts`).
+- 2026-05-16T12:57+08:00: Red schema invariant test failed as expected: missing `suspension_reason` and `rejection_reason`.
+- 2026-05-16T13:06+08:00: Repository/schema tests passed after safe mapper and target-session invalidation helper.
+- 2026-05-16T13:11+08:00: Service/domain/repository tests passed after orchestration and notification gate.
+- 2026-05-16T13:18+08:00: Admin route/OpenAPI tests passed after controller, routes, and app wiring.
+- 2026-05-16T13:20+08:00: Auth regression test passed after `inspectSession` dashboard eligibility check.
+- 2026-05-16T13:25+08:00: `cmd.exe /c npm run check` passed with existing legacy unused-parameter warnings in deprecated `src/api/**`.
+- 2026-05-16T13:27+08:00: `cmd.exe /c npm run build-test` passed: `astro check`, 166 Vitest tests, and Astro build.
+
+### Implementation Plan
+
+- Built pure Admin lifecycle domain decisions first, then persisted minimal reason metadata.
+- Added Drizzle repository methods that return safe Admin records only and revoke target Admin sessions on suspend/reject through batch writes.
+- Added service orchestration with `SUPER_ADMIN` actor guard, duplicate checks, owner immutability, PBKDF2 password hashing, lifecycle email feature gate, and stable `AppResult` error codes.
+- Added controller/routes with TypeBox contracts, `{ data, meta }` / `{ error }` envelopes, `routeDetail(...)` metadata, and app route wiring.
+- Hardened `AuthService.inspectSession` so active but unapproved/unverified non-owner Admin sessions become anonymous.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
 - Story includes AC-complete task map, file-level guardrails, test matrix, previous-story learnings, git intelligence, and latest technical references.
+- Implemented Admin lifecycle domain model for create/update/approve/reject/suspend/reactivate and `SUPER_ADMIN` authorization.
+- Added nullable Admin lifecycle reason columns (`suspension_reason`, `rejection_reason`) plus migration `0014_admin_lifecycle_reasons.sql`; `db:generate` was blocked by local WSL bridge error, so SQL and Drizzle snapshot were written manually and documented.
+- Implemented safe Admin repository, service, controller, and routes for all Story 1.11 endpoints.
+- Wired feature-gated Admin invitation/approval/rejection emails through existing `createAccountEmailNotifier(...)`.
+- Added session revocation for suspend/reject and `AuthService.inspectSession` dashboard eligibility blocking for unapproved Admin sessions.
+- Updated endpoint catalog and migration plan.
+- Validation passed: `cmd.exe /c npm run check`; `cmd.exe /c npm run build-test` (`astro check`, 166 tests, Astro build).
 
 ### File List
 
+- `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md`
+- `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md`
 - `_bmad-output/implementation-artifacts/1-11-admin-account-management-and-approval.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `migrations/0014_admin_lifecycle_reasons.sql`
+- `migrations/meta/0014_snapshot.json`
+- `migrations/meta/_journal.json`
+- `src/domain/admins/admin-account.test.ts`
+- `src/domain/admins/admin-account.ts`
+- `src/domain/schema-invariants.test.ts`
+- `src/domain/schema/identity.ts`
+- `src/server/app.ts`
+- `src/server/controllers/AdminAccountController.ts`
+- `src/server/repositories/AdminAccountRepository.test.ts`
+- `src/server/repositories/AdminAccountRepository.ts`
+- `src/server/routes/admin-accounts.routes.test.ts`
+- `src/server/routes/admin-accounts.routes.ts`
+- `src/server/routes/index.ts`
+- `src/server/services/AdminAccountService.test.ts`
+- `src/server/services/AdminAccountService.ts`
+- `src/server/services/AuthService.test.ts`
+- `src/server/services/AuthService.ts`
 
 ### Change Log
 
 - 2026-05-16: Story 1.11 context created and marked ready-for-dev.
+- 2026-05-16: Implemented Story 1.11 Admin account lifecycle APIs, session gating, tests, migration docs, endpoint catalog update; marked ready for review.

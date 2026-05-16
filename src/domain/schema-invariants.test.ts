@@ -40,10 +40,31 @@ function getSqlQuery(value: unknown): string | undefined {
 describe("identity schema invariants", () => {
   it("enforces a single owner admin with a unique partial index", () => {
     const adminConfig = getTableConfig(admins);
+    const columnNames = adminConfig.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
     const ownerIndex = adminConfig.indexes.find(
       (index) => index.config.name === "admins_single_owner_idx"
     );
 
+    expect(columnNames).toEqual(
+      expect.arrayContaining([
+        "status",
+        "email_verified_at",
+        "approved_at",
+        "suspension_reason",
+        "rejection_reason",
+      ])
+    );
+    expect(columnNames).not.toEqual(
+      expect.arrayContaining([
+        "role",
+        "raw_password",
+        "session_token",
+        "reset_token",
+        "provider_metadata",
+      ])
+    );
     expect(ownerIndex?.config.unique).toBe(true);
     expect(
       ownerIndex?.config.columns.map((column) => getColumnName(column))
