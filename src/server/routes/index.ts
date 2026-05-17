@@ -8,6 +8,7 @@ import {
   type AccountRecoveryRoutesOptions,
 } from "./account-recovery.routes";
 import { authRoutes, type AuthRoutesOptions } from "./auth.routes";
+import { brandsRoutes, type BrandRoutesOptions } from "./brands.routes";
 import { customerRoutes, type CustomerRoutesOptions } from "./customer.routes";
 import { foundationRoutes } from "./foundation.routes";
 import {
@@ -24,6 +25,7 @@ export type ServerRoutesOptions = {
   accountRecovery?: AccountRecoveryRoutesOptions;
   adminAccounts?: AdminAccountRoutesOptions;
   auth?: AuthRoutesOptions;
+  brands?: BrandRoutesOptions;
   customers?: CustomerRoutesOptions;
   googleOAuth?: GoogleOAuthRoutesOptions;
   ownerGovernance?: OwnerGovernanceRoutesOptions;
@@ -40,5 +42,6 @@ export function serverRoutes(
     .use((routes) => accountRecoveryRoutes(routes, options.accountRecovery))
     .use((routes) => customerRoutes(routes, options.customers))
     .use((routes) => adminAccountRoutes(routes, options.adminAccounts))
-    .use((routes) => ownerGovernanceRoutes(routes, options.ownerGovernance));
+    .use((routes) => ownerGovernanceRoutes(routes, options.ownerGovernance))
+    .use((routes) => brandsRoutes(routes, options.brands));
 }

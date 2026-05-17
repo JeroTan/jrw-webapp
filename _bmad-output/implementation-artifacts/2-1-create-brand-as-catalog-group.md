@@ -1,6 +1,6 @@
 # Story 2.1: Create Brand as Catalog Group
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -22,71 +22,71 @@ so that products can be organized and collaborated on without creating separate 
 
 ## Tasks / Subtasks
 
-- [ ] Confirm dependency gate before coding. (AC: 1-7)
-  - [ ] Verify Epic 1 stories are complete (sprint status shows all 1.x stories as `done`).
-  - [ ] Confirm `brands` and `brand_memberships` schema exist in `src/domain/schema/catalog.ts` or create new `src/domain/schema/brands.ts`.
-  - [ ] Confirm RBAC guard middleware from Story 1.12 is registered and functional.
-  - [ ] Do not start brand creation without schema foundation and route guard infrastructure.
+- [x] Confirm dependency gate before coding. (AC: 1-7)
+  - [x] Verify Epic 1 stories are complete (sprint status shows all 1.x stories as `done`).
+  - [x] Confirm `brands` and `brand_memberships` schema exist in `src/domain/schema/catalog.ts` or create new `src/domain/schema/brands.ts`.
+  - [x] Confirm RBAC guard middleware from Story 1.12 is registered and functional.
+  - [x] Do not start brand creation without schema foundation and route guard infrastructure.
 
-- [ ] Add brand schema and Drizzle migration. (AC: 1-2, 5)
-  - [ ] Create or extend schema for `brands` table with: `id` (cuid2), `name` (unique, not null), `slug` (unique, not null), `description` (nullable text), `status` (enum: `ACTIVE`, `ARCHIVED`), `created_by_admin_id` (FK to `admins.id`), `archived_at` (nullable), `created_at`, `updated_at`.
-  - [ ] Create or extend schema for `brand_memberships` table with: `id` (cuid2), `brand_id` (FK to `brands.id`), `admin_id` (FK to `admins.id`), `role` (enum: `OWNER`, `MEMBER`), `status` (enum: `ACTIVE`, `PENDING`, `REVOKED`), `invited_by_admin_id` (FK to `admins.id`, nullable), `created_at`, `updated_at`.
-  - [ ] Add unique constraint `uq_brand_memberships_brand_admin` on `(brand_id, admin_id)`.
-  - [ ] Add Drizzle migration file under `migrations/` for both tables.
-  - [ ] Add Drizzle relations: `brands` has many `brand_memberships`; `brand_memberships` belongs to `brands` and `admins`.
-  - [ ] Schema uses snake_case columns; API DTOs map to camelCase.
+- [x] Add brand schema and Drizzle migration. (AC: 1-2, 5)
+  - [x] Create or extend schema for `brands` table with: `id` (cuid2), `name` (unique, not null), `slug` (unique, not null), `description` (nullable text), `status` (enum: `ACTIVE`, `ARCHIVED`), `created_by_admin_id` (FK to `admins.id`), `archived_at` (nullable), `created_at`, `updated_at`.
+  - [x] Create or extend schema for `brand_memberships` table with: `id` (cuid2), `brand_id` (FK to `brands.id`), `admin_id` (FK to `admins.id`), `role` (enum: `OWNER`, `MEMBER`), `status` (enum: `ACTIVE`, `PENDING`, `REVOKED`), `invited_by_admin_id` (FK to `admins.id`, nullable), `created_at`, `updated_at`.
+  - [x] Add unique constraint `uq_brand_memberships_brand_admin` on `(brand_id, admin_id)`.
+  - [x] Add Drizzle migration file under `migrations/` for both tables.
+  - [x] Add Drizzle relations: `brands` has many `brand_memberships`; `brand_memberships` belongs to `brands` and `admins`.
+  - [x] Schema uses snake_case columns; API DTOs map to camelCase.
 
-- [ ] Add pure brand domain rules. (AC: 1-2, 5, 7)
-  - [ ] Create `src/domain/brands/brand.ts`.
-  - [ ] Add `createBrand(...)` domain function that validates: name not empty, name length bounds (e.g., 2-120 chars), slug format (lowercase alphanumeric + hyphens, no leading/trailing hyphens), description optional with max length.
-  - [ ] Add `generateSlug(name: string): string` helper: lowercase, replace spaces/special chars with hyphens, collapse consecutive hyphens, trim hyphens.
-  - [ ] Add `validateBrandName(...)`, `validateBrandSlug(...)` returning stable error codes.
-  - [ ] Add `BrandCreationResult` type with success/failure shape using `AppResult`/`GeneralError` pattern.
-  - [ ] Create `src/domain/brands/brand.test.ts` covering: valid name/slug generation, empty name rejection, name too long, invalid slug chars, leading/trailing hyphens, duplicate slug detection, archived-name conflict logic.
+- [x] Add pure brand domain rules. (AC: 1-2, 5, 7)
+  - [x] Create `src/domain/brands/brand.ts`.
+  - [x] Add `createBrand(...)` domain function that validates: name not empty, name length bounds (e.g., 2-120 chars), slug format (lowercase alphanumeric + hyphens, no leading/trailing hyphens), description optional with max length.
+  - [x] Add `generateSlug(name: string): string` helper: lowercase, replace spaces/special chars with hyphens, collapse consecutive hyphens, trim hyphens.
+  - [x] Add `validateBrandName(...)`, `validateBrandSlug(...)` returning stable error codes.
+  - [x] Add `BrandCreationResult` type with success/failure shape using `AppResult`/`GeneralError` pattern.
+  - [x] Create `src/domain/brands/brand.test.ts` covering: valid name/slug generation, empty name rejection, name too long, invalid slug chars, leading/trailing hyphens, duplicate slug detection, archived-name conflict logic.
 
-- [ ] Add brand repository boundary. (AC: 1, 3-5)
-  - [ ] Create `src/server/repositories/BrandRepository.ts`.
-  - [ ] Implement `createBrand(brandData, adminId)`: inserts brand row, returns safe brand DTO (id, name, slug, description, status, createdAt, updatedAt). No internal fields.
-  - [ ] Implement `createBrandMembership(brandId, adminId, role, invitedByAdminId)`: inserts membership row with `ACTIVE` status and `OWNER` role for creator.
-  - [ ] Implement `findBrandBySlug(slug)`: returns brand DTO or null.
-  - [ ] Implement `findBrandByName(name)`: returns brand DTO or null (for uniqueness check, case-insensitive).
-  - [ ] Implement `findArchivedBrandByName(name)`: returns archived brand if exists (for archived-name conflict detection).
-  - [ ] Reuse existing Drizzle schema from `src/domain/schema/**`; do not add duplicate brand schema.
-  - [ ] All DTOs use camelCase; map from snake_case at repository boundary.
-  - [ ] Create `src/server/repositories/BrandRepository.test.ts` covering: create success, unique name/slug enforcement, membership creation, archived brand lookup, safe DTO mapping.
+- [x] Add brand repository boundary. (AC: 1, 3-5)
+  - [x] Create `src/server/repositories/BrandRepository.ts`.
+  - [x] Implement `createBrand(brandData, adminId)`: inserts brand row, returns safe brand DTO (id, name, slug, description, status, createdAt, updatedAt). No internal fields.
+  - [x] Implement `createBrandMembership(brandId, adminId, role, invitedByAdminId)`: inserts membership row with `ACTIVE` status and `OWNER` role for creator.
+  - [x] Implement `findBrandBySlug(slug)`: returns brand DTO or null.
+  - [x] Implement `findBrandByName(name)`: returns brand DTO or null (for uniqueness check, case-insensitive).
+  - [x] Implement `findArchivedBrandByName(name)`: returns archived brand if exists (for archived-name conflict detection).
+  - [x] Reuse existing Drizzle schema from `src/domain/schema/**`; do not add duplicate brand schema.
+  - [x] All DTOs use camelCase; map from snake_case at repository boundary.
+  - [x] Create `src/server/repositories/BrandRepository.test.ts` covering: create success, unique name/slug enforcement, membership creation, archived brand lookup, safe DTO mapping.
 
-- [ ] Add brand service. (AC: 1-5, 7)
-  - [ ] Create `src/server/services/BrandService.ts`.
-  - [ ] Require authenticated actor with role `ADMIN` or `SUPER_ADMIN`; reuse Story 1.12 `routeGuard(...)` pattern or `evaluateAdminLifecycleActor(...)`.
-  - [ ] On create: validate actor is active approved Admin, validate brand data through domain rules, check name/slug uniqueness (including archived-name conflicts), create brand through repository, create brand membership with `OWNER` role, emit audit event.
-  - [ ] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for non-Admin/inactive/unapproved/suspended actor, `VALIDATION_FAILED` for invalid brand data, `CONFLICT_STATE` for duplicate name/slug or archived-name conflict, `PROVIDER_UNAVAILABLE` for D1/storage failures.
-  - [ ] Do not expose internal brand fields, membership internals, or creator PII beyond safe brand DTO.
-  - [ ] Create `src/server/services/BrandService.test.ts` covering: Admin create success, SUPER_ADMIN create success, Customer denial, Prospect denial, suspended Admin denial, unapproved Admin denial, invalid data rejection, duplicate name conflict, duplicate slug conflict, archived-name conflict, D1 failure mapping.
+- [x] Add brand service. (AC: 1-5, 7)
+  - [x] Create `src/server/services/BrandService.ts`.
+  - [x] Require authenticated actor with role `ADMIN` or `SUPER_ADMIN`; reuse Story 1.12 `routeGuard(...)` pattern or `evaluateAdminLifecycleActor(...)`.
+  - [x] On create: validate actor is active approved Admin, validate brand data through domain rules, check name/slug uniqueness (including archived-name conflicts), create brand through repository, create brand membership with `OWNER` role, emit audit event.
+  - [x] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for non-Admin/inactive/unapproved/suspended actor, `VALIDATION_FAILED` for invalid brand data, `CONFLICT_STATE` for duplicate name/slug or archived-name conflict, `PROVIDER_UNAVAILABLE` for D1/storage failures.
+  - [x] Do not expose internal brand fields, membership internals, or creator PII beyond safe brand DTO.
+  - [x] Create `src/server/services/BrandService.test.ts` covering: Admin create success, SUPER_ADMIN create success, Customer denial, Prospect denial, suspended Admin denial, unapproved Admin denial, invalid data rejection, duplicate name conflict, duplicate slug conflict, archived-name conflict, D1 failure mapping.
 
-- [ ] Add controller and API routes. (AC: 1-7)
-  - [ ] Create `src/server/controllers/BrandController.ts`.
-  - [ ] Create `src/server/routes/brands.routes.ts` and register it in `src/server/routes/index.ts`.
-  - [ ] Endpoint: `POST /api/brands` — create brand.
-  - [ ] Request body schema: `name` (string, required, 2-120 chars), `slug` (string, optional, auto-generated if omitted, lowercase alphanumeric + hyphens), `description` (string, optional, max 500 chars).
-  - [ ] Response: standard `{ data: brand, meta }` envelope on success; `{ error: { code, message, details? } }` on failure.
-  - [ ] Route metadata: `routeDetail(...)` with tag `Brands`, auth `{ mode: "required", roles: ["ADMIN", "SUPER_ADMIN"] }`, rate-limit class `admin-write`, documented error codes.
-  - [ ] Controller maps service `AppResult` to public API envelopes; no business rules in controller.
-  - [ ] Update `src/server/routes/route-groups.ts` to include brands route group.
-  - [ ] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` with brand endpoints.
-  - [ ] Create `src/server/routes/brands.routes.test.ts` covering: anonymous denial, Customer denial, Admin create success, response schema validation, OpenAPI metadata present, error envelope includes request ID.
+- [x] Add controller and API routes. (AC: 1-7)
+  - [x] Create `src/server/controllers/BrandController.ts`.
+  - [x] Create `src/server/routes/brands.routes.ts` and register it in `src/server/routes/index.ts`.
+  - [x] Endpoint: `POST /api/brands` — create brand.
+  - [x] Request body schema: `name` (string, required, 2-120 chars), `slug` (string, optional, auto-generated if omitted, lowercase alphanumeric + hyphens), `description` (string, optional, max 500 chars).
+  - [x] Response: standard `{ data: brand, meta }` envelope on success; `{ error: { code, message, details? } }` on failure.
+  - [x] Route metadata: `routeDetail(...)` with tag `Brands`, auth `{ mode: "required", roles: ["ADMIN", "SUPER_ADMIN"] }`, rate-limit class `admin-write`, documented error codes.
+  - [x] Controller maps service `AppResult` to public API envelopes; no business rules in controller.
+  - [x] Update `src/server/routes/route-groups.ts` to include brands route group.
+  - [x] Update `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` with brand endpoints.
+  - [x] Create `src/server/routes/brands.routes.test.ts` covering: anonymous denial, Customer denial, Admin create success, response schema validation, OpenAPI metadata present, error envelope includes request ID.
 
-- [ ] Add audit event emission. (AC: 5)
-  - [ ] Use existing `src/domain/audit/events.ts` pattern; add action `brand.created`.
-  - [ ] Emit audit event with: actor (admin id), action `brand.created`, entity `brand`, entityId (brand id), safe details (name, slug, timestamp, request ID), no secrets/PII.
-  - [ ] If audit persistence adapter is missing, use `NoopAuditEventPublisher` from existing audit module; document that Epic 7 will add full audit persistence.
-  - [ ] Add test proving audit event is emitted with safe details and no secret fields.
+- [x] Add audit event emission. (AC: 5)
+  - [x] Use existing `src/domain/audit/events.ts` pattern; add action `brand.created`.
+  - [x] Emit audit event with: actor (admin id), action `brand.created`, entity `brand`, entityId (brand id), safe details (name, slug, timestamp, request ID), no secrets/PII.
+  - [x] If audit persistence adapter is missing, use `NoopAuditEventPublisher` from existing audit module; document that Epic 7 will add full audit persistence.
+  - [x] Add test proving audit event is emitted with safe details and no secret fields.
 
-- [ ] Validate full flow. (AC: 1-7)
-  - [ ] Run targeted tests:
+- [x] Validate full flow. (AC: 1-7)
+  - [x] Run targeted tests:
     - `npx vitest run src/domain/brands/brand.test.ts src/server/repositories/BrandRepository.test.ts src/server/services/BrandService.test.ts src/server/routes/brands.routes.test.ts`
-  - [ ] Run `npm run check`.
-  - [ ] Run `npm run build-test` after targeted tests pass.
-  - [ ] Record exact blockers if schema migration or RBAC guard status prevents completion.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run build-test` after targeted tests pass.
+  - [x] Record exact blockers if schema migration or RBAC guard status prevents completion.
 
 ### Review Findings
 
@@ -240,17 +240,61 @@ _(To be filled by dev agent)_
 
 ### Debug Log References
 
-_(To be filled by dev agent)_
+- 2026-05-17T20:55:00+08:00: Resolved bmad-dev-story workflow config, loaded project context + sprint status, selected Story 2.1, marked sprint status `in-progress`.
+- 2026-05-17T21:22:00+08:00: Added brand schema (`brands`, `brand_memberships`) and migration `migrations/0015_funny_outlaw.sql`.
+- 2026-05-17T21:25:05+08:00: Red test confirmed for missing domain module (`Cannot find module './brand'`), then implemented domain rules.
+- 2026-05-17T21:25:28+08:00: Domain suite passed (`src/domain/brands/brand.test.ts`, 5 tests).
+- 2026-05-17T21:26:53+08:00: Red test confirmed for missing repository module (`Cannot find module './BrandRepository'`), then implemented repository boundary.
+- 2026-05-17T21:29:08+08:00: Repository suite passed (`src/server/repositories/BrandRepository.test.ts`, 4 tests).
+- 2026-05-17T21:30:52+08:00: Red test confirmed for missing service module (`Cannot find module './BrandService'`), then implemented service + audit emission.
+- 2026-05-17T21:32:18+08:00: Service suite passed (`src/server/services/BrandService.test.ts`, 5 tests).
+- 2026-05-17T21:33:42+08:00: Red test confirmed for missing controller module (`Cannot find package '@/server/controllers/BrandController'`), then implemented controller/routes and app wiring.
+- 2026-05-17T21:36:11+08:00: Route suite passed (`src/server/routes/brands.routes.test.ts`, 4 tests).
+- 2026-05-17T21:36:39+08:00: Targeted story suite passed (`18 tests` across domain/repo/service/routes).
+- 2026-05-17T21:39:31+08:00: `npm run check` failed first with 13 type errors in new brand service test; fixed actor typing + role narrowing.
+- 2026-05-17T21:42:20+08:00: `npm run check` passed (`0 errors`, existing `2 hints`).
+- 2026-05-17T21:43:41+08:00: `npm run build-test` passed (`48 files`, `221 tests`, Astro build complete).
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
 - Story includes AC-complete task map, dependency gate, file-level guardrails, current-code intelligence, schema design, language guardrails, and validation commands.
+- Dependency gate verified: Epic 1 done, Story 1.12 RBAC guard present, schema foundation added before route work.
+- Added `brands` and `brand_memberships` schema with enums, unique constraints, indexes, FK relations, snake_case columns, and migration file.
+- Added pure domain module `src/domain/brands/brand.ts` with slug generation, name/slug validation, conflict detection, and `BrandCreationResult`.
+- Added repository boundary `BrandRepository` with safe camelCase DTO mapping, create/find methods, and archived-name lookup.
+- Added service `BrandService` with ADMIN/SUPER_ADMIN eligibility checks, conflict mapping, creator OWNER membership creation, and provider error mapping.
+- Added controller + route for `POST /api/brands` with TypeBox body/response contracts, standard API envelopes, OpenAPI metadata, auth metadata, and `admin-write` rate limit class.
+- Added audit emission path using existing audit module (`brand.created`) with safe details only and `NoopAuditEventPublisher` fallback.
+- Updated endpoint catalog row to mark `POST /api/brands` as complete and keep remaining brand endpoints planned.
+- Validation complete: targeted brand suite passed, `npm run check` passed, `npm run build-test` passed.
 
 ### File List
 
-_(To be filled by dev agent)_
+- `_bmad-output/implementation-artifacts/2-1-create-brand-as-catalog-group.md`
+- `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `migrations/0015_funny_outlaw.sql`
+- `src/domain/schema/catalog.ts`
+- `src/domain/brands/brand.ts`
+- `src/domain/brands/brand.test.ts`
+- `src/server/repositories/BrandRepository.ts`
+- `src/server/repositories/BrandRepository.test.ts`
+- `src/server/services/BrandService.ts`
+- `src/server/services/BrandService.test.ts`
+- `src/server/controllers/BrandController.ts`
+- `src/server/routes/brands.routes.ts`
+- `src/server/routes/brands.routes.test.ts`
+- `src/server/routes/index.ts`
+- `src/server/app.ts`
 
 ## Change Log
 
-_(To be filled by dev agent)_
+- 2026-05-17T20:55:00+08:00: Story started, dependency gate verified, sprint story status moved to `in-progress`.
+- 2026-05-17T21:22:00+08:00: Added brand schema and migration (`brands`, `brand_memberships`, constraints/indexes/relations).
+- 2026-05-17T21:25:28+08:00: Added brand domain rules and domain tests.
+- 2026-05-17T21:29:08+08:00: Added brand repository and repository tests.
+- 2026-05-17T21:32:18+08:00: Added brand service and service tests, including audit safety checks.
+- 2026-05-17T21:36:11+08:00: Added brand controller/routes, route tests, and app/route wiring.
+- 2026-05-17T21:37:00+08:00: Updated API endpoint catalog for `POST /api/brands`.
+- 2026-05-17T21:43:41+08:00: Validation gates passed (`vitest` targeted, `npm run check`, `npm run build-test`).

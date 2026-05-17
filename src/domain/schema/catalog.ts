@@ -1,17 +1,98 @@
 import {
+  index,
   sqliteTable,
   text,
   integer,
   real,
   primaryKey,
+  uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 import { createId } from "@paralleldrive/cuid2";
 import { sql, relations } from "drizzle-orm";
+import { admins } from "./identity";
 
 export type VariationChain = {
   name: string;
   group: string;
 };
+
+export const brandStatusValues = ["ACTIVE", "ARCHIVED"] as const;
+export const brandMembershipRoleValues = ["OWNER", "MEMBER"] as const;
+export const brandMembershipStatusValues = [
+  "ACTIVE",
+  "PENDING",
+  "REVOKED",
+] as const;
+
+export const brands = sqliteTable(
+  "brands",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    description: text("description"),
+    status: text("status", { enum: brandStatusValues })
+      .notNull()
+      .default("ACTIVE"),
+    created_by_admin_id: text("created_by_admin_id")
+      .notNull()
+      .references(() => admins.id),
+    archived_at: text("archived_at"),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("brands_name_unique").on(table.name),
+    uniqueIndex("brands_slug_unique").on(table.slug),
+    index("idx_brands_slug").on(table.slug),
+    index("idx_brands_status").on(table.status),
+  ]
+);
+
+export const brand_memberships = sqliteTable(
+  "brand_memberships",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    brand_id: text("brand_id")
+      .notNull()
+      .references(() => brands.id, { onDelete: "cascade" }),
+    admin_id: text("admin_id")
+      .notNull()
+      .references(() => admins.id, { onDelete: "cascade" }),
+    role: text("role", { enum: brandMembershipRoleValues })
+      .notNull()
+      .default("MEMBER"),
+    status: text("status", { enum: brandMembershipStatusValues })
+      .notNull()
+      .default("ACTIVE"),
+    invited_by_admin_id: text("invited_by_admin_id").references(
+      () => admins.id,
+      { onDelete: "set null" }
+    ),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("uq_brand_memberships_brand_admin").on(
+      table.brand_id,
+      table.admin_id
+    ),
+    index("idx_brand_memberships_admin").on(table.admin_id),
+    index("idx_brand_memberships_brand").on(table.brand_id),
+  ]
+);
 
 export const products = sqliteTable("products", {
   id: text("id")
@@ -102,6 +183,32 @@ export const productsRelations = relations(products, ({ many }) => ({
   variants: many(product_variants),
   categories: many(product_categories),
 }));
+
+export const brandsRelations = relations(brands, ({ many, one }) => ({
+  memberships: many(brand_memberships),
+  createdByAdmin: one(admins, {
+    fields: [brands.created_by_admin_id],
+    references: [admins.id],
+  }),
+}));
+
+export const brandMembershipsRelations = relations(
+  brand_memberships,
+  ({ one }) => ({
+    brand: one(brands, {
+      fields: [brand_memberships.brand_id],
+      references: [brands.id],
+    }),
+    admin: one(admins, {
+      fields: [brand_memberships.admin_id],
+      references: [admins.id],
+    }),
+    invitedByAdmin: one(admins, {
+      fields: [brand_memberships.invited_by_admin_id],
+      references: [admins.id],
+    }),
+  })
+);
 
 export const productVariantsRelations = relations(
   product_variants,
