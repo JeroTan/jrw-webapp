@@ -227,7 +227,7 @@ npm run build-test
 
 ### Agent Model Used
 
-_(To be filled by dev agent)_
+GPT Codex 5.3
 
 ### Implementation Plan
 
