@@ -336,6 +336,54 @@ describe("brands routes", () => {
     });
   });
 
+  it("accepts null description in update payload", async () => {
+    let receivedBody: Record<string, unknown> | null = null;
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              updateBrand: async (input) => {
+                receivedBody = input.body;
+                return Result.okay({
+                  brand: {
+                    id: "brand_1",
+                    name: "JRW Lifestyle",
+                    slug: "jrw-lifestyle",
+                    description: null,
+                    status: "ACTIVE",
+                    archivedAt: null,
+                    createdAt: now,
+                    updatedAt: now,
+                  },
+                });
+              },
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1", {
+        method: "PATCH",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_brand_update_clear_description",
+        },
+        body: JSON.stringify({
+          description: null,
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(receivedBody).toEqual({ description: null });
+  });
+
   it("denies anonymous update before controller execution", async () => {
     let controllerCalls = 0;
     const app = createApp({

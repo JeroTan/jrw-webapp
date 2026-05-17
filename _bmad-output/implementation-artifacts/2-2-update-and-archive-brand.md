@@ -1,6 +1,6 @@
 # Story 2.2: Update and Archive Brand
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -98,7 +98,8 @@ so that JRW can keep brand catalog groups accurate without deleting historical p
 
 ### Review Findings
 
-_(To be filled during code review)_
+- [x] [Review][Patch] Update route contract did not allow explicit description clearing and service could silently coerce invalid update field types [`src/server/routes/brands.routes.ts`:57] [`src/server/services/BrandService.ts`:159] - fixed by allowing `description: null` in `PATCH /api/brands/:id`, rejecting non-string/non-null update fields with `VALIDATION_FAILED`, and adding route/service coverage.
+- [x] [Review][Patch] Concurrent unique-key races during brand update mapped to `PROVIDER_UNAVAILABLE` instead of `CONFLICT_STATE` [`src/server/services/BrandService.ts`:464] - fixed by mapping SQLite unique-constraint failures from update persistence to stable conflict response and adding regression coverage.
 
 ## Dev Notes
 
@@ -282,6 +283,7 @@ GPT-5 Codex (Codex CLI agent)
 - Added brand service `updateBrand` and `archiveBrand` flows with RBAC + brand membership authorization, conflict/provider mapping, and safe audit emission (`brand.updated`, `brand.archived`).
 - Added controller and route support for `PATCH /api/brands/:id` and `POST /api/brands/:id/archive` with TypeBox contracts, OpenAPI metadata, and standardized API envelopes.
 - Expanded test coverage across domain/repository/service/routes and validated full regression gates (`check` + `build-test`) without blockers.
+- Applied review patches for explicit nullable description updates, strict update field type rejection, and stable unique-constraint conflict mapping.
 
 ### File List
 
@@ -300,3 +302,4 @@ GPT-5 Codex (Codex CLI agent)
 ## Change Log
 
 - 2026-05-17: Implemented Story 2.2 brand update/archive vertical slice (domain, repository, service, controller/routes, tests) and passed `npm run check` + `npm run build-test`.
+- 2026-05-17: Applied code review fixes for nullable description update contract, strict update field typing, and update unique-constraint race mapping; validated with targeted Vitest, `npm run check`, and `npm run build-test`; story moved to done.

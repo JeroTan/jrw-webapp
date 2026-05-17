@@ -96,6 +96,15 @@ function providerFailure(error: unknown): boolean {
   );
 }
 
+function isUniqueConstraintError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    /SQLITE_CONSTRAINT|UNIQUE constraint failed|constraint failed/i.test(
+      error.message
+    )
+  );
+}
+
 function mapBrandDomainErrorCode(
   code: string
 ): "VALIDATION_FAILED" | "CONFLICT_STATE" {
@@ -147,28 +156,44 @@ export class BrandService {
     return Object.prototype.hasOwnProperty.call(body, key);
   }
 
-  private extractUpdatePatch(body: Record<string, unknown>): BrandUpdateInput {
+  private extractUpdatePatch(
+    body: Record<string, unknown>
+  ): AppResult<BrandUpdateInput> {
     const patch: BrandUpdateInput = {};
+    const reasons: string[] = [];
 
     if (this.hasOwnField(body, "name")) {
-      patch.name = typeof body.name === "string" ? body.name : null;
-    }
-
-    if (this.hasOwnField(body, "slug")) {
-      patch.slug = typeof body.slug === "string" ? body.slug : null;
-    }
-
-    if (this.hasOwnField(body, "description")) {
-      if (typeof body.description === "string") {
-        patch.description = body.description;
-      } else if (body.description === null) {
-        patch.description = null;
+      if (typeof body.name === "string" || body.name === null) {
+        patch.name = body.name;
       } else {
-        patch.description = null;
+        reasons.push("name:type");
       }
     }
 
-    return patch;
+    if (this.hasOwnField(body, "slug")) {
+      if (typeof body.slug === "string" || body.slug === null) {
+        patch.slug = body.slug;
+      } else {
+        reasons.push("slug:type");
+      }
+    }
+
+    if (this.hasOwnField(body, "description")) {
+      if (
+        typeof body.description === "string" ||
+        body.description === null
+      ) {
+        patch.description = body.description;
+      } else {
+        reasons.push("description:type");
+      }
+    }
+
+    if (reasons.length > 0) {
+      return Result.error(serviceError("VALIDATION_FAILED", { reasons }));
+    }
+
+    return Result.okay(patch);
   }
 
   private hasElevatedPermission(role: "ADMIN" | "SUPER_ADMIN"): boolean {
@@ -294,8 +319,9 @@ export class BrandService {
     if (actor.error) return actor;
 
     const patch = this.extractUpdatePatch(input.body);
+    if (patch.error) return patch;
     const validatedPatch = updateBrandDraft({
-      patch,
+      patch: patch.content,
       conflict: {
         existingByName: null,
         existingBySlug: null,
@@ -436,6 +462,10 @@ export class BrandService {
 
       return Result.okay({ brand: updatedBrand });
     } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        return Result.error(serviceError("CONFLICT_STATE"));
+      }
+
       if (providerFailure(error)) {
         return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
       }

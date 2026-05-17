@@ -484,6 +484,27 @@ describe("BrandService", () => {
     expect(archivedNameConflict.error?.code).toBe("CONFLICT_STATE");
   });
 
+  it("rejects invalid update field types before persistence", async () => {
+    const repo = new RepoStub();
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const invalidDescription = await service.updateBrand({
+      actor: adminActor(),
+      requestId: "req_invalid_description_type",
+      brandId: "brand_1",
+      body: { description: 42 },
+    });
+
+    expect(invalidDescription.error?.code).toBe("VALIDATION_FAILED");
+    expect(invalidDescription.error?.data).toMatchObject({
+      reasons: ["description:type"],
+    });
+    expect(repo.updateCalls).toHaveLength(0);
+  });
+
   it("archives brand for OWNER and MEMBER", async () => {
     const repo = new RepoStub();
     const published: AuditEvent[] = [];
@@ -573,5 +594,25 @@ describe("BrandService", () => {
       brandId: "brand_1",
     });
     expect(archive.error?.code).toBe("PROVIDER_UNAVAILABLE");
+  });
+
+  it("maps update unique constraint race to CONFLICT_STATE", async () => {
+    const repo = new RepoStub();
+    repo.updateBrandError = new Error(
+      "SQLITE_CONSTRAINT: UNIQUE constraint failed: brands.slug"
+    );
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const update = await service.updateBrand({
+      actor: adminActor(),
+      requestId: "req_update_unique_race",
+      brandId: "brand_1",
+      body: { slug: "jrw-lifestyle-2" },
+    });
+
+    expect(update.error?.code).toBe("CONFLICT_STATE");
   });
 });

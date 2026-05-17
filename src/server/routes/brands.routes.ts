@@ -64,7 +64,7 @@ const tboxUpdateBrandBody = t.Object(
         pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$",
       })
     ),
-    description: t.Optional(t.String({ maxLength: 500 })),
+    description: t.Optional(t.Nullable(t.String({ maxLength: 500 }))),
   },
   { additionalProperties: false, minProperties: 1 }
 );
