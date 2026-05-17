@@ -177,6 +177,11 @@ export function OwnershipTransferPanel() {
       return;
     }
 
+    setPassword("");
+    setConfirmationPhrase("");
+    setErrors({});
+    setFormSummary(null);
+    setResult(null);
     setSelected(null);
   }
 
@@ -386,7 +391,7 @@ export function OwnershipTransferPanel() {
                   value={confirmationPhrase}
                 />
                 <Input
-                  autoComplete="current-password"
+                  autoComplete="off"
                   disabled={dialogState === "confirming"}
                   error={errors.password}
                   label="Current owner password"

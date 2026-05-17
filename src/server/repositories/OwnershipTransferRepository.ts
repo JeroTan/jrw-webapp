@@ -4,6 +4,7 @@ import {
   type AuditActionType,
   type AuditSafeDetails,
 } from "@/domain/audit/events";
+import { createId } from "@paralleldrive/cuid2";
 import {
   isEligibleOwnershipTransferTarget,
   type OwnershipTransferTarget,
@@ -206,6 +207,84 @@ export function buildOwnershipTransferAuditDetails(
   return scrubAuditDetails(details) ?? details;
 }
 
+function ownershipTransferAuditDetailsSql(
+  input: ExecuteOwnershipTransferInput
+) {
+  return sql<string>`json_object(
+    'requestId', ${input.requestId},
+    'actorAdminId', ${input.currentOwnerId},
+    'targetAdminId', ${input.targetAdminId},
+    'previousOwnerOldRole', 'SUPER_ADMIN',
+    'previousOwnerNewRole', 'ADMIN',
+    'targetOldRole', 'ADMIN',
+    'targetNewRole', 'SUPER_ADMIN',
+    'authorityRefresh', json_object(
+      'revokedActorIds', json_array(${input.currentOwnerId}, ${input.targetAdminId}),
+      'revokedCount', (
+        SELECT count(*)
+        FROM ${sessions}
+        WHERE ${sessions.actor_kind} = 'ADMIN'
+          AND ${sessions.actor_id} IN (${input.currentOwnerId}, ${input.targetAdminId})
+          AND ${sessions.status} = 'REVOKED'
+          AND ${sessions.revoked_at} = ${input.transferredAt}
+      )
+    )
+  )`;
+}
+
+function ownershipTransferInvariantAbortSql(
+  input: ExecuteOwnershipTransferInput,
+  auditLogId: string
+) {
+  return sql`
+    SELECT
+      ${`ownership_transfer_invariant_${auditLogId}`},
+      ${input.currentOwnerId},
+      NULL,
+      'account',
+      NULL,
+      NULL,
+      ${input.transferredAt}
+    WHERE NOT (
+      EXISTS (
+        SELECT 1 FROM ${admins} previous_owner
+        WHERE previous_owner.id = ${input.currentOwnerId}
+          AND previous_owner.is_owner = 0
+          AND previous_owner.updated_at = ${input.transferredAt}
+          AND previous_owner.email_verified_at IS NOT NULL
+          AND previous_owner.approved_at IS NOT NULL
+      )
+      AND EXISTS (
+        SELECT 1 FROM ${admins} target
+        WHERE target.id = ${input.targetAdminId}
+          AND target.is_owner = 1
+          AND target.updated_at = ${input.transferredAt}
+          AND target.status = 'ACTIVE'
+          AND target.email_verified_at IS NOT NULL
+          AND target.approved_at IS NOT NULL
+      )
+      AND EXISTS (
+        SELECT 1 FROM ${audit_logs} audit
+        WHERE audit.id = ${auditLogId}
+          AND audit.action = ${ownershipTransferAuditAction}
+      )
+      AND (
+        SELECT count(*) FROM ${admins}
+        WHERE ${admins.is_owner} <> 0
+      ) = 1
+    )
+  `;
+}
+
+function isOwnershipTransferInvariantAbort(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    /ownership_transfer_invariant_|audit_logs\.action|NOT NULL constraint failed/i.test(
+      error.message
+    )
+  );
+}
+
 export function ownershipTransferResultFromBatchResult(input: {
   previousOwnerRows: OwnershipTransferAdminRowLike[];
   newOwnerRows: OwnershipTransferAdminRowLike[];
@@ -310,128 +389,135 @@ export class DrizzleOwnershipTransferRepository implements OwnershipTransferRepo
   async transferOwnership(
     input: ExecuteOwnershipTransferInput
   ): Promise<OwnershipTransferBatchResult> {
-    const details = buildOwnershipTransferAuditDetails({
-      requestId: input.requestId,
-      actorAdminId: input.currentOwnerId,
-      targetAdminId: input.targetAdminId,
-      previousOwnerOldRole: "SUPER_ADMIN",
-      previousOwnerNewRole: "ADMIN",
-      targetOldRole: "ADMIN",
-      targetNewRole: "SUPER_ADMIN",
-      revokedActorIds: [input.currentOwnerId, input.targetAdminId],
-      revokedSessionCount: 2,
-    });
+    const auditLogId = createId();
 
-    const [
-      previousOwnerRows,
-      newOwnerRows,
-      revokedSessionRows,
-      auditRows,
-      ownerCountRows,
-    ] = await this.db.batch([
-      this.db
-        .update(admins)
-        .set({
-          is_owner: false,
-          updated_at: input.transferredAt,
-        })
-        .where(
-          and(
-            eq(admins.id, input.currentOwnerId),
-            eq(admins.is_owner, true),
-            sql`EXISTS (
-              SELECT 1 FROM admins target
-              WHERE target.id = ${input.targetAdminId}
-                AND target.is_owner = 0
-                AND target.status = 'ACTIVE'
-                AND target.email_verified_at IS NOT NULL
-                AND target.approved_at IS NOT NULL
-            )`
+    try {
+      const [
+        previousOwnerRows,
+        newOwnerRows,
+        revokedSessionRows,
+        auditRows,
+        ownerCountRows,
+      ] = await this.db.batch([
+        this.db
+          .update(admins)
+          .set({
+            is_owner: false,
+            email_verified_at: sql`coalesce(${admins.email_verified_at}, ${input.transferredAt})`,
+            approved_at: sql`coalesce(${admins.approved_at}, ${input.transferredAt})`,
+            updated_at: input.transferredAt,
+          })
+          .where(
+            and(
+              eq(admins.id, input.currentOwnerId),
+              eq(admins.is_owner, true),
+              sql`EXISTS (
+                SELECT 1 FROM admins target
+                WHERE target.id = ${input.targetAdminId}
+                  AND target.is_owner = 0
+                  AND target.status = 'ACTIVE'
+                  AND target.email_verified_at IS NOT NULL
+                  AND target.approved_at IS NOT NULL
+              )`
+            )
           )
-        )
-        .returning(adminSafeColumns()),
-      this.db
-        .update(admins)
-        .set({
-          is_owner: true,
-          updated_at: input.transferredAt,
-        })
-        .where(
-          and(
-            eq(admins.id, input.targetAdminId),
-            eq(admins.is_owner, false),
-            eq(admins.status, "ACTIVE"),
-            sql`${admins.email_verified_at} IS NOT NULL`,
-            sql`${admins.approved_at} IS NOT NULL`,
-            sql`EXISTS (
-              SELECT 1 FROM admins previous_owner
-              WHERE previous_owner.id = ${input.currentOwnerId}
-                AND previous_owner.is_owner = 0
-                AND previous_owner.updated_at = ${input.transferredAt}
-            )`
+          .returning(adminSafeColumns()),
+        this.db
+          .update(admins)
+          .set({
+            is_owner: true,
+            updated_at: input.transferredAt,
+          })
+          .where(
+            and(
+              eq(admins.id, input.targetAdminId),
+              eq(admins.is_owner, false),
+              eq(admins.status, "ACTIVE"),
+              sql`${admins.email_verified_at} IS NOT NULL`,
+              sql`${admins.approved_at} IS NOT NULL`,
+              sql`EXISTS (
+                SELECT 1 FROM admins previous_owner
+                WHERE previous_owner.id = ${input.currentOwnerId}
+                  AND previous_owner.is_owner = 0
+                  AND previous_owner.updated_at = ${input.transferredAt}
+                  AND previous_owner.email_verified_at IS NOT NULL
+                  AND previous_owner.approved_at IS NOT NULL
+              )`
+            )
           )
-        )
-        .returning(adminSafeColumns()),
-      this.db
-        .update(sessions)
-        .set(ownershipTransferSessionRevocationDbValues(input.transferredAt))
-        .where(
-          and(
-            eq(sessions.actor_kind, "ADMIN"),
-            inArray(sessions.actor_id, [
-              input.currentOwnerId,
-              input.targetAdminId,
-            ]),
-            eq(sessions.status, "ACTIVE"),
-            sql`EXISTS (
-              SELECT 1 FROM admins target
-              WHERE target.id = ${input.targetAdminId}
-                AND target.is_owner = 1
-                AND target.updated_at = ${input.transferredAt}
-            )`
+          .returning(adminSafeColumns()),
+        this.db
+          .update(sessions)
+          .set(ownershipTransferSessionRevocationDbValues(input.transferredAt))
+          .where(
+            and(
+              eq(sessions.actor_kind, "ADMIN"),
+              inArray(sessions.actor_id, [
+                input.currentOwnerId,
+                input.targetAdminId,
+              ]),
+              eq(sessions.status, "ACTIVE"),
+              sql`EXISTS (
+                SELECT 1 FROM admins target
+                WHERE target.id = ${input.targetAdminId}
+                  AND target.is_owner = 1
+                  AND target.updated_at = ${input.transferredAt}
+              )`
+            )
           )
-        )
-        .returning({ id: sessions.id, actorId: sessions.actor_id }),
-      this.db.all(sql`
-        INSERT INTO ${audit_logs} (
-          admin_id,
-          action,
-          entity,
-          entity_id,
-          details,
-          created_at
-        )
-        SELECT
-          ${input.currentOwnerId},
-          ${ownershipTransferAuditAction},
-          'account',
-          ${input.targetAdminId},
-          ${JSON.stringify(details)},
-          ${input.transferredAt}
-        WHERE EXISTS (
-          SELECT 1 FROM admins target
-          WHERE target.id = ${input.targetAdminId}
-            AND target.is_owner = 1
-            AND target.updated_at = ${input.transferredAt}
-        )
-        RETURNING id
-      `),
-      this.db
-        .select({ count: sql<number>`count(*)` })
-        .from(admins)
-        .where(eq(admins.is_owner, true)),
-    ]);
+          .returning({ id: sessions.id, actorId: sessions.actor_id }),
+        this.db
+          .insert(audit_logs)
+          .select(
+            sql`
+          SELECT
+            ${auditLogId},
+            ${input.currentOwnerId},
+            ${ownershipTransferAuditAction},
+            'account',
+            ${input.targetAdminId},
+            ${ownershipTransferAuditDetailsSql(input)},
+            ${input.transferredAt}
+          WHERE EXISTS (
+            SELECT 1 FROM admins target
+            WHERE target.id = ${input.targetAdminId}
+              AND target.is_owner = 1
+              AND target.updated_at = ${input.transferredAt}
+          )
+        `
+          )
+          .returning({ id: audit_logs.id }),
+        this.db
+          .select({ count: sql<number>`count(*)` })
+          .from(admins)
+          .where(eq(admins.is_owner, true)),
+        this.db
+          .insert(audit_logs)
+          .select(ownershipTransferInvariantAbortSql(input, auditLogId)),
+      ]);
 
-    return ownershipTransferResultFromBatchResult({
-      previousOwnerRows: previousOwnerRows as OwnershipTransferAdminRow[],
-      newOwnerRows: newOwnerRows as OwnershipTransferAdminRow[],
-      revokedSessionRows: revokedSessionRows as Array<{
-        id: string;
-        actorId: string;
-      }>,
-      auditRows: auditRows as Array<{ id: string }>,
-      ownerCountRows: ownerCountRows as Array<{ count: number }>,
-    });
+      return ownershipTransferResultFromBatchResult({
+        previousOwnerRows: previousOwnerRows as OwnershipTransferAdminRow[],
+        newOwnerRows: newOwnerRows as OwnershipTransferAdminRow[],
+        revokedSessionRows: revokedSessionRows as Array<{
+          id: string;
+          actorId: string;
+        }>,
+        auditRows: auditRows as Array<{ id: string }>,
+        ownerCountRows: ownerCountRows as Array<{ count: number }>,
+      });
+    } catch (error) {
+      if (isOwnershipTransferInvariantAbort(error)) {
+        return {
+          success: false,
+          reason: "INVARIANT_CONFLICT",
+          ownerCount: 0,
+          revokedSessionCount: 0,
+        };
+      }
+
+      throw error;
+    }
   }
 }
 

@@ -1,6 +1,6 @@
 # Story 1.13: Ownership Transfer Governance
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -94,6 +94,15 @@ so that JRW can change platform owner while preserving exactly one Super Admin.
   - [x] Run `npm run check`.
   - [x] Run `npm run build-test` after targeted tests pass.
   - [x] Record exact blockers if D1 transaction semantics or Story 1.12 guard status prevents completion.
+
+### Review Findings
+
+- [x] [Review][Patch] Generate audit log IDs for raw audit insert [src/server/repositories/OwnershipTransferRepository.ts]
+- [x] [Review][Patch] Abort D1 batch on ownership transfer invariant failure before commit [src/server/repositories/OwnershipTransferRepository.ts]
+- [x] [Review][Patch] Preserve demoted previous owner Admin eligibility [src/server/repositories/OwnershipTransferRepository.ts]
+- [x] [Review][Patch] Record actual revoked session count in audit details [src/server/repositories/OwnershipTransferRepository.ts]
+- [x] [Review][Patch] Prevent password prefill/persistence in ownership transfer dialog [src/features/owner-governance/OwnershipTransferPanel.tsx]
+- [x] [Review][Patch] Add real D1 repository coverage for transfer SQL path [src/server/repositories/OwnershipTransferRepository.test.ts]
 
 ## Dev Notes
 
@@ -294,6 +303,10 @@ GPT-5 Codex
 - 2026-05-17T12:51:16+08:00: Final `npm run check` passed with 0 errors.
 - 2026-05-17T12:52:39+08:00: Final `npm run build-test` passed: Astro check, 44 Vitest files / 201 tests, Astro build complete.
 - 2026-05-17T12:59:14+08:00: Dev server started on `http://127.0.0.1:4322/`; Windows-side smoke check for `/admin/owner/transfer` returned HTTP 200.
+- 2026-05-17T15:43:13+08:00: Code review repository test passed after patches: 1 file / 6 tests, including real Miniflare D1 transfer and rollback coverage.
+- 2026-05-17T15:43:56+08:00: Code review targeted ownership transfer suite passed after patches: 5 files / 23 tests.
+- 2026-05-17T15:45:00+08:00: `npm run check` passed with 0 errors after review patches; existing legacy scaffold hints remain.
+- 2026-05-17T15:48:05+08:00: Final `npm run build-test` passed after review patches: Astro check, 44 Vitest files / 203 tests, Astro build complete.
 
 ### Completion Notes List
 
@@ -307,6 +320,7 @@ GPT-5 Codex
 - Added owner governance page and React feature panel with dense candidate table, modal confirmation flow, password re-entry, completion/session-refresh state, visible field errors, and helper tests.
 - Hardened audit details around existing `account.ownership_transferred` action, scrubbed safe JSON details, no password/phrase/token/hash/cookie/session secret exposure, and minimal audit persistence through `audit_logs`.
 - Final validation passed with no blockers. D1 batch path uses conditional owner demotion gated on target eligibility/current owner identity, target promotion, affected Admin session revocation, audit insert, and final one-owner count check.
+- Code review patches fixed audit ID generation, batch rollback on invariant failure, demoted owner eligibility, actual revoked-session audit evidence, password field cleanup, and real D1 repository coverage.
 
 ### File List
 
@@ -341,3 +355,4 @@ GPT-5 Codex
 - 2026-05-17T12:36:03+08:00: Added owner governance controller/routes, route tests, and endpoint catalog update.
 - 2026-05-17T12:48:17+08:00: Added owner governance UI/page, helper tests, and audit/security hardening.
 - 2026-05-17T12:53:04+08:00: Completed Story 1.13 validation and moved story to review.
+- 2026-05-17T15:48:05+08:00: Applied code review patches, revalidated targeted suite/check/build, and moved Story 1.13 to done.
