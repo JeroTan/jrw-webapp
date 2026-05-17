@@ -50,7 +50,9 @@ class RepoStub implements BrandRepository {
   createBrandError: Error | null = null;
   updateBrandError: Error | null = null;
   archiveBrandError: Error | null = null;
+  createBrandMembershipError: Error | null = null;
   createdMembershipCount = 0;
+  createdMembershipInputs: Array<Record<string, unknown>> = [];
   updateCalls: Array<Record<string, unknown>> = [];
   archiveCalls: Array<Record<string, unknown>> = [];
   membershipByAdminId: Record<
@@ -60,6 +62,46 @@ class RepoStub implements BrandRepository {
     admin_1: { role: "OWNER", status: "ACTIVE" },
     admin_member: { role: "MEMBER", status: "ACTIVE" },
   };
+  adminById: Record<
+    string,
+    {
+      id: string;
+      email: string;
+      role: "ADMIN" | "SUPER_ADMIN";
+      status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+    }
+  > = {
+    admin_1: {
+      id: "admin_1",
+      email: "owner@example.test",
+      role: "ADMIN",
+      status: "ACTIVE",
+    },
+    admin_member: {
+      id: "admin_member",
+      email: "member@example.test",
+      role: "ADMIN",
+      status: "ACTIVE",
+    },
+    admin_target: {
+      id: "admin_target",
+      email: "target@example.test",
+      role: "ADMIN",
+      status: "ACTIVE",
+    },
+    admin_suspended: {
+      id: "admin_suspended",
+      email: "suspended@example.test",
+      role: "ADMIN",
+      status: "SUSPENDED",
+    },
+    admin_owner: {
+      id: "admin_owner",
+      email: "owner-root@example.test",
+      role: "SUPER_ADMIN",
+      status: "ACTIVE",
+    },
+  };
 
   async createBrand(): Promise<BrandRecord> {
     if (this.createBrandError) {
@@ -68,17 +110,44 @@ class RepoStub implements BrandRepository {
     return brandRecord();
   }
 
-  async createBrandMembership() {
+  async createBrandMembership(input?: {
+    brandId: string;
+    adminId: string;
+    role: "OWNER" | "MEMBER";
+    status: "ACTIVE" | "PENDING" | "REVOKED";
+    invitedByAdminId: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }) {
+    if (this.createBrandMembershipError) {
+      throw this.createBrandMembershipError;
+    }
+
     this.createdMembershipCount += 1;
+    this.createdMembershipInputs.push({ ...(input ?? {}) });
+
+    if (!input) {
+      return {
+        id: "bm_1",
+        brandId: "brand_1",
+        adminId: "admin_1",
+        role: "OWNER" as const,
+        status: "ACTIVE" as const,
+        invitedByAdminId: null,
+        createdAt: now,
+        updatedAt: now,
+      };
+    }
+
     return {
       id: "bm_1",
-      brandId: "brand_1",
-      adminId: "admin_1",
-      role: "OWNER" as const,
-      status: "ACTIVE" as const,
-      invitedByAdminId: null,
-      createdAt: now,
-      updatedAt: now,
+      brandId: input.brandId,
+      adminId: input.adminId,
+      role: input.role,
+      status: input.status,
+      invitedByAdminId: input.invitedByAdminId,
+      createdAt: input.createdAt,
+      updatedAt: input.updatedAt,
     };
   }
 
@@ -164,6 +233,19 @@ class RepoStub implements BrandRepository {
       createdAt: now,
       updatedAt: now,
     };
+  }
+
+  async findAdminById(adminId: string) {
+    return this.adminById[adminId] ?? null;
+  }
+
+  async findAdminByEmail(email: string) {
+    const normalized = email.trim().toLowerCase();
+    return (
+      Object.values(this.adminById).find(
+        (admin) => admin.email.toLowerCase() === normalized
+      ) ?? null
+    );
   }
 }
 
@@ -360,6 +442,278 @@ describe("BrandService", () => {
     const serialized = JSON.stringify(published[0]);
     expect(serialized).not.toContain("password");
     expect(serialized).not.toContain("token");
+  });
+
+  it("invites eligible admins for OWNER, MEMBER, and SUPER_ADMIN actor paths", async () => {
+    const repo = new RepoStub();
+    repo.adminById.admin_target_2 = {
+      id: "admin_target_2",
+      email: "target2@example.test",
+      role: "ADMIN",
+      status: "ACTIVE",
+    };
+    repo.adminById.admin_target_3 = {
+      id: "admin_target_3",
+      email: "target3@example.test",
+      role: "ADMIN",
+      status: "ACTIVE",
+    };
+    const published: AuditEvent[] = [];
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+      auditPublisher: {
+        publish: async (event) => {
+          published.push(event);
+        },
+      },
+    });
+
+    const ownerInvite = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_owner_invite",
+      brandId: "brand_1",
+      body: { adminId: "admin_target" },
+    });
+    const memberInvite = await service.inviteAdminToBrand({
+      actor: adminActor({ actorId: "admin_member" }),
+      requestId: "req_member_invite",
+      brandId: "brand_1",
+      body: { adminId: "admin_target_2" },
+    });
+    const superAdminInvite = await service.inviteAdminToBrand({
+      actor: adminActor({ actorId: "admin_owner", role: "SUPER_ADMIN" }),
+      requestId: "req_super_invite",
+      brandId: "brand_1",
+      body: { email: "target3@example.test" },
+    });
+
+    expect(ownerInvite.error).toBeNull();
+    expect(memberInvite.error).toBeNull();
+    expect(superAdminInvite.error).toBeNull();
+    expect(repo.createdMembershipCount).toBe(3);
+    expect(repo.createdMembershipInputs).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          adminId: "admin_target",
+          role: "MEMBER",
+          status: "PENDING",
+          invitedByAdminId: "admin_1",
+        }),
+        expect.objectContaining({
+          adminId: "admin_target_2",
+          role: "MEMBER",
+          status: "PENDING",
+          invitedByAdminId: "admin_member",
+        }),
+        expect.objectContaining({
+          adminId: "admin_target_3",
+          role: "MEMBER",
+          status: "PENDING",
+          invitedByAdminId: "admin_owner",
+        }),
+      ])
+    );
+    expect(published).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "brand.member_invited",
+          requestId: "req_owner_invite",
+        }),
+        expect.objectContaining({
+          action: "brand.member_invited",
+          requestId: "req_member_invite",
+        }),
+        expect.objectContaining({
+          action: "brand.member_invited",
+          requestId: "req_super_invite",
+        }),
+      ])
+    );
+  });
+
+  it("denies invite for actor without active brand membership", async () => {
+    const repo = new RepoStub();
+    delete repo.membershipByAdminId.admin_1;
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const denied = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_invite_non_member",
+      brandId: "brand_1",
+      body: { adminId: "admin_target" },
+    });
+
+    expect(denied.error?.code).toBe("AUTH_FORBIDDEN");
+  });
+
+  it("rejects invite for suspended, non-ADMIN role, and missing target", async () => {
+    const repo = new RepoStub();
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const suspended = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_invite_suspended",
+      brandId: "brand_1",
+      body: { adminId: "admin_suspended" },
+    });
+    const nonAdminRole = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_invite_super_admin_target",
+      brandId: "brand_1",
+      body: { adminId: "admin_owner" },
+    });
+    const missing = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_invite_missing_target",
+      brandId: "brand_1",
+      body: { adminId: "missing_admin" },
+    });
+
+    expect(suspended.error?.code).toBe("VALIDATION_FAILED");
+    expect(suspended.error?.data).toMatchObject({
+      reason: "TARGET_ADMIN_SUSPENDED",
+    });
+    expect(nonAdminRole.error?.code).toBe("VALIDATION_FAILED");
+    expect(nonAdminRole.error?.data).toMatchObject({
+      reason: "TARGET_ROLE_NOT_ADMIN",
+    });
+    expect(missing.error?.code).toBe("VALIDATION_FAILED");
+    expect(missing.error?.data).toMatchObject({
+      reason: "TARGET_ADMIN_NOT_FOUND",
+    });
+  });
+
+  it("returns conflict for duplicate active or pending invitation state", async () => {
+    const repo = new RepoStub();
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    repo.membershipByAdminId.admin_target = {
+      role: "MEMBER",
+      status: "ACTIVE",
+    };
+    const activeConflict = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_invite_active_conflict",
+      brandId: "brand_1",
+      body: { adminId: "admin_target" },
+    });
+
+    repo.membershipByAdminId.admin_target = {
+      role: "MEMBER",
+      status: "PENDING",
+    };
+    const pendingConflict = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_invite_pending_conflict",
+      brandId: "brand_1",
+      body: { adminId: "admin_target" },
+    });
+
+    expect(activeConflict.error?.code).toBe("CONFLICT_STATE");
+    expect(activeConflict.error?.data).toMatchObject({
+      reason: "DUPLICATE_ACTIVE_MEMBERSHIP",
+    });
+    expect(pendingConflict.error?.code).toBe("CONFLICT_STATE");
+    expect(pendingConflict.error?.data).toMatchObject({
+      reason: "DUPLICATE_PENDING_INVITATION",
+    });
+  });
+
+  it("sends safe invitation email payload and emits audit without target email leakage", async () => {
+    const repo = new RepoStub();
+    const emails: Array<Record<string, unknown>> = [];
+    const published: AuditEvent[] = [];
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+      invitationEmailsEnabled: true,
+      brandInvitationActionUrl: "https://jrw.test/admin/brands/invitations",
+      accountEmails: {
+        sendVerificationEmail: async () => ({ ok: true }),
+        sendPasswordResetEmail: async () => ({ ok: true }),
+        sendAdminInvitationEmail: async () => ({ ok: true }),
+        sendAdminApprovalEmail: async () => ({ ok: true }),
+        sendAdminRejectionEmail: async () => ({ ok: true }),
+        sendBrandInvitationEmail: async (input) => {
+          emails.push({ ...input });
+          return { ok: true };
+        },
+      },
+      auditPublisher: {
+        publish: async (event) => {
+          published.push(event);
+        },
+      },
+    });
+
+    const result = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_invite_notify",
+      brandId: "brand_1",
+      body: { adminId: "admin_target" },
+    });
+
+    expect(result.error).toBeNull();
+    expect(emails).toHaveLength(1);
+    expect(emails[0]).toMatchObject({
+      toEmail: "target@example.test",
+      brandName: "JRW Lifestyle",
+      invitedByDisplayName: "admin_1",
+      requestId: "req_invite_notify",
+    });
+    expect(String(emails[0]?.actionUrl)).toContain("brandId=brand_1");
+    expect(published).toHaveLength(1);
+    expect(published[0]).toMatchObject({
+      action: "brand.member_invited",
+      safeDetails: {
+        targetAdminId: "admin_target",
+      },
+    });
+    expect(JSON.stringify(published[0])).not.toContain("target@example.test");
+  });
+
+  it("maps invite persistence failures to CONFLICT_STATE or PROVIDER_UNAVAILABLE", async () => {
+    const repo = new RepoStub();
+    repo.createBrandMembershipError = new Error(
+      "SQLITE_CONSTRAINT: UNIQUE constraint failed: brand_memberships.brand_id, brand_memberships.admin_id"
+    );
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const conflict = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_invite_unique_conflict",
+      brandId: "brand_1",
+      body: { adminId: "admin_target" },
+    });
+    expect(conflict.error?.code).toBe("CONFLICT_STATE");
+
+    repo.createBrandMembershipError = new Error("D1_ERROR: write failed");
+    repo.adminById.admin_target_2 = {
+      id: "admin_target_2",
+      email: "target2@example.test",
+      role: "ADMIN",
+      status: "ACTIVE",
+    };
+    const unavailable = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_invite_provider_down",
+      brandId: "brand_1",
+      body: { adminId: "admin_target_2" },
+    });
+    expect(unavailable.error?.code).toBe("PROVIDER_UNAVAILABLE");
   });
 
   it("updates brand for OWNER and MEMBER with safe audit event", async () => {

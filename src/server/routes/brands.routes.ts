@@ -1,4 +1,5 @@
 import { t } from "elysia";
+import { createAccountEmailNotifier } from "@/adapter/infrastructure/resend/CustomerVerificationEmailNotifier";
 import { tboxApiSuccess, openApiErrorResponses } from "@/lib/typebox/api";
 import {
   BrandController,
@@ -30,6 +31,28 @@ const tboxBrand = t.Object({
 
 const tboxBrandCreateData = t.Object({
   brand: tboxBrand,
+});
+
+const tboxBrandMembershipRole = t.Union([t.Literal("OWNER"), t.Literal("MEMBER")]);
+const tboxBrandMembershipStatus = t.Union([
+  t.Literal("ACTIVE"),
+  t.Literal("PENDING"),
+  t.Literal("REVOKED"),
+]);
+
+const tboxBrandInvitation = t.Object({
+  id: t.String(),
+  brandId: t.String(),
+  adminId: t.String(),
+  role: tboxBrandMembershipRole,
+  status: tboxBrandMembershipStatus,
+  invitedByAdminId: t.Nullable(t.String()),
+  createdAt: t.String({ format: "date-time" }),
+  updatedAt: t.String({ format: "date-time" }),
+});
+
+const tboxBrandInviteData = t.Object({
+  invitation: tboxBrandInvitation,
 });
 
 const tboxBrandIdParams = t.Object(
@@ -69,6 +92,14 @@ const tboxUpdateBrandBody = t.Object(
   { additionalProperties: false, minProperties: 1 }
 );
 
+const tboxInviteBrandBody = t.Object(
+  {
+    adminId: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
+    email: t.Optional(t.String({ format: "email", minLength: 3, maxLength: 254 })),
+  },
+  { additionalProperties: false, minProperties: 1 }
+);
+
 export type BrandControllerFactoryInput = {
   request: Request;
   runtimeEnv?: Partial<Env> & Record<string, unknown>;
@@ -78,6 +109,33 @@ export type BrandControllerFactoryInput = {
 export type BrandRoutesOptions = {
   controllerFactory?: (input: BrandControllerFactoryInput) => BrandController;
 };
+
+function cleanBoolean(value: unknown): boolean {
+  return typeof value === "string" && /^(1|true|yes|on)$/i.test(value.trim());
+}
+
+function brandInvitationEmailsEnabled(
+  runtimeEnv: (Partial<Env> & Record<string, unknown>) | undefined
+): boolean {
+  return (
+    cleanBoolean(runtimeEnv?.BRAND_INVITATION_EMAILS_ENABLED) ||
+    cleanBoolean(runtimeEnv?.ACCOUNT_EMAILS_ENABLED)
+  );
+}
+
+function brandInvitationActionUrl(
+  runtimeEnv: (Partial<Env> & Record<string, unknown>) | undefined
+): string | null {
+  const value =
+    runtimeEnv?.BRAND_INVITATION_ACTION_URL ??
+    runtimeEnv?.ADMIN_ACTION_URL ??
+    runtimeEnv?.ADMIN_APP_URL ??
+    runtimeEnv?.APP_BASE_URL;
+
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
 
 function createRuntimeController(
   input: BrandControllerFactoryInput
@@ -94,6 +152,11 @@ function createRuntimeController(
   const repositories = createBrandRepositories(db as D1Database);
   const service = new BrandService({
     ...repositories,
+    accountEmails: createAccountEmailNotifier(input.runtimeEnv ?? {}, {
+      requestUrl: input.request.url,
+    }),
+    invitationEmailsEnabled: brandInvitationEmailsEnabled(input.runtimeEnv),
+    brandInvitationActionUrl: brandInvitationActionUrl(input.runtimeEnv),
   });
 
   return new BrandController(service);
@@ -150,6 +213,7 @@ const brandUpdateErrors = [
 ] as const;
 
 const brandArchiveErrors = [...brandUpdateErrors] as const;
+const brandInviteErrors = [...brandUpdateErrors] as const;
 
 export function brandsRoutes(
   app: AnyElysia,
@@ -242,6 +306,56 @@ export function brandsRoutes(
         transform: rbacGuard(brandCreateAuth),
         response: {
           200: tboxApiSuccess(tboxBrandCreateData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/brands/:id/invite",
+      async (ctx) => {
+        const {
+          request,
+          set,
+          runtimeEnv,
+          requestContext,
+          requestId,
+          body,
+          params,
+        } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+            body: Record<string, unknown>;
+            params: { id: string };
+          };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.inviteAdminToBrand({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+          body,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandIdParams,
+        body: tboxInviteBrandBody,
+        detail: routeDetail({
+          summary: "Invite brand admin",
+          description:
+            "Creates a pending brand membership invitation for an existing eligible admin account.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...brandInviteErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          201: tboxApiSuccess(tboxBrandInviteData),
           ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
         },
       }

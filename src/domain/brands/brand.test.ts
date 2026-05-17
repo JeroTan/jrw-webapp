@@ -1,11 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   archiveBrand,
+  createBrandInvitation,
   createBrand,
   detectBrandCreateConflict,
   detectBrandUpdateConflict,
   generateSlug,
   updateBrand,
+  validateBrandInvitationTarget,
   validateBrandName,
   validateBrandUpdate,
   validateBrandSlug,
@@ -170,6 +172,113 @@ describe("brand domain rules", () => {
 
     expect(result.error).toBeNull();
     expect(result.content).toEqual({ name: "JRW Lifestyle Updated" });
+  });
+
+  it("creates valid brand invitation draft for active owner actor", () => {
+    const result = createBrandInvitation({
+      invitingActor: {
+        adminId: "admin_owner",
+        role: "ADMIN",
+        currentMembership: {
+          adminId: "admin_owner",
+          role: "OWNER",
+          status: "ACTIVE",
+        },
+      },
+      targetAdminId: "admin_target",
+      brandId: "brand_1",
+      targetAdmin: {
+        adminId: "admin_target",
+        role: "ADMIN",
+        status: "ACTIVE",
+      },
+      existingMembership: null,
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.content).toEqual({
+      brandId: "brand_1",
+      adminId: "admin_target",
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: "admin_owner",
+    });
+  });
+
+  it("rejects invitation when target is not ADMIN role", () => {
+    const result = validateBrandInvitationTarget({
+      targetAdminId: "target_customer",
+      targetAdmin: {
+        adminId: "target_customer",
+        role: "CUSTOMER",
+        status: "ACTIVE",
+      },
+      existingMembership: null,
+    });
+
+    expect(result.error?.code).toBe("VALIDATION_FAILED");
+    expect(result.error?.data).toEqual({
+      reason: "TARGET_ROLE_NOT_ADMIN",
+    });
+  });
+
+  it("rejects invitation when target admin is suspended", () => {
+    const result = validateBrandInvitationTarget({
+      targetAdminId: "admin_suspended",
+      targetAdmin: {
+        adminId: "admin_suspended",
+        role: "ADMIN",
+        status: "SUSPENDED",
+      },
+      existingMembership: null,
+    });
+
+    expect(result.error?.code).toBe("VALIDATION_FAILED");
+    expect(result.error?.data).toEqual({
+      reason: "TARGET_ADMIN_SUSPENDED",
+    });
+  });
+
+  it("returns conflict for duplicate active brand membership", () => {
+    const result = validateBrandInvitationTarget({
+      targetAdminId: "admin_member",
+      targetAdmin: {
+        adminId: "admin_member",
+        role: "ADMIN",
+        status: "ACTIVE",
+      },
+      existingMembership: {
+        adminId: "admin_member",
+        role: "MEMBER",
+        status: "ACTIVE",
+      },
+    });
+
+    expect(result.error?.code).toBe("CONFLICT_STATE");
+    expect(result.error?.data).toEqual({
+      reason: "DUPLICATE_ACTIVE_MEMBERSHIP",
+    });
+  });
+
+  it("returns conflict for duplicate pending invitation", () => {
+    const result = validateBrandInvitationTarget({
+      targetAdminId: "admin_pending",
+      targetAdmin: {
+        adminId: "admin_pending",
+        role: "ADMIN",
+        status: "ACTIVE",
+      },
+      existingMembership: {
+        adminId: "admin_pending",
+        role: "MEMBER",
+        status: "PENDING",
+      },
+    });
+
+    expect(result.error?.code).toBe("CONFLICT_STATE");
+    expect(result.error?.data).toEqual({
+      reason: "DUPLICATE_PENDING_INVITATION",
+    });
   });
 
   it("archives active brand and rejects already archived", () => {

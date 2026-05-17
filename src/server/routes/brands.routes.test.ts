@@ -71,6 +71,7 @@ describe("brands routes", () => {
 
     const post = body.paths?.["/api/brands"]?.post;
     const patch = body.paths?.["/api/brands/{id}"]?.patch;
+    const invite = body.paths?.["/api/brands/{id}/invite"]?.post;
     const archive = body.paths?.["/api/brands/{id}/archive"]?.post;
 
     expect(post?.summary).toBe("Create brand");
@@ -99,6 +100,24 @@ describe("brands routes", () => {
     });
     expect(patch?.["x-rate-limit-class"]).toBe("admin-write");
     expect(patch?.responses).toHaveProperty("409");
+
+    expect(invite?.summary).toBe("Invite brand admin");
+    expect(invite?.tags).toContain("Brands");
+    expect(invite?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(invite?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(invite?.["x-error-codes"]).toEqual(
+      expect.arrayContaining([
+        "AUTH_REQUIRED",
+        "AUTH_FORBIDDEN",
+        "VALIDATION_FAILED",
+        "CONFLICT_STATE",
+        "PROVIDER_UNAVAILABLE",
+      ])
+    );
+    expect(invite?.responses).toHaveProperty("409");
 
     expect(archive?.summary).toBe("Archive brand");
     expect(archive?.tags).toContain("Brands");
@@ -162,6 +181,189 @@ describe("brands routes", () => {
         },
       },
       meta: { requestId: "req_brand_create_success" },
+    });
+  });
+
+  it("denies anonymous invite before controller execution", async () => {
+    let controllerCalls = 0;
+    const app = createApp({
+      routes: {
+        brands: {
+          controllerFactory: () => {
+            controllerCalls += 1;
+            return createController({
+              inviteAdminToBrand: async () =>
+                Result.okay({
+                  invitation: {
+                    id: "bm_1",
+                    brandId: "brand_1",
+                    adminId: "admin_2",
+                    role: "MEMBER",
+                    status: "PENDING",
+                    invitedByAdminId: "admin_1",
+                    createdAt: now,
+                    updatedAt: now,
+                  },
+                }),
+            });
+          },
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/invite", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req_brand_invite_anonymous",
+        },
+        body: JSON.stringify({ adminId: "admin_2" }),
+      })
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "AUTH_REQUIRED",
+        details: { requestId: "req_brand_invite_anonymous" },
+      },
+    });
+    expect(controllerCalls).toBe(0);
+  });
+
+  it("returns non-member invite denial with request ID envelope", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              inviteAdminToBrand: async () =>
+                Result.error(new GeneralError({}, "AUTH_FORBIDDEN")),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/invite", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_brand_invite_non_member",
+        },
+        body: JSON.stringify({ adminId: "admin_2" }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "AUTH_FORBIDDEN",
+        details: { requestId: "req_brand_invite_non_member" },
+      },
+    });
+  });
+
+  it("invites brand admin with safe membership envelope", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              inviteAdminToBrand: async () =>
+                Result.okay({
+                  invitation: {
+                    id: "bm_1",
+                    brandId: "brand_1",
+                    adminId: "admin_2",
+                    role: "MEMBER",
+                    status: "PENDING",
+                    invitedByAdminId: "admin_1",
+                    createdAt: now,
+                    updatedAt: now,
+                  },
+                }),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/invite", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_brand_invite_success",
+        },
+        body: JSON.stringify({ adminId: "admin_2" }),
+      })
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        invitation: {
+          id: "bm_1",
+          brandId: "brand_1",
+          adminId: "admin_2",
+          role: "MEMBER",
+          status: "PENDING",
+        },
+      },
+      meta: { requestId: "req_brand_invite_success" },
+    });
+  });
+
+  it("returns 409 envelope for duplicate invite conflict", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              inviteAdminToBrand: async () =>
+                Result.error(
+                  new GeneralError(
+                    { reason: "DUPLICATE_PENDING_INVITATION" },
+                    "CONFLICT_STATE"
+                  )
+                ),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/invite", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_brand_invite_conflict",
+        },
+        body: JSON.stringify({ adminId: "admin_2" }),
+      })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "CONFLICT_STATE",
+        details: {
+          requestId: "req_brand_invite_conflict",
+        },
+      },
     });
   });
 

@@ -23,6 +23,8 @@ async function createBrandTestD1() {
       status text DEFAULT 'ACTIVE' NOT NULL,
       email_verified_at text,
       approved_at text,
+      suspension_reason text,
+      rejection_reason text,
       created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
       updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`,
@@ -77,10 +79,33 @@ async function createBrandTestD1() {
     )
     .run();
 
+  await d1
+    .prepare(
+      `INSERT INTO admins (
+        id, email, password_hash, password_salt, is_owner, status,
+        email_verified_at, approved_at, suspension_reason, rejection_reason, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      "admin_owner",
+      "owner@example.test",
+      "hash",
+      "salt",
+      1,
+      "ACTIVE",
+      now,
+      now,
+      null,
+      null,
+      now,
+      now
+    )
+    .run();
+
   return { d1, mf };
 }
 
-describe("BrandRepository", () => {
+describe("BrandRepository", { timeout: 20_000 }, () => {
   it("maps brand rows to safe DTO shape", () => {
     const dto = brandDtoFromRow({
       id: "brand_1",
@@ -378,6 +403,68 @@ describe("BrandRepository", () => {
           "JRW Home"
         );
       expect(archivedByName?.id).toBe(brandTwo.id);
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("creates pending invitation membership and resolves admin lookups", async () => {
+    const { d1, mf } = await createBrandTestD1();
+
+    try {
+      const repository = new DrizzleBrandRepository(createDb(d1));
+      const brand = await repository.createBrand(
+        {
+          name: "JRW Invite Test",
+          slug: "jrw-invite-test",
+          description: null,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+
+      const pendingMembership = await repository.createBrandMembership({
+        brandId: brand.id,
+        adminId: "admin_owner",
+        role: "MEMBER",
+        status: "PENDING",
+        invitedByAdminId: "admin_1",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      expect(pendingMembership).toMatchObject({
+        brandId: brand.id,
+        adminId: "admin_owner",
+        status: "PENDING",
+        invitedByAdminId: "admin_1",
+      });
+
+      const foundMembership = await repository.findMembershipByBrandAndAdmin(
+        brand.id,
+        "admin_owner"
+      );
+      expect(foundMembership?.status).toBe("PENDING");
+
+      const targetAdmin = await repository.findAdminById("admin_1");
+      expect(targetAdmin).toEqual({
+        id: "admin_1",
+        email: "admin1@example.test",
+        role: "ADMIN",
+        status: "ACTIVE",
+      });
+
+      const ownerAdmin = await repository.findAdminByEmail(
+        "OWNER@EXAMPLE.TEST"
+      );
+      expect(ownerAdmin).toEqual({
+        id: "admin_owner",
+        email: "owner@example.test",
+        role: "SUPER_ADMIN",
+        status: "ACTIVE",
+      });
     } finally {
       await mf.dispose();
     }

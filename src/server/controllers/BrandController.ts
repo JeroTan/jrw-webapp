@@ -9,8 +9,10 @@ import type {
   BrandActorInput,
   BrandArchiveResult,
   BrandCreateResult,
+  BrandInviteResult,
   BrandUpdateResult,
   CreateBrandServiceInput,
+  InviteBrandServiceInput,
   UpdateBrandServiceInput,
 } from "@/server/services/BrandService";
 import type { AppResult } from "@/utils/general/result";
@@ -21,6 +23,9 @@ export type BrandServiceLike = {
   archiveBrand(
     input: ArchiveBrandServiceInput
   ): Promise<AppResult<BrandArchiveResult>>;
+  inviteAdminToBrand(
+    input: InviteBrandServiceInput
+  ): Promise<AppResult<BrandInviteResult>>;
 };
 
 export type BrandControllerResult<T> = {
@@ -45,6 +50,13 @@ export type ArchiveBrandControllerInput = {
   actor: BrandActorInput | undefined;
   requestId: string;
   brandId: string;
+};
+
+export type InviteBrandControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+  body: Record<string, unknown>;
 };
 
 function errorResult<T>(
@@ -121,6 +133,23 @@ export class BrandController {
 
     return {
       status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async inviteAdminToBrand(
+    input: InviteBrandControllerInput
+  ): Promise<BrandControllerResult<BrandInviteResult>> {
+    const result = await this.service.inviteAdminToBrand(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 201,
       body: apiSuccessWithRequestId(result.content, input.requestId, {
         code: "SUCCESS",
       }),

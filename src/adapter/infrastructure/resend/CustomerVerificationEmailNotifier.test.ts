@@ -181,9 +181,19 @@ describe("Resend customer verification email notifier", () => {
         requestId: "req_rejection",
       })
     ).resolves.toEqual({ ok: true });
+    await expect(
+      notifier.sendBrandInvitationEmail({
+        toEmail: "admin@example.test",
+        brandName: "JRW Lifestyle",
+        invitedByDisplayName: "admin_1",
+        actionUrl: "https://jrw.test/admin/brands/brand_1",
+        requestId: "req_brand_invite",
+      })
+    ).resolves.toEqual({ ok: true });
 
-    expect(sent).toHaveLength(3);
+    expect(sent).toHaveLength(4);
     expect(JSON.stringify(sent)).toContain("JRW admin invitation");
+    expect(JSON.stringify(sent)).toContain("JRW brand invitation");
     expect(JSON.stringify(sent)).toContain("approved");
     expect(JSON.stringify(sent)).toContain("rejected");
     expect(JSON.stringify(sent)).not.toContain("req_invite");
@@ -276,6 +286,15 @@ describe("Resend customer verification email notifier", () => {
         toEmail: "buyer@example.test",
         token: "raw-token",
         expiresAt: "2026-05-14T00:00:00.000Z",
+        requestId: "req_email",
+      })
+    ).resolves.toMatchObject({ ok: false });
+    await expect(
+      missingAccountNotifier.sendBrandInvitationEmail({
+        toEmail: "admin@example.test",
+        brandName: "JRW Lifestyle",
+        invitedByDisplayName: "admin_1",
+        actionUrl: "https://jrw.test/admin/brands/brand_1",
         requestId: "req_email",
       })
     ).resolves.toMatchObject({ ok: false });

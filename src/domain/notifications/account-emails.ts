@@ -22,6 +22,14 @@ export type AdminLifecycleEmailInput = {
   statusLabel?: "invited" | "approved" | "rejected";
 };
 
+export type BrandInvitationEmailInput = {
+  toEmail: string;
+  brandName: string;
+  invitedByDisplayName: string;
+  actionUrl: string;
+  requestId: string;
+};
+
 export type CustomerVerificationEmailNotifier = {
   sendVerificationEmail(
     input: CustomerVerificationEmailInput
@@ -38,5 +46,8 @@ export type AccountEmailNotifier = CustomerVerificationEmailNotifier & {
   ): Promise<EmailSendResult>;
   sendAdminRejectionEmail(
     input: AdminLifecycleEmailInput
+  ): Promise<EmailSendResult>;
+  sendBrandInvitationEmail(
+    input: BrandInvitationEmailInput
   ): Promise<EmailSendResult>;
 };

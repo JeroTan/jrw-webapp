@@ -1,6 +1,6 @@
-# Story 2.3: Invite Admins to Brand
+﻿# Story 2.3: Invite Admins to Brand
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,78 +23,78 @@ so that JRW catalog work can be shared inside a brand group.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm dependency gate and prerequisites. (AC: 1-8)
-  - [ ] Verify Story 2.2 is `done` in sprint status.
-  - [ ] Confirm `brands` and `brand_memberships` schema exist in `src/domain/schema/catalog.ts`.
-  - [ ] Confirm RBAC guard middleware from Story 1.12 is registered and functional.
-  - [ ] Confirm BrandRepository, BrandService, BrandController, and brand routes exist from Stories 2.1/2.2.
-  - [ ] Confirm audit event `brand.member_invited` exists in `src/domain/audit/events.ts` (pre-defined).
-  - [ ] Do not start brand invitation flow without Stories 2.1 + 2.2 foundation complete.
+- [x] Task 1: Confirm dependency gate and prerequisites. (AC: 1-8)
+  - [x] Verify Story 2.2 is `done` in sprint status.
+  - [x] Confirm `brands` and `brand_memberships` schema exist in `src/domain/schema/catalog.ts`.
+  - [x] Confirm RBAC guard middleware from Story 1.12 is registered and functional.
+  - [x] Confirm BrandRepository, BrandService, BrandController, and brand routes exist from Stories 2.1/2.2.
+  - [x] Confirm audit event `brand.member_invited` exists in `src/domain/audit/events.ts` (pre-defined).
+  - [x] Do not start brand invitation flow without Stories 2.1 + 2.2 foundation complete.
 
-- [ ] Task 2: Add brand invitation domain rules. (AC: 1-3, 6)
-  - [ ] Add `createBrandInvitation(...)` domain function in `src/domain/brands/brand.ts`.
-  - [ ] Add `validateBrandInvitationTarget(...)` that validates target admin is eligible (exists, is ADMIN role, not suspended, not already member, not already pending).
-  - [ ] Add `BrandInvitationDraft` type with success/failure shape using `AppResult`/`GeneralError` pattern.
-  - [ ] Domain function receives: inviting actor, target admin ID, brand ID, current brand membership state, existing membership state.
-  - [ ] Return `VALIDATION_FAILED` for non-Admin target, suspended target, or missing target.
-  - [ ] Return `CONFLICT_STATE` for duplicate active membership or pending invitation.
-  - [ ] Create `src/domain/brands/brand.test.ts` additions covering: valid invitation draft, non-Admin target rejection, suspended target rejection, duplicate active membership conflict, duplicate pending invite conflict.
+- [x] Task 2: Add brand invitation domain rules. (AC: 1-3, 6)
+  - [x] Add `createBrandInvitation(...)` domain function in `src/domain/brands/brand.ts`.
+  - [x] Add `validateBrandInvitationTarget(...)` that validates target admin is eligible (exists, is ADMIN role, not suspended, not already member, not already pending).
+  - [x] Add `BrandInvitationDraft` type with success/failure shape using `AppResult`/`GeneralError` pattern.
+  - [x] Domain function receives: inviting actor, target admin ID, brand ID, current brand membership state, existing membership state.
+  - [x] Return `VALIDATION_FAILED` for non-Admin target, suspended target, or missing target.
+  - [x] Return `CONFLICT_STATE` for duplicate active membership or pending invitation.
+  - [x] Create `src/domain/brands/brand.test.ts` additions covering: valid invitation draft, non-Admin target rejection, suspended target rejection, duplicate active membership conflict, duplicate pending invite conflict.
 
-- [ ] Task 3: Extend brand repository boundary for invitations. (AC: 1-3, 6)
-  - [ ] Extend `src/server/repositories/BrandRepository.ts` with:
-    - [ ] `createBrandMembership(input)`: creates PENDING membership with `invitedByAdminId` set (already exists from Story 2.1 — confirm it supports PENDING status).
-    - [ ] `findMembershipByBrandAndAdmin(brandId, adminId)`: already exists from Story 2.2 — confirm it returns PENDING memberships too.
-    - [ ] `findAdminById(adminId)`: returns admin record or null (for target validation — check if exists in existing account repository or needs to be added).
-    - [ ] `findAdminByEmail(email)`: if needed for target lookup by email instead of ID.
-  - [ ] If admin lookup repository does not exist, check `src/server/repositories/` for account-related repository from Epic 1 stories.
-  - [ ] All DTOs use camelCase; map from snake_case at repository boundary.
-  - [ ] Create `src/server/repositories/BrandRepository.test.ts` additions covering: PENDING membership creation, find membership for pending invite, admin lookup for target validation.
+- [x] Task 3: Extend brand repository boundary for invitations. (AC: 1-3, 6)
+  - [x] Extend `src/server/repositories/BrandRepository.ts` with:
+    - [x] `createBrandMembership(input)`: creates PENDING membership with `invitedByAdminId` set (already exists from Story 2.1 â€” confirm it supports PENDING status).
+    - [x] `findMembershipByBrandAndAdmin(brandId, adminId)`: already exists from Story 2.2 â€” confirm it returns PENDING memberships too.
+    - [x] `findAdminById(adminId)`: returns admin record or null (for target validation â€” check if exists in existing account repository or needs to be added).
+    - [x] `findAdminByEmail(email)`: if needed for target lookup by email instead of ID.
+  - [x] If admin lookup repository does not exist, check `src/server/repositories/` for account-related repository from Epic 1 stories.
+  - [x] All DTOs use camelCase; map from snake_case at repository boundary.
+  - [x] Create `src/server/repositories/BrandRepository.test.ts` additions covering: PENDING membership creation, find membership for pending invite, admin lookup for target validation.
 
-- [ ] Task 4: Extend brand service with invitation flow. (AC: 1-6, 8)
-  - [ ] Extend `src/server/services/BrandService.ts` with:
-    - [ ] `inviteAdminToBrand(input)`: validates actor is brand member (OWNER or MEMBER) or has elevated SUPER_ADMIN permission, validates target admin exists and is eligible, checks for duplicate membership/invite, creates PENDING membership through repository, emits audit event `brand.member_invited`, sends notification email when enabled.
-    - [ ] Actor validation: must have ACTIVE membership in target brand with role OWNER or MEMBER, OR be SUPER_ADMIN.
-    - [ ] Target validation: must exist as ADMIN role, not suspended, not already member (ACTIVE/PENDING), not already has pending invite to this brand.
-    - [ ] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for non-member/ineligible actor, `VALIDATION_FAILED` for invalid target, `CONFLICT_STATE` for duplicate membership/invite, `PROVIDER_UNAVAILABLE` for D1 failures.
-    - [ ] Do not expose internal membership details or target admin PII beyond safe admin ID and role.
-    - [ ] Email notification: use existing notification boundary pattern from Epic 1 (check `src/domain/notifications/account-emails.ts` for pattern). Add `sendBrandInvitationEmail` to notification boundary if not present.
-  - [ ] Create `src/server/services/BrandService.test.ts` additions covering: OWNER invite success, MEMBER invite success, SUPER_ADMIN elevated invite success, non-member invite denial, suspended target rejection, non-Admin target rejection, duplicate active membership conflict, duplicate pending invite conflict, target not found, safe notification payload, audit event emission, D1 failure mapping.
+- [x] Task 4: Extend brand service with invitation flow. (AC: 1-6, 8)
+  - [x] Extend `src/server/services/BrandService.ts` with:
+    - [x] `inviteAdminToBrand(input)`: validates actor is brand member (OWNER or MEMBER) or has elevated SUPER_ADMIN permission, validates target admin exists and is eligible, checks for duplicate membership/invite, creates PENDING membership through repository, emits audit event `brand.member_invited`, sends notification email when enabled.
+    - [x] Actor validation: must have ACTIVE membership in target brand with role OWNER or MEMBER, OR be SUPER_ADMIN.
+    - [x] Target validation: must exist as ADMIN role, not suspended, not already member (ACTIVE/PENDING), not already has pending invite to this brand.
+    - [x] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for non-member/ineligible actor, `VALIDATION_FAILED` for invalid target, `CONFLICT_STATE` for duplicate membership/invite, `PROVIDER_UNAVAILABLE` for D1 failures.
+    - [x] Do not expose internal membership details or target admin PII beyond safe admin ID and role.
+    - [x] Email notification: use existing notification boundary pattern from Epic 1 (check `src/domain/notifications/account-emails.ts` for pattern). Add `sendBrandInvitationEmail` to notification boundary if not present.
+  - [x] Create `src/server/services/BrandService.test.ts` additions covering: OWNER invite success, MEMBER invite success, SUPER_ADMIN elevated invite success, non-member invite denial, suspended target rejection, non-Admin target rejection, duplicate active membership conflict, duplicate pending invite conflict, target not found, safe notification payload, audit event emission, D1 failure mapping.
 
-- [ ] Task 5: Add controller method and API route. (AC: 1-7, 8)
-  - [ ] Extend `src/server/controllers/BrandController.ts` with:
-    - [ ] `inviteAdminToBrand(input)`: maps service result to public API envelope.
-  - [ ] Extend `src/server/routes/brands.routes.ts` with:
-    - [ ] `POST /api/brands/:id/invite` — invite admin to brand.
-    - [ ] Request body schema: `adminId` (string, required) — the target admin to invite. Optionally support `email` for lookup if adminId not known.
-    - [ ] Response: standard `{ data: invitation, meta }` envelope on success; `{ error: { code, message, details? } }` on failure.
-    - [ ] Invitation response shape: `{ id, brandId, adminId, role, status, invitedByAdminId, createdAt, updatedAt }` — safe membership DTO, no PII.
-    - [ ] Route metadata: `routeDetail(...)` with tag `Brands`, auth `{ mode: "required", roles: ["ADMIN", "SUPER_ADMIN"] }`, rate-limit class `admin-write`, documented error codes.
-    - [ ] Controller maps service `AppResult` to public API envelopes; no business rules in controller.
-  - [ ] Create `src/server/routes/brands.routes.test.ts` additions covering: anonymous invite denial, non-member invite denial, OWNER invite success, response schema validation, OpenAPI metadata present, error envelope includes request ID, duplicate invite returns 409.
+- [x] Task 5: Add controller method and API route. (AC: 1-7, 8)
+  - [x] Extend `src/server/controllers/BrandController.ts` with:
+    - [x] `inviteAdminToBrand(input)`: maps service result to public API envelope.
+  - [x] Extend `src/server/routes/brands.routes.ts` with:
+    - [x] `POST /api/brands/:id/invite` â€” invite admin to brand.
+    - [x] Request body schema: `adminId` (string, required) â€” the target admin to invite. Optionally support `email` for lookup if adminId not known.
+    - [x] Response: standard `{ data: invitation, meta }` envelope on success; `{ error: { code, message, details? } }` on failure.
+    - [x] Invitation response shape: `{ id, brandId, adminId, role, status, invitedByAdminId, createdAt, updatedAt }` â€” safe membership DTO, no PII.
+    - [x] Route metadata: `routeDetail(...)` with tag `Brands`, auth `{ mode: "required", roles: ["ADMIN", "SUPER_ADMIN"] }`, rate-limit class `admin-write`, documented error codes.
+    - [x] Controller maps service `AppResult` to public API envelopes; no business rules in controller.
+  - [x] Create `src/server/routes/brands.routes.test.ts` additions covering: anonymous invite denial, non-member invite denial, OWNER invite success, response schema validation, OpenAPI metadata present, error envelope includes request ID, duplicate invite returns 409.
 
-- [ ] Task 6: Add audit event emission for invitation. (AC: 6)
-  - [ ] Use existing `src/domain/audit/events.ts` pattern; `brand.member_invited` action constant already exists.
-  - [ ] Emit `brand.member_invited` audit event with: actor (inviting admin id), action `brand.member_invited`, entity `brand`, entityId (brand id), safe details (target admin id, brand id, timestamp, request ID), no secrets/PII.
-  - [ ] Add tests proving audit event is emitted with safe details and no secret fields.
+- [x] Task 6: Add audit event emission for invitation. (AC: 6)
+  - [x] Use existing `src/domain/audit/events.ts` pattern; `brand.member_invited` action constant already exists.
+  - [x] Emit `brand.member_invited` audit event with: actor (inviting admin id), action `brand.member_invited`, entity `brand`, entityId (brand id), safe details (target admin id, brand id, timestamp, request ID), no secrets/PII.
+  - [x] Add tests proving audit event is emitted with safe details and no secret fields.
 
-- [ ] Task 7: Add brand invitation email notification. (AC: 1)
-  - [ ] Check existing notification boundary in `src/domain/notifications/account-emails.ts`.
-  - [ ] Add `BrandInvitationEmailInput` type: `{ toEmail: string; brandName: string; invitedByDisplayName: string; actionUrl: string; requestId: string }`.
-  - [ ] Add `sendBrandInvitationEmail(input)` to `AccountEmailNotifier` interface.
-  - [ ] If Resend adapter exists under `src/adapter/infrastructure/` or `src/lib/`, extend it to support brand invitation email template.
-  - [ ] If email sending is not yet implemented for this type, use noop/placeholder pattern consistent with existing notification boundary — document as blocker if email send is required for completion.
-  - [ ] Add tests proving notification boundary is called with correct payload and email field is scrubbed from audit logs.
+- [x] Task 7: Add brand invitation email notification. (AC: 1)
+  - [x] Check existing notification boundary in `src/domain/notifications/account-emails.ts`.
+  - [x] Add `BrandInvitationEmailInput` type: `{ toEmail: string; brandName: string; invitedByDisplayName: string; actionUrl: string; requestId: string }`.
+  - [x] Add `sendBrandInvitationEmail(input)` to `AccountEmailNotifier` interface.
+  - [x] If Resend adapter exists under `src/adapter/infrastructure/` or `src/lib/`, extend it to support brand invitation email template.
+  - [x] If email sending is not yet implemented for this type, use noop/placeholder pattern consistent with existing notification boundary â€” document as blocker if email send is required for completion.
+  - [x] Add tests proving notification boundary is called with correct payload and email field is scrubbed from audit logs.
 
-- [ ] Task 8: Validate full flow. (AC: 1-8)
-  - [ ] Run targeted tests:
+- [x] Task 8: Validate full flow. (AC: 1-8)
+  - [x] Run targeted tests:
     - `npx vitest run src/domain/brands/brand.test.ts src/server/repositories/BrandRepository.test.ts src/server/services/BrandService.test.ts src/server/routes/brands.routes.test.ts`
-  - [ ] Run `npm run check`.
-  - [ ] Run `npm run build-test` after targeted tests pass.
-  - [ ] Record exact blockers if any.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run build-test` after targeted tests pass.
+  - [x] Record exact blockers if any.
 
 ### Review Findings
 
-_None yet — story not implemented._
+_None yet â€” story not implemented._
 
 ## Dev Notes
 
@@ -102,7 +102,7 @@ _None yet — story not implemented._
 
 - Story 2.3 builds on Stories 2.1 (Create Brand) and 2.2 (Update/Archive Brand) which established `brands` and `brand_memberships` tables, brand CRUD flow, and audit emission for brand events.
 - Requirements covered: FR15; supports FR14.
-- Product truth: JRW is single-store ecommerce. Brands are catalog/collaboration groups only — NOT stores, sellers, merchants, tenants, payout owners, or PayMongo accounts.
+- Product truth: JRW is single-store ecommerce. Brands are catalog/collaboration groups only â€” NOT stores, sellers, merchants, tenants, payout owners, or PayMongo accounts.
 - Brand invitation is the third story in Epic 2. Foundation from 2.1 and 2.2 must be complete before starting.
 - Story 2.4 (Join Brand by Invitation or Approval) will consume the PENDING memberships created by this story.
 
@@ -121,8 +121,8 @@ _None yet — story not implemented._
   - **What must be preserved:** Existing create/update/archive flows, slug generation, conflict detection, validation constants. Do not modify existing domain logic.
 
 #### `src/server/repositories/BrandRepository.ts` (Stories 2.1 + 2.2)
-  - **Current state:** Contains `createBrand(...)`, `createBrandMembership(...)`, `createBrandWithOwnerMembership(...)`, `updateBrand(...)`, `archiveBrand(...)`, `findBrandBySlug(...)`, `findBrandByName(...)`, `findArchivedBrandByName(...)`, `findBrandById(...)`, `findBrandByIdIncludingArchived(...)`, `findBrandByNameExcluding(...)`, `findBrandBySlugExcluding(...)`, `findArchivedBrandByNameExcluding(...)`, `findMembershipByBrandAndAdmin(...)`. Uses Drizzle batch for atomic brand+membership creation. DTO mapping snake_case → camelCase.
-  - **What this story changes:** Reuse `createBrandMembership(...)` for creating PENDING memberships. May need to add admin lookup method — check if account repository exists from Epic 1 (Story 1.11 Admin Account Management). If not, may need minimal admin lookup query.
+  - **Current state:** Contains `createBrand(...)`, `createBrandMembership(...)`, `createBrandWithOwnerMembership(...)`, `updateBrand(...)`, `archiveBrand(...)`, `findBrandBySlug(...)`, `findBrandByName(...)`, `findArchivedBrandByName(...)`, `findBrandById(...)`, `findBrandByIdIncludingArchived(...)`, `findBrandByNameExcluding(...)`, `findBrandBySlugExcluding(...)`, `findArchivedBrandByNameExcluding(...)`, `findMembershipByBrandAndAdmin(...)`. Uses Drizzle batch for atomic brand+membership creation. DTO mapping snake_case â†’ camelCase.
+  - **What this story changes:** Reuse `createBrandMembership(...)` for creating PENDING memberships. May need to add admin lookup method â€” check if account repository exists from Epic 1 (Story 1.11 Admin Account Management). If not, may need minimal admin lookup query.
   - **What must be preserved:** Existing create/update/archive methods, DTO mapping, batch pattern, type definitions. Do not modify existing repository methods.
 
 #### `src/server/services/BrandService.ts` (Stories 2.1 + 2.2)
@@ -174,7 +174,7 @@ _None yet — story not implemented._
 - Server state is authority. UI-only invitation controls are insufficient.
 - Database naming: `snake_case` tables/columns. API JSON: `camelCase`. Map at repository/service boundary.
 - Brand membership must be enforced server-side, not only in UI.
-- Invitation creates PENDING membership — not ACTIVE. Story 2.4 will handle acceptance.
+- Invitation creates PENDING membership â€” not ACTIVE. Story 2.4 will handle acceptance.
 
 ### Brand Invitation Authorization
 
@@ -197,7 +197,7 @@ _None yet — story not implemented._
 
 - Use existing `createBrandMembership(...)` repository method from Story 2.1.
 - Set `status = "PENDING"`, `role = "MEMBER"`, `invitedByAdminId = inviting actor ID`.
-- The membership record is the invitation — no separate invitation table needed.
+- The membership record is the invitation â€” no separate invitation table needed.
 - Story 2.4 will accept/reject these PENDING memberships.
 
 ### D1 / Drizzle Schema Guardrails
@@ -214,7 +214,7 @@ _None yet — story not implemented._
 - Look for repository under `src/server/repositories/` with account/admin lookup methods.
 - If no account repository exists, add minimal admin lookup to BrandRepository or create separate account repository.
 - Lookup should return: admin ID, role, account status (active/suspended), email (for notification).
-- Do NOT expose admin email in API response — only use for email notification.
+- Do NOT expose admin email in API response â€” only use for email notification.
 
 ### UI / UX Guardrails
 
@@ -229,7 +229,7 @@ _None yet — story not implemented._
 - NEVER use: seller, merchant, tenant, store owner, payout owner, PayMongo owner for brands.
 - JRW is the seller of record. Brands organize catalog collaboration only.
 - This language rule applies to: code comments, variable names where reasonable, API response field descriptions, test descriptions, and audit event details.
-- Invitation language: "invite", "brand invitation", "pending invitation" — NOT "add member", "assign to store", "grant seller access".
+- Invitation language: "invite", "brand invitation", "pending invitation" â€” NOT "add member", "assign to store", "grant seller access".
 
 ### Testing Requirements
 
@@ -278,13 +278,13 @@ npm run build-test
 
 ### Agent Model Used
 
-_Not yet implemented._
+- GPT-5.5 (Codex)
 
 ### Implementation Plan
 
-- Follow vertical slice pattern established in Epic 1 and Stories 2.1/2.2: domain rules → repository → service → controller/routes → audit hardening → notification → validation.
+- Follow vertical slice pattern established in Epic 1 and Stories 2.1/2.2: domain rules â†’ repository â†’ service â†’ controller/routes â†’ audit hardening â†’ notification â†’ validation.
 - Brand is catalog collaboration group only. Never model as store/seller/tenant.
-- No schema changes needed — `PENDING` status and `invited_by_admin_id` columns already exist from Story 2.1.
+- No schema changes needed â€” `PENDING` status and `invited_by_admin_id` columns already exist from Story 2.1.
 - Invitation creates PENDING membership with role MEMBER, invitedByAdminId set to inviting actor.
 - SUPER_ADMIN has elevated permission to invite without brand membership.
 - Target admin must exist, be ADMIN role, not suspended, not already member, not already pending.
@@ -295,11 +295,20 @@ _Not yet implemented._
 
 ### Debug Log References
 
-_Not yet implemented._
+- Dependency gate checks passed: Story 2.2 status confirmed `done`; schema, RBAC guard, brand stack, and `brand.member_invited` constant verified.
+- `npx vitest run src/domain/brands/brand.test.ts src/server/repositories/BrandRepository.test.ts src/server/services/BrandService.test.ts src/server/routes/brands.routes.test.ts` ✅ (57/57 passing).
+- `npm run check` ✅ (`astro check` passed; two existing TypeScript hints only).
+- `npm run build-test` ❌ blocked by pre-existing timeout failures in `src/server/repositories/OwnershipTransferRepository.test.ts` (2 tests exceed 5000ms default timeout).
 
 ### Completion Notes List
 
-_Not yet implemented._
+- ✅ Added domain invitation rules: `createBrandInvitation(...)`, `validateBrandInvitationTarget(...)`, invitation draft/error shapes.
+- ✅ Extended BrandRepository with `findAdminById(...)` and `findAdminByEmail(...)`; preserved snake_case→camelCase boundary mapping.
+- ✅ Added brand invitation service flow with actor membership/elevated checks, target validation, duplicate detection, PENDING membership creation, audit emission, and notification dispatch hook.
+- ✅ Added controller + route contract for `POST /api/brands/:id/invite` with TypeBox schemas, OpenAPI metadata, RBAC guard, standard response envelopes, and documented errors.
+- ✅ Extended notification boundary with `BrandInvitationEmailInput` + `sendBrandInvitationEmail(...)`; implemented Resend adapter method + tests.
+- ✅ Added/updated domain, repository, service, and route tests for invite success/failure matrix, safe notification payload, and audit safety.
+- ⚠️ Blocker recorded: full `npm run build-test` remains red due unrelated OwnershipTransferRepository timeout tests.
 
 ### File List
 
@@ -315,7 +324,13 @@ _Not yet implemented._
 - `src/server/routes/brands.routes.ts`
 - `src/server/routes/brands.routes.test.ts`
 - `src/domain/notifications/account-emails.ts`
+- `src/adapter/infrastructure/resend/CustomerVerificationEmailNotifier.ts`
+- `src/adapter/infrastructure/resend/CustomerVerificationEmailNotifier.test.ts`
+- `src/server/services/AccountRecoveryService.test.ts`
+- `src/server/services/AdminAccountService.test.ts`
 
 ## Change Log
 
-- 2026-05-17: Story 2.3 context engine created — comprehensive developer guide for brand invitation API.
+- 2026-05-17: Story 2.3 context engine created â€” comprehensive developer guide for brand invitation API.
+- 2026-05-18: Implemented brand invitation domain/repository/service/controller/route flow, added audit + email notification support, and completed invite test matrix. `npm run build-test` blocked by pre-existing `OwnershipTransferRepository` test timeouts.
+

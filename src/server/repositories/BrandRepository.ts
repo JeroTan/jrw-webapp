@@ -7,11 +7,13 @@ import {
   brandStatusValues,
   brand_memberships,
 } from "@/domain/schema/catalog";
+import { accountStatusValues, admins } from "@/domain/schema/identity";
 import { and, eq, ne, sql } from "drizzle-orm";
 
 type BrandStatusValue = (typeof brandStatusValues)[number];
 type BrandMembershipRoleValue = (typeof brandMembershipRoleValues)[number];
 type BrandMembershipStatusValue = (typeof brandMembershipStatusValues)[number];
+type BrandAdminStatusValue = (typeof accountStatusValues)[number];
 
 type BrandRowLike = {
   [key: string]: unknown;
@@ -38,6 +40,14 @@ type BrandMembershipRowLike = {
   updated_at: string;
 };
 
+type BrandAdminRowLike = {
+  [key: string]: unknown;
+  id: string;
+  email: string;
+  is_owner: boolean;
+  status: BrandAdminStatusValue;
+};
+
 export type BrandRecord = {
   id: string;
   name: string;
@@ -58,6 +68,13 @@ export type BrandMembershipRecord = {
   invitedByAdminId: string | null;
   createdAt: string;
   updatedAt: string;
+};
+
+export type BrandAdminRecord = {
+  id: string;
+  email: string;
+  role: "ADMIN" | "SUPER_ADMIN";
+  status: BrandAdminStatusValue;
 };
 
 export type CreateBrandInput = {
@@ -128,10 +145,21 @@ export type BrandRepository = {
     brandId: string,
     adminId: string
   ): Promise<BrandMembershipRecord | null>;
+  findAdminById(adminId: string): Promise<BrandAdminRecord | null>;
+  findAdminByEmail(email: string): Promise<BrandAdminRecord | null>;
 };
 
 function normalizeLookup(value: string): string {
   return value.trim().toLowerCase();
+}
+
+function adminDtoFromRow(row: BrandAdminRowLike): BrandAdminRecord {
+  return {
+    id: row.id,
+    email: row.email,
+    role: row.is_owner ? "SUPER_ADMIN" : "ADMIN",
+    status: row.status,
+  };
 }
 
 export function brandDtoFromRow(row: BrandRowLike): BrandRecord {
@@ -431,6 +459,26 @@ export class DrizzleBrandRepository implements BrandRepository {
       .limit(1);
 
     return membership ? brandMembershipDtoFromRow(membership) : null;
+  }
+
+  async findAdminById(adminId: string): Promise<BrandAdminRecord | null> {
+    const [admin] = await this.db
+      .select()
+      .from(admins)
+      .where(eq(admins.id, adminId))
+      .limit(1);
+
+    return admin ? adminDtoFromRow(admin) : null;
+  }
+
+  async findAdminByEmail(email: string): Promise<BrandAdminRecord | null> {
+    const [admin] = await this.db
+      .select()
+      .from(admins)
+      .where(sql`lower(${admins.email}) = ${normalizeLookup(email)}`)
+      .limit(1);
+
+    return admin ? adminDtoFromRow(admin) : null;
   }
 }
 

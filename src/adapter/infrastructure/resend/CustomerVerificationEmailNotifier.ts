@@ -1,6 +1,7 @@
 import type {
   AccountEmailNotifier,
   AdminLifecycleEmailInput,
+  BrandInvitationEmailInput,
   CustomerVerificationEmailInput,
   CustomerVerificationEmailNotifier,
   PasswordResetEmailInput,
@@ -277,6 +278,13 @@ export class FailingAccountEmailNotifier implements AccountEmailNotifier {
       error: configError(),
     };
   }
+
+  async sendBrandInvitationEmail(_input: BrandInvitationEmailInput) {
+    return {
+      ok: false as const,
+      error: configError(),
+    };
+  }
 }
 
 export class ResendCustomerVerificationEmailNotifier implements AccountEmailNotifier {
@@ -431,6 +439,63 @@ export class ResendCustomerVerificationEmailNotifier implements AccountEmailNoti
       subject: "JRW admin account update",
       intro: "Your JRW Admin account request was not approved.",
     });
+  }
+
+  async sendBrandInvitationEmail(
+    input: BrandInvitationEmailInput
+  ): Promise<{ ok: true } | { ok: false; error?: unknown }> {
+    const actionUrl = optionalActionUrl(input.actionUrl);
+    const safeBrandName = input.brandName.trim();
+    const inviterLabel = input.invitedByDisplayName.trim();
+    const template = emailFrame({
+      title: "JRW brand invitation",
+      blocks: [
+        emailTitle({ content: "JRW brand invitation" }),
+        emailBody({
+          content: `${inviterLabel} invited you to join brand ${safeBrandName} for JRW catalog collaboration.`,
+        }),
+        ...(actionUrl
+          ? [emailActionLink({ label: "Open JRW Admin", url: actionUrl })]
+          : []),
+      ],
+    });
+
+    try {
+      const response = await this.client.emails.send({
+        from: this.fromEmail,
+        to: input.toEmail,
+        subject: "JRW brand invitation",
+        text: template.text,
+        html: template.html,
+      });
+
+      logEmailSendResult({
+        debugEmailSend: this.debugEmailSend,
+        requestId: input.requestId,
+        operation: "brand-invitation",
+        from: this.fromEmail,
+        to: input.toEmail,
+        response,
+      });
+
+      const providerError = resendProviderError(response);
+      if (providerError) {
+        return { ok: false, error: providerError };
+      }
+
+      return { ok: true };
+    } catch (error) {
+      logEmailSendResult({
+        debugEmailSend: this.debugEmailSend,
+        requestId: input.requestId,
+        operation: "brand-invitation",
+        from: this.fromEmail,
+        to: input.toEmail,
+        error,
+      });
+
+      return { ok: false, error };
+    }
   }
 
   private async sendAdminLifecycleEmail(input: {

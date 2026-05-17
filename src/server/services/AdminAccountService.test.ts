@@ -176,6 +176,7 @@ function notifier(sent: string[] = []): AccountEmailNotifier {
       sent.push("rejection");
       return { ok: true };
     },
+    sendBrandInvitationEmail: async () => ({ ok: true }),
   };
 }
 

@@ -68,6 +68,77 @@ export type BrandArchiveResult = AppResult<
   { reason: "ALREADY_ARCHIVED" }
 >;
 
+export type BrandInvitationMembershipRole = "OWNER" | "MEMBER";
+
+export type BrandInvitationMembershipStatus = "ACTIVE" | "PENDING" | "REVOKED";
+
+export type BrandInvitationActorRole = "ADMIN" | "SUPER_ADMIN";
+
+export type BrandInvitationTargetRole =
+  | BrandInvitationActorRole
+  | "CUSTOMER"
+  | "PROSPECT";
+
+export type BrandInvitationAccountStatus = "ACTIVE" | "INACTIVE" | "SUSPENDED";
+
+export type BrandInvitationMembershipState = {
+  adminId: string;
+  role: BrandInvitationMembershipRole;
+  status: BrandInvitationMembershipStatus;
+};
+
+export type BrandInvitationActor = {
+  adminId: string;
+  role: BrandInvitationActorRole;
+  currentMembership: BrandInvitationMembershipState | null;
+};
+
+export type BrandInvitationTarget = {
+  adminId: string;
+  role: BrandInvitationTargetRole;
+  status: BrandInvitationAccountStatus;
+};
+
+export type BrandInvitationDraft = {
+  brandId: string;
+  adminId: string;
+  role: "MEMBER";
+  status: "PENDING";
+  invitedByAdminId: string;
+};
+
+export type BrandInvitationFailureReason =
+  | "TARGET_ADMIN_NOT_FOUND"
+  | "TARGET_ROLE_NOT_ADMIN"
+  | "TARGET_ADMIN_SUSPENDED"
+  | "ACTOR_NOT_BRAND_MEMBER"
+  | "DUPLICATE_ACTIVE_MEMBERSHIP"
+  | "DUPLICATE_PENDING_INVITATION";
+
+export type BrandInvitationResult = AppResult<
+  BrandInvitationDraft,
+  { reason: BrandInvitationFailureReason }
+>;
+
+export type BrandInvitationTargetValidationResult = AppResult<
+  { targetAdminId: string },
+  { reason: BrandInvitationFailureReason }
+>;
+
+export type BrandInvitationTargetValidationInput = {
+  targetAdminId: string;
+  targetAdmin: BrandInvitationTarget | null;
+  existingMembership: BrandInvitationMembershipState | null;
+};
+
+export type CreateBrandInvitationInput = {
+  invitingActor: BrandInvitationActor;
+  targetAdminId: string;
+  brandId: string;
+  existingMembership: BrandInvitationMembershipState | null;
+  targetAdmin: BrandInvitationTarget | null;
+};
+
 type ValidationResult =
   | { ok: true; value: string }
   | { ok: false; code: "VALIDATION_FAILED"; reasons: string[] };
@@ -82,6 +153,44 @@ function validationError(reasons: string[]): ValidationResult {
     code: "VALIDATION_FAILED",
     reasons,
   };
+}
+
+function invitationValidationError(
+  reason: Extract<
+    BrandInvitationFailureReason,
+    "TARGET_ADMIN_NOT_FOUND" | "TARGET_ROLE_NOT_ADMIN" | "TARGET_ADMIN_SUSPENDED"
+  >
+): BrandInvitationTargetValidationResult {
+  return Result.error(
+    new GeneralError({ reason }, "VALIDATION_FAILED")
+  ) as BrandInvitationTargetValidationResult;
+}
+
+function invitationConflictError(
+  reason: Extract<
+    BrandInvitationFailureReason,
+    "DUPLICATE_ACTIVE_MEMBERSHIP" | "DUPLICATE_PENDING_INVITATION"
+  >
+): BrandInvitationTargetValidationResult {
+  return Result.error(
+    new GeneralError({ reason }, "CONFLICT_STATE")
+  ) as BrandInvitationTargetValidationResult;
+}
+
+function actorCanInvite(actor: BrandInvitationActor): boolean {
+  if (actor.role === "SUPER_ADMIN") {
+    return true;
+  }
+
+  if (!actor.currentMembership) {
+    return false;
+  }
+
+  return (
+    actor.currentMembership.status === "ACTIVE" &&
+    (actor.currentMembership.role === "OWNER" ||
+      actor.currentMembership.role === "MEMBER")
+  );
 }
 
 export function generateSlug(name: string): string {
@@ -196,6 +305,59 @@ export function createBrand(input: BrandCreateInput): BrandCreationResult {
     name: name.value,
     slug: slug.value,
     description: description.length ? description : null,
+  });
+}
+
+export function validateBrandInvitationTarget(
+  input: BrandInvitationTargetValidationInput
+): BrandInvitationTargetValidationResult {
+  if (!input.targetAdmin) {
+    return invitationValidationError("TARGET_ADMIN_NOT_FOUND");
+  }
+
+  if (input.targetAdmin.role !== "ADMIN") {
+    return invitationValidationError("TARGET_ROLE_NOT_ADMIN");
+  }
+
+  if (input.targetAdmin.status === "SUSPENDED") {
+    return invitationValidationError("TARGET_ADMIN_SUSPENDED");
+  }
+
+  if (input.existingMembership?.status === "ACTIVE") {
+    return invitationConflictError("DUPLICATE_ACTIVE_MEMBERSHIP");
+  }
+
+  if (input.existingMembership?.status === "PENDING") {
+    return invitationConflictError("DUPLICATE_PENDING_INVITATION");
+  }
+
+  return Result.okay({ targetAdminId: input.targetAdminId });
+}
+
+export function createBrandInvitation(
+  input: CreateBrandInvitationInput
+): BrandInvitationResult {
+  if (!actorCanInvite(input.invitingActor)) {
+    return Result.error(
+      new GeneralError({ reason: "ACTOR_NOT_BRAND_MEMBER" }, "AUTH_FORBIDDEN")
+    );
+  }
+
+  const targetValidation = validateBrandInvitationTarget({
+    targetAdminId: input.targetAdminId,
+    targetAdmin: input.targetAdmin,
+    existingMembership: input.existingMembership,
+  });
+  if (targetValidation.error) {
+    return Result.error(targetValidation.error);
+  }
+
+  return Result.okay({
+    brandId: input.brandId,
+    adminId: input.targetAdminId,
+    role: "MEMBER",
+    status: "PENDING",
+    invitedByAdminId: input.invitingActor.adminId,
   });
 }
 

@@ -6,13 +6,16 @@ import {
 import {
   archiveBrand as archiveBrandDraft,
   createBrand as createBrandDraft,
+  createBrandInvitation,
   detectBrandCreateConflict,
   updateBrand as updateBrandDraft,
   type BrandUpdateInput,
 } from "@/domain/brands/brand";
 import { evaluateRouteAccess } from "@/domain/auth/rbac";
+import type { AccountEmailNotifier } from "@/domain/notifications/account-emails";
 import type { RequestActorContext } from "@/server/context/request-context";
 import type {
+  BrandAdminRecord,
   BrandMembershipRecord,
   BrandRecord,
   BrandRepository,
@@ -54,6 +57,13 @@ export type ArchiveBrandServiceInput = {
   brandId: string;
 };
 
+export type InviteBrandServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+  body: Record<string, unknown>;
+};
+
 export type BrandCreateResult = {
   brand: BrandRecord;
 };
@@ -66,9 +76,16 @@ export type BrandArchiveResult = {
   brand: BrandRecord;
 };
 
+export type BrandInviteResult = {
+  invitation: BrandMembershipRecord;
+};
+
 export type BrandServiceOptions = {
   repository: BrandRepository;
   auditPublisher?: AuditEventPublisher;
+  accountEmails?: AccountEmailNotifier;
+  invitationEmailsEnabled?: boolean;
+  brandInvitationActionUrl?: string | null;
   now?: () => Date;
 };
 
@@ -111,15 +128,46 @@ function mapBrandDomainErrorCode(
   return code === "CONFLICT_STATE" ? "CONFLICT_STATE" : "VALIDATION_FAILED";
 }
 
+const noopAccountEmails: AccountEmailNotifier = {
+  async sendVerificationEmail() {
+    return { ok: false };
+  },
+  async sendPasswordResetEmail() {
+    return { ok: false };
+  },
+  async sendAdminInvitationEmail() {
+    return { ok: false };
+  },
+  async sendAdminApprovalEmail() {
+    return { ok: false };
+  },
+  async sendAdminRejectionEmail() {
+    return { ok: false };
+  },
+  async sendBrandInvitationEmail() {
+    return { ok: false };
+  },
+};
+
+function normalizeInviteEmail(value: string): string {
+  return value.trim().toLowerCase();
+}
+
 export class BrandService {
   private readonly repository: BrandRepository;
   private readonly auditPublisher: AuditEventPublisher;
+  private readonly accountEmails: AccountEmailNotifier;
+  private readonly invitationEmailsEnabled: boolean;
+  private readonly brandInvitationActionUrl: string | null;
   private readonly now: () => Date;
 
   constructor(options: BrandServiceOptions) {
     this.repository = options.repository;
     this.auditPublisher =
       options.auditPublisher ?? new NoopAuditEventPublisher();
+    this.accountEmails = options.accountEmails ?? noopAccountEmails;
+    this.invitationEmailsEnabled = options.invitationEmailsEnabled ?? false;
+    this.brandInvitationActionUrl = options.brandInvitationActionUrl ?? null;
     this.now = options.now ?? (() => new Date());
   }
 
@@ -194,6 +242,88 @@ export class BrandService {
     }
 
     return Result.okay(patch);
+  }
+
+  private extractInviteTarget(
+    body: Record<string, unknown>
+  ): AppResult<{ adminId?: string; email?: string }> {
+    const reasons: string[] = [];
+    let adminId: string | undefined;
+    let email: string | undefined;
+
+    if (this.hasOwnField(body, "adminId")) {
+      if (typeof body.adminId !== "string") {
+        reasons.push("adminId:type");
+      } else if (body.adminId.trim().length === 0) {
+        reasons.push("adminId:required");
+      } else {
+        adminId = body.adminId.trim();
+      }
+    }
+
+    if (this.hasOwnField(body, "email")) {
+      if (typeof body.email !== "string") {
+        reasons.push("email:type");
+      } else if (body.email.trim().length === 0) {
+        reasons.push("email:required");
+      } else {
+        email = normalizeInviteEmail(body.email);
+      }
+    }
+
+    if (reasons.length > 0) {
+      return Result.error(serviceError("VALIDATION_FAILED", { reasons }));
+    }
+
+    if (!adminId && !email) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", { reasons: ["target:required"] })
+      );
+    }
+
+    return Result.okay({
+      ...(adminId ? { adminId } : {}),
+      ...(email ? { email } : {}),
+    });
+  }
+
+  private invitationActionUrl(brandId: string): string {
+    if (!this.brandInvitationActionUrl) {
+      return "";
+    }
+
+    try {
+      const url = new URL(this.brandInvitationActionUrl);
+      if (!url.searchParams.has("brandId")) {
+        url.searchParams.set("brandId", brandId);
+      }
+      return url.toString();
+    } catch {
+      return this.brandInvitationActionUrl;
+    }
+  }
+
+  private async sendBrandInvitationEmail(input: {
+    brand: BrandRecord;
+    targetAdmin: BrandAdminRecord;
+    invitedByAdminId: string;
+    requestId: string;
+  }): Promise<void> {
+    if (!this.invitationEmailsEnabled) {
+      return;
+    }
+
+    try {
+      await this.accountEmails.sendBrandInvitationEmail({
+        toEmail: input.targetAdmin.email,
+        brandName: input.brand.name,
+        invitedByDisplayName: input.invitedByAdminId,
+        actionUrl: this.invitationActionUrl(input.brand.id),
+        requestId: input.requestId,
+      });
+    } catch {
+      return;
+    }
   }
 
   private hasElevatedPermission(role: "ADMIN" | "SUPER_ADMIN"): boolean {
@@ -304,6 +434,154 @@ export class BrandService {
 
       return Result.okay({ brand });
     } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async inviteAdminToBrand(
+    input: InviteBrandServiceInput
+  ): Promise<AppResult<BrandInviteResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    const target = this.extractInviteTarget(input.body);
+    if (target.error) return target;
+
+    try {
+      const brand = await this.repository.findBrandById(input.brandId);
+      if (!brand) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "BRAND_NOT_FOUND" })
+        );
+      }
+
+      const actorMembership = await this.repository.findMembershipByBrandAndAdmin(
+        input.brandId,
+        actor.content.actorId
+      );
+
+      if (
+        !this.hasElevatedPermission(actor.content.role) &&
+        !this.isActiveBrandMember(actorMembership)
+      ) {
+        return Result.error(serviceError("AUTH_FORBIDDEN"));
+      }
+
+      let targetAdmin: BrandAdminRecord | null = null;
+      if (target.content.adminId) {
+        targetAdmin = await this.repository.findAdminById(target.content.adminId);
+      }
+      if (!targetAdmin && target.content.email) {
+        targetAdmin = await this.repository.findAdminByEmail(target.content.email);
+      }
+
+      const existingMembership = targetAdmin
+        ? await this.repository.findMembershipByBrandAndAdmin(
+            input.brandId,
+            targetAdmin.id
+          )
+        : null;
+
+      const invitationDraft = createBrandInvitation({
+        invitingActor: {
+          adminId: actor.content.actorId,
+          role: actor.content.role,
+          currentMembership: actorMembership
+            ? {
+                adminId: actorMembership.adminId,
+                role: actorMembership.role,
+                status: actorMembership.status,
+              }
+            : null,
+        },
+        targetAdminId:
+          targetAdmin?.id ?? target.content.adminId ?? target.content.email ?? "",
+        brandId: input.brandId,
+        existingMembership: existingMembership
+          ? {
+              adminId: existingMembership.adminId,
+              role: existingMembership.role,
+              status: existingMembership.status,
+            }
+          : null,
+        targetAdmin: targetAdmin
+          ? {
+              adminId: targetAdmin.id,
+              role: targetAdmin.role,
+              status: targetAdmin.status,
+            }
+          : null,
+      });
+      if (invitationDraft.error) {
+        const code =
+          invitationDraft.error.code === "AUTH_FORBIDDEN"
+            ? "AUTH_FORBIDDEN"
+            : mapBrandDomainErrorCode(invitationDraft.error.code);
+        const data =
+          typeof invitationDraft.error.data === "object" &&
+          invitationDraft.error.data !== null
+            ? invitationDraft.error.data
+            : {};
+        return Result.error(serviceError(code, data));
+      }
+
+      const timestamp = this.now().toISOString();
+      const invitation = await this.repository.createBrandMembership({
+        brandId: invitationDraft.content.brandId,
+        adminId: invitationDraft.content.adminId,
+        role: invitationDraft.content.role,
+        status: invitationDraft.content.status,
+        invitedByAdminId: invitationDraft.content.invitedByAdminId,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+
+      const auditEvent = createAuditEvent({
+        requestId: input.requestId,
+        action: "brand.member_invited",
+        actor: {
+          type: "user",
+          id: actor.content.actorId,
+          role: actor.content.role,
+        },
+        target: {
+          entity: "brand",
+          entityId: brand.id,
+        },
+        safeDetails: {
+          requestId: input.requestId,
+          brandId: brand.id,
+          targetAdminId: invitation.adminId,
+          timestamp,
+        },
+        occurredAt: timestamp,
+      });
+
+      await this.auditPublisher.publish(auditEvent);
+
+      if (targetAdmin) {
+        await this.sendBrandInvitationEmail({
+          brand,
+          targetAdmin,
+          invitedByAdminId: actor.content.actorId,
+          requestId: input.requestId,
+        });
+      }
+
+      return Result.okay({ invitation });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", {
+            reason: "DUPLICATE_PENDING_INVITATION",
+          })
+        );
+      }
+
       if (providerFailure(error)) {
         return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
       }

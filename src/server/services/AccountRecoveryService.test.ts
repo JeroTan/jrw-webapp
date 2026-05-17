@@ -186,6 +186,7 @@ function createNotifier(
     sendAdminInvitationEmail: async () => ({ ok: true }),
     sendAdminApprovalEmail: async () => ({ ok: true }),
     sendAdminRejectionEmail: async () => ({ ok: true }),
+    sendBrandInvitationEmail: async () => ({ ok: true }),
   };
 }
 
