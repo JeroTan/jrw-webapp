@@ -14,6 +14,10 @@ import {
   googleOAuthRoutes,
   type GoogleOAuthRoutesOptions,
 } from "./google-oauth.routes";
+import {
+  ownerGovernanceRoutes,
+  type OwnerGovernanceRoutesOptions,
+} from "./owner-governance.routes";
 export { serverRouteGroups } from "./route-groups";
 
 export type ServerRoutesOptions = {
@@ -22,14 +26,19 @@ export type ServerRoutesOptions = {
   auth?: AuthRoutesOptions;
   customers?: CustomerRoutesOptions;
   googleOAuth?: GoogleOAuthRoutesOptions;
+  ownerGovernance?: OwnerGovernanceRoutesOptions;
 };
 
-export function serverRoutes(app: AnyElysia, options: ServerRoutesOptions = {}) {
+export function serverRoutes(
+  app: AnyElysia,
+  options: ServerRoutesOptions = {}
+) {
   return app
     .use(foundationRoutes)
     .use((routes) => authRoutes(routes, options.auth))
     .use((routes) => googleOAuthRoutes(routes, options.googleOAuth))
     .use((routes) => accountRecoveryRoutes(routes, options.accountRecovery))
     .use((routes) => customerRoutes(routes, options.customers))
-    .use((routes) => adminAccountRoutes(routes, options.adminAccounts));
+    .use((routes) => adminAccountRoutes(routes, options.adminAccounts))
+    .use((routes) => ownerGovernanceRoutes(routes, options.ownerGovernance));
 }

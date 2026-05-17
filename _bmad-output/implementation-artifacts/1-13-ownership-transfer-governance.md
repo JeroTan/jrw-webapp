@@ -1,6 +1,6 @@
 # Story 1.13: Ownership Transfer Governance
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,77 +23,77 @@ so that JRW can change platform owner while preserving exactly one Super Admin.
 
 ## Tasks / Subtasks
 
-- [ ] Confirm dependency gate before coding. (AC: 1-8)
-  - [ ] Story 1.12 (`1-12-server-side-rbac-guards`) is still `ready-for-dev` in sprint status, not `done`; implement/merge/verify it first or include its route guard work in this change before exposing ownership transfer routes.
-  - [ ] Ensure owner-only API routes deny before controller/service creation using Story 1.12 guard pattern; service-level owner checks remain defense in depth.
-  - [ ] Do not start transfer work by adding UI-only authorization or relying on hidden owner controls.
+- [x] Confirm dependency gate before coding. (AC: 1-8)
+  - [x] Story 1.12 (`1-12-server-side-rbac-guards`) is still `ready-for-dev` in sprint status, not `done`; implement/merge/verify it first or include its route guard work in this change before exposing ownership transfer routes.
+  - [x] Ensure owner-only API routes deny before controller/service creation using Story 1.12 guard pattern; service-level owner checks remain defense in depth.
+  - [x] Do not start transfer work by adding UI-only authorization or relying on hidden owner controls.
 
-- [ ] Add pure ownership transfer domain rules. (AC: 1-5, 8)
-  - [ ] Create `src/domain/admins/ownership-transfer.ts`.
-  - [ ] Add `isEligibleOwnershipTransferTarget(...)`: target must be `ADMIN`, `isOwner === false`, `status === "ACTIVE"`, `emailVerifiedAt` present, and `approvedAt` present.
-  - [ ] Add confirmation phrase builder and validator. Required phrase: `TRANSFER OWNERSHIP TO {target.email}` after target email normalization; phrase comparison is exact after trimming surrounding whitespace.
-  - [ ] Add password/phrase/target validation results using existing stable safe error codes: `VALIDATION_FAILED`, `AUTH_REQUIRED`, `AUTH_FORBIDDEN`, `RESOURCE_NOT_FOUND`, `CONFLICT_STATE`.
-  - [ ] Add `src/domain/admins/ownership-transfer.test.ts` for eligible target, suspended target, inactive target, unverified target, unapproved target, current owner as target, wrong role, phrase mismatch, phrase target mismatch, and exact phrase success.
+- [x] Add pure ownership transfer domain rules. (AC: 1-5, 8)
+  - [x] Create `src/domain/admins/ownership-transfer.ts`.
+  - [x] Add `isEligibleOwnershipTransferTarget(...)`: target must be `ADMIN`, `isOwner === false`, `status === "ACTIVE"`, `emailVerifiedAt` present, and `approvedAt` present.
+  - [x] Add confirmation phrase builder and validator. Required phrase: `TRANSFER OWNERSHIP TO {target.email}` after target email normalization; phrase comparison is exact after trimming surrounding whitespace.
+  - [x] Add password/phrase/target validation results using existing stable safe error codes: `VALIDATION_FAILED`, `AUTH_REQUIRED`, `AUTH_FORBIDDEN`, `RESOURCE_NOT_FOUND`, `CONFLICT_STATE`.
+  - [x] Add `src/domain/admins/ownership-transfer.test.ts` for eligible target, suspended target, inactive target, unverified target, unapproved target, current owner as target, wrong role, phrase mismatch, phrase target mismatch, and exact phrase success.
 
-- [ ] Add ownership transfer repository boundary. (AC: 1, 2, 5-7)
-  - [ ] Create or extend repository code under `src/server/repositories/**`; preferred file: `src/server/repositories/OwnershipTransferRepository.ts`.
-  - [ ] Reuse `admins`, `sessions`, and `audit_logs` Drizzle schema from `src/domain/schema/**`; do not add a second identity schema.
-  - [ ] Implement candidate query that returns safe Admin account fields only: id, email, status, role, isOwner, emailVerified, approved, dashboardEligible, createdAt, updatedAt. No password hashes, salts, tokens, internal session data, raw audit details, or provider payloads.
-  - [ ] Implement current owner lookup with password hash/salt for verification. This hash/salt stays inside service/repository boundary and never enters DTOs, logs, audit, or UI state.
-  - [ ] Implement transfer mutation so current owner demotion, target promotion, session revocation, and audit persistence happen in one D1 batch/SQL transaction when possible. Cloudflare D1 batch statements are SQL transactions and roll back if a statement fails.
-  - [ ] Critical invariant: first mutating statement must be conditional on target eligibility and current owner identity so the old owner is not demoted unless target is still eligible in same transaction snapshot.
-  - [ ] Preserve `admins_single_owner_idx` as final guard. Do not drop or loosen unique owner index.
-  - [ ] Revoke active sessions for both previous owner and new owner by updating `sessions` where `actor_kind = "ADMIN"`, `actor_id IN (oldOwnerId, targetAdminId)`, and `status = "ACTIVE"`.
-  - [ ] Persist audit action `account.ownership_transferred` with entity `account`; store request ID, actor admin id, target admin id, previous owner role, target old role, target new role, and session revocation summary in safe JSON details. Do not store password, confirmation phrase, password hash/salt, cookie, token hash, raw session token, or email.
-  - [ ] Add repository tests for candidate filtering, transfer success, ineligible target no-op, unique-owner invariant, session revocation for both accounts, audit row contents, and no secret fields in audit details.
+- [x] Add ownership transfer repository boundary. (AC: 1, 2, 5-7)
+  - [x] Create or extend repository code under `src/server/repositories/**`; preferred file: `src/server/repositories/OwnershipTransferRepository.ts`.
+  - [x] Reuse `admins`, `sessions`, and `audit_logs` Drizzle schema from `src/domain/schema/**`; do not add a second identity schema.
+  - [x] Implement candidate query that returns safe Admin account fields only: id, email, status, role, isOwner, emailVerified, approved, dashboardEligible, createdAt, updatedAt. No password hashes, salts, tokens, internal session data, raw audit details, or provider payloads.
+  - [x] Implement current owner lookup with password hash/salt for verification. This hash/salt stays inside service/repository boundary and never enters DTOs, logs, audit, or UI state.
+  - [x] Implement transfer mutation so current owner demotion, target promotion, session revocation, and audit persistence happen in one D1 batch/SQL transaction when possible. Cloudflare D1 batch statements are SQL transactions and roll back if a statement fails.
+  - [x] Critical invariant: first mutating statement must be conditional on target eligibility and current owner identity so the old owner is not demoted unless target is still eligible in same transaction snapshot.
+  - [x] Preserve `admins_single_owner_idx` as final guard. Do not drop or loosen unique owner index.
+  - [x] Revoke active sessions for both previous owner and new owner by updating `sessions` where `actor_kind = "ADMIN"`, `actor_id IN (oldOwnerId, targetAdminId)`, and `status = "ACTIVE"`.
+  - [x] Persist audit action `account.ownership_transferred` with entity `account`; store request ID, actor admin id, target admin id, previous owner role, target old role, target new role, and session revocation summary in safe JSON details. Do not store password, confirmation phrase, password hash/salt, cookie, token hash, raw session token, or email.
+  - [x] Add repository tests for candidate filtering, transfer success, ineligible target no-op, unique-owner invariant, session revocation for both accounts, audit row contents, and no secret fields in audit details.
 
-- [ ] Add ownership transfer service. (AC: 1-8)
-  - [ ] Create `src/server/services/OwnershipTransferService.ts`.
-  - [ ] Require authenticated actor with role `SUPER_ADMIN`; reuse `evaluateAdminLifecycleActor(...)` or Story 1.12 RBAC evaluator rather than adding new owner logic.
-  - [ ] List candidates through repository and filter again through pure domain rule before DTO response.
-  - [ ] On submit, load current owner by actor id, load target by id, validate target eligibility, validate confirmation phrase, verify current owner password through `verifyPasswordCredential(...)` with runtime `PASSWORD_PEPPER`, then call repository transfer mutation.
-  - [ ] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for non-owner actor or owner-target mutation, `RESOURCE_NOT_FOUND` for missing target, `CONFLICT_STATE` for ineligible/stale target or failed invariant, and `VALIDATION_FAILED` for wrong phrase/password shape. Wrong password should use safe auth failure wording and must not reveal credential details.
-  - [ ] Treat provider/storage failure as `PROVIDER_UNAVAILABLE`; do not expose D1 or crypto errors.
-  - [ ] Add service tests for owner success, Admin/Customer denial, missing target, suspended/unapproved/unverified target, wrong phrase, wrong password, repository invariant conflict, audit publish/write failure behavior, and session revocation signal.
+- [x] Add ownership transfer service. (AC: 1-8)
+  - [x] Create `src/server/services/OwnershipTransferService.ts`.
+  - [x] Require authenticated actor with role `SUPER_ADMIN`; reuse `evaluateAdminLifecycleActor(...)` or Story 1.12 RBAC evaluator rather than adding new owner logic.
+  - [x] List candidates through repository and filter again through pure domain rule before DTO response.
+  - [x] On submit, load current owner by actor id, load target by id, validate target eligibility, validate confirmation phrase, verify current owner password through `verifyPasswordCredential(...)` with runtime `PASSWORD_PEPPER`, then call repository transfer mutation.
+  - [x] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for non-owner actor or owner-target mutation, `RESOURCE_NOT_FOUND` for missing target, `CONFLICT_STATE` for ineligible/stale target or failed invariant, and `VALIDATION_FAILED` for wrong phrase/password shape. Wrong password should use safe auth failure wording and must not reveal credential details.
+  - [x] Treat provider/storage failure as `PROVIDER_UNAVAILABLE`; do not expose D1 or crypto errors.
+  - [x] Add service tests for owner success, Admin/Customer denial, missing target, suspended/unapproved/unverified target, wrong phrase, wrong password, repository invariant conflict, audit publish/write failure behavior, and session revocation signal.
 
-- [ ] Add controller and API routes. (AC: 1-8)
-  - [ ] Create `src/server/controllers/OwnershipTransferController.ts`.
-  - [ ] Create `src/server/routes/owner-governance.routes.ts` and register it in `src/server/routes/index.ts`.
-  - [ ] Preferred endpoints:
+- [x] Add controller and API routes. (AC: 1-8)
+  - [x] Create `src/server/controllers/OwnershipTransferController.ts`.
+  - [x] Create `src/server/routes/owner-governance.routes.ts` and register it in `src/server/routes/index.ts`.
+  - [x] Preferred endpoints:
     - `GET /api/admin/owner/ownership-transfer/candidates`
     - `POST /api/admin/owner/ownership-transfer`
-  - [ ] Add request body schema for transfer: `targetAdminId`, `confirmationPhrase`, `password`. `password` max length follows existing password credential max `1024`; phrase max length should be bounded.
-  - [ ] Response uses standard envelopes only: `{ data, meta }` or `{ error: { code, message, details? } }`.
-  - [ ] Route metadata uses `routeDetail(...)` with tag `Owner Governance`, auth `{ mode: "required", roles: ["SUPER_ADMIN"] }`, rate-limit class `admin-write`, and documented error codes.
-  - [ ] If route returns after revoking current owner session, clear current `jrw_session` cookie using existing cookie helper pattern or document why forced refresh path is sufficient. Stale owner authority must not survive.
-  - [ ] Update `src/server/routes/route-groups.ts` and `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` with owner governance endpoints.
-  - [ ] Add route tests proving anonymous/Admin/Customer/Prospect requests deny before controller execution, owner can list candidates, owner can transfer, response schemas match OpenAPI, current cookie/session refresh behavior is explicit, and error envelopes include request ID.
+  - [x] Add request body schema for transfer: `targetAdminId`, `confirmationPhrase`, `password`. `password` max length follows existing password credential max `1024`; phrase max length should be bounded.
+  - [x] Response uses standard envelopes only: `{ data, meta }` or `{ error: { code, message, details? } }`.
+  - [x] Route metadata uses `routeDetail(...)` with tag `Owner Governance`, auth `{ mode: "required", roles: ["SUPER_ADMIN"] }`, rate-limit class `admin-write`, and documented error codes.
+  - [x] If route returns after revoking current owner session, clear current `jrw_session` cookie using existing cookie helper pattern or document why forced refresh path is sufficient. Stale owner authority must not survive.
+  - [x] Update `src/server/routes/route-groups.ts` and `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` with owner governance endpoints.
+  - [x] Add route tests proving anonymous/Admin/Customer/Prospect requests deny before controller execution, owner can list candidates, owner can transfer, response schemas match OpenAPI, current cookie/session refresh behavior is explicit, and error envelopes include request ID.
 
-- [ ] Add owner governance UI. (AC: 1, 3, 4, 6, 7)
-  - [ ] Create `src/pages/admin/owner/transfer.astro` using `src/layouts/BaseLayout.astro`.
-  - [ ] Create feature code under `src/features/owner-governance/**`; keep feature-specific state/API code there.
-  - [ ] Reuse primitives from `src/components/**`: `Button`, `Input`, `DataTable`, `StatusBadge`, `Modal` or `ConfirmDialog`, `EmptyState`, `Skeleton`, `Toast`.
-  - [ ] Candidate table shows only safe fields: email, status, email verified, approved, eligibility, updatedAt, and action. No password/session/internal data.
-  - [ ] Dialog anatomy: target Admin, eligibility status, consequences, exact confirmation phrase, password re-entry, final action.
-  - [ ] Dialog states: loading candidates, ineligible target, ready, confirming, failed, complete/session expired.
-  - [ ] After successful transfer, show completion state and force sign-in/refresh path; previous owner cannot keep using old owner UI from stale session.
-  - [ ] Follow admin governance UX: dense, table-driven, desktop-first, keyboard-friendly, owner controls visually distinct from normal catalog work, no marketing page.
-  - [ ] Accessibility: modal focus trap, focus restore, Escape behavior for non-final states, explicit final action, visible field errors, form-level summary, no color-only status meaning, keyboard-only walkthrough for ownership transfer.
+- [x] Add owner governance UI. (AC: 1, 3, 4, 6, 7)
+  - [x] Create `src/pages/admin/owner/transfer.astro` using `src/layouts/BaseLayout.astro`.
+  - [x] Create feature code under `src/features/owner-governance/**`; keep feature-specific state/API code there.
+  - [x] Reuse primitives from `src/components/**`: `Button`, `Input`, `DataTable`, `StatusBadge`, `Modal` or `ConfirmDialog`, `EmptyState`, `Skeleton`, `Toast`.
+  - [x] Candidate table shows only safe fields: email, status, email verified, approved, eligibility, updatedAt, and action. No password/session/internal data.
+  - [x] Dialog anatomy: target Admin, eligibility status, consequences, exact confirmation phrase, password re-entry, final action.
+  - [x] Dialog states: loading candidates, ineligible target, ready, confirming, failed, complete/session expired.
+  - [x] After successful transfer, show completion state and force sign-in/refresh path; previous owner cannot keep using old owner UI from stale session.
+  - [x] Follow admin governance UX: dense, table-driven, desktop-first, keyboard-friendly, owner controls visually distinct from normal catalog work, no marketing page.
+  - [x] Accessibility: modal focus trap, focus restore, Escape behavior for non-final states, explicit final action, visible field errors, form-level summary, no color-only status meaning, keyboard-only walkthrough for ownership transfer.
 
-- [ ] Add audit and security hardening. (AC: 5-8)
-  - [ ] Use existing `src/domain/audit/events.ts` action `account.ownership_transferred`.
-  - [ ] If audit persistence adapter is missing, create minimal server repository/publisher that writes to `audit_logs` without creating full Epic 7 audit UI.
-  - [ ] Keep audit details scrubbed with `scrubAuditDetails(...)`; add test proving password, phrase, tokens, hashes, cookies, and session fields are redacted or absent.
-  - [ ] Never log raw password, confirmation phrase, password hash/salt, JWT, session token, token hash, cookie, or D1 error details in public response.
-  - [ ] Add operational log only if safe and non-blocking; logging failure must not mask transfer outcome.
+- [x] Add audit and security hardening. (AC: 5-8)
+  - [x] Use existing `src/domain/audit/events.ts` action `account.ownership_transferred`.
+  - [x] If audit persistence adapter is missing, create minimal server repository/publisher that writes to `audit_logs` without creating full Epic 7 audit UI.
+  - [x] Keep audit details scrubbed with `scrubAuditDetails(...)`; add test proving password, phrase, tokens, hashes, cookies, and session fields are redacted or absent.
+  - [x] Never log raw password, confirmation phrase, password hash/salt, JWT, session token, token hash, cookie, or D1 error details in public response.
+  - [x] Add operational log only if safe and non-blocking; logging failure must not mask transfer outcome.
 
-- [ ] Validate full flow. (AC: 1-8)
-  - [ ] Run targeted tests:
+- [x] Validate full flow. (AC: 1-8)
+  - [x] Run targeted tests:
     - `npx vitest run src/domain/admins/ownership-transfer.test.ts src/server/services/OwnershipTransferService.test.ts src/server/repositories/OwnershipTransferRepository.test.ts src/server/routes/owner-governance.routes.test.ts`
-  - [ ] Run UI/component tests if added.
-  - [ ] Run `npm run check`.
-  - [ ] Run `npm run build-test` after targeted tests pass.
-  - [ ] Record exact blockers if D1 transaction semantics or Story 1.12 guard status prevents completion.
+  - [x] Run UI/component tests if added.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run build-test` after targeted tests pass.
+  - [x] Record exact blockers if D1 transaction semantics or Story 1.12 guard status prevents completion.
 
 ## Dev Notes
 
@@ -262,19 +262,82 @@ npm run build-test
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
+
+### Implementation Plan
+
+- Follow Story 1.12 `routeGuard(...)` pattern for owner-only route denial before controller creation.
+- Build transfer vertical slice in story order: pure domain rules, repository transaction boundary, service, controller/routes, UI, audit hardening, validation.
+- Keep transfer authority server-side, preserve service owner guard as defense in depth, revoke sessions for both affected Admin accounts, and record only scrubbed audit details.
 
 ### Debug Log References
 
 - Story context generation run only (no feature implementation commands executed).
 - 2026-05-17T10:07:27+08:00: Activated `bmad-create-story`, loaded workflow config, project context, sprint status, planning artifacts, previous story, current code, recent git history, and official D1/Drizzle/Elysia docs.
+- 2026-05-17T12:02:32+08:00: Marked story 1.13 in-progress in sprint status.
+- 2026-05-17T12:04:37+08:00: Dependency gate validated; Story 1.12 is `done`, and targeted RBAC guard suite passed: 4 files / 20 tests.
+- 2026-05-17T12:08:03+08:00: Red domain test failed as expected because `src/domain/admins/ownership-transfer.ts` did not exist.
+- 2026-05-17T12:10:00+08:00: Domain ownership transfer tests passed: 1 file / 5 tests.
+- 2026-05-17T12:15:23+08:00: Red repository test failed as expected because `src/server/repositories/OwnershipTransferRepository.ts` did not exist.
+- 2026-05-17T12:18:48+08:00: Repository ownership transfer tests passed: 1 file / 4 tests.
+- 2026-05-17T12:19:38+08:00: `npm run check` passed with 0 errors.
+- 2026-05-17T12:24:05+08:00: Red service test failed as expected because `src/server/services/OwnershipTransferService.ts` did not exist.
+- 2026-05-17T12:26:00+08:00: Ownership transfer service tests passed: 1 file / 6 tests.
+- 2026-05-17T12:31:20+08:00: Red route test failed as expected because `src/server/controllers/OwnershipTransferController.ts` did not exist.
+- 2026-05-17T12:35:39+08:00: Ownership transfer targeted backend suite passed: 4 files / 18 tests.
+- 2026-05-17T12:36:03+08:00: `npm run check` passed with 0 errors after route/controller wiring.
+- 2026-05-17T12:40:00+08:00: Red UI helper test failed as expected because `src/features/owner-governance/ownership-transfer.ts` did not exist.
+- 2026-05-17T12:46:17+08:00: UI helper plus targeted ownership transfer suite passed: 5 files / 21 tests.
+- 2026-05-17T12:45:14+08:00: `npm run check` passed with 0 errors after owner governance UI/page integration.
+- 2026-05-17T12:48:17+08:00: Repository audit action constant tightened against `AuditActionType`; repository tests passed.
+- 2026-05-17T12:49:55+08:00: Final targeted ownership transfer suite passed: 5 files / 21 tests.
+- 2026-05-17T12:51:16+08:00: Final `npm run check` passed with 0 errors.
+- 2026-05-17T12:52:39+08:00: Final `npm run build-test` passed: Astro check, 44 Vitest files / 201 tests, Astro build complete.
+- 2026-05-17T12:59:14+08:00: Dev server started on `http://127.0.0.1:4322/`; Windows-side smoke check for `/admin/owner/transfer` returned HTTP 200.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
 - Story includes AC-complete task map, dependency gate, file-level guardrails, current-code intelligence, previous story learnings, git intelligence, latest framework notes, UI/accessibility requirements, and validation commands.
+- Dependency gate verified against completed Story 1.12; owner-only routes will use server-side RBAC guard before controller/service execution and keep service-level checks as defense in depth.
+- Added provider-free ownership transfer domain rules for eligible Admin targets, exact normalized-email confirmation phrase validation, and safe submission shape validation.
+- Added ownership transfer repository boundary for safe candidate DTOs, owner credential lookup, conditional D1 batch owner swap, session revocation, audit persistence, and invariant result mapping.
+- Added ownership transfer service with owner guard, candidate filtering, phrase/password validation, safe error mapping, repository conflict handling, and session refresh result.
+- Added owner governance controller/routes for candidate listing and transfer, OpenAPI metadata, owner-only route guard, standard envelopes, current session cookie clear, route-group registration, and endpoint catalog update.
+- Added owner governance page and React feature panel with dense candidate table, modal confirmation flow, password re-entry, completion/session-refresh state, visible field errors, and helper tests.
+- Hardened audit details around existing `account.ownership_transferred` action, scrubbed safe JSON details, no password/phrase/token/hash/cookie/session secret exposure, and minimal audit persistence through `audit_logs`.
+- Final validation passed with no blockers. D1 batch path uses conditional owner demotion gated on target eligibility/current owner identity, target promotion, affected Admin session revocation, audit insert, and final one-owner count check.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-13-ownership-transfer-governance.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/domain/admins/ownership-transfer.ts`
+- `src/domain/admins/ownership-transfer.test.ts`
+- `src/server/repositories/OwnershipTransferRepository.ts`
+- `src/server/repositories/OwnershipTransferRepository.test.ts`
+- `src/server/services/OwnershipTransferService.ts`
+- `src/server/services/OwnershipTransferService.test.ts`
+- `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md`
+- `src/server/app.ts`
+- `src/server/controllers/OwnershipTransferController.ts`
+- `src/server/routes/index.ts`
+- `src/server/routes/owner-governance.routes.ts`
+- `src/server/routes/owner-governance.routes.test.ts`
+- `src/server/routes/route-groups.ts`
+- `src/features/owner-governance/OwnershipTransferPanel.tsx`
+- `src/features/owner-governance/api.ts`
+- `src/features/owner-governance/ownership-transfer.ts`
+- `src/features/owner-governance/ownership-transfer.test.ts`
+- `src/pages/admin/owner/transfer.astro`
+- `src/styles/global.css`
+
+## Change Log
+
+- 2026-05-17T12:04:37+08:00: Started Story 1.13 and completed dependency gate verification.
+- 2026-05-17T12:10:00+08:00: Added pure ownership transfer domain rules and tests.
+- 2026-05-17T12:19:38+08:00: Added ownership transfer repository boundary and tests.
+- 2026-05-17T12:26:00+08:00: Added ownership transfer service and tests.
+- 2026-05-17T12:36:03+08:00: Added owner governance controller/routes, route tests, and endpoint catalog update.
+- 2026-05-17T12:48:17+08:00: Added owner governance UI/page, helper tests, and audit/security hardening.
+- 2026-05-17T12:53:04+08:00: Completed Story 1.13 validation and moved story to review.
