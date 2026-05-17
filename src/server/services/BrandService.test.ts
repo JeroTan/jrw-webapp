@@ -1,13 +1,14 @@
 import { describe, expect, it } from "vitest";
 import type { AuditEvent } from "@/domain/audit/events";
-import type { BrandRepository, BrandRecord } from "@/server/repositories/BrandRepository";
+import type {
+  BrandRepository,
+  BrandRecord,
+} from "@/server/repositories/BrandRepository";
 import { BrandService, type BrandActorInput } from "./BrandService";
 
 const now = "2026-05-17T21:30:00.000Z";
 
-function brandRecord(
-  overrides: Partial<BrandRecord> = {}
-): BrandRecord {
+function brandRecord(overrides: Partial<BrandRecord> = {}): BrandRecord {
   return {
     id: "brand_1",
     name: "JRW Lifestyle",
@@ -20,9 +21,7 @@ function brandRecord(
   };
 }
 
-function adminActor(
-  overrides: Partial<BrandActorInput> = {}
-): BrandActorInput {
+function adminActor(overrides: Partial<BrandActorInput> = {}): BrandActorInput {
   return {
     authenticated: true,
     role: "ADMIN",
@@ -67,6 +66,13 @@ class RepoStub implements BrandRepository {
       createdAt: now,
       updatedAt: now,
     };
+  }
+
+  async createBrandWithOwnerMembership() {
+    const brand = await this.createBrand();
+    const membership = await this.createBrandMembership();
+
+    return { brand, membership };
   }
 
   async findBrandBySlug() {

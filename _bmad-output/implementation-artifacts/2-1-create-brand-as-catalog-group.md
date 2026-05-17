@@ -1,6 +1,6 @@
 # Story 2.1: Create Brand as Catalog Group
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -90,7 +90,7 @@ so that products can be organized and collaborated on without creating separate 
 
 ### Review Findings
 
-_(To be filled during code review)_
+- [x] [Review][Patch] Make brand creation and OWNER membership atomic [src/server/repositories/BrandRepository.ts:183] — fixed by batching brand and owner membership inserts in one repository operation so a membership write failure cannot leave an orphan brand.
 
 ## Dev Notes
 

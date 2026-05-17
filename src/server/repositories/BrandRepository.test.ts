@@ -1,10 +1,7 @@
 import { Miniflare } from "miniflare";
 import { describe, expect, it } from "vitest";
 import { createDb } from "@/adapter/infrastructure/db/client";
-import {
-  brandDtoFromRow,
-  DrizzleBrandRepository,
-} from "./BrandRepository";
+import { brandDtoFromRow, DrizzleBrandRepository } from "./BrandRepository";
 
 const now = "2026-05-17T21:10:00.000Z";
 
@@ -114,27 +111,28 @@ describe("BrandRepository", () => {
 
     try {
       const repository = new DrizzleBrandRepository(createDb(d1));
-      const brand = await repository.createBrand(
-        {
-          name: "JRW Lifestyle",
-          slug: "jrw-lifestyle",
-          description: "Catalog team",
-          status: "ACTIVE",
-          createdAt: now,
-          updatedAt: now,
-        },
-        "admin_1"
-      );
-
-      const membership = await repository.createBrandMembership({
-        brandId: brand.id,
-        adminId: "admin_1",
-        role: "OWNER",
-        status: "ACTIVE",
-        invitedByAdminId: null,
-        createdAt: now,
-        updatedAt: now,
-      });
+      const { brand, membership } =
+        await repository.createBrandWithOwnerMembership(
+          {
+            brand: {
+              name: "JRW Lifestyle",
+              slug: "jrw-lifestyle",
+              description: "Catalog team",
+              status: "ACTIVE",
+              createdAt: now,
+              updatedAt: now,
+            },
+            membership: {
+              adminId: "admin_1",
+              role: "OWNER",
+              status: "ACTIVE",
+              invitedByAdminId: null,
+              createdAt: now,
+              updatedAt: now,
+            },
+          },
+          "admin_1"
+        );
 
       expect(brand).toMatchObject({
         name: "JRW Lifestyle",
@@ -225,9 +223,8 @@ describe("BrandRepository", () => {
         "admin_1"
       );
 
-      const archived = await repository.findArchivedBrandByName(
-        "jrw lifestyle"
-      );
+      const archived =
+        await repository.findArchivedBrandByName("jrw lifestyle");
       expect(archived?.id).toBe(brand.id);
       expect(archived?.status).toBe("ARCHIVED");
     } finally {

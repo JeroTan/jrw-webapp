@@ -9,7 +9,10 @@ import {
 } from "@/domain/brands/brand";
 import { evaluateRouteAccess } from "@/domain/auth/rbac";
 import type { RequestActorContext } from "@/server/context/request-context";
-import type { BrandRecord, BrandRepository } from "@/server/repositories/BrandRepository";
+import type {
+  BrandRecord,
+  BrandRepository,
+} from "@/server/repositories/BrandRepository";
 import { GeneralError } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
 
@@ -45,7 +48,15 @@ export type BrandServiceOptions = {
 };
 
 function serviceError(
-  code: "AUTH_REQUIRED" | "AUTH_FORBIDDEN" | "ACCOUNT_SUSPENDED" | "EMAIL_NOT_VERIFIED" | "ADMIN_APPROVAL_REQUIRED" | "VALIDATION_FAILED" | "CONFLICT_STATE" | "PROVIDER_UNAVAILABLE",
+  code:
+    | "AUTH_REQUIRED"
+    | "AUTH_FORBIDDEN"
+    | "ACCOUNT_SUSPENDED"
+    | "EMAIL_NOT_VERIFIED"
+    | "ADMIN_APPROVAL_REQUIRED"
+    | "VALIDATION_FAILED"
+    | "CONFLICT_STATE"
+    | "PROVIDER_UNAVAILABLE",
   data: Record<string, unknown> = {}
 ) {
   return new GeneralError(data, code);
@@ -67,7 +78,8 @@ export class BrandService {
 
   constructor(options: BrandServiceOptions) {
     this.repository = options.repository;
-    this.auditPublisher = options.auditPublisher ?? new NoopAuditEventPublisher();
+    this.auditPublisher =
+      options.auditPublisher ?? new NoopAuditEventPublisher();
     this.now = options.now ?? (() => new Date());
   }
 
@@ -87,7 +99,10 @@ export class BrandService {
       return Result.error(serviceError("AUTH_REQUIRED"));
     }
 
-    if (decision.actorRole !== "ADMIN" && decision.actorRole !== "SUPER_ADMIN") {
+    if (
+      decision.actorRole !== "ADMIN" &&
+      decision.actorRole !== "SUPER_ADMIN"
+    ) {
       return Result.error(serviceError("AUTH_FORBIDDEN"));
     }
 
@@ -107,7 +122,9 @@ export class BrandService {
       name: typeof input.body.name === "string" ? input.body.name : "",
       slug: typeof input.body.slug === "string" ? input.body.slug : null,
       description:
-        typeof input.body.description === "string" ? input.body.description : null,
+        typeof input.body.description === "string"
+          ? input.body.description
+          : null,
     });
     if (draft.error) {
       return Result.error(serviceError("VALIDATION_FAILED", draft.error.data));
@@ -143,27 +160,27 @@ export class BrandService {
       }
 
       const timestamp = this.now().toISOString();
-      const brand = await this.repository.createBrand(
+      const { brand } = await this.repository.createBrandWithOwnerMembership(
         {
-          name: draft.content.name,
-          slug: draft.content.slug,
-          description: draft.content.description,
-          status: "ACTIVE",
-          createdAt: timestamp,
-          updatedAt: timestamp,
+          brand: {
+            name: draft.content.name,
+            slug: draft.content.slug,
+            description: draft.content.description,
+            status: "ACTIVE",
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
+          membership: {
+            adminId: actor.content.actorId,
+            role: "OWNER",
+            status: "ACTIVE",
+            invitedByAdminId: null,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          },
         },
         actor.content.actorId
       );
-
-      await this.repository.createBrandMembership({
-        brandId: brand.id,
-        adminId: actor.content.actorId,
-        role: "OWNER",
-        status: "ACTIVE",
-        invitedByAdminId: null,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      });
 
       const auditEvent = createAuditEvent({
         requestId: input.requestId,

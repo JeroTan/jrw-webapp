@@ -1,4 +1,5 @@
 import { createDb, type AppDb } from "@/adapter/infrastructure/db/client";
+import { createId } from "@paralleldrive/cuid2";
 import {
   brandMembershipRoleValues,
   brandMembershipStatusValues,
@@ -77,11 +78,25 @@ export type CreateBrandMembershipInput = {
   updatedAt: string;
 };
 
+export type CreateBrandWithOwnerMembershipInput = {
+  brand: CreateBrandInput;
+  membership: Omit<CreateBrandMembershipInput, "brandId">;
+};
+
+export type CreateBrandWithOwnerMembershipResult = {
+  brand: BrandRecord;
+  membership: BrandMembershipRecord;
+};
+
 export type BrandRepository = {
   createBrand(input: CreateBrandInput, adminId: string): Promise<BrandRecord>;
   createBrandMembership(
     input: CreateBrandMembershipInput
   ): Promise<BrandMembershipRecord>;
+  createBrandWithOwnerMembership(
+    input: CreateBrandWithOwnerMembershipInput,
+    adminId: string
+  ): Promise<CreateBrandWithOwnerMembershipResult>;
   findBrandBySlug(slug: string): Promise<BrandRecord | null>;
   findBrandByName(name: string): Promise<BrandRecord | null>;
   findArchivedBrandByName(name: string): Promise<BrandRecord | null>;
@@ -121,10 +136,15 @@ function brandMembershipDtoFromRow(
 export class DrizzleBrandRepository implements BrandRepository {
   constructor(private readonly db: AppDb) {}
 
-  async createBrand(input: CreateBrandInput, adminId: string): Promise<BrandRecord> {
+  async createBrand(
+    input: CreateBrandInput,
+    adminId: string
+  ): Promise<BrandRecord> {
+    const brandId = createId();
     const [brand] = await this.db
       .insert(brands)
       .values({
+        id: brandId,
         name: input.name,
         slug: input.slug,
         description: input.description,
@@ -142,9 +162,11 @@ export class DrizzleBrandRepository implements BrandRepository {
   async createBrandMembership(
     input: CreateBrandMembershipInput
   ): Promise<BrandMembershipRecord> {
+    const membershipId = createId();
     const [membership] = await this.db
       .insert(brand_memberships)
       .values({
+        id: membershipId,
         brand_id: input.brandId,
         admin_id: input.adminId,
         role: input.role,
@@ -156,6 +178,49 @@ export class DrizzleBrandRepository implements BrandRepository {
       .returning();
 
     return brandMembershipDtoFromRow(membership);
+  }
+
+  async createBrandWithOwnerMembership(
+    input: CreateBrandWithOwnerMembershipInput,
+    adminId: string
+  ): Promise<CreateBrandWithOwnerMembershipResult> {
+    const brandId = createId();
+    const membershipId = createId();
+    const [brandRows, membershipRows] = await this.db.batch([
+      this.db
+        .insert(brands)
+        .values({
+          id: brandId,
+          name: input.brand.name,
+          slug: input.brand.slug,
+          description: input.brand.description,
+          status: input.brand.status,
+          created_by_admin_id: adminId,
+          archived_at:
+            input.brand.status === "ARCHIVED" ? input.brand.createdAt : null,
+          created_at: input.brand.createdAt,
+          updated_at: input.brand.updatedAt,
+        })
+        .returning(),
+      this.db
+        .insert(brand_memberships)
+        .values({
+          id: membershipId,
+          brand_id: brandId,
+          admin_id: input.membership.adminId,
+          role: input.membership.role,
+          status: input.membership.status,
+          invited_by_admin_id: input.membership.invitedByAdminId,
+          created_at: input.membership.createdAt,
+          updated_at: input.membership.updatedAt,
+        })
+        .returning(),
+    ]);
+
+    return {
+      brand: brandDtoFromRow(brandRows[0]),
+      membership: brandMembershipDtoFromRow(membershipRows[0]),
+    };
   }
 
   async findBrandBySlug(slug: string): Promise<BrandRecord | null> {
