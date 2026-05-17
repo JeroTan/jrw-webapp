@@ -1,6 +1,6 @@
 # Story 1.12: Server-Side RBAC Guards
 
-Status: ready-for-dev
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,44 +23,55 @@ so that protected routes enforce permissions even if UI controls are bypassed.
 
 ## Tasks / Subtasks
 
-- [ ] Add pure RBAC policy evaluator. (AC: 1-6, 8)
-  - [ ] Create `src/domain/auth/rbac.ts` with provider-free decisions for `public`, `optional`, and `required` route access using existing `ActiveUserRole`, `ActorRole`, `RouteAuthMetadata`, and stable error codes.
-  - [ ] Reuse `normalizeUserRole(...)` from `src/domain/auth/roles.ts` so `STORE_ADMIN` maps to `ADMIN`; do not add `STORE_ADMIN` to active role lists or branch logic.
-  - [ ] Treat allowed roles as exact, not hierarchical. If a `CUSTOMER` route allows Super Admin fallback, route metadata must list both roles and explain why.
-  - [ ] Return `AUTH_REQUIRED` for missing/anonymous invalid sessions; return `AUTH_FORBIDDEN` for authenticated actors with disallowed roles.
-  - [ ] For authenticated allowed-role actors with known ineligible account state, return the safest specific code: `ACCOUNT_SUSPENDED`, `EMAIL_NOT_VERIFIED`, or `ADMIN_APPROVAL_REQUIRED` where request context exposes it.
-  - [ ] Add `src/domain/auth/rbac.test.ts` covering Super Admin, Admin, Customer, Prospect, anonymous, `STORE_ADMIN`, suspended, unverified, unapproved, and explicit fallback cases.
+- [x] Add pure RBAC policy evaluator. (AC: 1-6, 8)
+  - [x] Create `src/domain/auth/rbac.ts` with provider-free decisions for `public`, `optional`, and `required` route access using existing `ActiveUserRole`, `ActorRole`, `RouteAuthMetadata`, and stable error codes.
+  - [x] Reuse `normalizeUserRole(...)` from `src/domain/auth/roles.ts` so `STORE_ADMIN` maps to `ADMIN`; do not add `STORE_ADMIN` to active role lists or branch logic.
+  - [x] Treat allowed roles as exact, not hierarchical. If a `CUSTOMER` route allows Super Admin fallback, route metadata must list both roles and explain why.
+  - [x] Return `AUTH_REQUIRED` for missing/anonymous invalid sessions; return `AUTH_FORBIDDEN` for authenticated actors with disallowed roles.
+  - [x] For authenticated allowed-role actors with known ineligible account state, return the safest specific code: `ACCOUNT_SUSPENDED`, `EMAIL_NOT_VERIFIED`, or `ADMIN_APPROVAL_REQUIRED` where request context exposes it.
+  - [x] Add `src/domain/auth/rbac.test.ts` covering Super Admin, Admin, Customer, Prospect, anonymous, `STORE_ADMIN`, suspended, unverified, unapproved, and explicit fallback cases.
 
-- [ ] Add Elysia guard helper under canonical server middleware. (AC: 1-8)
-  - [ ] Create `src/server/middleware/rbac.ts` that converts route auth metadata into a `beforeHandle`/guard hook using `requestContext.actor`.
-  - [ ] Ensure denial happens before route controller/service factory execution. Prefer throwing `GeneralError` or returning standard API error through existing helpers so `x-request-id` and `{ error }` envelope stay intact.
-  - [ ] Keep request context source as `src/server/context/request-context.ts`; do not read cookies or DB again inside guard.
-  - [ ] Keep API-specific guard in `src/server/middleware/**`; do not move live auth logic into `src/lib/middleware/**`, which is generic middleware tooling.
-  - [ ] Add `src/server/middleware/rbac.test.ts` proving handler/controller callback is not called when guard denies request.
+- [x] Add Elysia guard helper under canonical server middleware. (AC: 1-8)
+  - [x] Create `src/server/middleware/rbac.ts` that converts route auth metadata into a `beforeHandle`/guard hook using `requestContext.actor`.
+  - [x] Ensure denial happens before route controller/service factory execution. Prefer throwing `GeneralError` or returning standard API error through existing helpers so `x-request-id` and `{ error }` envelope stay intact.
+  - [x] Keep request context source as `src/server/context/request-context.ts`; do not read cookies or DB again inside guard.
+  - [x] Keep API-specific guard in `src/server/middleware/**`; do not move live auth logic into `src/lib/middleware/**`, which is generic middleware tooling.
+  - [x] Add `src/server/middleware/rbac.test.ts` proving handler/controller callback is not called when guard denies request.
 
-- [ ] Apply guards to completed protected routes without changing public routes. (AC: 1-5, 7, 8)
-  - [ ] Update `src/server/routes/admin-accounts.routes.ts` so all Admin Account endpoints are guarded before handlers with `required + SUPER_ADMIN`.
-  - [ ] Update `src/server/routes/customer.routes.ts` so `GET /customers/me` and `PATCH /customers/me` are guarded before handlers with `required + CUSTOMER`.
-  - [ ] Keep `POST /customers`, `POST /email-verifications`, Google OAuth start/callback, password reset request/confirmation, foundation route, sign-in, sign-out, and session inspection public/optional exactly as documented unless a route contract explicitly changes.
-  - [ ] Preserve controller/service authorization checks as defense in depth; story adds route-level enforcement, it does not delete service guards.
-  - [ ] Do not add new business endpoints in this story.
+- [x] Apply guards to completed protected routes without changing public routes. (AC: 1-5, 7, 8)
+  - [x] Update `src/server/routes/admin-accounts.routes.ts` so all Admin Account endpoints are guarded before handlers with `required + SUPER_ADMIN`.
+  - [x] Update `src/server/routes/customer.routes.ts` so `GET /customers/me` and `PATCH /customers/me` are guarded before handlers with `required + CUSTOMER`.
+  - [x] Keep `POST /customers`, `POST /email-verifications`, Google OAuth start/callback, password reset request/confirmation, foundation route, sign-in, sign-out, and session inspection public/optional exactly as documented unless a route contract explicitly changes.
+  - [x] Preserve controller/service authorization checks as defense in depth; story adds route-level enforcement, it does not delete service guards.
+  - [x] Do not add new business endpoints in this story.
 
-- [ ] Keep OpenAPI metadata and endpoint catalog truthful. (AC: 7)
-  - [ ] Keep using `routeDetail(...)` from `src/server/openapi/route-metadata.ts`; do not create a second metadata helper.
-  - [ ] If guard can emit new error codes for a route, add those codes to route `detail.errorCodes`, response schemas via `openApiErrorResponses(...)`, and `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md`.
-  - [ ] Add/adjust OpenAPI tests proving protected endpoints still document `x-auth`, `x-rate-limit-class`, and `x-error-codes`.
+- [x] Keep OpenAPI metadata and endpoint catalog truthful. (AC: 7)
+  - [x] Keep using `routeDetail(...)` from `src/server/openapi/route-metadata.ts`; do not create a second metadata helper.
+  - [x] If guard can emit new error codes for a route, add those codes to route `detail.errorCodes`, response schemas via `openApiErrorResponses(...)`, and `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md`.
+  - [x] Add/adjust OpenAPI tests proving protected endpoints still document `x-auth`, `x-rate-limit-class`, and `x-error-codes`.
 
-- [ ] Expand denied-path route tests. (AC: 1-8)
-  - [ ] In `src/server/routes/admin-accounts.routes.test.ts`, test anonymous/no cookie, Admin, Customer, and Prospect contexts against at least one read and one mutation endpoint; assert `AUTH_REQUIRED`/`AUTH_FORBIDDEN` and zero controller calls.
-  - [ ] In `src/server/routes/customer.routes.test.ts`, test anonymous, Admin, and Super Admin contexts against `/customers/me`; assert denial and zero controller calls.
-  - [ ] Add a test-only route or middleware-level test for `required + ADMIN` because current completed routes do not yet expose an Admin-only endpoint.
-  - [ ] Add a public Prospect test showing public route still executes with anonymous actor and does not expose protected data.
+- [x] Expand denied-path route tests. (AC: 1-8)
+  - [x] In `src/server/routes/admin-accounts.routes.test.ts`, test anonymous/no cookie, Admin, Customer, and Prospect contexts against at least one read and one mutation endpoint; assert `AUTH_REQUIRED`/`AUTH_FORBIDDEN` and zero controller calls.
+  - [x] In `src/server/routes/customer.routes.test.ts`, test anonymous, Admin, and Super Admin contexts against `/customers/me`; assert denial and zero controller calls.
+  - [x] Add a test-only route or middleware-level test for `required + ADMIN` because current completed routes do not yet expose an Admin-only endpoint.
+  - [x] Add a public Prospect test showing public route still executes with anonymous actor and does not expose protected data.
 
-- [ ] Validate and document completion. (AC: 7, 8)
-  - [ ] Run targeted Vitest for RBAC domain/middleware/route tests.
-  - [ ] Run `npm run check`.
-  - [ ] Run `npm run build-test` if targeted tests and type checks pass.
-  - [ ] Record exact blockers if any check fails.
+- [x] Validate and document completion. (AC: 7, 8)
+  - [x] Run targeted Vitest for RBAC domain/middleware/route tests.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run build-test` if targeted tests and type checks pass.
+  - [x] Record exact blockers if any check fails.
+
+### Review Findings
+
+- [x] [Review][Patch] Require actor identity for required RBAC routes [src/domain/auth/rbac.ts:17]
+- [x] [Review][Patch] Run protected route RBAC before schema validation [src/server/routes/admin-accounts.routes.ts:264]
+- [x] [Review][Patch] Fail closed when required auth has no configured roles [src/domain/auth/rbac.ts:12]
+- [x] [Review][Patch] Stop exposing internal RBAC denial reasons in error details [src/server/middleware/rbac.ts:13]
+- [x] [Review][Patch] Deny unapproved Super Admin state when request context exposes it [src/domain/auth/rbac.ts:117]
+- [x] [Review][Patch] Cover required ADMIN denied matrix in middleware tests [src/server/middleware/rbac.test.ts:118]
+- [x] [Review][Patch] Assert PATCH /customers/me OpenAPI auth and guard errors [src/server/routes/customer.routes.test.ts:145]
+- [x] [Review][Patch] Assert denied route HTTP statuses and auth-before-validation behavior [src/server/routes/admin-accounts.routes.test.ts:398]
 
 ## Dev Notes
 
@@ -203,19 +214,47 @@ npm run build-test
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
 - Story context generation run only (no feature implementation commands executed).
 - 2026-05-16T17:19:46+08:00: Activated `bmad-create-story`, loaded workflow config, project context, sprint status, planning artifacts, previous story, current code, recent git history, and latest Elysia docs.
+- 2026-05-17T10:41:38+08:00: Red tests run with `npx vitest run src/domain/auth/rbac.test.ts src/server/middleware/rbac.test.ts src/server/routes/admin-accounts.routes.test.ts src/server/routes/customer.routes.test.ts`; failed on missing RBAC modules and missing route guard behavior as expected.
+- 2026-05-17T10:47:46+08:00: Targeted RBAC/domain/middleware/route Vitest passed: 4 files, 18 tests.
+- 2026-05-17T10:50:48+08:00: `npm run check` passed with 0 errors.
+- 2026-05-17T10:58:40+08:00: Final `npm run build-test` passed: Astro check, 39 Vitest files / 178 tests, Astro build complete.
+- 2026-05-17T11:31:27+08:00: Code review targeted Vitest passed after RBAC hardening patches: 4 files, 20 tests.
+- 2026-05-17T11:34:12+08:00: `npm run check` passed with 0 errors after review patches.
+- 2026-05-17T11:46:55+08:00: Final `npm run build-test` passed after review patches and formatting: Astro check, 39 Vitest files / 180 tests, Astro build complete.
 
 ### Completion Notes List
 
 - Ultimate context engine analysis completed - comprehensive developer guide created.
 - Story includes AC-complete task map, file-level guardrails, current-code intelligence, previous story learnings, git intelligence, latest framework notes, and validation commands.
+- Added provider-free RBAC evaluator for public/optional/required route metadata with exact role matching, `STORE_ADMIN` normalization to `ADMIN`, and safe denial codes for missing auth, forbidden roles, suspended accounts, unverified email, and unapproved Admins.
+- Added server middleware guard that reads only `requestContext.actor`, throws `GeneralError`, preserves standard app error envelopes/request IDs, and blocks handlers/controller factories before protected route work executes.
+- Applied `SUPER_ADMIN` guards to Admin Account routes and `CUSTOMER` guards to `/customers/me` read/update routes while leaving public/optional routes unchanged.
+- Updated OpenAPI metadata tests and endpoint catalog error-code docs for guard-emitted account-state denials.
+- Added denied-path route coverage for anonymous/Admin/Customer/Prospect/Super Admin cases plus required-Admin middleware coverage and public Prospect regression.
+- Code review patches hardened required-route identity checks, fail-closed required-role metadata, auth-before-validation ordering, safe denial details, unapproved Super Admin denial, and expanded route/middleware assertions.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/1-12-server-side-rbac-guards.md`
+- `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/domain/auth/rbac.ts`
+- `src/domain/auth/rbac.test.ts`
+- `src/server/middleware/rbac.ts`
+- `src/server/middleware/rbac.test.ts`
+- `src/server/openapi/route-metadata.ts`
+- `src/server/routes/admin-accounts.routes.ts`
+- `src/server/routes/admin-accounts.routes.test.ts`
+- `src/server/routes/customer.routes.ts`
+- `src/server/routes/customer.routes.test.ts`
+
+## Change Log
+
+- 2026-05-17T11:00:01+08:00: Implemented server-side RBAC guards for Story 1.12; added evaluator, middleware, protected route wiring, OpenAPI/catalog updates, route denied-path tests, and full validation.
+- 2026-05-17T11:46:55+08:00: Applied code review patches and moved Story 1.12 to done after full validation.

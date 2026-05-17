@@ -11,6 +11,7 @@ import type {
   RequestActorContext,
   RequestContextDecorations,
 } from "@/server/context/request-context";
+import { rbacGuard } from "@/server/middleware/rbac";
 import { routeDetail } from "@/server/openapi/route-metadata";
 import { createAdminAccountRepositories } from "@/server/repositories/AdminAccountRepository";
 import { AdminAccountService } from "@/server/services/AdminAccountService";
@@ -65,7 +66,9 @@ const tboxCreateAdminAccountBody = t.Object(
 
 const tboxUpdateAdminAccountBody = t.Object(
   {
-    email: t.Optional(t.String({ format: "email", minLength: 3, maxLength: 254 })),
+    email: t.Optional(
+      t.String({ format: "email", minLength: 3, maxLength: 254 })
+    ),
   },
   { additionalProperties: false }
 );
@@ -180,7 +183,8 @@ function getController(
   options: AdminAccountRoutesOptions
 ): AdminAccountController {
   return (
-    options.controllerFactory?.(input) ?? createRuntimeController(input, options)
+    options.controllerFactory?.(input) ??
+    createRuntimeController(input, options)
   );
 }
 
@@ -196,9 +200,21 @@ function adminActor(
     : undefined;
 }
 
+const adminAccountAuth = {
+  mode: "required",
+  roles: ["SUPER_ADMIN"],
+} as const;
+
+const rbacEligibilityErrors = [
+  "ACCOUNT_SUSPENDED",
+  "EMAIL_NOT_VERIFIED",
+  "ADMIN_APPROVAL_REQUIRED",
+] as const;
+
 const adminErrors = [
   "AUTH_REQUIRED",
   "AUTH_FORBIDDEN",
+  ...rbacEligibilityErrors,
   "RESOURCE_NOT_FOUND",
   "INTERNAL_ERROR",
 ] as const;
@@ -207,6 +223,7 @@ const adminWriteErrors = [
   "VALIDATION_FAILED",
   "AUTH_REQUIRED",
   "AUTH_FORBIDDEN",
+  ...rbacEligibilityErrors,
   "RESOURCE_NOT_FOUND",
   "CONFLICT_STATE",
   "PROVIDER_UNAVAILABLE",
@@ -241,12 +258,14 @@ export function adminAccountRoutes(
       {
         detail: routeDetail({
           summary: "List Admin accounts",
-          description: "Returns safe Admin account summaries for Super Admin governance.",
+          description:
+            "Returns safe Admin account summaries for Super Admin governance.",
           tags: ["Admin Accounts"],
-          auth: { mode: "required", roles: ["SUPER_ADMIN"] },
+          auth: adminAccountAuth,
           rateLimitClass: "admin-write",
           errorCodes: [...adminErrors],
         }),
+        transform: rbacGuard(adminAccountAuth),
         response: {
           200: tboxApiSuccess(tboxAdminAccountListData),
           ...openApiErrorResponses([401, 403, 404, 500]),
@@ -282,10 +301,11 @@ export function adminAccountRoutes(
           description:
             "Creates a non-owner ADMIN account and optionally sends an invitation/setup notice through the account email boundary.",
           tags: ["Admin Accounts"],
-          auth: { mode: "required", roles: ["SUPER_ADMIN"] },
+          auth: adminAccountAuth,
           rateLimitClass: "admin-write",
           errorCodes: [...adminWriteErrors],
         }),
+        transform: rbacGuard(adminAccountAuth),
         response: {
           201: tboxApiSuccess(tboxCreateAdminAccountData),
           ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
@@ -318,12 +338,14 @@ export function adminAccountRoutes(
         params: tboxAdminAccountParams,
         detail: routeDetail({
           summary: "Get Admin account",
-          description: "Returns one safe Admin account summary for Super Admin governance.",
+          description:
+            "Returns one safe Admin account summary for Super Admin governance.",
           tags: ["Admin Accounts"],
-          auth: { mode: "required", roles: ["SUPER_ADMIN"] },
+          auth: adminAccountAuth,
           rateLimitClass: "admin-write",
           errorCodes: [...adminErrors],
         }),
+        transform: rbacGuard(adminAccountAuth),
         response: {
           200: tboxApiSuccess(tboxAdminAccountData),
           ...openApiErrorResponses([401, 403, 404, 500]),
@@ -369,10 +391,11 @@ export function adminAccountRoutes(
           description:
             "Updates editable safe Admin account fields. Role and ownership mutation are intentionally excluded.",
           tags: ["Admin Accounts"],
-          auth: { mode: "required", roles: ["SUPER_ADMIN"] },
+          auth: adminAccountAuth,
           rateLimitClass: "admin-write",
           errorCodes: [...adminWriteErrors],
         }),
+        transform: rbacGuard(adminAccountAuth),
         response: {
           200: tboxApiSuccess(tboxAdminAccountData),
           ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
@@ -418,10 +441,11 @@ export function adminAccountRoutes(
           description:
             "Approves or rejects a verified Admin registration while preserving owner invariants.",
           tags: ["Admin Accounts"],
-          auth: { mode: "required", roles: ["SUPER_ADMIN"] },
+          auth: adminAccountAuth,
           rateLimitClass: "admin-write",
           errorCodes: [...adminWriteErrors],
         }),
+        transform: rbacGuard(adminAccountAuth),
         response: {
           200: tboxApiSuccess(tboxAdminAccountData),
           ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
@@ -467,10 +491,11 @@ export function adminAccountRoutes(
           description:
             "Suspends a non-owner Admin account and revokes active dashboard-capable sessions.",
           tags: ["Admin Accounts"],
-          auth: { mode: "required", roles: ["SUPER_ADMIN"] },
+          auth: adminAccountAuth,
           rateLimitClass: "admin-write",
           errorCodes: [...adminWriteErrors],
         }),
+        transform: rbacGuard(adminAccountAuth),
         response: {
           200: tboxApiSuccess(tboxAdminAccountData),
           ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
@@ -506,10 +531,11 @@ export function adminAccountRoutes(
           description:
             "Reactivates a suspended or inactive non-owner Admin without changing role or ownership.",
           tags: ["Admin Accounts"],
-          auth: { mode: "required", roles: ["SUPER_ADMIN"] },
+          auth: adminAccountAuth,
           rateLimitClass: "admin-write",
           errorCodes: [...adminWriteErrors],
         }),
+        transform: rbacGuard(adminAccountAuth),
         response: {
           200: tboxApiSuccess(tboxAdminAccountData),
           ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),

@@ -14,7 +14,7 @@ describe("route metadata helper", () => {
         },
         rateLimitClass: "public-read",
         errorCodes: ["INTERNAL_ERROR"],
-      }),
+      })
     ).toEqual({
       summary: "API foundation",
       description: "Reports API ownership.",

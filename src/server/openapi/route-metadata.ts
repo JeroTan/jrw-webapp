@@ -1,14 +1,11 @@
-import type { ActiveUserRole } from "@/domain/auth/roles";
+import type { RouteAuthMetadata as RouteAuthMetadataInput } from "@/domain/auth/rbac";
 import type { ErrorCodeType } from "@/utils/general/error";
 
-export type RouteAuthMode = "public" | "optional" | "required";
-
-export type RouteRole = ActiveUserRole;
-
-export type RouteAuthMetadata = {
-  mode: RouteAuthMode;
-  roles?: readonly RouteRole[];
-};
+export type {
+  RouteAuthMetadata,
+  RouteAuthMode,
+  RouteRole,
+} from "@/domain/auth/rbac";
 
 export type RouteRateLimitClass =
   | "none"
@@ -26,7 +23,7 @@ export type RouteDetailInput = {
   summary: string;
   description: string;
   tags: readonly string[];
-  auth?: RouteAuthMetadata;
+  auth?: RouteAuthMetadataInput;
   rateLimitClass?: RouteRateLimitClass;
   errorCodes?: readonly ErrorCodeType[];
   deprecated?: boolean;

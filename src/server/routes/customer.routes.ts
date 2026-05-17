@@ -12,6 +12,7 @@ import type {
   RequestActorContext,
   RequestContextDecorations,
 } from "@/server/context/request-context";
+import { rbacGuard } from "@/server/middleware/rbac";
 import { routeDetail } from "@/server/openapi/route-metadata";
 import { createCustomerAccountRepositories } from "@/server/repositories/CustomerAccountRepository";
 import { CustomerAccountService } from "@/server/services/CustomerAccountService";
@@ -176,6 +177,25 @@ async function sourceIpHash(request: Request): Promise<string | undefined> {
   return sourceIp ? hashSessionToken(`ip:${sourceIp}`) : undefined;
 }
 
+const customerProfileAuth = {
+  mode: "required",
+  roles: ["CUSTOMER"],
+} as const;
+
+const customerProfileErrors = [
+  "AUTH_REQUIRED",
+  "AUTH_FORBIDDEN",
+  "ACCOUNT_SUSPENDED",
+  "EMAIL_NOT_VERIFIED",
+  "RESOURCE_NOT_FOUND",
+  "INTERNAL_ERROR",
+] as const;
+
+const customerProfileWriteErrors = [
+  "VALIDATION_FAILED",
+  ...customerProfileErrors,
+] as const;
+
 export function customerRoutes(
   app: AnyElysia,
   options: CustomerRoutesOptions = {}
@@ -299,15 +319,11 @@ export function customerRoutes(
           description:
             "Returns the safe profile summary for the authenticated customer.",
           tags: ["Customers"],
-          auth: { mode: "required", roles: ["CUSTOMER"] },
+          auth: customerProfileAuth,
           rateLimitClass: "public-read",
-          errorCodes: [
-            "AUTH_REQUIRED",
-            "AUTH_FORBIDDEN",
-            "RESOURCE_NOT_FOUND",
-            "INTERNAL_ERROR",
-          ],
+          errorCodes: [...customerProfileErrors],
         }),
+        transform: rbacGuard(customerProfileAuth),
         response: {
           200: tboxApiSuccess(tboxCustomerProfile),
           ...openApiErrorResponses([401, 403, 404, 500]),
@@ -344,16 +360,11 @@ export function customerRoutes(
           description:
             "Updates allowed profile/contact fields for the authenticated customer.",
           tags: ["Customers"],
-          auth: { mode: "required", roles: ["CUSTOMER"] },
+          auth: customerProfileAuth,
           rateLimitClass: "customer-write",
-          errorCodes: [
-            "VALIDATION_FAILED",
-            "AUTH_REQUIRED",
-            "AUTH_FORBIDDEN",
-            "RESOURCE_NOT_FOUND",
-            "INTERNAL_ERROR",
-          ],
+          errorCodes: [...customerProfileWriteErrors],
         }),
+        transform: rbacGuard(customerProfileAuth),
         response: {
           200: tboxApiSuccess(tboxCustomerProfile),
           ...openApiErrorResponses([400, 401, 403, 404, 500]),

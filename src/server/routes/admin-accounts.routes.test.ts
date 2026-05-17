@@ -32,6 +32,10 @@ function createController(
   return new AdminAccountController(service as AdminAccountService);
 }
 
+function deniedStatus(code: string): number {
+  return code === "AUTH_REQUIRED" ? 401 : 403;
+}
+
 const ownerContext = {
   authenticated: true,
   role: "SUPER_ADMIN",
@@ -42,6 +46,52 @@ const ownerContext = {
     emailVerified: true,
     approved: true,
   },
+  eligibility: {
+    active: true,
+    emailVerified: true,
+    approved: true,
+  },
+} satisfies RequestActorContext;
+
+const adminContext = {
+  authenticated: true,
+  role: "ADMIN",
+  actorId: "admin_1",
+  safeActorId: "admin_1",
+  accountStatus: {
+    status: "ACTIVE" as const,
+    emailVerified: true,
+    approved: true,
+  },
+  eligibility: {
+    active: true,
+    emailVerified: true,
+    approved: true,
+  },
+} satisfies RequestActorContext;
+
+const customerContext = {
+  authenticated: true,
+  role: "CUSTOMER",
+  actorId: "customer_1",
+  safeActorId: "customer_1",
+  accountStatus: {
+    status: "ACTIVE" as const,
+    emailVerified: true,
+    approved: true,
+  },
+  eligibility: {
+    active: true,
+    emailVerified: true,
+    approved: true,
+  },
+} satisfies RequestActorContext;
+
+const prospectContext = {
+  authenticated: true,
+  role: "PROSPECT",
+  actorId: "prospect_1",
+  safeActorId: "prospect_1",
   eligibility: {
     active: true,
     emailVerified: true,
@@ -98,7 +148,13 @@ describe("admin account routes", () => {
       });
       expect(operation?.["x-rate-limit-class"]).toBe("admin-write");
       expect(operation?.["x-error-codes"]).toEqual(
-        expect.arrayContaining(["AUTH_REQUIRED", "AUTH_FORBIDDEN"])
+        expect.arrayContaining([
+          "AUTH_REQUIRED",
+          "AUTH_FORBIDDEN",
+          "ACCOUNT_SUSPENDED",
+          "EMAIL_NOT_VERIFIED",
+          "ADMIN_APPROVAL_REQUIRED",
+        ])
       );
     }
     expect(create?.summary).toBe("Create Admin account");
@@ -170,7 +226,10 @@ describe("admin account routes", () => {
     );
     const listResponse = await app.handle(
       new Request("https://jrw.test/api/admin-accounts", {
-        headers: { cookie: "jrw_session=owner-token", "x-request-id": "req_list" },
+        headers: {
+          cookie: "jrw_session=owner-token",
+          "x-request-id": "req_list",
+        },
       })
     );
     const patchResponse = await app.handle(
@@ -190,7 +249,10 @@ describe("admin account routes", () => {
     const reactivateResponse = await app.handle(
       new Request("https://jrw.test/api/admin-accounts/admin_1/suspensions", {
         method: "DELETE",
-        headers: { cookie: "jrw_session=owner-token", "x-request-id": "req_reactivate" },
+        headers: {
+          cookie: "jrw_session=owner-token",
+          "x-request-id": "req_reactivate",
+        },
       })
     );
 
@@ -218,7 +280,13 @@ describe("admin account routes", () => {
       data: { admin: { status: "ACTIVE", dashboardEligible: true } },
       meta: { requestId: "req_reactivate" },
     });
-    expect(calls).toEqual(["create", "list", "update", "suspend", "reactivate"]);
+    expect(calls).toEqual([
+      "create",
+      "list",
+      "update",
+      "suspend",
+      "reactivate",
+    ]);
   });
 
   it("rejects role/owner mutation fields before controller execution", async () => {
@@ -261,5 +329,122 @@ describe("admin account routes", () => {
         details: { requestId: "req_bad_admin_patch" },
       },
     });
+  });
+
+  it("denies anonymous, Admin, Customer, and Prospect contexts before Admin controller execution", async () => {
+    const cases = [
+      {
+        name: "anonymous",
+        expectedCode: "AUTH_REQUIRED",
+        requestContext: undefined,
+        headers: { "x-request-id": "req_admin_anonymous" },
+      },
+      {
+        name: "admin",
+        expectedCode: "AUTH_FORBIDDEN",
+        requestContext: adminContext,
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_admin_role",
+        },
+      },
+      {
+        name: "customer",
+        expectedCode: "AUTH_FORBIDDEN",
+        requestContext: customerContext,
+        headers: {
+          cookie: "jrw_session=customer-token",
+          "x-request-id": "req_admin_customer",
+        },
+      },
+      {
+        name: "prospect",
+        expectedCode: "AUTH_FORBIDDEN",
+        requestContext: prospectContext,
+        headers: {
+          cookie: "jrw_session=prospect-token",
+          "x-request-id": "req_admin_prospect",
+        },
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      let controllerFactoryCalls = 0;
+      const app = createApp({
+        requestContext: {
+          resolveActorFromSession: async () => testCase.requestContext,
+        },
+        routes: {
+          adminAccounts: {
+            controllerFactory: () => {
+              controllerFactoryCalls += 1;
+              return createController({
+                listAdminAccounts: async () =>
+                  Result.okay({ admins: [adminDto()] }),
+                createAdminAccount: async () =>
+                  Result.okay({
+                    admin: adminDto(),
+                    invitationEmail: { sent: false },
+                  }),
+              });
+            },
+          },
+        },
+      });
+
+      const listResponse = await app.handle(
+        new Request(
+          `https://jrw.test/api/admin-accounts?case=${testCase.name}`,
+          {
+            headers: testCase.headers,
+          }
+        )
+      );
+      const createResponse = await app.handle(
+        new Request(
+          `https://jrw.test/api/admin-accounts?case=${testCase.name}`,
+          {
+            method: "POST",
+            headers: {
+              ...testCase.headers,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({
+              email: "ops@example.test",
+              password: "correct horse battery staple",
+            }),
+          }
+        )
+      );
+      const invalidCreateResponse = await app.handle(
+        new Request(
+          `https://jrw.test/api/admin-accounts?case=${testCase.name}&invalid=1`,
+          {
+            method: "POST",
+            headers: {
+              ...testCase.headers,
+              "content-type": "application/json",
+            },
+            body: JSON.stringify({ role: "SUPER_ADMIN" }),
+          }
+        )
+      );
+
+      expect(listResponse.status).toBe(deniedStatus(testCase.expectedCode));
+      expect(createResponse.status).toBe(deniedStatus(testCase.expectedCode));
+      expect(invalidCreateResponse.status).toBe(
+        deniedStatus(testCase.expectedCode)
+      );
+      await expect(listResponse.json()).resolves.toMatchObject({
+        error: { code: testCase.expectedCode },
+      });
+      await expect(createResponse.json()).resolves.toMatchObject({
+        error: { code: testCase.expectedCode },
+      });
+      await expect(invalidCreateResponse.json()).resolves.toMatchObject({
+        error: { code: testCase.expectedCode },
+      });
+      expect(controllerFactoryCalls).toBe(0);
+    }
   });
 });
