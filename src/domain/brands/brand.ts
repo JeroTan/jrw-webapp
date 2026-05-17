@@ -14,15 +14,34 @@ export type BrandCreateInput = {
   description?: string | null;
 };
 
+export type BrandUpdateInput = {
+  name?: string | null;
+  slug?: string | null;
+  description?: string | null;
+};
+
 export type BrandCreateDraft = {
   name: string;
   slug: string;
   description: string | null;
 };
 
+export type BrandUpdateDraft = {
+  name?: string;
+  slug?: string;
+  description?: string | null;
+};
+
 export type BrandCreationResult = AppResult<
   BrandCreateDraft,
   { reasons: string[] }
+>;
+
+type BrandConflictReason = Extract<BrandConflictDecision, { ok: false }>["reason"];
+
+export type BrandUpdateResult = AppResult<
+  BrandUpdateDraft,
+  { reasons?: string[]; reason?: BrandConflictReason }
 >;
 
 export type BrandConflictInput = {
@@ -38,6 +57,16 @@ export type BrandConflictDecision =
       code: "CONFLICT_STATE";
       reason: "DUPLICATE_NAME" | "DUPLICATE_SLUG" | "ARCHIVED_NAME_CONFLICT";
     };
+
+export type BrandArchiveInput = {
+  currentStatus: "ACTIVE" | "ARCHIVED";
+  timestamp: string;
+};
+
+export type BrandArchiveResult = AppResult<
+  { status: "ARCHIVED"; archivedAt: string },
+  { reason: "ALREADY_ARCHIVED" }
+>;
 
 type ValidationResult =
   | { ok: true; value: string }
@@ -131,6 +160,12 @@ export function detectBrandCreateConflict(
   return { ok: true };
 }
 
+export function detectBrandUpdateConflict(
+  input: BrandConflictInput
+): BrandConflictDecision {
+  return detectBrandCreateConflict(input);
+}
+
 export function createBrand(input: BrandCreateInput): BrandCreationResult {
   const name = validateBrandName(input.name);
   if (!name.ok) {
@@ -161,5 +196,93 @@ export function createBrand(input: BrandCreateInput): BrandCreationResult {
     name: name.value,
     slug: slug.value,
     description: description.length ? description : null,
+  });
+}
+
+function hasUpdateValue<T extends object>(
+  input: T,
+  key: keyof BrandUpdateInput
+): boolean {
+  return Object.prototype.hasOwnProperty.call(input, key);
+}
+
+export function validateBrandUpdate(input: BrandUpdateInput): BrandUpdateResult {
+  const hasName = hasUpdateValue(input, "name");
+  const hasSlug = hasUpdateValue(input, "slug");
+  const hasDescription = hasUpdateValue(input, "description");
+
+  if (!hasName && !hasSlug && !hasDescription) {
+    return Result.error(
+      new GeneralError({ reasons: ["update:required"] }, "VALIDATION_FAILED")
+    );
+  }
+
+  const draft: BrandUpdateDraft = {};
+  const reasons: string[] = [];
+
+  if (hasName) {
+    const name = validateBrandName(input.name ?? "");
+    if (!name.ok) {
+      reasons.push(...name.reasons);
+    } else {
+      draft.name = name.value;
+    }
+  }
+
+  if (hasSlug) {
+    const slug = validateBrandSlug(input.slug ?? "");
+    if (!slug.ok) {
+      reasons.push(...slug.reasons);
+    } else {
+      draft.slug = slug.value;
+    }
+  }
+
+  if (hasDescription) {
+    const rawDescription =
+      typeof input.description === "string" ? input.description.trim() : "";
+    if (rawDescription.length > BRAND_DESCRIPTION_MAX_LENGTH) {
+      reasons.push("description:length");
+    } else {
+      draft.description = rawDescription.length ? rawDescription : null;
+    }
+  }
+
+  if (reasons.length > 0) {
+    return Result.error(new GeneralError({ reasons }, "VALIDATION_FAILED"));
+  }
+
+  return Result.okay(draft);
+}
+
+export function updateBrand(input: {
+  patch: BrandUpdateInput;
+  conflict: BrandConflictInput;
+}): BrandUpdateResult {
+  const draft = validateBrandUpdate(input.patch);
+  if (draft.error) {
+    return draft;
+  }
+
+  const conflict = detectBrandUpdateConflict(input.conflict);
+  if (!conflict.ok) {
+    return Result.error(
+      new GeneralError({ reason: conflict.reason }, "CONFLICT_STATE")
+    );
+  }
+
+  return draft;
+}
+
+export function archiveBrand(input: BrandArchiveInput): BrandArchiveResult {
+  if (input.currentStatus === "ARCHIVED") {
+    return Result.error(
+      new GeneralError({ reason: "ALREADY_ARCHIVED" }, "CONFLICT_STATE")
+    );
+  }
+
+  return Result.okay({
+    status: "ARCHIVED",
+    archivedAt: input.timestamp,
   });
 }

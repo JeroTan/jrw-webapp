@@ -100,6 +100,7 @@ describe("BrandRepository", () => {
       slug: "jrw-lifestyle",
       description: "Catalog team",
       status: "ACTIVE",
+      archivedAt: null,
       createdAt: now,
       updatedAt: now,
     });
@@ -227,6 +228,156 @@ describe("BrandRepository", () => {
         await repository.findArchivedBrandByName("jrw lifestyle");
       expect(archived?.id).toBe(brand.id);
       expect(archived?.status).toBe("ARCHIVED");
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("updates brand with full and partial payloads", async () => {
+    const { d1, mf } = await createBrandTestD1();
+
+    try {
+      const repository = new DrizzleBrandRepository(createDb(d1));
+      const created = await repository.createBrand(
+        {
+          name: "JRW Lifestyle",
+          slug: "jrw-lifestyle",
+          description: "Catalog team",
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+
+      const full = await repository.updateBrand(created.id, {
+        name: "JRW Lifestyle Updated",
+        slug: "jrw-lifestyle-updated",
+        description: "Updated catalog team",
+        updatedAt: "2026-05-17T22:30:00.000Z",
+      });
+
+      expect(full).toMatchObject({
+        id: created.id,
+        name: "JRW Lifestyle Updated",
+        slug: "jrw-lifestyle-updated",
+        description: "Updated catalog team",
+      });
+
+      const partial = await repository.updateBrand(created.id, {
+        description: null,
+        updatedAt: "2026-05-17T22:35:00.000Z",
+      });
+
+      expect(partial).toMatchObject({
+        id: created.id,
+        name: "JRW Lifestyle Updated",
+        slug: "jrw-lifestyle-updated",
+        description: null,
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("archives brand and finds by id with and without archived visibility", async () => {
+    const { d1, mf } = await createBrandTestD1();
+
+    try {
+      const repository = new DrizzleBrandRepository(createDb(d1));
+      const created = await repository.createBrand(
+        {
+          name: "JRW Lifestyle",
+          slug: "jrw-lifestyle",
+          description: null,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+
+      const byId = await repository.findBrandById(created.id);
+      expect(byId?.id).toBe(created.id);
+
+      const archived = await repository.archiveBrand(
+        created.id,
+        "2026-05-17T22:40:00.000Z"
+      );
+      expect(archived).toMatchObject({
+        id: created.id,
+        status: "ARCHIVED",
+        archivedAt: "2026-05-17T22:40:00.000Z",
+      });
+
+      const activeLookup = await repository.findBrandById(created.id);
+      expect(activeLookup).toBeNull();
+
+      const includingArchived =
+        await repository.findBrandByIdIncludingArchived(created.id);
+      expect(includingArchived?.id).toBe(created.id);
+      expect(includingArchived?.status).toBe("ARCHIVED");
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("checks uniqueness excluding current brand id", async () => {
+    const { d1, mf } = await createBrandTestD1();
+
+    try {
+      const repository = new DrizzleBrandRepository(createDb(d1));
+      const brandOne = await repository.createBrand(
+        {
+          name: "JRW Lifestyle",
+          slug: "jrw-lifestyle",
+          description: null,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+      const brandTwo = await repository.createBrand(
+        {
+          name: "JRW Home",
+          slug: "jrw-home",
+          description: null,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+      const selfByName = await repository.findBrandByNameExcluding(
+        brandOne.id,
+        "JRW Lifestyle"
+      );
+      expect(selfByName).toBeNull();
+
+      const otherByName = await repository.findBrandByNameExcluding(
+        brandOne.id,
+        "JRW Home"
+      );
+      expect(otherByName?.id).toBe(brandTwo.id);
+
+      const otherBySlug = await repository.findBrandBySlugExcluding(
+        brandOne.id,
+        "jrw-home"
+      );
+      expect(otherBySlug?.id).toBe(brandTwo.id);
+
+      await repository.archiveBrand(
+        brandTwo.id,
+        "2026-05-17T22:50:00.000Z"
+      );
+
+      const archivedByName =
+        await repository.findArchivedBrandByNameExcluding(
+          brandOne.id,
+          "JRW Home"
+        );
+      expect(archivedByName?.id).toBe(brandTwo.id);
     } finally {
       await mf.dispose();
     }

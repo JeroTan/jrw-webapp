@@ -44,6 +44,7 @@ export type BrandRecord = {
   slug: string;
   description: string | null;
   status: BrandStatusValue;
+  archivedAt: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -88,6 +89,13 @@ export type CreateBrandWithOwnerMembershipResult = {
   membership: BrandMembershipRecord;
 };
 
+export type UpdateBrandInput = {
+  name?: string;
+  slug?: string;
+  description?: string | null;
+  updatedAt: string;
+};
+
 export type BrandRepository = {
   createBrand(input: CreateBrandInput, adminId: string): Promise<BrandRecord>;
   createBrandMembership(
@@ -97,9 +105,29 @@ export type BrandRepository = {
     input: CreateBrandWithOwnerMembershipInput,
     adminId: string
   ): Promise<CreateBrandWithOwnerMembershipResult>;
+  updateBrand(brandId: string, input: UpdateBrandInput): Promise<BrandRecord>;
+  archiveBrand(brandId: string, timestamp: string): Promise<BrandRecord>;
   findBrandBySlug(slug: string): Promise<BrandRecord | null>;
   findBrandByName(name: string): Promise<BrandRecord | null>;
   findArchivedBrandByName(name: string): Promise<BrandRecord | null>;
+  findBrandById(brandId: string): Promise<BrandRecord | null>;
+  findBrandByIdIncludingArchived(brandId: string): Promise<BrandRecord | null>;
+  findBrandByNameExcluding(
+    brandId: string,
+    name: string
+  ): Promise<BrandRecord | null>;
+  findArchivedBrandByNameExcluding(
+    brandId: string,
+    name: string
+  ): Promise<BrandRecord | null>;
+  findBrandBySlugExcluding(
+    brandId: string,
+    slug: string
+  ): Promise<BrandRecord | null>;
+  findMembershipByBrandAndAdmin(
+    brandId: string,
+    adminId: string
+  ): Promise<BrandMembershipRecord | null>;
 };
 
 function normalizeLookup(value: string): string {
@@ -113,6 +141,7 @@ export function brandDtoFromRow(row: BrandRowLike): BrandRecord {
     slug: row.slug,
     description: row.description,
     status: row.status,
+    archivedAt: row.archived_at,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -223,6 +252,45 @@ export class DrizzleBrandRepository implements BrandRepository {
     };
   }
 
+  async updateBrand(brandId: string, input: UpdateBrandInput): Promise<BrandRecord> {
+    const [brand] = await this.db
+      .update(brands)
+      .set({
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.slug !== undefined ? { slug: input.slug } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
+        updated_at: input.updatedAt,
+      })
+      .where(eq(brands.id, brandId))
+      .returning();
+
+    if (!brand) {
+      throw new Error("D1_ERROR: brand not found for update");
+    }
+
+    return brandDtoFromRow(brand);
+  }
+
+  async archiveBrand(brandId: string, timestamp: string): Promise<BrandRecord> {
+    const [brand] = await this.db
+      .update(brands)
+      .set({
+        status: "ARCHIVED",
+        archived_at: timestamp,
+        updated_at: timestamp,
+      })
+      .where(eq(brands.id, brandId))
+      .returning();
+
+    if (!brand) {
+      throw new Error("D1_ERROR: brand not found for archive");
+    }
+
+    return brandDtoFromRow(brand);
+  }
+
   async findBrandBySlug(slug: string): Promise<BrandRecord | null> {
     const [brand] = await this.db
       .select()
@@ -266,6 +334,103 @@ export class DrizzleBrandRepository implements BrandRepository {
       .limit(1);
 
     return brand ? brandDtoFromRow(brand) : null;
+  }
+
+  async findBrandById(brandId: string): Promise<BrandRecord | null> {
+    const [brand] = await this.db
+      .select()
+      .from(brands)
+      .where(and(eq(brands.id, brandId), ne(brands.status, "ARCHIVED")))
+      .limit(1);
+
+    return brand ? brandDtoFromRow(brand) : null;
+  }
+
+  async findBrandByIdIncludingArchived(
+    brandId: string
+  ): Promise<BrandRecord | null> {
+    const [brand] = await this.db
+      .select()
+      .from(brands)
+      .where(eq(brands.id, brandId))
+      .limit(1);
+
+    return brand ? brandDtoFromRow(brand) : null;
+  }
+
+  async findBrandByNameExcluding(
+    brandId: string,
+    name: string
+  ): Promise<BrandRecord | null> {
+    const [brand] = await this.db
+      .select()
+      .from(brands)
+      .where(
+        and(
+          sql`lower(${brands.name}) = ${normalizeLookup(name)}`,
+          ne(brands.id, brandId),
+          ne(brands.status, "ARCHIVED")
+        )
+      )
+      .limit(1);
+
+    return brand ? brandDtoFromRow(brand) : null;
+  }
+
+  async findArchivedBrandByNameExcluding(
+    brandId: string,
+    name: string
+  ): Promise<BrandRecord | null> {
+    const [brand] = await this.db
+      .select()
+      .from(brands)
+      .where(
+        and(
+          sql`lower(${brands.name}) = ${normalizeLookup(name)}`,
+          ne(brands.id, brandId),
+          eq(brands.status, "ARCHIVED")
+        )
+      )
+      .limit(1);
+
+    return brand ? brandDtoFromRow(brand) : null;
+  }
+
+  async findBrandBySlugExcluding(
+    brandId: string,
+    slug: string
+  ): Promise<BrandRecord | null> {
+    const [brand] = await this.db
+      .select()
+      .from(brands)
+      .where(
+        and(
+          sql`lower(${brands.slug}) = ${normalizeLookup(slug)}`,
+          ne(brands.id, brandId),
+          ne(brands.status, "ARCHIVED")
+        )
+      )
+      .limit(1);
+
+    return brand ? brandDtoFromRow(brand) : null;
+  }
+
+  async findMembershipByBrandAndAdmin(
+    brandId: string,
+    adminId: string
+  ): Promise<BrandMembershipRecord | null> {
+    const [membership] = await this.db
+      .select()
+      .from(brand_memberships)
+      .where(
+        and(
+          eq(brand_memberships.brand_id, brandId),
+          eq(brand_memberships.admin_id, adminId)
+        )
+      )
+      .limit(1);
+
+    return membership ? brandMembershipDtoFromRow(membership) : null;
   }
 }
 

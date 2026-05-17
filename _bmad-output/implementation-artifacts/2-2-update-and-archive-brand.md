@@ -1,6 +1,6 @@
 # Story 2.2: Update and Archive Brand
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,78 +23,78 @@ so that JRW can keep brand catalog groups accurate without deleting historical p
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm dependency gate and prerequisites. (AC: 1-8)
-  - [ ] Verify Story 2.1 is `done` in sprint status.
-  - [ ] Confirm `brands` and `brand_memberships` schema exist in `src/domain/schema/catalog.ts`.
-  - [ ] Confirm RBAC guard middleware from Story 1.12 is registered and functional.
-  - [ ] Confirm BrandRepository, BrandService, BrandController, and brand routes exist from Story 2.1.
-  - [ ] Do not start brand update/archive without Story 2.1 foundation complete.
+- [x] Task 1: Confirm dependency gate and prerequisites. (AC: 1-8)
+  - [x] Verify Story 2.1 is `done` in sprint status.
+  - [x] Confirm `brands` and `brand_memberships` schema exist in `src/domain/schema/catalog.ts`.
+  - [x] Confirm RBAC guard middleware from Story 1.12 is registered and functional.
+  - [x] Confirm BrandRepository, BrandService, BrandController, and brand routes exist from Story 2.1.
+  - [x] Do not start brand update/archive without Story 2.1 foundation complete.
 
-- [ ] Task 2: Add brand update domain rules. (AC: 1-2, 6)
-  - [ ] Extend `src/domain/brands/brand.ts` with `updateBrand(...)` domain function.
-  - [ ] Add `validateBrandUpdate(...)` that reuses existing name/slug/description validators from Story 2.1.
-  - [ ] Add `BrandUpdateResult` type with success/failure shape using `AppResult`/`GeneralError` pattern.
-  - [ ] Support partial updates: name, slug, description are individually optional in update input.
-  - [ ] If name changes, re-validate name rules (length 2-120, uniqueness including archived-name conflicts).
-  - [ ] If slug changes, re-validate slug rules (format, uniqueness).
-  - [ ] If description changes, validate max length 500.
-  - [ ] Create `src/domain/brands/brand.test.ts` additions covering: valid partial update, name change with conflict, slug change with conflict, description-only update, invalid name on update, invalid slug on update.
+- [x] Task 2: Add brand update domain rules. (AC: 1-2, 6)
+  - [x] Extend `src/domain/brands/brand.ts` with `updateBrand(...)` domain function.
+  - [x] Add `validateBrandUpdate(...)` that reuses existing name/slug/description validators from Story 2.1.
+  - [x] Add `BrandUpdateResult` type with success/failure shape using `AppResult`/`GeneralError` pattern.
+  - [x] Support partial updates: name, slug, description are individually optional in update input.
+  - [x] If name changes, re-validate name rules (length 2-120, uniqueness including archived-name conflicts).
+  - [x] If slug changes, re-validate slug rules (format, uniqueness).
+  - [x] If description changes, validate max length 500.
+  - [x] Create `src/domain/brands/brand.test.ts` additions covering: valid partial update, name change with conflict, slug change with conflict, description-only update, invalid name on update, invalid slug on update.
 
-- [ ] Task 3: Add brand archive domain rules. (AC: 3-4, 6)
-  - [ ] Add `archiveBrand(...)` domain function in `src/domain/brands/brand.ts`.
-  - [ ] Add `BrandArchiveResult` type with success/failure shape.
-  - [ ] Archive is irreversible in MVP (no unarchive flow yet).
-  - [ ] Archive sets `status = "ARCHIVED"` and `archived_at = timestamp`.
-  - [ ] Create domain test covering: archive success, already-archived rejection.
+- [x] Task 3: Add brand archive domain rules. (AC: 3-4, 6)
+  - [x] Add `archiveBrand(...)` domain function in `src/domain/brands/brand.ts`.
+  - [x] Add `BrandArchiveResult` type with success/failure shape.
+  - [x] Archive is irreversible in MVP (no unarchive flow yet).
+  - [x] Archive sets `status = "ARCHIVED"` and `archived_at = timestamp`.
+  - [x] Create domain test covering: archive success, already-archived rejection.
 
-- [ ] Task 4: Extend brand repository boundary. (AC: 1-4, 6)
-  - [ ] Extend `src/server/repositories/BrandRepository.ts` with:
-    - [ ] `updateBrand(brandId, updateData)`: updates allowed fields, returns updated brand DTO.
-    - [ ] `archiveBrand(brandId, timestamp)`: sets status to ARCHIVED and archived_at, returns updated brand DTO.
-    - [ ] `findBrandById(brandId)`: returns brand DTO or null (for lookup by ID before update/archive).
-    - [ ] `findBrandByIdIncludingArchived(brandId)`: returns brand DTO regardless of status (for archive operation on already-active brand).
-    - [ ] `findBrandByNameExcluding(brandId, name)`: for uniqueness check excluding self during name update.
-    - [ ] `findArchivedBrandByNameExcluding(brandId, name)`: for archived-name conflict check excluding self.
-    - [ ] `findBrandBySlugExcluding(brandId, slug)`: for slug uniqueness check excluding self.
-  - [ ] Reuse existing Drizzle schema from `src/domain/schema/catalog.ts`; do not add duplicate schema.
-  - [ ] All DTOs use camelCase; map from snake_case at repository boundary.
-  - [ ] Create `src/server/repositories/BrandRepository.test.ts` additions covering: update success (full and partial), archive success, find by ID, find by ID including archived, uniqueness checks excluding self.
+- [x] Task 4: Extend brand repository boundary. (AC: 1-4, 6)
+  - [x] Extend `src/server/repositories/BrandRepository.ts` with:
+    - [x] `updateBrand(brandId, updateData)`: updates allowed fields, returns updated brand DTO.
+    - [x] `archiveBrand(brandId, timestamp)`: sets status to ARCHIVED and archived_at, returns updated brand DTO.
+    - [x] `findBrandById(brandId)`: returns brand DTO or null (for lookup by ID before update/archive).
+    - [x] `findBrandByIdIncludingArchived(brandId)`: returns brand DTO regardless of status (for archive operation on already-active brand).
+    - [x] `findBrandByNameExcluding(brandId, name)`: for uniqueness check excluding self during name update.
+    - [x] `findArchivedBrandByNameExcluding(brandId, name)`: for archived-name conflict check excluding self.
+    - [x] `findBrandBySlugExcluding(brandId, slug)`: for slug uniqueness check excluding self.
+  - [x] Reuse existing Drizzle schema from `src/domain/schema/catalog.ts`; do not add duplicate schema.
+  - [x] All DTOs use camelCase; map from snake_case at repository boundary.
+  - [x] Create `src/server/repositories/BrandRepository.test.ts` additions covering: update success (full and partial), archive success, find by ID, find by ID including archived, uniqueness checks excluding self.
 
-- [ ] Task 5: Extend brand service. (AC: 1-6, 8)
-  - [ ] Extend `src/server/services/BrandService.ts` with:
-    - [ ] `updateBrand(input)`: validates actor is brand member (OWNER or MEMBER) or has elevated permission, validates update data through domain rules, checks name/slug uniqueness excluding self, updates brand through repository, emits audit event `brand.updated`.
-    - [ ] `archiveBrand(input)`: validates actor is brand member (OWNER or MEMBER) or has elevated permission, validates brand exists and is not already archived, archives brand through repository, emits audit event `brand.archived`.
-    - [ ] Brand membership check: actor must have ACTIVE membership in the target brand with role OWNER or MEMBER. Non-members get `AUTH_FORBIDDEN`.
-    - [ ] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for non-member/ineligible actor, `VALIDATION_FAILED` for invalid update data, `CONFLICT_STATE` for duplicate name/slug or already-archived, `PROVIDER_UNAVAILABLE` for D1 failures.
-    - [ ] Do not expose internal brand fields or membership internals beyond safe brand DTO.
-  - [ ] Create `src/server/services/BrandService.test.ts` additions covering: OWNER update success, MEMBER update success, non-member update denial, suspended member denial, valid partial update, duplicate name conflict on update, duplicate slug conflict on update, archived-name conflict on update, OWNER archive success, MEMBER archive success, non-member archive denial, already-archived rejection, D1 failure mapping.
+- [x] Task 5: Extend brand service. (AC: 1-6, 8)
+  - [x] Extend `src/server/services/BrandService.ts` with:
+    - [x] `updateBrand(input)`: validates actor is brand member (OWNER or MEMBER) or has elevated permission, validates update data through domain rules, checks name/slug uniqueness excluding self, updates brand through repository, emits audit event `brand.updated`.
+    - [x] `archiveBrand(input)`: validates actor is brand member (OWNER or MEMBER) or has elevated permission, validates brand exists and is not already archived, archives brand through repository, emits audit event `brand.archived`.
+    - [x] Brand membership check: actor must have ACTIVE membership in the target brand with role OWNER or MEMBER. Non-members get `AUTH_FORBIDDEN`.
+    - [x] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for non-member/ineligible actor, `VALIDATION_FAILED` for invalid update data, `CONFLICT_STATE` for duplicate name/slug or already-archived, `PROVIDER_UNAVAILABLE` for D1 failures.
+    - [x] Do not expose internal brand fields or membership internals beyond safe brand DTO.
+  - [x] Create `src/server/services/BrandService.test.ts` additions covering: OWNER update success, MEMBER update success, non-member update denial, suspended member denial, valid partial update, duplicate name conflict on update, duplicate slug conflict on update, archived-name conflict on update, OWNER archive success, MEMBER archive success, non-member archive denial, already-archived rejection, D1 failure mapping.
 
-- [ ] Task 6: Add controller methods and API routes. (AC: 1-7, 8)
-  - [ ] Extend `src/server/controllers/BrandController.ts` with:
-    - [ ] `updateBrand(input)`: maps service result to public API envelope.
-    - [ ] `archiveBrand(input)`: maps service result to public API envelope.
-  - [ ] Extend `src/server/routes/brands.routes.ts` with:
-    - [ ] `PATCH /api/brands/:id` — update brand.
-    - [ ] `POST /api/brands/:id/archive` — archive brand (POST for action, not DELETE).
-    - [ ] Request body schema for PATCH: `name` (optional, string, 2-120 chars), `slug` (optional, string, format pattern), `description` (optional, string, max 500 chars). At least one field required.
-    - [ ] Archive endpoint has no body; brand ID in path.
-    - [ ] Response: standard `{ data: brand, meta }` envelope on success; `{ error: { code, message, details? } }` on failure.
-    - [ ] Route metadata: `routeDetail(...)` with tag `Brands`, auth `{ mode: "required", roles: ["ADMIN", "SUPER_ADMIN"] }`, rate-limit class `admin-write`, documented error codes.
-    - [ ] Controller maps service `AppResult` to public API envelopes; no business rules in controller.
-  - [ ] Create `src/server/routes/brands.routes.test.ts` additions covering: anonymous update denial, non-member update denial, OWNER update success, response schema validation, anonymous archive denial, non-member archive denial, OWNER archive success, OpenAPI metadata present, error envelope includes request ID.
+- [x] Task 6: Add controller methods and API routes. (AC: 1-7, 8)
+  - [x] Extend `src/server/controllers/BrandController.ts` with:
+    - [x] `updateBrand(input)`: maps service result to public API envelope.
+    - [x] `archiveBrand(input)`: maps service result to public API envelope.
+  - [x] Extend `src/server/routes/brands.routes.ts` with:
+    - [x] `PATCH /api/brands/:id` — update brand.
+    - [x] `POST /api/brands/:id/archive` — archive brand (POST for action, not DELETE).
+    - [x] Request body schema for PATCH: `name` (optional, string, 2-120 chars), `slug` (optional, string, format pattern), `description` (optional, string, max 500 chars). At least one field required.
+    - [x] Archive endpoint has no body; brand ID in path.
+    - [x] Response: standard `{ data: brand, meta }` envelope on success; `{ error: { code, message, details? } }` on failure.
+    - [x] Route metadata: `routeDetail(...)` with tag `Brands`, auth `{ mode: "required", roles: ["ADMIN", "SUPER_ADMIN"] }`, rate-limit class `admin-write`, documented error codes.
+    - [x] Controller maps service `AppResult` to public API envelopes; no business rules in controller.
+  - [x] Create `src/server/routes/brands.routes.test.ts` additions covering: anonymous update denial, non-member update denial, OWNER update success, response schema validation, anonymous archive denial, non-member archive denial, OWNER archive success, OpenAPI metadata present, error envelope includes request ID.
 
-- [ ] Task 7: Add audit event emission for update and archive. (AC: 6)
-  - [ ] Use existing `src/domain/audit/events.ts` pattern; add action constants `brand.updated` and `brand.archived`.
-  - [ ] Emit `brand.updated` audit event with: actor (admin id), action `brand.updated`, entity `brand`, entityId (brand id), safe details (changed fields with old/new values where safe, timestamp, request ID), no secrets/PII.
-  - [ ] Emit `brand.archived` audit event with: actor (admin id), action `brand.archived`, entity `brand`, entityId (brand id), safe details (brand name, slug, timestamp, request ID), no secrets/PII.
-  - [ ] Add tests proving audit events are emitted with safe details and no secret fields.
+- [x] Task 7: Add audit event emission for update and archive. (AC: 6)
+  - [x] Use existing `src/domain/audit/events.ts` pattern; add action constants `brand.updated` and `brand.archived`.
+  - [x] Emit `brand.updated` audit event with: actor (admin id), action `brand.updated`, entity `brand`, entityId (brand id), safe details (changed fields with old/new values where safe, timestamp, request ID), no secrets/PII.
+  - [x] Emit `brand.archived` audit event with: actor (admin id), action `brand.archived`, entity `brand`, entityId (brand id), safe details (brand name, slug, timestamp, request ID), no secrets/PII.
+  - [x] Add tests proving audit events are emitted with safe details and no secret fields.
 
-- [ ] Task 8: Validate full flow. (AC: 1-8)
-  - [ ] Run targeted tests:
+- [x] Task 8: Validate full flow. (AC: 1-8)
+  - [x] Run targeted tests:
     - `npx vitest run src/domain/brands/brand.test.ts src/server/repositories/BrandRepository.test.ts src/server/services/BrandService.test.ts src/server/routes/brands.routes.test.ts`
-  - [ ] Run `npm run check`.
-  - [ ] Run `npm run build-test` after targeted tests pass.
-  - [ ] Record exact blockers if any.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run build-test` after targeted tests pass.
+  - [x] Record exact blockers if any.
 
 ### Review Findings
 
@@ -251,7 +251,7 @@ npm run build-test
 
 ### Agent Model Used
 
-_(To be filled by dev agent)_
+GPT-5 Codex (Codex CLI agent)
 
 ### Implementation Plan
 
@@ -267,16 +267,36 @@ _(To be filled by dev agent)_
 
 ### Debug Log References
 
-_(To be filled by dev agent)_
+- `npx vitest run src/domain/brands/brand.test.ts`
+- `npx vitest run src/server/repositories/BrandRepository.test.ts`
+- `npx vitest run src/server/services/BrandService.test.ts`
+- `npx vitest run src/server/routes/brands.routes.test.ts`
+- `npx vitest run src/domain/brands/brand.test.ts src/server/repositories/BrandRepository.test.ts src/server/services/BrandService.test.ts src/server/routes/brands.routes.test.ts`
+- `npm run check`
+- `npm run build-test`
 
 ### Completion Notes List
 
-_(To be filled by dev agent)_
+- Implemented brand domain update/archive rules with reusable validation and conflict handling (`validateBrandUpdate`, `updateBrand`, `archiveBrand`).
+- Extended brand repository with update/archive mutations, ID lookups, uniqueness-excluding checks, and membership lookup for service authorization checks.
+- Added brand service `updateBrand` and `archiveBrand` flows with RBAC + brand membership authorization, conflict/provider mapping, and safe audit emission (`brand.updated`, `brand.archived`).
+- Added controller and route support for `PATCH /api/brands/:id` and `POST /api/brands/:id/archive` with TypeBox contracts, OpenAPI metadata, and standardized API envelopes.
+- Expanded test coverage across domain/repository/service/routes and validated full regression gates (`check` + `build-test`) without blockers.
 
 ### File List
 
-_(To be filled by dev agent)_
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/2-2-update-and-archive-brand.md`
+- `src/domain/brands/brand.ts`
+- `src/domain/brands/brand.test.ts`
+- `src/server/repositories/BrandRepository.ts`
+- `src/server/repositories/BrandRepository.test.ts`
+- `src/server/services/BrandService.ts`
+- `src/server/services/BrandService.test.ts`
+- `src/server/controllers/BrandController.ts`
+- `src/server/routes/brands.routes.ts`
+- `src/server/routes/brands.routes.test.ts`
 
 ## Change Log
 
-_(To be filled by dev agent)_
+- 2026-05-17: Implemented Story 2.2 brand update/archive vertical slice (domain, repository, service, controller/routes, tests) and passed `npm run check` + `npm run build-test`.

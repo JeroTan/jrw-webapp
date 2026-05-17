@@ -4,12 +4,16 @@ import {
   type AuditEventPublisher,
 } from "@/domain/audit/events";
 import {
+  archiveBrand as archiveBrandDraft,
   createBrand as createBrandDraft,
   detectBrandCreateConflict,
+  updateBrand as updateBrandDraft,
+  type BrandUpdateInput,
 } from "@/domain/brands/brand";
 import { evaluateRouteAccess } from "@/domain/auth/rbac";
 import type { RequestActorContext } from "@/server/context/request-context";
 import type {
+  BrandMembershipRecord,
   BrandRecord,
   BrandRepository,
 } from "@/server/repositories/BrandRepository";
@@ -37,7 +41,28 @@ export type CreateBrandServiceInput = {
   body: Record<string, unknown>;
 };
 
+export type UpdateBrandServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+  body: Record<string, unknown>;
+};
+
+export type ArchiveBrandServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+};
+
 export type BrandCreateResult = {
+  brand: BrandRecord;
+};
+
+export type BrandUpdateResult = {
+  brand: BrandRecord;
+};
+
+export type BrandArchiveResult = {
   brand: BrandRecord;
 };
 
@@ -71,6 +96,12 @@ function providerFailure(error: unknown): boolean {
   );
 }
 
+function mapBrandDomainErrorCode(
+  code: string
+): "VALIDATION_FAILED" | "CONFLICT_STATE" {
+  return code === "CONFLICT_STATE" ? "CONFLICT_STATE" : "VALIDATION_FAILED";
+}
+
 export class BrandService {
   private readonly repository: BrandRepository;
   private readonly auditPublisher: AuditEventPublisher;
@@ -83,7 +114,7 @@ export class BrandService {
     this.now = options.now ?? (() => new Date());
   }
 
-  private requireCreateActor(
+  private requireAdminActor(
     actor: BrandActorInput | undefined
   ): AppResult<{ actorId: string; role: "ADMIN" | "SUPER_ADMIN" }> {
     const decision = evaluateRouteAccess({
@@ -112,10 +143,51 @@ export class BrandService {
     });
   }
 
+  private hasOwnField(body: Record<string, unknown>, key: string): boolean {
+    return Object.prototype.hasOwnProperty.call(body, key);
+  }
+
+  private extractUpdatePatch(body: Record<string, unknown>): BrandUpdateInput {
+    const patch: BrandUpdateInput = {};
+
+    if (this.hasOwnField(body, "name")) {
+      patch.name = typeof body.name === "string" ? body.name : null;
+    }
+
+    if (this.hasOwnField(body, "slug")) {
+      patch.slug = typeof body.slug === "string" ? body.slug : null;
+    }
+
+    if (this.hasOwnField(body, "description")) {
+      if (typeof body.description === "string") {
+        patch.description = body.description;
+      } else if (body.description === null) {
+        patch.description = null;
+      } else {
+        patch.description = null;
+      }
+    }
+
+    return patch;
+  }
+
+  private hasElevatedPermission(role: "ADMIN" | "SUPER_ADMIN"): boolean {
+    return role === "SUPER_ADMIN";
+  }
+
+  private isActiveBrandMember(
+    membership: BrandMembershipRecord | null
+  ): membership is BrandMembershipRecord {
+    if (!membership) return false;
+    if (membership.status !== "ACTIVE") return false;
+
+    return membership.role === "OWNER" || membership.role === "MEMBER";
+  }
+
   async createBrand(
     input: CreateBrandServiceInput
   ): Promise<AppResult<BrandCreateResult>> {
-    const actor = this.requireCreateActor(input.actor);
+    const actor = this.requireAdminActor(input.actor);
     if (actor.error) return actor;
 
     const draft = createBrandDraft({
@@ -206,6 +278,241 @@ export class BrandService {
       await this.auditPublisher.publish(auditEvent);
 
       return Result.okay({ brand });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async updateBrand(
+    input: UpdateBrandServiceInput
+  ): Promise<AppResult<BrandUpdateResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    const patch = this.extractUpdatePatch(input.body);
+    const validatedPatch = updateBrandDraft({
+      patch,
+      conflict: {
+        existingByName: null,
+        existingBySlug: null,
+        existingArchivedByName: null,
+      },
+    });
+    if (validatedPatch.error) {
+      return Result.error(
+        serviceError(
+          mapBrandDomainErrorCode(validatedPatch.error.code),
+          validatedPatch.error.data
+        )
+      );
+    }
+
+    try {
+      const brand = await this.repository.findBrandById(input.brandId);
+      if (!brand) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "BRAND_NOT_FOUND" })
+        );
+      }
+
+      if (!this.hasElevatedPermission(actor.content.role)) {
+        const membership = await this.repository.findMembershipByBrandAndAdmin(
+          input.brandId,
+          actor.content.actorId
+        );
+        if (!this.isActiveBrandMember(membership)) {
+          return Result.error(serviceError("AUTH_FORBIDDEN"));
+        }
+      }
+
+      const [existingByName, existingBySlug, existingArchivedByName] =
+        await Promise.all([
+          validatedPatch.content.name
+            ? this.repository.findBrandByNameExcluding(
+                input.brandId,
+                validatedPatch.content.name
+              )
+            : Promise.resolve(null),
+          validatedPatch.content.slug
+            ? this.repository.findBrandBySlugExcluding(
+                input.brandId,
+                validatedPatch.content.slug
+              )
+            : Promise.resolve(null),
+          validatedPatch.content.name
+            ? this.repository.findArchivedBrandByNameExcluding(
+                input.brandId,
+                validatedPatch.content.name
+              )
+            : Promise.resolve(null),
+        ]);
+
+      const draft = updateBrandDraft({
+        patch: validatedPatch.content,
+        conflict: {
+          existingByName: existingByName
+            ? { id: existingByName.id, name: existingByName.name }
+            : null,
+          existingBySlug: existingBySlug
+            ? { id: existingBySlug.id, slug: existingBySlug.slug }
+            : null,
+          existingArchivedByName: existingArchivedByName
+            ? {
+                id: existingArchivedByName.id,
+                name: existingArchivedByName.name,
+              }
+            : null,
+        },
+      });
+      if (draft.error) {
+        return Result.error(
+          serviceError(
+            mapBrandDomainErrorCode(draft.error.code),
+            draft.error.data
+          )
+        );
+      }
+
+      const timestamp = this.now().toISOString();
+      const updatedBrand = await this.repository.updateBrand(input.brandId, {
+        ...draft.content,
+        updatedAt: timestamp,
+      });
+
+      const changedFields = Object.fromEntries(
+        Object.entries({
+          ...(draft.content.name !== undefined
+            ? {
+                name: {
+                  from: brand.name,
+                  to: draft.content.name,
+                },
+              }
+            : {}),
+          ...(draft.content.slug !== undefined
+            ? {
+                slug: {
+                  from: brand.slug,
+                  to: draft.content.slug,
+                },
+              }
+            : {}),
+          ...(draft.content.description !== undefined
+            ? {
+                description: {
+                  from: brand.description,
+                  to: draft.content.description,
+                },
+              }
+            : {}),
+        })
+      );
+
+      const auditEvent = createAuditEvent({
+        requestId: input.requestId,
+        action: "brand.updated",
+        actor: {
+          type: "user",
+          id: actor.content.actorId,
+          role: actor.content.role,
+        },
+        target: {
+          entity: "brand",
+          entityId: updatedBrand.id,
+        },
+        safeDetails: {
+          requestId: input.requestId,
+          changedFields,
+          timestamp,
+        },
+        occurredAt: timestamp,
+      });
+
+      await this.auditPublisher.publish(auditEvent);
+
+      return Result.okay({ brand: updatedBrand });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async archiveBrand(
+    input: ArchiveBrandServiceInput
+  ): Promise<AppResult<BrandArchiveResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    try {
+      const brand = await this.repository.findBrandByIdIncludingArchived(
+        input.brandId
+      );
+      if (!brand) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "BRAND_NOT_FOUND" })
+        );
+      }
+
+      if (!this.hasElevatedPermission(actor.content.role)) {
+        const membership = await this.repository.findMembershipByBrandAndAdmin(
+          input.brandId,
+          actor.content.actorId
+        );
+        if (!this.isActiveBrandMember(membership)) {
+          return Result.error(serviceError("AUTH_FORBIDDEN"));
+        }
+      }
+
+      const timestamp = this.now().toISOString();
+      const archiveDraft = archiveBrandDraft({
+        currentStatus: brand.status,
+        timestamp,
+      });
+      if (archiveDraft.error) {
+        return Result.error(
+          serviceError(
+            mapBrandDomainErrorCode(archiveDraft.error.code),
+            archiveDraft.error.data
+          )
+        );
+      }
+
+      const archivedBrand = await this.repository.archiveBrand(
+        input.brandId,
+        archiveDraft.content.archivedAt
+      );
+
+      const auditEvent = createAuditEvent({
+        requestId: input.requestId,
+        action: "brand.archived",
+        actor: {
+          type: "user",
+          id: actor.content.actorId,
+          role: actor.content.role,
+        },
+        target: {
+          entity: "brand",
+          entityId: archivedBrand.id,
+        },
+        safeDetails: {
+          requestId: input.requestId,
+          name: archivedBrand.name,
+          slug: archivedBrand.slug,
+          timestamp,
+        },
+        occurredAt: timestamp,
+      });
+
+      await this.auditPublisher.publish(auditEvent);
+
+      return Result.okay({ brand: archivedBrand });
     } catch (error) {
       if (providerFailure(error)) {
         return Result.error(serviceError("PROVIDER_UNAVAILABLE"));

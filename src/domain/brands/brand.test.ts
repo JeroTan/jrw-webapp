@@ -1,9 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
+  archiveBrand,
   createBrand,
   detectBrandCreateConflict,
+  detectBrandUpdateConflict,
   generateSlug,
+  updateBrand,
   validateBrandName,
+  validateBrandUpdate,
   validateBrandSlug,
 } from "./brand";
 
@@ -87,6 +91,105 @@ describe("brand domain rules", () => {
       ok: false,
       code: "CONFLICT_STATE",
       reason: "ARCHIVED_NAME_CONFLICT",
+    });
+  });
+
+  it("supports valid partial update for description-only change", () => {
+    const validation = validateBrandUpdate({
+      description: "  Updated catalog group  ",
+    });
+    expect(validation.error).toBeNull();
+    expect(validation.content).toEqual({
+      description: "Updated catalog group",
+    });
+  });
+
+  it("rejects invalid name and slug on update", () => {
+    const invalidName = validateBrandUpdate({ name: "x" });
+    expect(invalidName.error?.code).toBe("VALIDATION_FAILED");
+    expect(invalidName.error?.data).toMatchObject({
+      reasons: ["name:length"],
+    });
+
+    const invalidSlug = validateBrandUpdate({ slug: "Bad Slug" });
+    expect(invalidSlug.error?.code).toBe("VALIDATION_FAILED");
+    expect(invalidSlug.error?.data).toMatchObject({
+      reasons: ["slug:format"],
+    });
+  });
+
+  it("detects duplicate conflicts on update", () => {
+    expect(
+      detectBrandUpdateConflict({
+        existingByName: { id: "brand_2", name: "JRW Lifestyle" },
+        existingBySlug: null,
+        existingArchivedByName: null,
+      })
+    ).toEqual({
+      ok: false,
+      code: "CONFLICT_STATE",
+      reason: "DUPLICATE_NAME",
+    });
+
+    expect(
+      detectBrandUpdateConflict({
+        existingByName: null,
+        existingBySlug: { id: "brand_2", slug: "jrw-lifestyle" },
+        existingArchivedByName: null,
+      })
+    ).toEqual({
+      ok: false,
+      code: "CONFLICT_STATE",
+      reason: "DUPLICATE_SLUG",
+    });
+  });
+
+  it("rejects update when archived-name conflict exists", () => {
+    const result = updateBrand({
+      patch: { name: "JRW Lifestyle" },
+      conflict: {
+        existingByName: null,
+        existingBySlug: null,
+        existingArchivedByName: { id: "brand_9", name: "JRW Lifestyle" },
+      },
+    });
+
+    expect(result.error?.code).toBe("CONFLICT_STATE");
+    expect(result.error?.data).toEqual({ reason: "ARCHIVED_NAME_CONFLICT" });
+  });
+
+  it("returns draft for valid name update", () => {
+    const result = updateBrand({
+      patch: { name: "  JRW Lifestyle Updated  " },
+      conflict: {
+        existingByName: null,
+        existingBySlug: null,
+        existingArchivedByName: null,
+      },
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.content).toEqual({ name: "JRW Lifestyle Updated" });
+  });
+
+  it("archives active brand and rejects already archived", () => {
+    const archived = archiveBrand({
+      currentStatus: "ACTIVE",
+      timestamp: "2026-05-17T22:10:00.000Z",
+    });
+    expect(archived.error).toBeNull();
+    expect(archived.content).toEqual({
+      status: "ARCHIVED",
+      archivedAt: "2026-05-17T22:10:00.000Z",
+    });
+
+    const alreadyArchived = archiveBrand({
+      currentStatus: "ARCHIVED",
+      timestamp: "2026-05-17T22:10:00.000Z",
+    });
+    expect(alreadyArchived.error?.code).toBe("CONFLICT_STATE");
+    expect(alreadyArchived.error?.data).toEqual({
+      reason: "ALREADY_ARCHIVED",
     });
   });
 });

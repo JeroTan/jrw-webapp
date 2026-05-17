@@ -5,14 +5,22 @@ import {
   type ApiResponse,
 } from "@/lib/api/response";
 import type {
+  ArchiveBrandServiceInput,
   BrandActorInput,
+  BrandArchiveResult,
   BrandCreateResult,
+  BrandUpdateResult,
   CreateBrandServiceInput,
+  UpdateBrandServiceInput,
 } from "@/server/services/BrandService";
 import type { AppResult } from "@/utils/general/result";
 
 export type BrandServiceLike = {
   createBrand(input: CreateBrandServiceInput): Promise<AppResult<BrandCreateResult>>;
+  updateBrand(input: UpdateBrandServiceInput): Promise<AppResult<BrandUpdateResult>>;
+  archiveBrand(
+    input: ArchiveBrandServiceInput
+  ): Promise<AppResult<BrandArchiveResult>>;
 };
 
 export type BrandControllerResult<T> = {
@@ -24,6 +32,19 @@ export type CreateBrandControllerInput = {
   actor: BrandActorInput | undefined;
   requestId: string;
   body: Record<string, unknown>;
+};
+
+export type UpdateBrandControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+  body: Record<string, unknown>;
+};
+
+export type ArchiveBrandControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
 };
 
 function errorResult<T>(
@@ -66,6 +87,40 @@ export class BrandController {
 
     return {
       status: 201,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async updateBrand(
+    input: UpdateBrandControllerInput
+  ): Promise<BrandControllerResult<BrandUpdateResult>> {
+    const result = await this.service.updateBrand(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async archiveBrand(
+    input: ArchiveBrandControllerInput
+  ): Promise<BrandControllerResult<BrandArchiveResult>> {
+    const result = await this.service.archiveBrand(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
       body: apiSuccessWithRequestId(result.content, input.requestId, {
         code: "SUCCESS",
       }),

@@ -23,6 +23,7 @@ const tboxBrand = t.Object({
   slug: t.String({ minLength: 2, maxLength: 120 }),
   description: t.Nullable(t.String({ maxLength: 500 })),
   status: tboxBrandStatus,
+  archivedAt: t.Nullable(t.String({ format: "date-time" })),
   createdAt: t.String({ format: "date-time" }),
   updatedAt: t.String({ format: "date-time" }),
 });
@@ -30,6 +31,13 @@ const tboxBrand = t.Object({
 const tboxBrandCreateData = t.Object({
   brand: tboxBrand,
 });
+
+const tboxBrandIdParams = t.Object(
+  {
+    id: t.String({ minLength: 1, maxLength: 128 }),
+  },
+  { additionalProperties: false }
+);
 
 const tboxCreateBrandBody = t.Object(
   {
@@ -44,6 +52,21 @@ const tboxCreateBrandBody = t.Object(
     description: t.Optional(t.String({ maxLength: 500 })),
   },
   { additionalProperties: false }
+);
+
+const tboxUpdateBrandBody = t.Object(
+  {
+    name: t.Optional(t.String({ minLength: 2, maxLength: 120 })),
+    slug: t.Optional(
+      t.String({
+        minLength: 2,
+        maxLength: 120,
+        pattern: "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      })
+    ),
+    description: t.Optional(t.String({ maxLength: 500 })),
+  },
+  { additionalProperties: false, minProperties: 1 }
 );
 
 export type BrandControllerFactoryInput = {
@@ -114,45 +137,153 @@ const brandCreateErrors = [
   "INTERNAL_ERROR",
 ] as const;
 
+const brandUpdateErrors = [
+  "AUTH_REQUIRED",
+  "AUTH_FORBIDDEN",
+  "ACCOUNT_SUSPENDED",
+  "EMAIL_NOT_VERIFIED",
+  "ADMIN_APPROVAL_REQUIRED",
+  "VALIDATION_FAILED",
+  "CONFLICT_STATE",
+  "PROVIDER_UNAVAILABLE",
+  "INTERNAL_ERROR",
+] as const;
+
+const brandArchiveErrors = [...brandUpdateErrors] as const;
+
 export function brandsRoutes(
   app: AnyElysia,
   options: BrandRoutesOptions = {}
 ) {
-  return app.post(
-    "/brands",
-    async (ctx) => {
-      const { request, set, runtimeEnv, requestContext, requestId, body } =
-        ctx as typeof ctx &
+  return app
+    .post(
+      "/brands",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, body } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              body: Record<string, unknown>;
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.createBrand({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          body,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        body: tboxCreateBrandBody,
+        detail: routeDetail({
+          summary: "Create brand",
+          description:
+            "Creates a brand as JRW catalog collaboration group and auto-creates OWNER membership for the creator.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...brandCreateErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          201: tboxApiSuccess(tboxBrandCreateData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .patch(
+      "/brands/:id",
+      async (ctx) => {
+        const {
+          request,
+          set,
+          runtimeEnv,
+          requestContext,
+          requestId,
+          body,
+          params,
+        } = ctx as typeof ctx &
           RequestContextDecorations & {
             runtimeEnv?: Partial<Env> & Record<string, unknown>;
             body: Record<string, unknown>;
+            params: { id: string };
           };
-      const controller = getController({ request, runtimeEnv, requestId }, options);
-      const result = await controller.createBrand({
-        actor: adminActor(requestContext.actor),
-        requestId,
-        body,
-      });
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.updateBrand({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+          body,
+        });
 
-      set.status = result.status;
-      return result.body as never;
-    },
-    {
-      body: tboxCreateBrandBody,
-      detail: routeDetail({
-        summary: "Create brand",
-        description:
-          "Creates a brand as JRW catalog collaboration group and auto-creates OWNER membership for the creator.",
-        tags: ["Brands"],
-        auth: brandCreateAuth,
-        rateLimitClass: "admin-write",
-        errorCodes: [...brandCreateErrors],
-      }),
-      transform: rbacGuard(brandCreateAuth),
-      response: {
-        201: tboxApiSuccess(tboxBrandCreateData),
-        ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        set.status = result.status;
+        return result.body as never;
       },
-    }
-  );
+      {
+        params: tboxBrandIdParams,
+        body: tboxUpdateBrandBody,
+        detail: routeDetail({
+          summary: "Update brand",
+          description:
+            "Updates allowed brand fields for an active brand catalog collaboration group.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...brandUpdateErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandCreateData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/brands/:id/archive",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { id: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.archiveBrand({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandIdParams,
+        detail: routeDetail({
+          summary: "Archive brand",
+          description:
+            "Archives brand as irreversible MVP soft-delete while preserving historical references.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...brandArchiveErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandCreateData),
+          ...openApiErrorResponses([401, 403, 409, 500, 503]),
+        },
+      }
+    );
 }

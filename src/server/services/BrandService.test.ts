@@ -15,6 +15,7 @@ function brandRecord(overrides: Partial<BrandRecord> = {}): BrandRecord {
     slug: "jrw-lifestyle",
     description: "Catalog team",
     status: "ACTIVE",
+    archivedAt: null,
     createdAt: now,
     updatedAt: now,
     ...overrides,
@@ -44,8 +45,21 @@ class RepoStub implements BrandRepository {
   existingBySlug: BrandRecord | null = null;
   existingByName: BrandRecord | null = null;
   existingArchivedByName: BrandRecord | null = null;
+  existingById: BrandRecord | null = brandRecord();
+  existingByIdIncludingArchived: BrandRecord | null = brandRecord();
   createBrandError: Error | null = null;
+  updateBrandError: Error | null = null;
+  archiveBrandError: Error | null = null;
   createdMembershipCount = 0;
+  updateCalls: Array<Record<string, unknown>> = [];
+  archiveCalls: Array<Record<string, unknown>> = [];
+  membershipByAdminId: Record<
+    string,
+    { role: "OWNER" | "MEMBER"; status: "ACTIVE" | "PENDING" | "REVOKED" }
+  > = {
+    admin_1: { role: "OWNER", status: "ACTIVE" },
+    admin_member: { role: "MEMBER", status: "ACTIVE" },
+  };
 
   async createBrand(): Promise<BrandRecord> {
     if (this.createBrandError) {
@@ -85,6 +99,71 @@ class RepoStub implements BrandRepository {
 
   async findArchivedBrandByName() {
     return this.existingArchivedByName;
+  }
+
+  async updateBrand(brandId: string, input: Record<string, unknown>) {
+    if (this.updateBrandError) {
+      throw this.updateBrandError;
+    }
+    this.updateCalls.push({ brandId, ...input });
+    return brandRecord({
+      ...this.existingById,
+      ...("name" in input ? { name: input.name as string } : {}),
+      ...("slug" in input ? { slug: input.slug as string } : {}),
+      ...("description" in input
+        ? { description: input.description as string | null }
+        : {}),
+      updatedAt: (input.updatedAt as string) ?? now,
+    });
+  }
+
+  async archiveBrand(brandId: string, timestamp: string) {
+    if (this.archiveBrandError) {
+      throw this.archiveBrandError;
+    }
+    this.archiveCalls.push({ brandId, timestamp });
+    return brandRecord({
+      ...this.existingByIdIncludingArchived,
+      status: "ARCHIVED",
+      archivedAt: timestamp,
+      updatedAt: timestamp,
+    });
+  }
+
+  async findBrandById() {
+    return this.existingById;
+  }
+
+  async findBrandByIdIncludingArchived() {
+    return this.existingByIdIncludingArchived;
+  }
+
+  async findBrandByNameExcluding() {
+    return this.existingByName;
+  }
+
+  async findArchivedBrandByNameExcluding() {
+    return this.existingArchivedByName;
+  }
+
+  async findBrandBySlugExcluding() {
+    return this.existingBySlug;
+  }
+
+  async findMembershipByBrandAndAdmin(_brandId: string, adminId: string) {
+    const membership = this.membershipByAdminId[adminId];
+    if (!membership) return null;
+
+    return {
+      id: `membership_${adminId}`,
+      brandId: "brand_1",
+      adminId,
+      role: membership.role,
+      status: membership.status,
+      invitedByAdminId: null,
+      createdAt: now,
+      updatedAt: now,
+    };
   }
 }
 
@@ -281,5 +360,218 @@ describe("BrandService", () => {
     const serialized = JSON.stringify(published[0]);
     expect(serialized).not.toContain("password");
     expect(serialized).not.toContain("token");
+  });
+
+  it("updates brand for OWNER and MEMBER with safe audit event", async () => {
+    const repo = new RepoStub();
+    const published: AuditEvent[] = [];
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+      auditPublisher: {
+        publish: async (event) => {
+          published.push(event);
+        },
+      },
+    });
+
+    const ownerUpdate = await service.updateBrand({
+      actor: adminActor(),
+      requestId: "req_owner_update",
+      brandId: "brand_1",
+      body: { description: "Owner update" },
+    });
+    const memberUpdate = await service.updateBrand({
+      actor: adminActor({ actorId: "admin_member" }),
+      requestId: "req_member_update",
+      brandId: "brand_1",
+      body: { slug: "jrw-updated-member" },
+    });
+
+    expect(ownerUpdate.error).toBeNull();
+    expect(memberUpdate.error).toBeNull();
+    expect(repo.updateCalls).toHaveLength(2);
+    expect(published).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "brand.updated",
+          requestId: "req_owner_update",
+        }),
+        expect.objectContaining({
+          action: "brand.updated",
+          requestId: "req_member_update",
+        }),
+      ])
+    );
+  });
+
+  it("denies update for non-member or inactive membership", async () => {
+    const repo = new RepoStub();
+    delete repo.membershipByAdminId.admin_1;
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const nonMember = await service.updateBrand({
+      actor: adminActor(),
+      requestId: "req_non_member_update",
+      brandId: "brand_1",
+      body: { description: "Denied" },
+    });
+    expect(nonMember.error?.code).toBe("AUTH_FORBIDDEN");
+
+    repo.membershipByAdminId.admin_1 = {
+      role: "OWNER",
+      status: "REVOKED",
+    };
+    const revoked = await service.updateBrand({
+      actor: adminActor(),
+      requestId: "req_revoked_member_update",
+      brandId: "brand_1",
+      body: { description: "Denied" },
+    });
+    expect(revoked.error?.code).toBe("AUTH_FORBIDDEN");
+  });
+
+  it("maps update validation and conflict errors", async () => {
+    const repo = new RepoStub();
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const invalid = await service.updateBrand({
+      actor: adminActor(),
+      requestId: "req_invalid_update",
+      brandId: "brand_1",
+      body: { slug: "Bad Slug" },
+    });
+    expect(invalid.error?.code).toBe("VALIDATION_FAILED");
+
+    repo.existingByName = brandRecord({ id: "brand_2", name: "JRW Lifestyle+" });
+    const duplicateName = await service.updateBrand({
+      actor: adminActor(),
+      requestId: "req_duplicate_name_update",
+      brandId: "brand_1",
+      body: { name: "JRW Lifestyle+" },
+    });
+    expect(duplicateName.error?.code).toBe("CONFLICT_STATE");
+
+    repo.existingByName = null;
+    repo.existingBySlug = brandRecord({ id: "brand_2", slug: "jrw-lifestyle-2" });
+    const duplicateSlug = await service.updateBrand({
+      actor: adminActor(),
+      requestId: "req_duplicate_slug_update",
+      brandId: "brand_1",
+      body: { slug: "jrw-lifestyle-2" },
+    });
+    expect(duplicateSlug.error?.code).toBe("CONFLICT_STATE");
+
+    repo.existingBySlug = null;
+    repo.existingArchivedByName = brandRecord({
+      id: "brand_9",
+      name: "JRW Archived",
+      status: "ARCHIVED",
+      archivedAt: now,
+    });
+    const archivedNameConflict = await service.updateBrand({
+      actor: adminActor(),
+      requestId: "req_archived_name_update",
+      brandId: "brand_1",
+      body: { name: "JRW Archived" },
+    });
+    expect(archivedNameConflict.error?.code).toBe("CONFLICT_STATE");
+  });
+
+  it("archives brand for OWNER and MEMBER", async () => {
+    const repo = new RepoStub();
+    const published: AuditEvent[] = [];
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+      auditPublisher: {
+        publish: async (event) => {
+          published.push(event);
+        },
+      },
+    });
+
+    const ownerArchive = await service.archiveBrand({
+      actor: adminActor(),
+      requestId: "req_owner_archive",
+      brandId: "brand_1",
+    });
+    repo.existingByIdIncludingArchived = brandRecord({ status: "ACTIVE" });
+    const memberArchive = await service.archiveBrand({
+      actor: adminActor({ actorId: "admin_member" }),
+      requestId: "req_member_archive",
+      brandId: "brand_1",
+    });
+
+    expect(ownerArchive.error).toBeNull();
+    expect(memberArchive.error).toBeNull();
+    expect(repo.archiveCalls).toHaveLength(2);
+    expect(published).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ action: "brand.archived" }),
+      ])
+    );
+  });
+
+  it("denies archive for non-member and rejects already archived brand", async () => {
+    const repo = new RepoStub();
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    delete repo.membershipByAdminId.admin_1;
+    const nonMember = await service.archiveBrand({
+      actor: adminActor(),
+      requestId: "req_non_member_archive",
+      brandId: "brand_1",
+    });
+    expect(nonMember.error?.code).toBe("AUTH_FORBIDDEN");
+
+    repo.membershipByAdminId.admin_1 = {
+      role: "OWNER",
+      status: "ACTIVE",
+    };
+    repo.existingByIdIncludingArchived = brandRecord({
+      status: "ARCHIVED",
+      archivedAt: now,
+    });
+    const alreadyArchived = await service.archiveBrand({
+      actor: adminActor(),
+      requestId: "req_already_archived",
+      brandId: "brand_1",
+    });
+    expect(alreadyArchived.error?.code).toBe("CONFLICT_STATE");
+  });
+
+  it("maps update and archive provider failures to PROVIDER_UNAVAILABLE", async () => {
+    const repo = new RepoStub();
+    repo.updateBrandError = new Error("SQLITE_ERROR: update failed");
+    repo.archiveBrandError = new Error("D1_ERROR: archive failed");
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const update = await service.updateBrand({
+      actor: adminActor(),
+      requestId: "req_update_provider_failure",
+      brandId: "brand_1",
+      body: { description: "test" },
+    });
+    expect(update.error?.code).toBe("PROVIDER_UNAVAILABLE");
+
+    const archive = await service.archiveBrand({
+      actor: adminActor(),
+      requestId: "req_archive_provider_failure",
+      brandId: "brand_1",
+    });
+    expect(archive.error?.code).toBe("PROVIDER_UNAVAILABLE");
   });
 });

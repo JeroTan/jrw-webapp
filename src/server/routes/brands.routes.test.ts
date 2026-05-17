@@ -47,7 +47,7 @@ const customerContext = {
 } satisfies RequestActorContext;
 
 describe("brands routes", () => {
-  it("documents POST /api/brands with auth metadata and error codes", async () => {
+  it("documents brand write endpoints with auth metadata and error codes", async () => {
     const app = createApp();
     const response = await app.handle(
       new Request("https://jrw.test/api/openapi/json")
@@ -70,6 +70,9 @@ describe("brands routes", () => {
     };
 
     const post = body.paths?.["/api/brands"]?.post;
+    const patch = body.paths?.["/api/brands/{id}"]?.patch;
+    const archive = body.paths?.["/api/brands/{id}/archive"]?.post;
+
     expect(post?.summary).toBe("Create brand");
     expect(post?.tags).toContain("Brands");
     expect(post?.["x-auth"]).toEqual({
@@ -87,6 +90,24 @@ describe("brands routes", () => {
       ])
     );
     expect(post?.responses).toHaveProperty("503");
+
+    expect(patch?.summary).toBe("Update brand");
+    expect(patch?.tags).toContain("Brands");
+    expect(patch?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(patch?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(patch?.responses).toHaveProperty("409");
+
+    expect(archive?.summary).toBe("Archive brand");
+    expect(archive?.tags).toContain("Brands");
+    expect(archive?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(archive?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(archive?.responses).toHaveProperty("503");
   });
 
   it("creates brand for admin actor with standard success envelope", async () => {
@@ -106,6 +127,7 @@ describe("brands routes", () => {
                     slug: "jrw-lifestyle",
                     description: "Catalog team",
                     status: "ACTIVE",
+                    archivedAt: null,
                     createdAt: now,
                     updatedAt: now,
                   },
@@ -183,6 +205,7 @@ describe("brands routes", () => {
                       slug: "jrw-lifestyle",
                       description: null,
                       status: "ACTIVE",
+                      archivedAt: null,
                       createdAt: now,
                       updatedAt: now,
                     },
@@ -254,6 +277,238 @@ describe("brands routes", () => {
         code: "CONFLICT_STATE",
         details: {
           requestId: "req_brand_conflict",
+        },
+      },
+    });
+  });
+
+  it("updates brand for admin actor with standard success envelope", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              updateBrand: async () =>
+                Result.okay({
+                  brand: {
+                    id: "brand_1",
+                    name: "JRW Lifestyle Updated",
+                    slug: "jrw-lifestyle-updated",
+                    description: "Updated catalog group",
+                    status: "ACTIVE",
+                    archivedAt: null,
+                    createdAt: now,
+                    updatedAt: now,
+                  },
+                }),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1", {
+        method: "PATCH",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_brand_update_success",
+        },
+        body: JSON.stringify({
+          description: "Updated catalog group",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        brand: {
+          id: "brand_1",
+          slug: "jrw-lifestyle-updated",
+          status: "ACTIVE",
+        },
+      },
+      meta: { requestId: "req_brand_update_success" },
+    });
+  });
+
+  it("denies anonymous update before controller execution", async () => {
+    let controllerCalls = 0;
+    const app = createApp({
+      routes: {
+        brands: {
+          controllerFactory: () => {
+            controllerCalls += 1;
+            return createController({
+              updateBrand: async () =>
+                Result.okay({
+                  brand: {
+                    id: "brand_1",
+                    name: "JRW Lifestyle Updated",
+                    slug: "jrw-lifestyle-updated",
+                    description: null,
+                    status: "ACTIVE",
+                    archivedAt: null,
+                    createdAt: now,
+                    updatedAt: now,
+                  },
+                }),
+            });
+          },
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1", {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req_brand_update_anonymous",
+        },
+        body: JSON.stringify({ description: "Denied" }),
+      })
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "AUTH_REQUIRED",
+        details: { requestId: "req_brand_update_anonymous" },
+      },
+    });
+    expect(controllerCalls).toBe(0);
+  });
+
+  it("returns request ID in update error envelope for service denial", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              updateBrand: async () =>
+                Result.error(new GeneralError({}, "AUTH_FORBIDDEN")),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1", {
+        method: "PATCH",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_brand_update_forbidden",
+        },
+        body: JSON.stringify({ description: "Denied" }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "AUTH_FORBIDDEN",
+        details: {
+          requestId: "req_brand_update_forbidden",
+        },
+      },
+    });
+  });
+
+  it("archives brand for admin actor with standard success envelope", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              archiveBrand: async () =>
+                Result.okay({
+                  brand: {
+                    id: "brand_1",
+                    name: "JRW Lifestyle",
+                    slug: "jrw-lifestyle",
+                    description: "Catalog team",
+                    status: "ARCHIVED",
+                    archivedAt: now,
+                    createdAt: now,
+                    updatedAt: now,
+                  },
+                }),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/archive", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_brand_archive_success",
+        },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        brand: {
+          id: "brand_1",
+          status: "ARCHIVED",
+        },
+      },
+      meta: { requestId: "req_brand_archive_success" },
+    });
+  });
+
+  it("returns request ID in archive error envelope for service denial", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              archiveBrand: async () =>
+                Result.error(
+                  new GeneralError(
+                    { reason: "ALREADY_ARCHIVED" },
+                    "CONFLICT_STATE"
+                  )
+                ),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/archive", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_brand_archive_conflict",
+        },
+      })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "CONFLICT_STATE",
+        details: {
+          requestId: "req_brand_archive_conflict",
         },
       },
     });
