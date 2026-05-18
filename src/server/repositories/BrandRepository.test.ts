@@ -621,11 +621,22 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
         .bind(
           "prod_brand_2",
           "Scoped Product Two",
-          brand.id,
+          brand.name,
           "[]",
           "scoped product two",
           now,
           "2026-05-17T21:12:00.000Z"
+        )
+        .run();
+      await insertProduct
+        .bind(
+          "prod_brand_3",
+          "Scoped Product Three",
+          brand.slug,
+          "[]",
+          "scoped product three",
+          now,
+          "2026-05-17T21:11:00.000Z"
         )
         .run();
       await insertProduct
@@ -650,16 +661,27 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
           "2026-05-17T21:13:00.000Z"
         )
         .run();
+      await insertProduct
+        .bind(
+          "prod_brandless_blank",
+          "Brandless Product Blank",
+          "",
+          "[]",
+          "brandless product blank",
+          now,
+          "2026-05-17T21:09:00.000Z"
+        )
+        .run();
 
-      const scoped = await repository.findProductsByBrand(brand.id, {
+      const scoped = await repository.findProductsByBrand(brand, {
         page: 1,
         pageSize: 1,
       });
       expect(scoped).toMatchObject({
         page: 1,
         pageSize: 1,
-        totalItems: 2,
-        totalPages: 2,
+        totalItems: 3,
+        totalPages: 3,
       });
       expect(scoped.items).toHaveLength(1);
       expect(scoped.items[0]).toMatchObject({
@@ -668,20 +690,24 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
       });
 
       const brandless = await repository.findBrandlessProducts({
-        page: 2,
-        pageSize: 1,
+        page: 1,
+        pageSize: 20,
       });
       expect(brandless).toMatchObject({
-        page: 2,
-        pageSize: 1,
-        totalItems: 2,
-        totalPages: 2,
+        page: 1,
+        pageSize: 20,
+        totalItems: 3,
+        totalPages: 1,
       });
-      expect(brandless.items).toHaveLength(1);
-      expect(brandless.items[0]).toMatchObject({
-        id: "prod_brandless_1",
-        brandId: null,
-      });
+      expect(brandless.items).toHaveLength(3);
+      expect(brandless.items).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "prod_brandless_blank",
+            brandId: null,
+          }),
+        ])
+      );
     } finally {
       await mf.dispose();
     }

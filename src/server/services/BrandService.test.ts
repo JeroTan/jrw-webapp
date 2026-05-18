@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AuditEvent } from "@/domain/audit/events";
 import type {
+  ProductBrandLookup,
   BrandRepository,
   BrandRecord,
 } from "@/server/repositories/BrandRepository";
@@ -404,7 +405,7 @@ class RepoStub implements BrandRepository {
   }
 
   async findProductsByBrand(
-    brandId: string,
+    brand: ProductBrandLookup,
     options?: { page?: number; pageSize?: number }
   ) {
     if (this.listProductsError) {
@@ -414,7 +415,7 @@ class RepoStub implements BrandRepository {
     const page = options?.page ?? 1;
     const pageSize = options?.pageSize ?? 20;
     const items = this.products
-      .filter((product) => product.brandId === brandId)
+      .filter((product) => product.brandId === brand.id)
       .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
     const totalItems = items.length;
     const totalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize);

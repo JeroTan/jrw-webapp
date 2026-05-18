@@ -1,6 +1,6 @@
 # Story 2.5: Brand Member Visibility and Brand Scope
 
-Status: review
+Status: done
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
 ## Story
@@ -78,7 +78,9 @@ so that my catalog workspace matches my JRW collaboration scope.
 
 ### Review Findings
 
-_None yet — story not implemented._
+- [x] [Review][Patch] Brand product scope ignored legacy brand references [src/server/repositories/BrandRepository.ts:661] - fixed: repository now matches brand id, name, or slug and returns scoped `brandId`.
+- [x] [Review][Patch] Brandless scope missed blank legacy brand values [src/server/repositories/BrandRepository.ts:693] - fixed: null and blank product brand values both normalize as brandless.
+- [x] [Review][Patch] Read route error metadata omitted RBAC account-state errors [src/server/routes/brands.routes.ts:264] - fixed: metadata now documents `ACCOUNT_SUSPENDED`, `EMAIL_NOT_VERIFIED`, and `ADMIN_APPROVAL_REQUIRED`.
 
 ## Dev Notes
 

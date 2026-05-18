@@ -9,7 +9,7 @@ import {
   products,
 } from "@/domain/schema/catalog";
 import { accountStatusValues, admins } from "@/domain/schema/identity";
-import { and, desc, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 
 type BrandStatusValue = (typeof brandStatusValues)[number];
 type BrandMembershipRoleValue = (typeof brandMembershipRoleValues)[number];
@@ -104,6 +104,8 @@ export type BrandScopedProductRecord = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type ProductBrandLookup = Pick<BrandRecord, "id" | "name" | "slug">;
 
 export type ProductListQueryOptions = {
   page?: number;
@@ -204,7 +206,7 @@ export type BrandRepository = {
   ): Promise<BrandMembershipRecord | null>;
   findActiveBrandMembers(brandId: string): Promise<BrandMembershipRecord[]>;
   findProductsByBrand(
-    brandId: string,
+    brand: ProductBrandLookup,
     options?: ProductListQueryOptions
   ): Promise<BrandScopedProductListResult>;
   findBrandlessProducts(
@@ -258,12 +260,15 @@ function brandMembershipDtoFromRow(
   };
 }
 
-function productDtoFromRow(row: ProductRowLike): BrandScopedProductRecord {
+function productDtoFromRow(
+  row: ProductRowLike,
+  brandIdOverride?: string | null
+): BrandScopedProductRecord {
   return {
     id: row.id,
     name: row.name,
     description: row.description,
-    brandId: row.brand,
+    brandId: brandIdOverride === undefined ? row.brand : brandIdOverride,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -285,6 +290,20 @@ function normalizePage(value: number | undefined): number {
 function normalizePageSize(value: number | undefined): number {
   const pageSize = validPositiveInteger(value) ? value : DEFAULT_PAGE_SIZE;
   return Math.min(pageSize, MAX_PAGE_SIZE);
+}
+
+function productBrandScopeClause(brand: ProductBrandLookup) {
+  return (
+    or(
+      sql`trim(${products.brand}) = ${brand.id.trim()}`,
+      sql`lower(trim(${products.brand})) = ${normalizeLookup(brand.name)}`,
+      sql`lower(trim(${products.brand})) = ${normalizeLookup(brand.slug)}`
+    ) ?? sql`0 = 1`
+  );
+}
+
+function productBrandlessClause() {
+  return sql`trim(coalesce(${products.brand}, '')) = ''`;
 }
 
 export class DrizzleBrandRepository implements BrandRepository {
@@ -640,13 +659,13 @@ export class DrizzleBrandRepository implements BrandRepository {
   }
 
   async findProductsByBrand(
-    brandId: string,
+    brand: ProductBrandLookup,
     options: ProductListQueryOptions = {}
   ): Promise<BrandScopedProductListResult> {
     const page = normalizePage(options.page);
     const pageSize = normalizePageSize(options.pageSize);
     const offset = (page - 1) * pageSize;
-    const whereClause = eq(products.brand, brandId);
+    const whereClause = productBrandScopeClause(brand);
 
     const [totalResult] = await this.db
       .select({ count: sql<number>`count(*)` })
@@ -663,7 +682,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       .offset(offset);
 
     return {
-      items: rows.map((row) => productDtoFromRow(row)),
+      items: rows.map((row) => productDtoFromRow(row, brand.id)),
       page,
       pageSize,
       totalItems,
@@ -677,7 +696,7 @@ export class DrizzleBrandRepository implements BrandRepository {
     const page = normalizePage(options.page);
     const pageSize = normalizePageSize(options.pageSize);
     const offset = (page - 1) * pageSize;
-    const whereClause = isNull(products.brand);
+    const whereClause = productBrandlessClause();
 
     const [totalResult] = await this.db
       .select({ count: sql<number>`count(*)` })
@@ -694,7 +713,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       .offset(offset);
 
     return {
-      items: rows.map((row) => productDtoFromRow(row)),
+      items: rows.map((row) => productDtoFromRow(row, null)),
       page,
       pageSize,
       totalItems,

@@ -264,6 +264,9 @@ const brandJoinErrors = [...brandUpdateErrors] as const;
 const brandReadErrors = [
   "AUTH_REQUIRED",
   "AUTH_FORBIDDEN",
+  "ACCOUNT_SUSPENDED",
+  "EMAIL_NOT_VERIFIED",
+  "ADMIN_APPROVAL_REQUIRED",
   "VALIDATION_FAILED",
   "CONFLICT_STATE",
   "PROVIDER_UNAVAILABLE",

@@ -1150,10 +1150,18 @@ export class BrandService {
       const brand = await this.repository.findBrandByIdIncludingArchived(
         input.brandId
       );
-      const membership = await this.repository.findMembershipByBrandAndAdmin(
-        input.brandId,
-        actor.content.actorId
-      );
+      if (!brand) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "BRAND_NOT_FOUND" })
+        );
+      }
+
+      const membership = this.hasElevatedPermission(actor.content.role)
+        ? null
+        : await this.repository.findMembershipByBrandAndAdmin(
+            input.brandId,
+            actor.content.actorId
+          );
 
       const decision = listBrandScopedProductsDecision({
         actor: {
@@ -1162,12 +1170,10 @@ export class BrandService {
           actorId: actor.content.actorId,
         },
         brandId: input.brandId,
-        brand: brand
-          ? {
-              id: brand.id,
-              status: brand.status,
-            }
-          : null,
+        brand: {
+          id: brand.id,
+          status: brand.status,
+        },
         membership: membership
           ? {
               adminId: membership.adminId,
@@ -1196,11 +1202,18 @@ export class BrandService {
       }
 
       return Result.okay(
-        await this.repository.findProductsByBrand(input.brandId, {
-          page: decision.content.page,
-          pageSize: decision.content.pageSize,
-          status: decision.content.status,
-        })
+        await this.repository.findProductsByBrand(
+          {
+            id: brand.id,
+            name: brand.name,
+            slug: brand.slug,
+          },
+          {
+            page: decision.content.page,
+            pageSize: decision.content.pageSize,
+            status: decision.content.status,
+          }
+        )
       );
     } catch (error) {
       if (providerFailure(error)) {

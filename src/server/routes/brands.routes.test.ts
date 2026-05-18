@@ -182,6 +182,9 @@ describe("brands routes", () => {
       expect.arrayContaining([
         "AUTH_REQUIRED",
         "AUTH_FORBIDDEN",
+        "ACCOUNT_SUSPENDED",
+        "EMAIL_NOT_VERIFIED",
+        "ADMIN_APPROVAL_REQUIRED",
         "CONFLICT_STATE",
         "PROVIDER_UNAVAILABLE",
       ])
