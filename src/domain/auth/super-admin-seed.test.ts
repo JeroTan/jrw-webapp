@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  REVIEWED_OWNER_CREDENTIAL_REPLACEMENT_CONFIRMATION,
-  REVIEWED_PRODUCTION_SUPER_ADMIN_SEED_CONFIRMATION,
   buildOwnerCountSql,
   buildSeededOwnerCountSql,
   buildSuperAdminSeedSql,
@@ -24,34 +22,37 @@ describe("super admin seed decision", () => {
     });
   });
 
-  it("refuses default credential replacement when an owner already exists", () => {
+  it("chooses dethrone-and-create when seed email differs from current owner", () => {
     expect(
       decideSuperAdminSeedOperation({
         ownerCount: 1,
         targetEnv: "development",
-      })
-    ).toEqual({
-      ok: false,
-      code: "CONFLICT_STATE",
-      reason: "OWNER_ALREADY_EXISTS",
-      message:
-        "Super Admin owner already exists. Refusing credential replacement without reviewed confirmation.",
-    });
-  });
-
-  it("allows credential replacement only with reviewed confirmation", () => {
-    expect(
-      decideSuperAdminSeedOperation({
-        ownerCount: 1,
-        targetEnv: "development",
-        replaceOwnerCredentialsConfirmation:
-          REVIEWED_OWNER_CREDENTIAL_REPLACEMENT_CONFIRMATION,
+        currentOwnerEmail: "old-owner@example.test",
+        seedEmail: "new-owner@example.test",
       })
     ).toEqual({
       ok: true,
-      operation: "replace-owner-credentials",
+      operation: "dethrone-and-create-owner",
       warnings: [
-        "Reviewed owner credential replacement enabled. Existing owner credentials will be replaced.",
+        "Current owner (old-owner@example.test) will be demoted to ADMIN.",
+        "New owner will be created with seed email (new-owner@example.test).",
+      ],
+    });
+  });
+
+  it("chooses no-op when seed email matches current owner", () => {
+    expect(
+      decideSuperAdminSeedOperation({
+        ownerCount: 1,
+        targetEnv: "development",
+        currentOwnerEmail: "owner@example.test",
+        seedEmail: "owner@example.test",
+      })
+    ).toEqual({
+      ok: true,
+      operation: "no-op",
+      warnings: [
+        "Seed email matches current owner. No changes needed.",
       ],
     });
   });
@@ -72,58 +73,12 @@ describe("super admin seed decision", () => {
       decideSuperAdminSeedOperation({
         ownerCount: 0,
         targetEnv: "production",
-        productionSeedConfirmation:
-          REVIEWED_PRODUCTION_SUPER_ADMIN_SEED_CONFIRMATION,
+        productionSeedConfirmation: "REVIEWED_PRODUCTION_SUPER_ADMIN_SEED",
       })
     ).toMatchObject({
       ok: true,
       operation: "create-owner",
     });
-  });
-
-  it("validates credentials without returning secret material", () => {
-    const password = "  correct horse battery staple  ";
-
-    expect(
-      validateSuperAdminSeedCredentials({
-        email: "owner@example.test",
-        password,
-      })
-    ).toEqual({
-      ok: true,
-      email: "owner@example.test",
-      password,
-    });
-
-    const invalid = validateSuperAdminSeedCredentials({
-      email: "owner@example.test",
-      password: "Replace-With-A-Long-Random-Initial-Password",
-    });
-
-    expect(invalid).toEqual({
-      ok: false,
-      code: "VALIDATION_FAILED",
-      message: "Super Admin seed credentials are missing or invalid.",
-    });
-    expect(JSON.stringify(invalid)).not.toContain(
-      "Replace-With-A-Long-Random-Initial-Password"
-    );
-  });
-
-  it("requires a non-placeholder password pepper without echoing it", () => {
-    expect(validatePasswordPepper("secret-pepper-value")).toEqual({
-      ok: true,
-      pepper: "secret-pepper-value",
-    });
-
-    const invalid = validatePasswordPepper("replace-with-secret-pepper");
-
-    expect(invalid).toEqual({
-      ok: false,
-      code: "VALIDATION_FAILED",
-      message: "Password pepper is missing or invalid.",
-    });
-    expect(JSON.stringify(invalid)).not.toContain("replace-with-secret-pepper");
   });
 
   it("rejects multiple owners as state conflict", () => {
@@ -139,6 +94,61 @@ describe("super admin seed decision", () => {
       message:
         "Multiple Super Admin owners already exist. Manual remediation required before seeding.",
     });
+  });
+
+  it("validates credentials with email format and password length only", () => {
+    const password = "  correct horse battery staple  ";
+
+    expect(
+      validateSuperAdminSeedCredentials({
+        email: "owner@example.test",
+        password,
+      })
+    ).toEqual({
+      ok: true,
+      email: "owner@example.test",
+      password,
+    });
+
+    // Invalid email format
+    expect(
+      validateSuperAdminSeedCredentials({
+        email: "not-an-email",
+        password: "some-long-enough-password-value",
+      })
+    ).toEqual({
+      ok: false,
+      code: "VALIDATION_FAILED",
+      message: "Super Admin seed credentials are missing or invalid.",
+    });
+
+    // Password too short
+    expect(
+      validateSuperAdminSeedCredentials({
+        email: "owner@example.test",
+        password: "short",
+      })
+    ).toEqual({
+      ok: false,
+      code: "VALIDATION_FAILED",
+      message: "Super Admin seed credentials are missing or invalid.",
+    });
+  });
+
+  it("requires a pepper with minimum length without echoing it", () => {
+    expect(validatePasswordPepper("secret-pepper-value")).toEqual({
+      ok: true,
+      pepper: "secret-pepper-value",
+    });
+
+    const invalid = validatePasswordPepper("short");
+
+    expect(invalid).toEqual({
+      ok: false,
+      code: "VALIDATION_FAILED",
+      message: "Password pepper is missing or invalid.",
+    });
+    expect(JSON.stringify(invalid)).not.toContain("short");
   });
 
   it("uses non-zero owner checks and safe no-owner upsert SQL", () => {
@@ -169,6 +179,28 @@ describe("super admin seed decision", () => {
       })
     ).toContain(
       "password_salt = 'salt', status = 'ACTIVE', email_verified_at = COALESCE(email_verified_at, CURRENT_TIMESTAMP), approved_at = COALESCE(approved_at, CURRENT_TIMESTAMP), updated_at = CURRENT_TIMESTAMP WHERE is_owner <> 0;"
+    );
+    expect(
+      buildSuperAdminSeedSql({
+        id: "new_owner_1",
+        email: "new-owner@example.test",
+        passwordHash: "hash",
+        passwordSalt: "salt",
+        operation: "dethrone-and-create-owner",
+      })
+    ).toContain(
+      "UPDATE admins SET is_owner = 0, updated_at = CURRENT_TIMESTAMP WHERE is_owner <> 0;"
+    );
+    expect(
+      buildSuperAdminSeedSql({
+        id: "new_owner_1",
+        email: "new-owner@example.test",
+        passwordHash: "hash",
+        passwordSalt: "salt",
+        operation: "dethrone-and-create-owner",
+      })
+    ).toContain(
+      "INSERT INTO admins (id, email, password_hash, password_salt, is_owner, status, email_verified_at, approved_at, updated_at)"
     );
   });
 });

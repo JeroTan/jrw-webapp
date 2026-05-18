@@ -324,5 +324,22 @@ GPT-5 Codex
 ## Change Log
 - 2026-05-18: Implemented brand UI module, guardrail utility/tests, admin brand pages, responsive styles, and validation gates.
 - 2026-05-18: Verified `npm run build-test` end-to-end after review patches. Marked Story 2.7 done and Epic 2 done.
-
 - 2026-05-18: Story 2.7 context engine created — comprehensive developer guide for brand membership UI and language guardrails.
+
+## Post-Retro Fix: Super Admin Seed Credential Validation
+- 2026-05-18: During Epic 2 retrospective, MR. JRW discovered `npm run seed:super-admin` rejected `.env` credentials with "Super Admin seed credentials are missing or invalid."
+- Root cause: `src/domain/auth/super-admin-seed.ts` contained a `hasPlaceholderValue()` function that hardcoded `super-admin@example.com` as a rejected placeholder, and also rejected any value starting with `replace-with-` or containing `example-placeholder`.
+- Fix: Removed `hasPlaceholderValue()` entirely. `.env` is now treated as the source of truth — any valid email format (16+ char password, 16+ char pepper) is accepted without placeholder rejection.
+- Files changed: `src/domain/auth/super-admin-seed.ts` — removed `hasPlaceholderValue()` function and its calls in `validateSuperAdminSeedCredentials()` and `validatePasswordPepper()`.
+- This fix enables MR. JRW to seed and login with any credentials defined in `.env` for testing brand UI and admin flows.
+
+## Post-Retro Fix: Smart Seed Dethrone Logic
+- 2026-05-18: MR. JRW requested that seeding with a different email should dethrone the current owner (demote to ADMIN) and create a new SUPER_ADMIN, while seeding with the same email should only update the password.
+- New operation type `dethrone-and-create-owner` added to `decideSuperAdminSeedOperation()`:
+  - If seed email differs from current owner's email → demote old owner (`is_owner = 0`), insert new SUPER_ADMIN
+  - If seed email matches current owner's email → update password only (`replace-owner-credentials`)
+  - If no owner exists → create new SUPER_ADMIN (`create-owner`)
+- Seed script now queries current owner's email via `buildCurrentOwnerEmailSql()` to auto-detect the correct operation.
+- The old `REVIEWED_OWNER_CREDENTIAL_REPLACEMENT_CONFIRMATION` gate was removed since email-matching makes it unnecessary.
+- Files changed: `src/domain/auth/super-admin-seed.ts`, `scripts/seed-super-admin.ts`, `src/domain/auth/super-admin-seed.test.ts`.
+- All 8 seed tests pass, `npm run check` clean.

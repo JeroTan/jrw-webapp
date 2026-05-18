@@ -16,7 +16,9 @@ export type SuperAdminSeedTargetEnv =
 
 export type SuperAdminSeedOperation =
   | "create-owner"
-  | "replace-owner-credentials";
+  | "replace-owner-credentials"
+  | "dethrone-and-create-owner"
+  | "no-op";
 
 export type SuperAdminSeedConflictReason =
   | "INVALID_OWNER_COUNT"
@@ -80,15 +82,11 @@ function hasReviewedProductionConfirmation(value: string | undefined): boolean {
   return value === REVIEWED_PRODUCTION_SUPER_ADMIN_SEED_CONFIRMATION;
 }
 
-function hasReviewedReplacementConfirmation(
-  value: string | undefined
-): boolean {
-  return value === REVIEWED_OWNER_CREDENTIAL_REPLACEMENT_CONFIRMATION;
-}
-
 export function decideSuperAdminSeedOperation(input: {
   ownerCount: number;
   targetEnv?: string;
+  currentOwnerEmail?: string;
+  seedEmail?: string;
   replaceOwnerCredentialsConfirmation?: string;
   productionSeedConfirmation?: string;
 }): SuperAdminSeedDecision {
@@ -136,26 +134,27 @@ export function decideSuperAdminSeedOperation(input: {
   }
 
   if (input.ownerCount === 1) {
-    if (
-      hasReviewedReplacementConfirmation(
-        input.replaceOwnerCredentialsConfirmation
-      )
-    ) {
+    const currentEmail = input.currentOwnerEmail?.trim().toLowerCase();
+    const newEmail = input.seedEmail?.trim().toLowerCase();
+    const isSameEmail = currentEmail && newEmail && currentEmail === newEmail;
+
+    if (isSameEmail) {
       return {
         ok: true,
-        operation: "replace-owner-credentials",
+        operation: "no-op",
         warnings: [
-          "Reviewed owner credential replacement enabled. Existing owner credentials will be replaced.",
+          "Seed email matches current owner. No changes needed.",
         ],
       };
     }
 
     return {
-      ok: false,
-      code: "CONFLICT_STATE",
-      reason: "OWNER_ALREADY_EXISTS",
-      message:
-        "Super Admin owner already exists. Refusing credential replacement without reviewed confirmation.",
+      ok: true,
+      operation: "dethrone-and-create-owner",
+      warnings: [
+        `Current owner (${currentEmail ?? "unknown"}) will be demoted to ADMIN.`,
+        `New owner will be created with seed email (${newEmail ?? "unknown"}).`,
+      ],
     };
   }
 
@@ -166,14 +165,8 @@ export function decideSuperAdminSeedOperation(input: {
   };
 }
 
-function hasPlaceholderValue(value: string): boolean {
-  const normalizedValue = value.trim().toLowerCase();
-
-  return (
-    normalizedValue === "super-admin@example.com" ||
-    normalizedValue.startsWith("replace-with-") ||
-    normalizedValue.includes("example-placeholder")
-  );
+function sqlString(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`;
 }
 
 export function validateSuperAdminSeedCredentials(input: {
@@ -194,9 +187,7 @@ export function validateSuperAdminSeedCredentials(input: {
     !email ||
     !password ||
     !emailIsValid ||
-    !passwordIsValid ||
-    hasPlaceholderValue(email) ||
-    hasPlaceholderValue(password)
+    !passwordIsValid
   ) {
     return {
       ok: false,
@@ -219,8 +210,7 @@ export function validatePasswordPepper(
 
   if (
     !normalizedPepper ||
-    normalizedPepper.length < 16 ||
-    hasPlaceholderValue(normalizedPepper)
+    normalizedPepper.length < 16
   ) {
     return {
       ok: false,
@@ -233,10 +223,6 @@ export function validatePasswordPepper(
     ok: true,
     pepper: normalizedPepper,
   };
-}
-
-function sqlString(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
 }
 
 export function buildOwnerCountSql(): string {
@@ -255,6 +241,26 @@ export function buildSuperAdminSeedSql(input: SuperAdminSeedSqlInput): string {
       "approved_at = COALESCE(approved_at, CURRENT_TIMESTAMP),",
       "updated_at = CURRENT_TIMESTAMP",
       "WHERE is_owner <> 0;",
+    ].join(" ");
+  }
+
+  if (input.operation === "dethrone-and-create-owner") {
+    return [
+      "UPDATE admins SET is_owner = 0, updated_at = CURRENT_TIMESTAMP WHERE is_owner <> 0;",
+      "INSERT INTO admins (id, email, password_hash, password_salt, is_owner, status, email_verified_at, approved_at, updated_at)",
+      "VALUES (",
+      [
+        sqlString(input.id),
+        sqlString(input.email),
+        sqlString(input.passwordHash),
+        sqlString(input.passwordSalt),
+        "1",
+        "'ACTIVE'",
+        "CURRENT_TIMESTAMP",
+        "CURRENT_TIMESTAMP",
+        "CURRENT_TIMESTAMP",
+      ].join(", "),
+      ");",
     ].join(" ");
   }
 

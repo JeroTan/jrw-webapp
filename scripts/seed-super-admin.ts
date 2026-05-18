@@ -283,9 +283,33 @@ export async function main(
 
   console.log(`Current owner count: ${ownerCount}`);
 
+  let currentOwnerEmail: string | undefined;
+  if (ownerCount === 1) {
+    const seededOwnerCountOutput = runWranglerD1(targetEnv, [
+      "--command",
+      buildSeededOwnerCountSql(credentials.email),
+      "--json",
+    ]);
+    try {
+      const seededCount = parseOwnerCount(seededOwnerCountOutput);
+      if (seededCount === 1) {
+        currentOwnerEmail = credentials.email;
+        console.log(`Current owner email: ${maskEmailForOperator(currentOwnerEmail)}`);
+      }
+    } catch {
+      const match = seededOwnerCountOutput.match(/owner_count[^\d]+(\d+)/i);
+      if (match?.[1] && Number(match[1]) === 1) {
+        currentOwnerEmail = credentials.email;
+        console.log(`Current owner email: ${maskEmailForOperator(currentOwnerEmail)}`);
+      }
+    }
+  }
+
   const decision = decideSuperAdminSeedOperation({
     ownerCount,
     targetEnv,
+    currentOwnerEmail,
+    seedEmail: credentials.email,
     replaceOwnerCredentialsConfirmation,
     productionSeedConfirmation,
   });
@@ -297,6 +321,11 @@ export async function main(
 
   for (const warning of decision.warnings) {
     console.warn(warning);
+  }
+
+  if (decision.operation === "no-op") {
+    console.log("Super Admin seed: no changes needed. Exiting.");
+    return;
   }
 
   if (cli.dryRun) {
