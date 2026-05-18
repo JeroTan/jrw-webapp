@@ -1410,38 +1410,24 @@ export class BrandService {
     if (actor.error) return actor;
 
     try {
-      const [targetBrand, assignment] = await Promise.all([
+      const [targetBrand, targetMembership] = await Promise.all([
         this.repository.findBrandByIdForMutation(input.brandId),
-        this.repository.findProductBrandAssignment(input.productId),
+        this.hasElevatedPermission(actor.content.role)
+          ? Promise.resolve(null)
+          : this.repository.findMembershipForMutation(
+              input.brandId,
+              actor.content.actorId
+            ),
       ]);
 
-      if (!assignment) {
-        return Result.error(
-          serviceError("CONFLICT_STATE", { reason: "PRODUCT_NOT_FOUND" })
-        );
-      }
-
-      if (!assignment.brandId || assignment.brandId !== input.brandId) {
-        return Result.error(
-          serviceError("CONFLICT_STATE", { reason: "BRAND_MISMATCH" })
-        );
-      }
-
-      const targetMembership = this.hasElevatedPermission(actor.content.role)
-        ? null
-        : await this.repository.findMembershipForMutation(
-            input.brandId,
-            actor.content.actorId
-          );
-
-      const decision = requireBrandMembershipForMutationDecision({
+      const accessDecision = requireBrandMembershipForMutationDecision({
         actor: {
           authenticated: true,
           role: actor.content.role,
           actorId: actor.content.actorId,
         },
         targetBrandId: input.brandId,
-        sourceBrandId: assignment.brandId,
+        sourceBrandId: input.brandId,
         targetBrand: targetBrand
           ? {
               id: targetBrand.id,
@@ -1458,16 +1444,31 @@ export class BrandService {
         sourceMembership: this.toMembershipState(targetMembership),
       });
 
-      if (decision.error) {
-        return Result.error(this.mapGuardDecisionError(decision.error));
+      if (accessDecision.error) {
+        return Result.error(this.mapGuardDecisionError(accessDecision.error));
+      }
+
+      const assignment = await this.repository.findProductBrandAssignment(
+        input.productId
+      );
+      if (!assignment) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "PRODUCT_NOT_FOUND" })
+        );
+      }
+
+      if (!assignment.brandId || assignment.brandId !== input.brandId) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "BRAND_MISMATCH" })
+        );
       }
 
       return Result.okay(
         this.guardSuccess({
           productId: assignment.productId,
-          targetBrandId: decision.content.targetBrandId,
-          sourceBrandId: decision.content.sourceBrandId,
-          reassignment: decision.content.reassignment,
+          targetBrandId: accessDecision.content.targetBrandId,
+          sourceBrandId: accessDecision.content.sourceBrandId,
+          reassignment: accessDecision.content.reassignment,
         })
       );
     } catch (error) {
@@ -1486,6 +1487,46 @@ export class BrandService {
     if (actor.error) return actor;
 
     try {
+      const [targetBrand, targetMembership] = await Promise.all([
+        this.repository.findBrandByIdForMutation(input.targetBrandId),
+        this.hasElevatedPermission(actor.content.role)
+          ? Promise.resolve(null)
+          : this.repository.findMembershipForMutation(
+              input.targetBrandId,
+              actor.content.actorId
+            ),
+      ]);
+
+      const targetAccessDecision = requireBrandMembershipForMutationDecision({
+        actor: {
+          authenticated: true,
+          role: actor.content.role,
+          actorId: actor.content.actorId,
+        },
+        targetBrandId: input.targetBrandId,
+        targetBrand: targetBrand
+          ? {
+              id: targetBrand.id,
+              status: targetBrand.status,
+            }
+          : null,
+        targetMembership: this.toMembershipState(targetMembership),
+      });
+
+      if (targetAccessDecision.error) {
+        if (targetAccessDecision.error.code === "AUTH_FORBIDDEN") {
+          return Result.error(
+            serviceError("AUTH_FORBIDDEN", {
+              reason: "TARGET_BRAND_PERMISSION_REQUIRED",
+            })
+          );
+        }
+
+        return Result.error(
+          this.mapGuardDecisionError(targetAccessDecision.error)
+        );
+      }
+
       const assignment = await this.repository.findProductBrandAssignment(
         input.productId
       );
@@ -1501,23 +1542,15 @@ export class BrandService {
         );
       }
 
-      const [sourceBrand, targetBrand, sourceMembership, targetMembership] =
-        await Promise.all([
-          this.repository.findBrandByIdForMutation(assignment.brandId),
-          this.repository.findBrandByIdForMutation(input.targetBrandId),
-          this.hasElevatedPermission(actor.content.role)
-            ? Promise.resolve(null)
-            : this.repository.findMembershipForMutation(
-                assignment.brandId,
-                actor.content.actorId
-              ),
-          this.hasElevatedPermission(actor.content.role)
-            ? Promise.resolve(null)
-            : this.repository.findMembershipForMutation(
-                input.targetBrandId,
-                actor.content.actorId
-              ),
-        ]);
+      const [sourceBrand, sourceMembership] = await Promise.all([
+        this.repository.findBrandByIdForMutation(assignment.brandId),
+        this.hasElevatedPermission(actor.content.role)
+          ? Promise.resolve(null)
+          : this.repository.findMembershipForMutation(
+              assignment.brandId,
+              actor.content.actorId
+            ),
+      ]);
 
       const decision = requireBrandMembershipForMutationDecision({
         actor: {

@@ -1,6 +1,6 @@
 ﻿# Story 2.6: Brand-Scoped Product Mutation Guards
 
-Status: review
+Status: done
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
 ## Story
@@ -80,7 +80,7 @@ so that only authorized Admins modify brand-scoped catalog work.
 
 ### Review Findings
 
-_(To be populated during code review)_
+- [x] [Review][Patch] Guard update and reassignment endpoints now deny before leaking product assignment state to non-members. [src/server/services/BrandService.ts:1406]
 
 ## Dev Notes
 

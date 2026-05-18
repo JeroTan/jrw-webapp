@@ -129,6 +129,7 @@ class RepoStub implements BrandRepository {
     product_2: "brand_2",
     product_3: null,
   };
+  productBrandAssignmentLookups = 0;
   adminById: Record<
     string,
     {
@@ -335,6 +336,7 @@ class RepoStub implements BrandRepository {
   }
 
   async findProductBrandAssignment(productId: string) {
+    this.productBrandAssignmentLookups += 1;
     if (!Object.prototype.hasOwnProperty.call(this.productBrandAssignmentByProductId, productId)) {
       return null;
     }
@@ -2000,6 +2002,24 @@ describe("BrandService", () => {
       reason: "BRAND_MISMATCH",
     });
 
+    const updateDeniedRepo = new RepoStub();
+    delete updateDeniedRepo.membershipByAdminId.admin_1;
+    const updateDeniedService = new BrandService({
+      repository: updateDeniedRepo,
+      now: () => new Date(now),
+    });
+    const updateDenied = await updateDeniedService.guardBrandProductUpdate({
+      actor: adminActor(),
+      requestId: "req_guard_update_denied",
+      brandId: "brand_1",
+      productId: "product_2",
+    });
+    expect(updateDenied.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(updateDenied.error?.data).toMatchObject({
+      reason: "BRAND_MEMBERSHIP_REQUIRED",
+    });
+    expect(updateDeniedRepo.productBrandAssignmentLookups).toBe(0);
+
     const sourceDeniedRepo = new RepoStub();
     sourceDeniedRepo.membershipByBrandAdminKey["brand_2:admin_1"] = {
       role: "MEMBER",
@@ -2043,6 +2063,7 @@ describe("BrandService", () => {
     expect(targetDenied.error?.data).toMatchObject({
       reason: "TARGET_BRAND_PERMISSION_REQUIRED",
     });
+    expect(targetDeniedRepo.productBrandAssignmentLookups).toBe(0);
   });
 
   it("maps mutation guard lookup failures to PROVIDER_UNAVAILABLE", async () => {
