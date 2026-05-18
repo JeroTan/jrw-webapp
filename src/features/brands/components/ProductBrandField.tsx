@@ -18,7 +18,7 @@ type ProductBrandFieldProps = {
 };
 
 const helperText =
-  "Brand is optional catalog group for collaboration. Product can stay brandless without implying missing seller or store because JRW is seller of record.";
+  "Brand is optional catalog group for collaboration. Product can stay brandless without changing JRW as seller of record.";
 
 export function ProductBrandField({
   autoLoadBrands = true,
@@ -85,4 +85,3 @@ export function ProductBrandField({
     </Select>
   );
 }
-

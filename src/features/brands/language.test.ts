@@ -31,6 +31,15 @@ describe("brand language guardrails", () => {
     );
   });
 
+  it("allows explicit JRW seller-of-record copy", () => {
+    expect(
+      validateBrandCopy(
+        "Brand stays optional catalog group. JRW remains seller of record.",
+        "BrandList",
+      ),
+    ).toEqual([]);
+  });
+
   it("maps forbidden terms into safe brand labels", () => {
     expect(safeBrandLabel("merchant")).toBe("brand");
     expect(safeBrandLabel("store owner")).toBe("brand member");
@@ -42,4 +51,3 @@ describe("brand language guardrails", () => {
     expect(safeBrandLabel("  brand members  ")).toBe("brand members");
   });
 });
-

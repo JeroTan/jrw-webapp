@@ -32,7 +32,8 @@ describe("brands UI surfaces", () => {
 
     expect(markup).toContain("No brand (brandless)");
     expect(markup).toContain("optional catalog group");
-    expect(markup).toContain("JRW is seller of record");
+    expect(markup).toContain("JRW as seller of record");
+    expect(markup).not.toContain("missing seller or store");
   });
 
   it("renders text-labeled membership statuses in table", () => {
@@ -118,4 +119,3 @@ describe("brands UI surfaces", () => {
     expect(joinMarkup).toContain("Reject");
   });
 });
-

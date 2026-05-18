@@ -37,6 +37,8 @@ type SessionInspectionPayload = {
   } | null;
 };
 
+const BRAND_LIST_PAGE_SIZE = 100;
+
 function toApiFailure(input: {
   code: string;
   message: string;
@@ -125,9 +127,12 @@ export function isNotFoundFailure(error: unknown): boolean {
 }
 
 export async function fetchBrandList(): Promise<BrandListResult> {
-  const response = await fetch("/api/brands/me?page=1&pageSize=200", {
-    headers: { accept: "application/json" },
-  });
+  const response = await fetch(
+    `/api/brands/me?page=1&pageSize=${BRAND_LIST_PAGE_SIZE}`,
+    {
+      headers: { accept: "application/json" },
+    },
+  );
 
   return readApiEnvelope<BrandListResult>(response);
 }
