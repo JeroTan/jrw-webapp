@@ -76,6 +76,13 @@ describe("brands routes", () => {
     const join = body.paths?.["/api/brands/{id}/join"]?.post;
     const approve = body.paths?.["/api/brands/{id}/join/{adminId}/approve"]?.post;
     const reject = body.paths?.["/api/brands/{id}/join/{adminId}/reject"]?.post;
+    const guardCreate = body.paths?.["/api/brands/{id}/products/guard"]?.post;
+    const guardUpdate =
+      body.paths?.["/api/brands/{id}/products/{productId}/guard"]?.post;
+    const guardReassign =
+      body.paths?.["/api/brands/products/{productId}/reassign/guard"]?.post;
+    const guardBrandless =
+      body.paths?.["/api/brands/products/brandless/guard"]?.post;
     const archive = body.paths?.["/api/brands/{id}/archive"]?.post;
     const listBrandProducts = body.paths?.["/api/brands/{id}/products"]?.get;
     const listBrandless = body.paths?.["/api/brands/products/brandless"]?.get;
@@ -161,6 +168,42 @@ describe("brands routes", () => {
     });
     expect(reject?.["x-rate-limit-class"]).toBe("admin-write");
     expect(reject?.responses).toHaveProperty("409");
+
+    expect(guardCreate?.summary).toBe("Guard brand product create");
+    expect(guardCreate?.tags).toContain("Brands");
+    expect(guardCreate?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(guardCreate?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(guardCreate?.responses).toHaveProperty("200");
+
+    expect(guardUpdate?.summary).toBe("Guard brand product update");
+    expect(guardUpdate?.tags).toContain("Brands");
+    expect(guardUpdate?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(guardUpdate?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(guardUpdate?.responses).toHaveProperty("200");
+
+    expect(guardReassign?.summary).toBe("Guard brand product reassignment");
+    expect(guardReassign?.tags).toContain("Brands");
+    expect(guardReassign?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(guardReassign?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(guardReassign?.responses).toHaveProperty("200");
+
+    expect(guardBrandless?.summary).toBe("Guard brandless product mutation");
+    expect(guardBrandless?.tags).toContain("Brands");
+    expect(guardBrandless?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(guardBrandless?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(guardBrandless?.responses).toHaveProperty("200");
 
     expect(archive?.summary).toBe("Archive brand");
     expect(archive?.tags).toContain("Brands");
@@ -1182,6 +1225,270 @@ describe("brands routes", () => {
         code: "CONFLICT_STATE",
         details: {
           requestId: "req_brand_archive_conflict",
+        },
+      },
+    });
+  });
+
+  it("denies anonymous mutation guard routes before controller execution", async () => {
+    const cases: Array<{
+      url: string;
+      requestId: string;
+      body?: Record<string, string>;
+    }> = [
+      {
+        url: "https://jrw.test/api/brands/brand_1/products/guard",
+        requestId: "req_guard_create_anonymous",
+      },
+      {
+        url: "https://jrw.test/api/brands/brand_1/products/product_1/guard",
+        requestId: "req_guard_update_anonymous",
+      },
+      {
+        url: "https://jrw.test/api/brands/products/product_1/reassign/guard",
+        requestId: "req_guard_reassign_anonymous",
+        body: { targetBrandId: "brand_2" },
+      },
+      {
+        url: "https://jrw.test/api/brands/products/brandless/guard",
+        requestId: "req_guard_brandless_anonymous",
+      },
+    ];
+
+    for (const testCase of cases) {
+      let controllerCalls = 0;
+      const app = createApp({
+        routes: {
+          brands: {
+            controllerFactory: () => {
+              controllerCalls += 1;
+              return createController({
+                guardBrandProductCreate: async () =>
+                  Result.okay({
+                    allowed: true,
+                    brandless: false,
+                    reassignment: false,
+                    productId: null,
+                    sourceBrandId: null,
+                    targetBrandId: "brand_1",
+                  }),
+              });
+            },
+          },
+        },
+      });
+
+      const response = await app.handle(
+        new Request(testCase.url, {
+          method: "POST",
+          headers: {
+            "x-request-id": testCase.requestId,
+            ...(testCase.body ? { "content-type": "application/json" } : {}),
+          },
+          ...(testCase.body ? { body: JSON.stringify(testCase.body) } : {}),
+        })
+      );
+
+      expect(response.status).toBe(401);
+      await expect(response.json()).resolves.toMatchObject({
+        error: {
+          code: "AUTH_REQUIRED",
+          details: { requestId: testCase.requestId },
+        },
+      });
+      expect(controllerCalls).toBe(0);
+    }
+  });
+
+  it("returns success envelopes for mutation guard routes", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              guardBrandProductCreate: async () =>
+                Result.okay({
+                  allowed: true,
+                  brandless: false,
+                  reassignment: false,
+                  productId: null,
+                  sourceBrandId: null,
+                  targetBrandId: "brand_1",
+                }),
+              guardBrandProductUpdate: async () =>
+                Result.okay({
+                  allowed: true,
+                  brandless: false,
+                  reassignment: false,
+                  productId: "product_1",
+                  sourceBrandId: "brand_1",
+                  targetBrandId: "brand_1",
+                }),
+              guardBrandProductReassignment: async () =>
+                Result.okay({
+                  allowed: true,
+                  brandless: false,
+                  reassignment: true,
+                  productId: "product_1",
+                  sourceBrandId: "brand_1",
+                  targetBrandId: "brand_2",
+                }),
+              guardBrandlessProductMutation: async () =>
+                Result.okay({
+                  allowed: true,
+                  brandless: true,
+                  reassignment: false,
+                  productId: null,
+                  sourceBrandId: null,
+                  targetBrandId: null,
+                }),
+            }),
+        },
+      },
+    });
+
+    const createGuard = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/products/guard", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_guard_create_success",
+        },
+      })
+    );
+    expect(createGuard.status).toBe(200);
+    await expect(createGuard.json()).resolves.toMatchObject({
+      data: {
+        allowed: true,
+        targetBrandId: "brand_1",
+      },
+      meta: { requestId: "req_guard_create_success" },
+    });
+
+    const updateGuard = await app.handle(
+      new Request(
+        "https://jrw.test/api/brands/brand_1/products/product_1/guard",
+        {
+          method: "POST",
+          headers: {
+            cookie: "jrw_session=admin-token",
+            "x-request-id": "req_guard_update_success",
+          },
+        }
+      )
+    );
+    expect(updateGuard.status).toBe(200);
+    await expect(updateGuard.json()).resolves.toMatchObject({
+      data: {
+        allowed: true,
+        productId: "product_1",
+      },
+      meta: { requestId: "req_guard_update_success" },
+    });
+
+    const reassignGuard = await app.handle(
+      new Request(
+        "https://jrw.test/api/brands/products/product_1/reassign/guard",
+        {
+          method: "POST",
+          headers: {
+            cookie: "jrw_session=admin-token",
+            "content-type": "application/json",
+            "x-request-id": "req_guard_reassign_success",
+          },
+          body: JSON.stringify({ targetBrandId: "brand_2" }),
+        }
+      )
+    );
+    expect(reassignGuard.status).toBe(200);
+    await expect(reassignGuard.json()).resolves.toMatchObject({
+      data: {
+        allowed: true,
+        reassignment: true,
+        targetBrandId: "brand_2",
+      },
+      meta: { requestId: "req_guard_reassign_success" },
+    });
+
+    const brandlessGuard = await app.handle(
+      new Request("https://jrw.test/api/brands/products/brandless/guard", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_guard_brandless_success",
+        },
+      })
+    );
+    expect(brandlessGuard.status).toBe(200);
+    await expect(brandlessGuard.json()).resolves.toMatchObject({
+      data: {
+        allowed: true,
+        brandless: true,
+      },
+      meta: { requestId: "req_guard_brandless_success" },
+    });
+  });
+
+  it("returns request-id envelope for mutation guard failures and validates reassignment payload", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              guardBrandProductCreate: async () =>
+                Result.error(
+                  new GeneralError(
+                    { reason: "BRAND_MEMBERSHIP_REQUIRED" },
+                    "AUTH_FORBIDDEN"
+                  )
+                ),
+            }),
+        },
+      },
+    });
+
+    const denied = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_2/products/guard", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_guard_create_forbidden",
+        },
+      })
+    );
+    expect(denied.status).toBe(403);
+    await expect(denied.json()).resolves.toMatchObject({
+      error: {
+        code: "AUTH_FORBIDDEN",
+        details: {
+          requestId: "req_guard_create_forbidden",
+        },
+      },
+    });
+
+    const invalidPayload = await app.handle(
+      new Request("https://jrw.test/api/brands/products/product_1/reassign/guard", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_guard_reassign_invalid_body",
+        },
+        body: JSON.stringify({}),
+      })
+    );
+    expect(invalidPayload.status).toBe(400);
+    await expect(invalidPayload.json()).resolves.toMatchObject({
+      error: {
+        code: "VALIDATION_FAILED",
+        details: {
+          requestId: "req_guard_reassign_invalid_body",
         },
       },
     });

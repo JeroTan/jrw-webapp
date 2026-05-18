@@ -116,6 +116,19 @@ class RepoStub implements BrandRepository {
     admin_1: { role: "OWNER", status: "ACTIVE", invitedByAdminId: null },
     admin_member: { role: "MEMBER", status: "ACTIVE", invitedByAdminId: null },
   };
+  membershipByBrandAdminKey: Record<
+    string,
+    {
+      role: "OWNER" | "MEMBER";
+      status: "ACTIVE" | "PENDING" | "REVOKED";
+      invitedByAdminId: string | null;
+    }
+  > = {};
+  productBrandAssignmentByProductId: Record<string, string | null> = {
+    product_1: "brand_1",
+    product_2: "brand_2",
+    product_3: null,
+  };
   adminById: Record<
     string,
     {
@@ -296,19 +309,39 @@ class RepoStub implements BrandRepository {
     return this.existingBySlug;
   }
 
-  async findMembershipByBrandAndAdmin(_brandId: string, adminId: string) {
-    const membership = this.membershipByAdminId[adminId];
+  async findMembershipByBrandAndAdmin(brandId: string, adminId: string) {
+    const keyed = this.membershipByBrandAdminKey[`${brandId}:${adminId}`];
+    const membership = keyed ?? this.membershipByAdminId[adminId];
     if (!membership) return null;
 
     return {
       id: `membership_${adminId}`,
-      brandId: "brand_1",
+      brandId,
       adminId,
       role: membership.role,
       status: membership.status,
       invitedByAdminId: membership.invitedByAdminId,
       createdAt: now,
       updatedAt: now,
+    };
+  }
+
+  async findBrandByIdForMutation(brandId: string) {
+    return this.findBrandByIdIncludingArchived(brandId);
+  }
+
+  async findMembershipForMutation(brandId: string, adminId: string) {
+    return this.findMembershipByBrandAndAdmin(brandId, adminId);
+  }
+
+  async findProductBrandAssignment(productId: string) {
+    if (!Object.prototype.hasOwnProperty.call(this.productBrandAssignmentByProductId, productId)) {
+      return null;
+    }
+
+    return {
+      productId,
+      brandId: this.productBrandAssignmentByProductId[productId],
     };
   }
 
@@ -1831,6 +1864,218 @@ describe("BrandService", () => {
       id: "brand_1",
       status: "ACTIVE",
     });
+  });
+
+  it("guards brand product create, update, reassignment, and brandless mutation flows", async () => {
+    const repo = new RepoStub();
+    repo.membershipByBrandAdminKey["brand_1:admin_1"] = {
+      role: "MEMBER",
+      status: "ACTIVE",
+      invitedByAdminId: null,
+    };
+    repo.membershipByBrandAdminKey["brand_2:admin_1"] = {
+      role: "MEMBER",
+      status: "ACTIVE",
+      invitedByAdminId: null,
+    };
+
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const createGuard = await service.guardBrandProductCreate({
+      actor: adminActor(),
+      requestId: "req_guard_create_member",
+      brandId: "brand_1",
+    });
+    expect(createGuard.error).toBeNull();
+    if (createGuard.error) throw createGuard.error;
+    expect(createGuard.content).toMatchObject({
+      allowed: true,
+      targetBrandId: "brand_1",
+      reassignment: false,
+    });
+
+    const updateGuard = await service.guardBrandProductUpdate({
+      actor: adminActor(),
+      requestId: "req_guard_update_member",
+      brandId: "brand_1",
+      productId: "product_1",
+    });
+    expect(updateGuard.error).toBeNull();
+    if (updateGuard.error) throw updateGuard.error;
+    expect(updateGuard.content).toMatchObject({
+      allowed: true,
+      productId: "product_1",
+      sourceBrandId: "brand_1",
+      targetBrandId: "brand_1",
+      reassignment: false,
+    });
+
+    const reassignGuard = await service.guardBrandProductReassignment({
+      actor: adminActor(),
+      requestId: "req_guard_reassign_member",
+      productId: "product_1",
+      targetBrandId: "brand_2",
+    });
+    expect(reassignGuard.error).toBeNull();
+    if (reassignGuard.error) throw reassignGuard.error;
+    expect(reassignGuard.content).toMatchObject({
+      allowed: true,
+      productId: "product_1",
+      sourceBrandId: "brand_1",
+      targetBrandId: "brand_2",
+      reassignment: true,
+    });
+
+    const brandlessGuard = await service.guardBrandlessProductMutation({
+      actor: adminActor(),
+      requestId: "req_guard_brandless_member",
+    });
+    expect(brandlessGuard.error).toBeNull();
+    if (brandlessGuard.error) throw brandlessGuard.error;
+    expect(brandlessGuard.content).toMatchObject({
+      allowed: true,
+      brandless: true,
+    });
+
+    const superService = new BrandService({
+      repository: new RepoStub(),
+      now: () => new Date(now),
+    });
+    const superGuard = await superService.guardBrandProductCreate({
+      actor: adminActor({ role: "SUPER_ADMIN", actorId: "admin_owner" }),
+      requestId: "req_guard_create_super",
+      brandId: "brand_2",
+    });
+    expect(superGuard.error).toBeNull();
+  });
+
+  it("denies invalid mutation guard cases with stable reasons", async () => {
+    const nonMemberRepo = new RepoStub();
+    delete nonMemberRepo.membershipByAdminId.admin_1;
+    const nonMemberService = new BrandService({
+      repository: nonMemberRepo,
+      now: () => new Date(now),
+    });
+    const createDenied = await nonMemberService.guardBrandProductCreate({
+      actor: adminActor(),
+      requestId: "req_guard_create_denied",
+      brandId: "brand_1",
+    });
+    expect(createDenied.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(createDenied.error?.data).toMatchObject({
+      reason: "BRAND_MEMBERSHIP_REQUIRED",
+    });
+
+    const archivedRepo = new RepoStub();
+    const archivedService = new BrandService({
+      repository: archivedRepo,
+      now: () => new Date(now),
+    });
+    const archivedDenied = await archivedService.guardBrandProductCreate({
+      actor: adminActor(),
+      requestId: "req_guard_archived_brand",
+      brandId: "brand_archived",
+    });
+    expect(archivedDenied.error?.code).toBe("CONFLICT_STATE");
+    expect(archivedDenied.error?.data).toMatchObject({
+      reason: "BRAND_ARCHIVED",
+    });
+
+    const mismatchRepo = new RepoStub();
+    const mismatchService = new BrandService({
+      repository: mismatchRepo,
+      now: () => new Date(now),
+    });
+    const mismatchDenied = await mismatchService.guardBrandProductUpdate({
+      actor: adminActor(),
+      requestId: "req_guard_update_mismatch",
+      brandId: "brand_1",
+      productId: "product_2",
+    });
+    expect(mismatchDenied.error?.code).toBe("CONFLICT_STATE");
+    expect(mismatchDenied.error?.data).toMatchObject({
+      reason: "BRAND_MISMATCH",
+    });
+
+    const sourceDeniedRepo = new RepoStub();
+    sourceDeniedRepo.membershipByBrandAdminKey["brand_2:admin_1"] = {
+      role: "MEMBER",
+      status: "ACTIVE",
+      invitedByAdminId: null,
+    };
+    delete sourceDeniedRepo.membershipByAdminId.admin_1;
+    const sourceDeniedService = new BrandService({
+      repository: sourceDeniedRepo,
+      now: () => new Date(now),
+    });
+    const sourceDenied = await sourceDeniedService.guardBrandProductReassignment({
+      actor: adminActor(),
+      requestId: "req_guard_reassign_source_denied",
+      productId: "product_1",
+      targetBrandId: "brand_2",
+    });
+    expect(sourceDenied.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(sourceDenied.error?.data).toMatchObject({
+      reason: "SOURCE_BRAND_PERMISSION_REQUIRED",
+    });
+
+    const targetDeniedRepo = new RepoStub();
+    targetDeniedRepo.membershipByBrandAdminKey["brand_1:admin_1"] = {
+      role: "MEMBER",
+      status: "ACTIVE",
+      invitedByAdminId: null,
+    };
+    delete targetDeniedRepo.membershipByAdminId.admin_1;
+    const targetDeniedService = new BrandService({
+      repository: targetDeniedRepo,
+      now: () => new Date(now),
+    });
+    const targetDenied = await targetDeniedService.guardBrandProductReassignment({
+      actor: adminActor(),
+      requestId: "req_guard_reassign_target_denied",
+      productId: "product_1",
+      targetBrandId: "brand_2",
+    });
+    expect(targetDenied.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(targetDenied.error?.data).toMatchObject({
+      reason: "TARGET_BRAND_PERMISSION_REQUIRED",
+    });
+  });
+
+  it("maps mutation guard lookup failures to PROVIDER_UNAVAILABLE", async () => {
+    const createRepo = new RepoStub();
+    createRepo.findBrandByIdForMutation = async () => {
+      throw new Error("D1_ERROR: mutation brand lookup failed");
+    };
+    const createService = new BrandService({
+      repository: createRepo,
+      now: () => new Date(now),
+    });
+    const createFailure = await createService.guardBrandProductCreate({
+      actor: adminActor(),
+      requestId: "req_guard_provider_create",
+      brandId: "brand_1",
+    });
+    expect(createFailure.error?.code).toBe("PROVIDER_UNAVAILABLE");
+
+    const updateRepo = new RepoStub();
+    updateRepo.findProductBrandAssignment = async () => {
+      throw new Error("SQLITE_ERROR: mutation assignment lookup failed");
+    };
+    const updateService = new BrandService({
+      repository: updateRepo,
+      now: () => new Date(now),
+    });
+    const updateFailure = await updateService.guardBrandProductUpdate({
+      actor: adminActor(),
+      requestId: "req_guard_provider_update",
+      brandId: "brand_1",
+      productId: "product_1",
+    });
+    expect(updateFailure.error?.code).toBe("PROVIDER_UNAVAILABLE");
   });
 
   it("maps list provider failures to PROVIDER_UNAVAILABLE", async () => {

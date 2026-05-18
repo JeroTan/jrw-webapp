@@ -356,6 +356,126 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
     }
   });
 
+  it("returns mutation guard lookups for brand, membership, and product brand assignment", async () => {
+    const { d1, mf } = await createBrandTestD1();
+
+    try {
+      const repository = new DrizzleBrandRepository(createDb(d1));
+      const activeBrand = await repository.createBrand(
+        {
+          name: "JRW Mutation Active",
+          slug: "jrw-mutation-active",
+          description: null,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+      const archivedBrand = await repository.createBrand(
+        {
+          name: "JRW Mutation Archived",
+          slug: "jrw-mutation-archived",
+          description: null,
+          status: "ARCHIVED",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+
+      await repository.createBrandMembership({
+        brandId: activeBrand.id,
+        adminId: "admin_owner",
+        role: "MEMBER",
+        status: "ACTIVE",
+        invitedByAdminId: "admin_1",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      await d1
+        .prepare(
+          `INSERT INTO products (
+            id, name, brand, tags, description, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          "prod_mutation_scoped",
+          "Mutation Scoped Product",
+          activeBrand.id,
+          "[]",
+          "mutation scoped product",
+          now,
+          now
+        )
+        .run();
+
+      await d1
+        .prepare(
+          `INSERT INTO products (
+            id, name, brand, tags, description, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          "prod_mutation_brandless",
+          "Mutation Brandless Product",
+          "   ",
+          "[]",
+          "mutation brandless product",
+          now,
+          now
+        )
+        .run();
+
+      const activeLookup = await repository.findBrandByIdForMutation(
+        activeBrand.id
+      );
+      const archivedLookup = await repository.findBrandByIdForMutation(
+        archivedBrand.id
+      );
+      const membershipLookup = await repository.findMembershipForMutation(
+        activeBrand.id,
+        "admin_owner"
+      );
+      const scopedAssignment = await repository.findProductBrandAssignment(
+        "prod_mutation_scoped"
+      );
+      const brandlessAssignment = await repository.findProductBrandAssignment(
+        "prod_mutation_brandless"
+      );
+      const missingAssignment = await repository.findProductBrandAssignment(
+        "prod_missing"
+      );
+
+      expect(activeLookup).toMatchObject({
+        id: activeBrand.id,
+        status: "ACTIVE",
+      });
+      expect(archivedLookup).toMatchObject({
+        id: archivedBrand.id,
+        status: "ARCHIVED",
+      });
+      expect(membershipLookup).toMatchObject({
+        brandId: activeBrand.id,
+        adminId: "admin_owner",
+        role: "MEMBER",
+        status: "ACTIVE",
+      });
+      expect(scopedAssignment).toEqual({
+        productId: "prod_mutation_scoped",
+        brandId: activeBrand.id,
+      });
+      expect(brandlessAssignment).toEqual({
+        productId: "prod_mutation_brandless",
+        brandId: null,
+      });
+      expect(missingAssignment).toBeNull();
+    } finally {
+      await mf.dispose();
+    }
+  });
+
   it("checks uniqueness excluding current brand id", async () => {
     const { d1, mf } = await createBrandTestD1();
 

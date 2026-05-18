@@ -76,6 +76,15 @@ const tboxBrandProductsListData = t.Object({
   totalPages: t.Number(),
 });
 
+const tboxBrandMutationGuardData = t.Object({
+  allowed: t.Literal(true),
+  brandless: t.Boolean(),
+  reassignment: t.Boolean(),
+  productId: t.Nullable(t.String()),
+  sourceBrandId: t.Nullable(t.String()),
+  targetBrandId: t.Nullable(t.String()),
+});
+
 const tboxBrandListData = t.Object({
   items: t.Array(tboxBrand),
   page: t.Number(),
@@ -95,6 +104,21 @@ const tboxBrandJoinAdminParams = t.Object(
   {
     id: t.String({ minLength: 1, maxLength: 128 }),
     adminId: t.String({ minLength: 1, maxLength: 128 }),
+  },
+  { additionalProperties: false }
+);
+
+const tboxBrandProductGuardParams = t.Object(
+  {
+    id: t.String({ minLength: 1, maxLength: 128 }),
+    productId: t.String({ minLength: 1, maxLength: 128 }),
+  },
+  { additionalProperties: false }
+);
+
+const tboxBrandProductIdParams = t.Object(
+  {
+    productId: t.String({ minLength: 1, maxLength: 128 }),
   },
   { additionalProperties: false }
 );
@@ -142,6 +166,13 @@ const tboxBrandListQuery = t.Object(
     page: t.Optional(t.Numeric({ minimum: 1, default: 1 })),
     pageSize: t.Optional(t.Numeric({ minimum: 1, maximum: 100, default: 20 })),
     status: t.Optional(t.String({ minLength: 1, maxLength: 64 })),
+  },
+  { additionalProperties: false }
+);
+
+const tboxReassignGuardBody = t.Object(
+  {
+    targetBrandId: t.String({ minLength: 1, maxLength: 128 }),
   },
   { additionalProperties: false }
 );
@@ -272,6 +303,7 @@ const brandReadErrors = [
   "PROVIDER_UNAVAILABLE",
   "INTERNAL_ERROR",
 ] as const;
+const brandMutationGuardErrors = [...brandReadErrors] as const;
 
 export function brandsRoutes(
   app: AnyElysia,
@@ -577,6 +609,174 @@ export function brandsRoutes(
         response: {
           200: tboxApiSuccess(tboxBrandMembershipData),
           ...openApiErrorResponses([401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/brands/:id/products/guard",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { id: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.guardBrandProductCreate({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandIdParams,
+        detail: routeDetail({
+          summary: "Guard brand product create",
+          description:
+            "Checks brand membership and brand status before allowing create product flow in requested brand scope.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...brandMutationGuardErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandMutationGuardData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/brands/:id/products/:productId/guard",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { id: string; productId: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.guardBrandProductUpdate({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+          productId: params.productId,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandProductGuardParams,
+        detail: routeDetail({
+          summary: "Guard brand product update",
+          description:
+            "Checks membership and product-brand association before allowing update flow in requested brand scope.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...brandMutationGuardErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandMutationGuardData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/brands/products/:productId/reassign/guard",
+      async (ctx) => {
+        const {
+          request,
+          set,
+          runtimeEnv,
+          requestContext,
+          requestId,
+          params,
+          body,
+        } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+            params: { productId: string };
+            body: Record<string, unknown>;
+          };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.guardBrandProductReassignment({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          productId: params.productId,
+          body,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandProductIdParams,
+        body: tboxReassignGuardBody,
+        detail: routeDetail({
+          summary: "Guard brand product reassignment",
+          description:
+            "Checks source and target brand permissions before allowing product brand reassignment flow.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...brandMutationGuardErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandMutationGuardData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/brands/products/brandless/guard",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.guardBrandlessProductMutation({
+          actor: adminActor(requestContext.actor),
+          requestId,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        detail: routeDetail({
+          summary: "Guard brandless product mutation",
+          description:
+            "Checks authenticated admin permission before allowing brandless product mutation flow.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...brandMutationGuardErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandMutationGuardData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
         },
       }
     )

@@ -43,6 +43,59 @@ export type ListBrandScopedProductsResult = {
   status?: string;
 };
 
+export type BrandMutationGuardInput = {
+  actor: {
+    authenticated: boolean;
+    role: BrandScopeRole;
+    actorId?: string | null;
+  };
+  targetBrandId: string;
+  targetBrand: {
+    id: string;
+    status: BrandStatus;
+  } | null;
+  targetMembership: {
+    adminId: string;
+    role: BrandMembershipRole;
+    status: BrandMembershipStatus;
+  } | null;
+  sourceBrandId?: string | null;
+  sourceBrand?: {
+    id: string;
+    status: BrandStatus;
+  } | null;
+  sourceMembership?: {
+    adminId: string;
+    role: BrandMembershipRole;
+    status: BrandMembershipStatus;
+  } | null;
+};
+
+export type BrandMutationGuardFailureReason =
+  | "BRAND_MEMBERSHIP_REQUIRED"
+  | "BRAND_NOT_FOUND"
+  | "BRAND_ARCHIVED"
+  | "SOURCE_BRAND_PERMISSION_REQUIRED"
+  | "TARGET_BRAND_PERMISSION_REQUIRED";
+
+export type BrandMutationGuardResult = {
+  targetBrandId: string;
+  sourceBrandId: string | null;
+  reassignment: boolean;
+};
+
+export type BrandlessProductMutationInput = {
+  actor: {
+    authenticated: boolean;
+    role: BrandScopeRole;
+    actorId?: string | null;
+  };
+};
+
+export type BrandlessProductMutationResult = {
+  brandless: true;
+};
+
 function validPositiveInteger(value: number | undefined): value is number {
   return (
     typeof value === "number" &&
@@ -82,6 +135,130 @@ function isActiveBrandMember(
   }
 
   return membership.role === "OWNER" || membership.role === "MEMBER";
+}
+
+function isActiveMutationMember(
+  membership:
+    | BrandMutationGuardInput["targetMembership"]
+    | BrandMutationGuardInput["sourceMembership"]
+): membership is NonNullable<BrandMutationGuardInput["targetMembership"]> {
+  if (!membership) {
+    return false;
+  }
+
+  if (membership.status !== "ACTIVE") {
+    return false;
+  }
+
+  return membership.role === "OWNER" || membership.role === "MEMBER";
+}
+
+function normalizedBrandId(value: string | null | undefined): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+export function requireBrandMembershipForMutation(
+  input: BrandMutationGuardInput
+): AppResult<
+  BrandMutationGuardResult,
+  { reason?: BrandMutationGuardFailureReason }
+> {
+  if (!input.actor.authenticated || !input.actor.actorId) {
+    return Result.error(new GeneralError({}, "AUTH_REQUIRED"));
+  }
+
+  if (input.actor.role !== "ADMIN" && input.actor.role !== "SUPER_ADMIN") {
+    return Result.error(
+      new GeneralError(
+        { reason: "BRAND_MEMBERSHIP_REQUIRED" },
+        "AUTH_FORBIDDEN"
+      )
+    );
+  }
+
+  if (!input.targetBrand || input.targetBrand.id !== input.targetBrandId) {
+    return Result.error(
+      new GeneralError({ reason: "BRAND_NOT_FOUND" }, "CONFLICT_STATE")
+    );
+  }
+
+  if (input.targetBrand.status === "ARCHIVED") {
+    return Result.error(
+      new GeneralError({ reason: "BRAND_ARCHIVED" }, "CONFLICT_STATE")
+    );
+  }
+
+  const sourceBrandId = normalizedBrandId(input.sourceBrandId);
+  const reassignment =
+    sourceBrandId !== null && sourceBrandId !== input.targetBrandId;
+
+  if (sourceBrandId !== null) {
+    if (!input.sourceBrand || input.sourceBrand.id !== sourceBrandId) {
+      return Result.error(
+        new GeneralError({ reason: "BRAND_NOT_FOUND" }, "CONFLICT_STATE")
+      );
+    }
+
+    if (input.sourceBrand.status === "ARCHIVED") {
+      return Result.error(
+        new GeneralError({ reason: "BRAND_ARCHIVED" }, "CONFLICT_STATE")
+      );
+    }
+  }
+
+  if (input.actor.role !== "SUPER_ADMIN") {
+    if (reassignment && !isActiveMutationMember(input.sourceMembership ?? null)) {
+      return Result.error(
+        new GeneralError(
+          { reason: "SOURCE_BRAND_PERMISSION_REQUIRED" },
+          "AUTH_FORBIDDEN"
+        )
+      );
+    }
+
+    if (!isActiveMutationMember(input.targetMembership)) {
+      return Result.error(
+        new GeneralError(
+          {
+            reason: reassignment
+              ? "TARGET_BRAND_PERMISSION_REQUIRED"
+              : "BRAND_MEMBERSHIP_REQUIRED",
+          },
+          "AUTH_FORBIDDEN"
+        )
+      );
+    }
+  }
+
+  return Result.okay({
+    targetBrandId: input.targetBrandId,
+    sourceBrandId,
+    reassignment,
+  });
+}
+
+export function validateBrandlessProductMutation(
+  input: BrandlessProductMutationInput
+): AppResult<BrandlessProductMutationResult> {
+  if (!input.actor.authenticated || !input.actor.actorId) {
+    return Result.error(new GeneralError({}, "AUTH_REQUIRED"));
+  }
+
+  if (input.actor.role !== "ADMIN" && input.actor.role !== "SUPER_ADMIN") {
+    return Result.error(
+      new GeneralError(
+        { reason: "BRAND_MEMBERSHIP_REQUIRED" },
+        "AUTH_FORBIDDEN"
+      )
+    );
+  }
+
+  return Result.okay({ brandless: true });
 }
 
 export function listBrandScopedProducts(

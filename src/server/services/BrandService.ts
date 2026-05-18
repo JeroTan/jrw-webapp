@@ -15,7 +15,11 @@ import {
   updateBrand as updateBrandDraft,
   type BrandUpdateInput,
 } from "@/domain/brands/brand";
-import { listBrandScopedProducts as listBrandScopedProductsDecision } from "@/domain/catalog/product";
+import {
+  listBrandScopedProducts as listBrandScopedProductsDecision,
+  requireBrandMembershipForMutation as requireBrandMembershipForMutationDecision,
+  validateBrandlessProductMutation as validateBrandlessProductMutationDecision,
+} from "@/domain/catalog/product";
 import { evaluateRouteAccess } from "@/domain/auth/rbac";
 import type { AccountEmailNotifier } from "@/domain/notifications/account-emails";
 import type { RequestActorContext } from "@/server/context/request-context";
@@ -121,6 +125,31 @@ export type ListAdminBrandsServiceInput = {
   query: ListBrandQueryInput;
 };
 
+export type GuardBrandProductCreateServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+};
+
+export type GuardBrandProductUpdateServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+  productId: string;
+};
+
+export type GuardBrandProductReassignmentServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  productId: string;
+  targetBrandId: string;
+};
+
+export type GuardBrandlessProductMutationServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+};
+
 export type BrandCreateResult = {
   brand: BrandRecord;
 };
@@ -161,6 +190,15 @@ export type BrandListAdminBrandsResult = {
   pageSize: number;
   totalItems: number;
   totalPages: number;
+};
+
+export type BrandProductMutationGuardResult = {
+  allowed: true;
+  brandless: boolean;
+  reassignment: boolean;
+  productId: string | null;
+  sourceBrandId: string | null;
+  targetBrandId: string | null;
 };
 
 export type BrandServiceOptions = {
@@ -509,6 +547,36 @@ export class BrandService {
       role: membership.role,
       status: membership.status,
     } as const;
+  }
+
+  private guardSuccess(
+    input: Partial<Omit<BrandProductMutationGuardResult, "allowed">> = {}
+  ): BrandProductMutationGuardResult {
+    return {
+      allowed: true,
+      brandless: input.brandless ?? false,
+      reassignment: input.reassignment ?? false,
+      productId: input.productId ?? null,
+      sourceBrandId: input.sourceBrandId ?? null,
+      targetBrandId: input.targetBrandId ?? null,
+    };
+  }
+
+  private mapGuardDecisionError(error: GeneralError): GeneralError {
+    const details =
+      typeof error.data === "object" && error.data !== null
+        ? (error.data as Record<string, unknown>)
+        : {};
+    const code = error.code;
+    if (
+      code === "AUTH_REQUIRED" ||
+      code === "AUTH_FORBIDDEN" ||
+      code === "CONFLICT_STATE"
+    ) {
+      return serviceError(code, details);
+    }
+
+    return serviceError("VALIDATION_FAILED", details);
   }
 
   async createBrand(
@@ -1280,6 +1348,244 @@ export class BrandService {
 
       return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
     }
+  }
+
+  async guardBrandProductCreate(
+    input: GuardBrandProductCreateServiceInput
+  ): Promise<AppResult<BrandProductMutationGuardResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    try {
+      const targetBrand = await this.repository.findBrandByIdForMutation(
+        input.brandId
+      );
+      const targetMembership = this.hasElevatedPermission(actor.content.role)
+        ? null
+        : await this.repository.findMembershipForMutation(
+            input.brandId,
+            actor.content.actorId
+          );
+
+      const decision = requireBrandMembershipForMutationDecision({
+        actor: {
+          authenticated: true,
+          role: actor.content.role,
+          actorId: actor.content.actorId,
+        },
+        targetBrandId: input.brandId,
+        targetBrand: targetBrand
+          ? {
+              id: targetBrand.id,
+              status: targetBrand.status,
+            }
+          : null,
+        targetMembership: this.toMembershipState(targetMembership),
+      });
+
+      if (decision.error) {
+        return Result.error(this.mapGuardDecisionError(decision.error));
+      }
+
+      return Result.okay(
+        this.guardSuccess({
+          targetBrandId: decision.content.targetBrandId,
+          sourceBrandId: decision.content.sourceBrandId,
+          reassignment: decision.content.reassignment,
+        })
+      );
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async guardBrandProductUpdate(
+    input: GuardBrandProductUpdateServiceInput
+  ): Promise<AppResult<BrandProductMutationGuardResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    try {
+      const [targetBrand, assignment] = await Promise.all([
+        this.repository.findBrandByIdForMutation(input.brandId),
+        this.repository.findProductBrandAssignment(input.productId),
+      ]);
+
+      if (!assignment) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "PRODUCT_NOT_FOUND" })
+        );
+      }
+
+      if (!assignment.brandId || assignment.brandId !== input.brandId) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "BRAND_MISMATCH" })
+        );
+      }
+
+      const targetMembership = this.hasElevatedPermission(actor.content.role)
+        ? null
+        : await this.repository.findMembershipForMutation(
+            input.brandId,
+            actor.content.actorId
+          );
+
+      const decision = requireBrandMembershipForMutationDecision({
+        actor: {
+          authenticated: true,
+          role: actor.content.role,
+          actorId: actor.content.actorId,
+        },
+        targetBrandId: input.brandId,
+        sourceBrandId: assignment.brandId,
+        targetBrand: targetBrand
+          ? {
+              id: targetBrand.id,
+              status: targetBrand.status,
+            }
+          : null,
+        sourceBrand: targetBrand
+          ? {
+              id: targetBrand.id,
+              status: targetBrand.status,
+            }
+          : null,
+        targetMembership: this.toMembershipState(targetMembership),
+        sourceMembership: this.toMembershipState(targetMembership),
+      });
+
+      if (decision.error) {
+        return Result.error(this.mapGuardDecisionError(decision.error));
+      }
+
+      return Result.okay(
+        this.guardSuccess({
+          productId: assignment.productId,
+          targetBrandId: decision.content.targetBrandId,
+          sourceBrandId: decision.content.sourceBrandId,
+          reassignment: decision.content.reassignment,
+        })
+      );
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async guardBrandProductReassignment(
+    input: GuardBrandProductReassignmentServiceInput
+  ): Promise<AppResult<BrandProductMutationGuardResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    try {
+      const assignment = await this.repository.findProductBrandAssignment(
+        input.productId
+      );
+      if (!assignment) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "PRODUCT_NOT_FOUND" })
+        );
+      }
+
+      if (!assignment.brandId) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "SOURCE_BRAND_REQUIRED" })
+        );
+      }
+
+      const [sourceBrand, targetBrand, sourceMembership, targetMembership] =
+        await Promise.all([
+          this.repository.findBrandByIdForMutation(assignment.brandId),
+          this.repository.findBrandByIdForMutation(input.targetBrandId),
+          this.hasElevatedPermission(actor.content.role)
+            ? Promise.resolve(null)
+            : this.repository.findMembershipForMutation(
+                assignment.brandId,
+                actor.content.actorId
+              ),
+          this.hasElevatedPermission(actor.content.role)
+            ? Promise.resolve(null)
+            : this.repository.findMembershipForMutation(
+                input.targetBrandId,
+                actor.content.actorId
+              ),
+        ]);
+
+      const decision = requireBrandMembershipForMutationDecision({
+        actor: {
+          authenticated: true,
+          role: actor.content.role,
+          actorId: actor.content.actorId,
+        },
+        targetBrandId: input.targetBrandId,
+        sourceBrandId: assignment.brandId,
+        targetBrand: targetBrand
+          ? {
+              id: targetBrand.id,
+              status: targetBrand.status,
+            }
+          : null,
+        sourceBrand: sourceBrand
+          ? {
+              id: sourceBrand.id,
+              status: sourceBrand.status,
+            }
+          : null,
+        targetMembership: this.toMembershipState(targetMembership),
+        sourceMembership: this.toMembershipState(sourceMembership),
+      });
+
+      if (decision.error) {
+        return Result.error(this.mapGuardDecisionError(decision.error));
+      }
+
+      return Result.okay(
+        this.guardSuccess({
+          productId: assignment.productId,
+          sourceBrandId: decision.content.sourceBrandId,
+          targetBrandId: decision.content.targetBrandId,
+          reassignment: decision.content.reassignment,
+        })
+      );
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async guardBrandlessProductMutation(
+    input: GuardBrandlessProductMutationServiceInput
+  ): Promise<AppResult<BrandProductMutationGuardResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    const decision = validateBrandlessProductMutationDecision({
+      actor: {
+        authenticated: true,
+        role: actor.content.role,
+        actorId: actor.content.actorId,
+      },
+    });
+    if (decision.error) {
+      return Result.error(this.mapGuardDecisionError(decision.error));
+    }
+
+    return Result.okay(
+      this.guardSuccess({
+        brandless: true,
+      })
+    );
   }
 
   async updateBrand(

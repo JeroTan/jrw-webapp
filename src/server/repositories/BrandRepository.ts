@@ -106,6 +106,10 @@ export type BrandScopedProductRecord = {
 };
 
 export type ProductBrandLookup = Pick<BrandRecord, "id" | "name" | "slug">;
+export type ProductBrandAssignmentRecord = {
+  productId: string;
+  brandId: string | null;
+};
 
 export type ProductListQueryOptions = {
   page?: number;
@@ -173,6 +177,7 @@ export type BrandRepository = {
   findArchivedBrandByName(name: string): Promise<BrandRecord | null>;
   findBrandById(brandId: string): Promise<BrandRecord | null>;
   findBrandByIdIncludingArchived(brandId: string): Promise<BrandRecord | null>;
+  findBrandByIdForMutation(brandId: string): Promise<BrandRecord | null>;
   findBrandByNameExcluding(
     brandId: string,
     name: string
@@ -189,6 +194,13 @@ export type BrandRepository = {
     brandId: string,
     adminId: string
   ): Promise<BrandMembershipRecord | null>;
+  findMembershipForMutation(
+    brandId: string,
+    adminId: string
+  ): Promise<BrandMembershipRecord | null>;
+  findProductBrandAssignment(
+    productId: string
+  ): Promise<ProductBrandAssignmentRecord | null>;
   updateMembershipStatus(
     membershipId: string,
     brandId: string,
@@ -502,6 +514,16 @@ export class DrizzleBrandRepository implements BrandRepository {
     return brand ? brandDtoFromRow(brand) : null;
   }
 
+  async findBrandByIdForMutation(brandId: string): Promise<BrandRecord | null> {
+    const [brand] = await this.db
+      .select()
+      .from(brands)
+      .where(eq(brands.id, brandId))
+      .limit(1);
+
+    return brand ? brandDtoFromRow(brand) : null;
+  }
+
   async findBrandByNameExcluding(
     brandId: string,
     name: string
@@ -575,6 +597,49 @@ export class DrizzleBrandRepository implements BrandRepository {
       .limit(1);
 
     return membership ? brandMembershipDtoFromRow(membership) : null;
+  }
+
+  async findMembershipForMutation(
+    brandId: string,
+    adminId: string
+  ): Promise<BrandMembershipRecord | null> {
+    const [membership] = await this.db
+      .select()
+      .from(brand_memberships)
+      .where(
+        and(
+          eq(brand_memberships.brand_id, brandId),
+          eq(brand_memberships.admin_id, adminId)
+        )
+      )
+      .limit(1);
+
+    return membership ? brandMembershipDtoFromRow(membership) : null;
+  }
+
+  async findProductBrandAssignment(
+    productId: string
+  ): Promise<ProductBrandAssignmentRecord | null> {
+    const [product] = await this.db
+      .select({
+        id: products.id,
+        brand: products.brand,
+      })
+      .from(products)
+      .where(eq(products.id, productId))
+      .limit(1);
+
+    if (!product) {
+      return null;
+    }
+
+    return {
+      productId: product.id,
+      brandId:
+        typeof product.brand === "string" && product.brand.trim().length > 0
+          ? product.brand.trim()
+          : null,
+    };
   }
 
   async updateMembershipStatus(

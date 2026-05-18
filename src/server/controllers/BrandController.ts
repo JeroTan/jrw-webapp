@@ -16,10 +16,15 @@ import type {
   BrandInviteResult,
   BrandListAdminBrandsResult,
   BrandListProductsResult,
+  BrandProductMutationGuardResult,
   BrandRejectJoinRequestResult,
   BrandRequestJoinResult,
   BrandUpdateResult,
   CreateBrandServiceInput,
+  GuardBrandProductCreateServiceInput,
+  GuardBrandProductReassignmentServiceInput,
+  GuardBrandProductUpdateServiceInput,
+  GuardBrandlessProductMutationServiceInput,
   InviteBrandServiceInput,
   ListAdminBrandsServiceInput,
   ListBrandlessProductsServiceInput,
@@ -52,6 +57,18 @@ export type BrandServiceLike = {
   rejectBrandJoinRequest(
     input: RejectBrandJoinRequestServiceInput
   ): Promise<AppResult<BrandRejectJoinRequestResult>>;
+  guardBrandProductCreate(
+    input: GuardBrandProductCreateServiceInput
+  ): Promise<AppResult<BrandProductMutationGuardResult>>;
+  guardBrandProductUpdate(
+    input: GuardBrandProductUpdateServiceInput
+  ): Promise<AppResult<BrandProductMutationGuardResult>>;
+  guardBrandProductReassignment(
+    input: GuardBrandProductReassignmentServiceInput
+  ): Promise<AppResult<BrandProductMutationGuardResult>>;
+  guardBrandlessProductMutation(
+    input: GuardBrandlessProductMutationServiceInput
+  ): Promise<AppResult<BrandProductMutationGuardResult>>;
   listBrandScopedProducts(
     input: ListBrandScopedProductsServiceInput
   ): Promise<AppResult<BrandListProductsResult>>;
@@ -133,6 +150,31 @@ export type ListAdminBrandsControllerInput = {
   actor: BrandActorInput | undefined;
   requestId: string;
   query: ListBrandQueryInput;
+};
+
+export type GuardBrandProductCreateControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+};
+
+export type GuardBrandProductUpdateControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+  productId: string;
+};
+
+export type GuardBrandProductReassignmentControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  productId: string;
+  body: Record<string, unknown>;
+};
+
+export type GuardBrandlessProductMutationControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
 };
 
 function errorResult<T>(
@@ -317,6 +359,82 @@ export class BrandController {
         pageSize: result.content.pageSize,
         totalItems: result.content.totalItems,
         totalPages: result.content.totalPages,
+      }),
+    };
+  }
+
+  async guardBrandProductCreate(
+    input: GuardBrandProductCreateControllerInput
+  ): Promise<BrandControllerResult<BrandProductMutationGuardResult>> {
+    const result = await this.service.guardBrandProductCreate(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async guardBrandProductUpdate(
+    input: GuardBrandProductUpdateControllerInput
+  ): Promise<BrandControllerResult<BrandProductMutationGuardResult>> {
+    const result = await this.service.guardBrandProductUpdate(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async guardBrandProductReassignment(
+    input: GuardBrandProductReassignmentControllerInput
+  ): Promise<BrandControllerResult<BrandProductMutationGuardResult>> {
+    const result = await this.service.guardBrandProductReassignment({
+      actor: input.actor,
+      requestId: input.requestId,
+      productId: input.productId,
+      targetBrandId:
+        typeof input.body.targetBrandId === "string"
+          ? input.body.targetBrandId
+          : "",
+    });
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async guardBrandlessProductMutation(
+    input: GuardBrandlessProductMutationControllerInput
+  ): Promise<BrandControllerResult<BrandProductMutationGuardResult>> {
+    const result = await this.service.guardBrandlessProductMutation(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
       }),
     };
   }

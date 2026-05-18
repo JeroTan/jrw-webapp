@@ -1,6 +1,6 @@
-# Story 2.6: Brand-Scoped Product Mutation Guards
+﻿# Story 2.6: Brand-Scoped Product Mutation Guards
 
-Status: ready-for-dev
+Status: review
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
 ## Story
@@ -21,62 +21,62 @@ so that only authorized Admins modify brand-scoped catalog work.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm dependency gate and prerequisites. (AC: 1-7)
-  - [ ] Verify Stories 2.1, 2.2, 2.3, 2.4, and 2.5 are `done` in sprint status.
-  - [ ] Confirm `brands`, `brand_memberships`, and `products` schema exist in `src/domain/schema/catalog.ts`.
-  - [ ] Confirm RBAC guard middleware from Story 1.12 is registered and functional.
-  - [ ] Confirm BrandRepository, BrandService, BrandController, and brand routes exist from Stories 2.1-2.5.
-  - [ ] Confirm product domain rules exist in `src/domain/catalog/product.ts` from Story 2.5.
-  - [ ] Confirm audit event constants exist in `src/domain/audit/events.ts`.
-  - [ ] Do not start brand mutation guards without Stories 2.1-2.5 foundation complete.
+- [x] Task 1: Confirm dependency gate and prerequisites. (AC: 1-7)
+  - [x] Verify Stories 2.1, 2.2, 2.3, 2.4, and 2.5 are `done` in sprint status.
+  - [x] Confirm `brands`, `brand_memberships`, and `products` schema exist in `src/domain/schema/catalog.ts`.
+  - [x] Confirm RBAC guard middleware from Story 1.12 is registered and functional.
+  - [x] Confirm BrandRepository, BrandService, BrandController, and brand routes exist from Stories 2.1-2.5.
+  - [x] Confirm product domain rules exist in `src/domain/catalog/product.ts` from Story 2.5.
+  - [x] Confirm audit event constants exist in `src/domain/audit/events.ts`.
+  - [x] Do not start brand mutation guards without Stories 2.1-2.5 foundation complete.
 
-- [ ] Task 2: Add brand mutation guard domain rules. (AC: 1-3, 5-6)
-  - [ ] Add `requireBrandMembershipForMutation(...)` domain function in `src/domain/catalog/product.ts`.
-  - [ ] Add input/output types: `BrandMutationGuardInput`, `BrandMutationGuardResult`.
-  - [ ] Add failure reason types: `BRAND_MEMBERSHIP_REQUIRED`, `BRAND_NOT_FOUND`, `BRAND_ARCHIVED`, `SOURCE_BRAND_PERMISSION_REQUIRED`, `TARGET_BRAND_PERMISSION_REQUIRED`.
-  - [ ] Domain rules: validate actor is authenticated ADMIN/SUPER_ADMIN, validate actor has ACTIVE membership in target brand OR is SUPER_ADMIN, validate brand exists and is not archived, handle brand reassignment permission checks for both source and target brands.
-  - [ ] Add `validateBrandlessProductMutation(...)` domain function for brandless product operations.
-  - [ ] Create `src/domain/catalog/product-mutation.test.ts` covering: member create allowed, member edit allowed, non-member create denied, non-member edit denied, brand reassignment with dual permission, brandless product mutation allowed, SUPER_ADMIN elevated access, archived brand mutation denied.
+- [x] Task 2: Add brand mutation guard domain rules. (AC: 1-3, 5-6)
+  - [x] Add `requireBrandMembershipForMutation(...)` domain function in `src/domain/catalog/product.ts`.
+  - [x] Add input/output types: `BrandMutationGuardInput`, `BrandMutationGuardResult`.
+  - [x] Add failure reason types: `BRAND_MEMBERSHIP_REQUIRED`, `BRAND_NOT_FOUND`, `BRAND_ARCHIVED`, `SOURCE_BRAND_PERMISSION_REQUIRED`, `TARGET_BRAND_PERMISSION_REQUIRED`.
+  - [x] Domain rules: validate actor is authenticated ADMIN/SUPER_ADMIN, validate actor has ACTIVE membership in target brand OR is SUPER_ADMIN, validate brand exists and is not archived, handle brand reassignment permission checks for both source and target brands.
+  - [x] Add `validateBrandlessProductMutation(...)` domain function for brandless product operations.
+  - [x] Create `src/domain/catalog/product-mutation.test.ts` covering: member create allowed, member edit allowed, non-member create denied, non-member edit denied, brand reassignment with dual permission, brandless product mutation allowed, SUPER_ADMIN elevated access, archived brand mutation denied.
 
-- [ ] Task 3: Extend brand repository with mutation guard queries. (AC: 1-5)
-  - [ ] Extend `src/server/repositories/BrandRepository.ts` with:
-    - [ ] `findBrandByIdForMutation(brandId)`: returns brand including archived status for mutation checks.
-    - [ ] `findMembershipForMutation(brandId, adminId)`: returns membership record for permission check.
-    - [ ] `findProductBrandAssignment(productId)`: returns current brand assignment for a product (for reassignment checks).
-  - [ ] All DTOs use camelCase; map from snake_case at repository boundary.
-  - [ ] Create repository tests covering: find brand for mutation, find membership for mutation, find product brand assignment.
+- [x] Task 3: Extend brand repository with mutation guard queries. (AC: 1-5)
+  - [x] Extend `src/server/repositories/BrandRepository.ts` with:
+    - [x] `findBrandByIdForMutation(brandId)`: returns brand including archived status for mutation checks.
+    - [x] `findMembershipForMutation(brandId, adminId)`: returns membership record for permission check.
+    - [x] `findProductBrandAssignment(productId)`: returns current brand assignment for a product (for reassignment checks).
+  - [x] All DTOs use camelCase; map from snake_case at repository boundary.
+  - [x] Create repository tests covering: find brand for mutation, find membership for mutation, find product brand assignment.
 
-- [ ] Task 4: Extend brand service with mutation guard flows. (AC: 1-7)
-  - [ ] Extend `src/server/services/BrandService.ts` with:
-    - [ ] `guardBrandProductCreate(input)`: validates actor membership, validates brand exists and is active, returns guard pass/fail.
-    - [ ] `guardBrandProductUpdate(input)`: validates actor membership for product's current brand, returns guard pass/fail.
-    - [ ] `guardBrandProductReassignment(input)`: validates actor membership for BOTH source and target brands, returns guard pass/fail.
-    - [ ] `guardBrandlessProductMutation(input)`: validates actor has brandless product permission, returns guard pass/fail.
-    - [ ] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for non-member, `CONFLICT_STATE` for brand not found/archived, `PROVIDER_UNAVAILABLE` for D1 failures.
-  - [ ] Create service tests covering: member create guard pass, member edit guard pass, non-member create guard fail, non-member edit guard fail, reassignment dual permission check, brandless mutation guard pass, SUPER_ADMIN elevated access, archived brand guard fail, D1 failure mapping.
+- [x] Task 4: Extend brand service with mutation guard flows. (AC: 1-7)
+  - [x] Extend `src/server/services/BrandService.ts` with:
+    - [x] `guardBrandProductCreate(input)`: validates actor membership, validates brand exists and is active, returns guard pass/fail.
+    - [x] `guardBrandProductUpdate(input)`: validates actor membership for product's current brand, returns guard pass/fail.
+    - [x] `guardBrandProductReassignment(input)`: validates actor membership for BOTH source and target brands, returns guard pass/fail.
+    - [x] `guardBrandlessProductMutation(input)`: validates actor has brandless product permission, returns guard pass/fail.
+    - [x] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for non-member, `CONFLICT_STATE` for brand not found/archived, `PROVIDER_UNAVAILABLE` for D1 failures.
+  - [x] Create service tests covering: member create guard pass, member edit guard pass, non-member create guard fail, non-member edit guard fail, reassignment dual permission check, brandless mutation guard pass, SUPER_ADMIN elevated access, archived brand guard fail, D1 failure mapping.
 
-- [ ] Task 5: Add controller methods and API routes for mutation guards. (AC: 1-7)
-  - [ ] Extend `src/server/controllers/BrandController.ts` with:
-    - [ ] `guardBrandProductCreate(input)`: maps service guard result to public API envelope.
-    - [ ] `guardBrandProductUpdate(input)`: maps service guard result to public API envelope.
-    - [ ] `guardBrandProductReassignment(input)`: maps service guard result to public API envelope.
-    - [ ] `guardBrandlessProductMutation(input)`: maps service guard result to public API envelope.
-  - [ ] Extend `src/server/routes/brands.routes.ts` with:
-    - [ ] `POST /api/brands/:id/products/guard` — guard check before creating product in brand.
-    - [ ] `POST /api/brands/:id/products/:productId/guard` — guard check before editing product in brand.
-    - [ ] `POST /api/brands/products/:productId/reassign/guard` — guard check before reassigning product brand.
-    - [ ] `POST /api/brands/products/brandless/guard` — guard check before creating/editing brandless product.
-    - [ ] Request/response schemas using TypeBox.
-    - [ ] Route metadata: `routeDetail(...)` with tag `Brands`, auth `{ mode: "required", roles: ["ADMIN", "SUPER_ADMIN"] }`, rate-limit class `admin-write`, documented error codes.
-    - [ ] Controller maps service `AppResult` to public API envelopes; no business rules in controller.
-  - [ ] Create route tests covering: anonymous guard denial, member create guard pass, non-member create guard fail, reassignment dual permission, brandless guard pass, response schema validation, OpenAPI metadata present, error envelope includes request ID.
+- [x] Task 5: Add controller methods and API routes for mutation guards. (AC: 1-7)
+  - [x] Extend `src/server/controllers/BrandController.ts` with:
+    - [x] `guardBrandProductCreate(input)`: maps service guard result to public API envelope.
+    - [x] `guardBrandProductUpdate(input)`: maps service guard result to public API envelope.
+    - [x] `guardBrandProductReassignment(input)`: maps service guard result to public API envelope.
+    - [x] `guardBrandlessProductMutation(input)`: maps service guard result to public API envelope.
+  - [x] Extend `src/server/routes/brands.routes.ts` with:
+    - [x] `POST /api/brands/:id/products/guard` â€” guard check before creating product in brand.
+    - [x] `POST /api/brands/:id/products/:productId/guard` â€” guard check before editing product in brand.
+    - [x] `POST /api/brands/products/:productId/reassign/guard` â€” guard check before reassigning product brand.
+    - [x] `POST /api/brands/products/brandless/guard` â€” guard check before creating/editing brandless product.
+    - [x] Request/response schemas using TypeBox.
+    - [x] Route metadata: `routeDetail(...)` with tag `Brands`, auth `{ mode: "required", roles: ["ADMIN", "SUPER_ADMIN"] }`, rate-limit class `admin-write`, documented error codes.
+    - [x] Controller maps service `AppResult` to public API envelopes; no business rules in controller.
+  - [x] Create route tests covering: anonymous guard denial, member create guard pass, non-member create guard fail, reassignment dual permission, brandless guard pass, response schema validation, OpenAPI metadata present, error envelope includes request ID.
 
-- [ ] Task 6: Validate full flow. (AC: 1-7)
-  - [ ] Run targeted tests:
+- [x] Task 6: Validate full flow. (AC: 1-7)
+  - [x] Run targeted tests:
     - `npx vitest run src/domain/catalog/product-mutation.test.ts src/server/repositories/BrandRepository.test.ts src/server/services/BrandService.test.ts src/server/routes/brands.routes.test.ts`
-  - [ ] Run `npm run check`.
-  - [ ] Run `npm run build-test` after targeted tests pass.
-  - [ ] Record exact blockers if any.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run build-test` after targeted tests pass.
+  - [x] Record exact blockers if any.
 
 ### Review Findings
 
@@ -89,7 +89,7 @@ _(To be populated during code review)_
 - Story 2.6 builds on Stories 2.1 (Create Brand), 2.2 (Update/Archive Brand), 2.3 (Invite Admins to Brand), 2.4 (Join Brand by Invitation or Approval), and 2.5 (Brand Member Visibility and Brand Scope).
 - Stories 2.1-2.5 established the brand membership system: brands, memberships, invitations, join requests, approvals, and product visibility/scoping. This story adds MUTATION guards on top of the visibility foundation.
 - Requirements covered: FR17, FR18, FR20; supports FR19.
-- Product truth: JRW is single-store ecommerce. Brands are catalog/collaboration groups only — NOT stores, sellers, merchants, tenants, payout owners, or PayMongo accounts.
+- Product truth: JRW is single-store ecommerce. Brands are catalog/collaboration groups only â€” NOT stores, sellers, merchants, tenants, payout owners, or PayMongo accounts.
 - Story 2.7 (Brand Membership UI and Language Guardrails) will depend on this story's API contracts for permission states.
 - Epic 3 (Catalog, Product Media, and Inventory Operations) will depend on these mutation guards when implementing product CRUD operations.
 
@@ -99,7 +99,7 @@ _(To be populated during code review)_
 - Story 2.1 established: `brands` table, `brand_memberships` table, BrandRepository, BrandService, BrandController, `POST /api/brands` route, audit emission for `brand.created`.
 - Story 2.2 established: `PATCH /api/brands/:id`, `POST /api/brands/:id/archive`, brand membership authorization checks, audit events `brand.updated`/`brand.archived`.
 - Story 2.3 established: `POST /api/brands/:id/invite`, PENDING membership creation as invitation, `brand.member_invited` audit event, brand invitation email notification.
-- Story 2.4 established: `POST /api/brands/:id/accept`, `POST /api/brands/:id/join`, `POST /api/brands/:id/join/:adminId/approve`, `POST /api/brands/:id/join/:adminId/reject`, PENDING→ACTIVE/REVOKED transitions, `brand.member_joined` audit event.
+- Story 2.4 established: `POST /api/brands/:id/accept`, `POST /api/brands/:id/join`, `POST /api/brands/:id/join/:adminId/approve`, `POST /api/brands/:id/join/:adminId/reject`, PENDINGâ†’ACTIVE/REVOKED transitions, `brand.member_joined` audit event.
 - Story 2.5 established: `GET /api/brands/:id/products`, `GET /api/brands/products/brandless`, `GET /api/brands/me`, brand-scoped product visibility, `listBrandScopedProducts(...)` domain function, `findProductsByBrand(...)`, `findBrandlessProducts(...)`, `findBrandsByAdmin(...)` repository methods.
 - If Stories 2.1-2.5 are not `done`, stop and document blocker before proceeding.
 
@@ -111,7 +111,7 @@ _(To be populated during code review)_
   - **What must be preserved:** Existing `listBrandScopedProducts(...)` function, types, helpers, pagination logic. Do not modify existing domain rules.
 
 #### `src/server/repositories/BrandRepository.ts` (Stories 2.1-2.5)
-  - **Current state:** Contains all brand CRUD methods, membership methods, product query methods (`findProductsByBrand(...)`, `findBrandlessProducts(...)`, `findBrandsByAdmin(...)`). Uses Drizzle ORM with Drizzle batch for atomic operations. DTO mapping snake_case → camelCase. `products` table has `brand` column (nullable text) that stores brand reference.
+  - **Current state:** Contains all brand CRUD methods, membership methods, product query methods (`findProductsByBrand(...)`, `findBrandlessProducts(...)`, `findBrandsByAdmin(...)`). Uses Drizzle ORM with Drizzle batch for atomic operations. DTO mapping snake_case â†’ camelCase. `products` table has `brand` column (nullable text) that stores brand reference.
   - **What this story changes:** Add `findBrandByIdForMutation(...)`, `findMembershipForMutation(...)`, `findProductBrandAssignment(...)` methods for mutation guard checks.
   - **What must be preserved:** All existing CRUD, membership, and query methods. DTO mapping patterns. Batch operation patterns. Type definitions. The `productBrandScopeClause(...)` and `productBrandlessClause(...)` helpers.
 
@@ -131,7 +131,7 @@ _(To be populated during code review)_
   - **What must be preserved:** Existing routes, TypeBox schemas, RBAC guard, route metadata pattern.
 
 #### `src/domain/schema/catalog.ts` (Stories 2.1-2.5)
-  - **Current state:** `brands` table has `status` enum (`ACTIVE`, `ARCHIVED`), `archived_at` nullable text. `brand_memberships` table has `status` enum (`ACTIVE`, `PENDING`, `REVOKED`), `role` enum (`OWNER`, `MEMBER`), `invited_by_admin_id` nullable text. `products` table has `brand` column (nullable text) — this is the brand reference field. Unique constraint on `(brand_id, admin_id)` for memberships.
+  - **Current state:** `brands` table has `status` enum (`ACTIVE`, `ARCHIVED`), `archived_at` nullable text. `brand_memberships` table has `status` enum (`ACTIVE`, `PENDING`, `REVOKED`), `role` enum (`OWNER`, `MEMBER`), `invited_by_admin_id` nullable text. `products` table has `brand` column (nullable text) â€” this is the brand reference field. Unique constraint on `(brand_id, admin_id)` for memberships.
   - **What this story changes:** No schema changes needed. The `products.brand` column already exists and is nullable.
   - **What must be preserved:** Existing schema, enums, constraints, indexes, relations.
 
@@ -150,7 +150,7 @@ _(To be populated during code review)_
   - **What this story changes:** Reuse existing helpers for guard endpoints. Guard responses use standard envelope with pass/fail result.
   - **What must be preserved:** Existing envelope patterns; do not reintroduce legacy `{ data, message, code }`.
 
-### Brand Mutation Guard Flow — Create Product in Brand
+### Brand Mutation Guard Flow â€” Create Product in Brand
 
 - Admin calls `POST /api/brands/:id/products/guard` with `{ productId?: null }` (no product yet, just checking permission to create in this brand).
 - Service validates: actor is authenticated ADMIN/SUPER_ADMIN, actor has ACTIVE membership in the target brand OR is SUPER_ADMIN, brand exists and is ACTIVE.
@@ -159,7 +159,7 @@ _(To be populated during code review)_
 - If valid: return success envelope indicating guard passed.
 - This guard endpoint is called by UI BEFORE showing the "create product in brand" form or enabling the submit button.
 
-### Brand Mutation Guard Flow — Edit Product in Brand
+### Brand Mutation Guard Flow â€” Edit Product in Brand
 
 - Admin calls `POST /api/brands/:id/products/:productId/guard`.
 - Service validates: actor is authenticated ADMIN/SUPER_ADMIN, actor has ACTIVE membership in the product's current brand OR is SUPER_ADMIN, brand exists and is ACTIVE, product is assigned to this brand.
@@ -167,7 +167,7 @@ _(To be populated during code review)_
 - If actor is not a member: return `AUTH_FORBIDDEN` with reason `BRAND_MEMBERSHIP_REQUIRED`.
 - If valid: return success envelope indicating guard passed.
 
-### Brand Mutation Guard Flow — Reassign Product Brand
+### Brand Mutation Guard Flow â€” Reassign Product Brand
 
 - Admin calls `POST /api/brands/products/:productId/reassign/guard` with `{ targetBrandId }`.
 - Service validates: actor is authenticated ADMIN/SUPER_ADMIN, actor has ACTIVE membership in the product's CURRENT brand (source), actor has ACTIVE membership in the TARGET brand, both brands exist and are ACTIVE.
@@ -175,7 +175,7 @@ _(To be populated during code review)_
 - If actor lacks target brand permission: return `AUTH_FORBIDDEN` with reason `TARGET_BRAND_PERMISSION_REQUIRED`.
 - If valid: return success envelope indicating guard passed.
 
-### Brand Mutation Guard Flow — Brandless Product Mutation
+### Brand Mutation Guard Flow â€” Brandless Product Mutation
 
 - Admin calls `POST /api/brands/products/brandless/guard`.
 - Service validates: actor is authenticated ADMIN/SUPER_ADMIN.
@@ -191,7 +191,7 @@ _(To be populated during code review)_
 | Edit product in brand X | ACTIVE membership in brand X OR SUPER_ADMIN |
 | Reassign product from brand X to brand Y | ACTIVE membership in brand X AND ACTIVE membership in brand Y OR SUPER_ADMIN |
 | Create/edit brandless product | Any authenticated ADMIN/SUPER_ADMIN |
-| Any action on archived brand | Denied — `CONFLICT_STATE` / `BRAND_ARCHIVED` |
+| Any action on archived brand | Denied â€” `CONFLICT_STATE` / `BRAND_ARCHIVED` |
 
 ### Language Guardrails (Critical)
 
@@ -199,7 +199,7 @@ _(To be populated during code review)_
 - NEVER use: seller, merchant, tenant, store owner, payout owner, PayMongo owner for brands.
 - JRW is the seller of record. Brands organize catalog collaboration only.
 - This language rule applies to: code comments, variable names where reasonable, API response field descriptions, test descriptions, and audit event details.
-- Brandless language: "brandless", "no brand", "catalog organization choice" — NOT "missing seller", "unassigned store", "orphan product".
+- Brandless language: "brandless", "no brand", "catalog organization choice" â€” NOT "missing seller", "unassigned store", "orphan product".
 
 ### Testing Requirements
 
@@ -242,7 +242,7 @@ npm run build-test
 
 - Should guard endpoints be separate POST routes or could they be integrated as middleware on the actual mutation routes? Current design uses separate guard endpoints for UI to check permission before showing forms, but actual mutation routes should ALSO enforce guards server-side (defense in depth).
 - Should SUPER_ADMIN be able to mutate products in any brand regardless of membership? Current design says SUPER_ADMIN can mutate any brand's products (elevated permission pattern from Story 2.3/2.4/2.5).
-- Should the guard endpoints emit audit events? Current design says NO — guard checks are read-only permission validations. Actual product mutations (Epic 3) will emit audit events.
+- Should the guard endpoints emit audit events? Current design says NO â€” guard checks are read-only permission validations. Actual product mutations (Epic 3) will emit audit events.
 - Should brand reassignment require elevated permission beyond membership in both brands? Current design says membership in both source and target brands is sufficient. If architecture requires elevated permission for reassignment, document and implement.
 
 ## Dev Agent Record
@@ -257,16 +257,45 @@ _(To be populated by dev agent)_
 
 ### Debug Log References
 
-_(To be populated by dev agent)_
+- `npx vitest run src/domain/catalog/product-mutation.test.ts`
+- `npx vitest run src/domain/catalog/product.test.ts src/domain/catalog/product-mutation.test.ts`
+- `npx vitest run src/server/repositories/BrandRepository.test.ts`
+- `npx vitest run src/server/services/BrandService.test.ts`
+- `npx vitest run src/server/services/BrandService.test.ts src/server/routes/brands.routes.test.ts`
+- `npx vitest run src/domain/catalog/product-mutation.test.ts src/server/repositories/BrandRepository.test.ts src/server/services/BrandService.test.ts src/server/routes/brands.routes.test.ts`
+- `npm run check`
+- `npm run build-test`
 
 ### Completion Notes List
 
-_(To be populated by dev agent)_
+- Added domain mutation guard decisions in `src/domain/catalog/product.ts`: `requireBrandMembershipForMutation(...)`, `validateBrandlessProductMutation(...)`, and explicit mutation failure reasons.
+- Added domain guard test suite `src/domain/catalog/product-mutation.test.ts` covering member allow paths, non-member denial, reassignment dual-scope checks, brandless allow, super-admin elevation, and archived brand denial.
+- Extended `BrandRepository` with mutation guard lookups: `findBrandByIdForMutation(...)`, `findMembershipForMutation(...)`, `findProductBrandAssignment(...)`, plus repository tests for each lookup path.
+- Extended `BrandService` with pre-mutation guard methods: `guardBrandProductCreate(...)`, `guardBrandProductUpdate(...)`, `guardBrandProductReassignment(...)`, `guardBrandlessProductMutation(...)`, including stable error mapping (`AUTH_REQUIRED`, `AUTH_FORBIDDEN`, `CONFLICT_STATE`, `PROVIDER_UNAVAILABLE`).
+- Extended `BrandController` and `brands.routes.ts` with four guard endpoints:
+  - `POST /api/brands/:id/products/guard`
+  - `POST /api/brands/:id/products/:productId/guard`
+  - `POST /api/brands/products/:productId/reassign/guard`
+  - `POST /api/brands/products/brandless/guard`
+- Added route tests for new guard endpoint metadata, anonymous denial, success envelopes, failure envelopes with request IDs, and reassignment payload validation.
+- Validation complete: targeted tests passed, `npm run check` passed, `npm run build-test` passed.
+- Blockers: none.
 
 ### File List
 
-_(To be populated by dev agent)_
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/domain/catalog/product.ts`
+- `src/domain/catalog/product-mutation.test.ts`
+- `src/server/repositories/BrandRepository.ts`
+- `src/server/repositories/BrandRepository.test.ts`
+- `src/server/services/BrandService.ts`
+- `src/server/services/BrandService.test.ts`
+- `src/server/controllers/BrandController.ts`
+- `src/server/routes/brands.routes.ts`
+- `src/server/routes/brands.routes.test.ts`
 
 ## Change Log
 
-- 2026-05-18: Story 2.6 context engine created — comprehensive developer guide for brand-scoped product mutation guards.
+- 2026-05-18: Story 2.6 context engine created â€” comprehensive developer guide for brand-scoped product mutation guards.
+- 2026-05-18: Implemented brand-scoped product mutation guards across domain, repository, service, controller, routes, and tests; validated with targeted tests, `npm run check`, and `npm run build-test`.
+
