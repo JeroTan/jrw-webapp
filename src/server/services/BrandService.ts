@@ -702,10 +702,12 @@ export class BrandService {
         input.brandId,
         actor.content.actorId
       );
+      const invitationMembership =
+        membership && membership.invitedByAdminId ? membership : null;
 
       const decision = acceptBrandInvitationDraft({
         actorAdminId: actor.content.actorId,
-        invitationMembership: this.toMembershipState(membership),
+        invitationMembership: this.toMembershipState(invitationMembership),
       });
       if (decision.error) {
         return Result.error(
@@ -716,14 +718,14 @@ export class BrandService {
         );
       }
 
-      if (!membership) {
+      if (!invitationMembership) {
         return Result.error(
           serviceError("VALIDATION_FAILED", { reason: "INVITATION_NOT_FOUND" })
         );
       }
 
       const updatedMembership = await this.repository.updateMembershipStatus(
-        membership.id,
+        invitationMembership.id,
         input.brandId,
         actor.content.actorId,
         "ACTIVE"
@@ -874,18 +876,23 @@ export class BrandService {
           input.adminId,
           input.brandId
         );
-      const targetMembership =
+      const existingMembership = pendingJoinRequest
+        ? null
+        : await this.repository.findMembershipByBrandAndAdmin(
+            input.brandId,
+            input.adminId
+          );
+      const decisionMembership =
         pendingJoinRequest ??
-        (await this.repository.findMembershipByBrandAndAdmin(
-          input.brandId,
-          input.adminId
-        ));
+        (existingMembership && existingMembership.status !== "PENDING"
+          ? existingMembership
+          : null);
 
       const decision = approveBrandJoinRequestDraft({
         approverRole: actor.content.role,
         approverMembership: this.toMembershipState(approverMembership),
         targetAdminId: input.adminId,
-        joinRequestMembership: this.toMembershipState(targetMembership),
+        joinRequestMembership: this.toMembershipState(decisionMembership),
       });
       if (decision.error) {
         return Result.error(
@@ -896,14 +903,14 @@ export class BrandService {
         );
       }
 
-      if (!targetMembership) {
+      if (!pendingJoinRequest) {
         return Result.error(
           serviceError("VALIDATION_FAILED", { reason: "JOIN_REQUEST_NOT_FOUND" })
         );
       }
 
       const updatedMembership = await this.repository.updateMembershipStatus(
-        targetMembership.id,
+        pendingJoinRequest.id,
         input.brandId,
         input.adminId,
         "ACTIVE"
@@ -973,18 +980,23 @@ export class BrandService {
           input.adminId,
           input.brandId
         );
-      const targetMembership =
+      const existingMembership = pendingJoinRequest
+        ? null
+        : await this.repository.findMembershipByBrandAndAdmin(
+            input.brandId,
+            input.adminId
+          );
+      const decisionMembership =
         pendingJoinRequest ??
-        (await this.repository.findMembershipByBrandAndAdmin(
-          input.brandId,
-          input.adminId
-        ));
+        (existingMembership && existingMembership.status !== "PENDING"
+          ? existingMembership
+          : null);
 
       const decision = rejectBrandJoinRequestDraft({
         approverRole: actor.content.role,
         approverMembership: this.toMembershipState(approverMembership),
         targetAdminId: input.adminId,
-        joinRequestMembership: this.toMembershipState(targetMembership),
+        joinRequestMembership: this.toMembershipState(decisionMembership),
       });
       if (decision.error) {
         return Result.error(
@@ -995,14 +1007,14 @@ export class BrandService {
         );
       }
 
-      if (!targetMembership) {
+      if (!pendingJoinRequest) {
         return Result.error(
           serviceError("VALIDATION_FAILED", { reason: "JOIN_REQUEST_NOT_FOUND" })
         );
       }
 
       const updatedMembership = await this.repository.updateMembershipStatus(
-        targetMembership.id,
+        pendingJoinRequest.id,
         input.brandId,
         input.adminId,
         "REVOKED"

@@ -1015,6 +1015,26 @@ describe("BrandService", () => {
     expect(revoked.error?.data).toMatchObject({
       reason: "INVITATION_REVOKED",
     });
+
+    const joinRequestRepo = new RepoStub();
+    joinRequestRepo.membershipByAdminId.admin_1 = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: null,
+    };
+    const joinRequestService = new BrandService({
+      repository: joinRequestRepo,
+      now: () => new Date(now),
+    });
+    const joinRequestAccept = await joinRequestService.acceptBrandInvitation({
+      actor: adminActor(),
+      requestId: "req_accept_join_request_not_invitation",
+      brandId: "brand_1",
+    });
+    expect(joinRequestAccept.error?.code).toBe("VALIDATION_FAILED");
+    expect(joinRequestAccept.error?.data).toMatchObject({
+      reason: "INVITATION_NOT_FOUND",
+    });
   });
 
   it("creates join request and blocks duplicate active or pending membership", async () => {
@@ -1178,6 +1198,42 @@ describe("BrandService", () => {
     expect(rejected.error).toBeNull();
     if (rejected.error) throw rejected.error;
     expect(rejected.content.membership.status).toBe("REVOKED");
+  });
+
+  it("does not treat pending invitation as join request during approve or reject", async () => {
+    const repo = new RepoStub();
+    repo.membershipByAdminId.admin_target = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: "admin_owner",
+    };
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const approve = await service.approveBrandJoinRequest({
+      actor: adminActor(),
+      requestId: "req_approve_invitation_not_join_request",
+      brandId: "brand_1",
+      adminId: "admin_target",
+    });
+    expect(approve.error?.code).toBe("VALIDATION_FAILED");
+    expect(approve.error?.data).toMatchObject({
+      reason: "JOIN_REQUEST_NOT_FOUND",
+    });
+
+    const reject = await service.rejectBrandJoinRequest({
+      actor: adminActor(),
+      requestId: "req_reject_invitation_not_join_request",
+      brandId: "brand_1",
+      adminId: "admin_target",
+    });
+    expect(reject.error?.code).toBe("VALIDATION_FAILED");
+    expect(reject.error?.data).toMatchObject({
+      reason: "JOIN_REQUEST_NOT_FOUND",
+    });
+    expect(repo.membershipByAdminId.admin_target.status).toBe("PENDING");
   });
 
   it("maps join flow provider failures to PROVIDER_UNAVAILABLE", async () => {
