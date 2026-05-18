@@ -14,11 +14,17 @@ import type {
   BrandArchiveResult,
   BrandCreateResult,
   BrandInviteResult,
+  BrandListAdminBrandsResult,
+  BrandListProductsResult,
   BrandRejectJoinRequestResult,
   BrandRequestJoinResult,
   BrandUpdateResult,
   CreateBrandServiceInput,
   InviteBrandServiceInput,
+  ListAdminBrandsServiceInput,
+  ListBrandlessProductsServiceInput,
+  ListBrandQueryInput,
+  ListBrandScopedProductsServiceInput,
   RejectBrandJoinRequestServiceInput,
   RequestBrandJoinServiceInput,
   UpdateBrandServiceInput,
@@ -46,6 +52,15 @@ export type BrandServiceLike = {
   rejectBrandJoinRequest(
     input: RejectBrandJoinRequestServiceInput
   ): Promise<AppResult<BrandRejectJoinRequestResult>>;
+  listBrandScopedProducts(
+    input: ListBrandScopedProductsServiceInput
+  ): Promise<AppResult<BrandListProductsResult>>;
+  listBrandlessProducts(
+    input: ListBrandlessProductsServiceInput
+  ): Promise<AppResult<BrandListProductsResult>>;
+  listAdminBrands(
+    input: ListAdminBrandsServiceInput
+  ): Promise<AppResult<BrandListAdminBrandsResult>>;
 };
 
 export type BrandControllerResult<T> = {
@@ -100,6 +115,25 @@ export type ApproveBrandJoinRequestControllerInput = {
 
 export type RejectBrandJoinRequestControllerInput =
   ApproveBrandJoinRequestControllerInput;
+
+export type ListBrandScopedProductsControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+  query: ListBrandQueryInput;
+};
+
+export type ListBrandlessProductsControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  query: ListBrandQueryInput;
+};
+
+export type ListAdminBrandsControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  query: ListBrandQueryInput;
+};
 
 function errorResult<T>(
   result: AppResult<unknown>,
@@ -262,6 +296,69 @@ export class BrandController {
       status: 200,
       body: apiSuccessWithRequestId(result.content, input.requestId, {
         code: "SUCCESS",
+      }),
+    };
+  }
+
+  async listBrandScopedProducts(
+    input: ListBrandScopedProductsControllerInput
+  ): Promise<BrandControllerResult<BrandListProductsResult>> {
+    const result = await this.service.listBrandScopedProducts(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+        page: result.content.page,
+        pageSize: result.content.pageSize,
+        totalItems: result.content.totalItems,
+        totalPages: result.content.totalPages,
+      }),
+    };
+  }
+
+  async listBrandlessProducts(
+    input: ListBrandlessProductsControllerInput
+  ): Promise<BrandControllerResult<BrandListProductsResult>> {
+    const result = await this.service.listBrandlessProducts(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+        page: result.content.page,
+        pageSize: result.content.pageSize,
+        totalItems: result.content.totalItems,
+        totalPages: result.content.totalPages,
+      }),
+    };
+  }
+
+  async listAdminBrands(
+    input: ListAdminBrandsControllerInput
+  ): Promise<BrandControllerResult<BrandListAdminBrandsResult>> {
+    const result = await this.service.listAdminBrands(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+        page: result.content.page,
+        pageSize: result.content.pageSize,
+        totalItems: result.content.totalItems,
+        totalPages: result.content.totalPages,
       }),
     };
   }

@@ -52,6 +52,15 @@ async function createBrandTestD1() {
       updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`,
     `CREATE UNIQUE INDEX uq_brand_memberships_brand_admin ON brand_memberships(brand_id, admin_id)`,
+    `CREATE TABLE products (
+      id text PRIMARY KEY NOT NULL,
+      name text NOT NULL,
+      brand text,
+      tags text DEFAULT '[]' NOT NULL,
+      description text NOT NULL,
+      created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
   ];
 
   for (const statement of schemaStatements) {
@@ -557,6 +566,197 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
           status: "ACTIVE",
         }),
       ]);
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("lists products by brand scope and brandless scope with pagination metadata", async () => {
+    const { d1, mf } = await createBrandTestD1();
+
+    try {
+      const repository = new DrizzleBrandRepository(createDb(d1));
+      const brand = await repository.createBrand(
+        {
+          name: "JRW Scope One",
+          slug: "jrw-scope-one",
+          description: null,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+
+      await repository.createBrand(
+        {
+          name: "JRW Scope Two",
+          slug: "jrw-scope-two",
+          description: null,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+
+      const insertProduct = d1.prepare(
+        `INSERT INTO products (
+          id, name, brand, tags, description, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+      );
+
+      await insertProduct
+        .bind(
+          "prod_brand_1",
+          "Scoped Product One",
+          brand.id,
+          "[]",
+          "scoped product one",
+          now,
+          now
+        )
+        .run();
+      await insertProduct
+        .bind(
+          "prod_brand_2",
+          "Scoped Product Two",
+          brand.id,
+          "[]",
+          "scoped product two",
+          now,
+          "2026-05-17T21:12:00.000Z"
+        )
+        .run();
+      await insertProduct
+        .bind(
+          "prod_brandless_1",
+          "Brandless Product One",
+          null,
+          "[]",
+          "brandless product one",
+          now,
+          now
+        )
+        .run();
+      await insertProduct
+        .bind(
+          "prod_brandless_2",
+          "Brandless Product Two",
+          null,
+          "[]",
+          "brandless product two",
+          now,
+          "2026-05-17T21:13:00.000Z"
+        )
+        .run();
+
+      const scoped = await repository.findProductsByBrand(brand.id, {
+        page: 1,
+        pageSize: 1,
+      });
+      expect(scoped).toMatchObject({
+        page: 1,
+        pageSize: 1,
+        totalItems: 2,
+        totalPages: 2,
+      });
+      expect(scoped.items).toHaveLength(1);
+      expect(scoped.items[0]).toMatchObject({
+        id: "prod_brand_2",
+        brandId: brand.id,
+      });
+
+      const brandless = await repository.findBrandlessProducts({
+        page: 2,
+        pageSize: 1,
+      });
+      expect(brandless).toMatchObject({
+        page: 2,
+        pageSize: 1,
+        totalItems: 2,
+        totalPages: 2,
+      });
+      expect(brandless.items).toHaveLength(1);
+      expect(brandless.items[0]).toMatchObject({
+        id: "prod_brandless_1",
+        brandId: null,
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("lists only active membership brands for admin", async () => {
+    const { d1, mf } = await createBrandTestD1();
+
+    try {
+      const repository = new DrizzleBrandRepository(createDb(d1));
+      const activeBrand = await repository.createBrand(
+        {
+          name: "JRW Active Scope",
+          slug: "jrw-active-scope",
+          description: null,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+      const pendingBrand = await repository.createBrand(
+        {
+          name: "JRW Pending Scope",
+          slug: "jrw-pending-scope",
+          description: null,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+      const revokedBrand = await repository.createBrand(
+        {
+          name: "JRW Revoked Scope",
+          slug: "jrw-revoked-scope",
+          description: null,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+
+      await repository.createBrandMembership({
+        brandId: pendingBrand.id,
+        adminId: "admin_owner",
+        role: "MEMBER",
+        status: "PENDING",
+        invitedByAdminId: "admin_1",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await repository.createBrandMembership({
+        brandId: revokedBrand.id,
+        adminId: "admin_owner",
+        role: "MEMBER",
+        status: "REVOKED",
+        invitedByAdminId: "admin_1",
+        createdAt: now,
+        updatedAt: now,
+      });
+      await repository.createBrandMembership({
+        brandId: activeBrand.id,
+        adminId: "admin_owner",
+        role: "MEMBER",
+        status: "ACTIVE",
+        invitedByAdminId: "admin_1",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const brandsByAdmin = await repository.findBrandsByAdmin("admin_owner");
+
+      expect(brandsByAdmin.map((brand) => brand.id)).toEqual([activeBrand.id]);
     } finally {
       await mf.dispose();
     }

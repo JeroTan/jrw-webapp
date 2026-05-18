@@ -55,6 +55,55 @@ class RepoStub implements BrandRepository {
   createdMembershipInputs: Array<Record<string, unknown>> = [];
   updateCalls: Array<Record<string, unknown>> = [];
   archiveCalls: Array<Record<string, unknown>> = [];
+  listProductsError: Error | null = null;
+  products: Array<{
+    id: string;
+    name: string;
+    description: string;
+    brandId: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }> = [
+    {
+      id: "product_1",
+      name: "Scoped Product 1",
+      description: "scoped product one",
+      brandId: "brand_1",
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: "product_2",
+      name: "Scoped Product 2",
+      description: "scoped product two",
+      brandId: "brand_2",
+      createdAt: now,
+      updatedAt: now,
+    },
+    {
+      id: "product_3",
+      name: "Brandless Product 1",
+      description: "brandless product one",
+      brandId: null,
+      createdAt: now,
+      updatedAt: now,
+    },
+  ];
+  brandById: Record<string, BrandRecord> = {
+    brand_1: brandRecord(),
+    brand_2: brandRecord({
+      id: "brand_2",
+      name: "JRW Home",
+      slug: "jrw-home",
+    }),
+    brand_archived: brandRecord({
+      id: "brand_archived",
+      name: "JRW Archive",
+      slug: "jrw-archive",
+      status: "ARCHIVED",
+      archivedAt: now,
+    }),
+  };
   membershipByAdminId: Record<
     string,
     {
@@ -215,12 +264,23 @@ class RepoStub implements BrandRepository {
     });
   }
 
-  async findBrandById() {
-    return this.existingById;
+  async findBrandById(brandId: string) {
+    if (this.existingById && this.existingById.id === brandId) {
+      return this.existingById;
+    }
+
+    return this.brandById[brandId] ?? null;
   }
 
-  async findBrandByIdIncludingArchived() {
-    return this.existingByIdIncludingArchived;
+  async findBrandByIdIncludingArchived(brandId: string) {
+    if (
+      this.existingByIdIncludingArchived &&
+      this.existingByIdIncludingArchived.id === brandId
+    ) {
+      return this.existingByIdIncludingArchived;
+    }
+
+    return this.brandById[brandId] ?? null;
   }
 
   async findBrandByNameExcluding() {
@@ -341,6 +401,64 @@ class RepoStub implements BrandRepository {
         createdAt: now,
         updatedAt: now,
       }));
+  }
+
+  async findProductsByBrand(
+    brandId: string,
+    options?: { page?: number; pageSize?: number }
+  ) {
+    if (this.listProductsError) {
+      throw this.listProductsError;
+    }
+
+    const page = options?.page ?? 1;
+    const pageSize = options?.pageSize ?? 20;
+    const items = this.products
+      .filter((product) => product.brandId === brandId)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    const totalItems = items.length;
+    const totalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize);
+    const start = (page - 1) * pageSize;
+
+    return {
+      items: items.slice(start, start + pageSize),
+      page,
+      pageSize,
+      totalItems,
+      totalPages,
+    };
+  }
+
+  async findBrandlessProducts(options?: { page?: number; pageSize?: number }) {
+    if (this.listProductsError) {
+      throw this.listProductsError;
+    }
+
+    const page = options?.page ?? 1;
+    const pageSize = options?.pageSize ?? 20;
+    const items = this.products
+      .filter((product) => product.brandId === null)
+      .sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
+    const totalItems = items.length;
+    const totalPages = totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize);
+    const start = (page - 1) * pageSize;
+
+    return {
+      items: items.slice(start, start + pageSize),
+      page,
+      pageSize,
+      totalItems,
+      totalPages,
+    };
+  }
+
+  async findBrandsByAdmin(adminId: string) {
+    const membership = this.membershipByAdminId[adminId];
+    if (!membership || membership.status !== "ACTIVE") {
+      return [];
+    }
+
+    return Object.values(this.brandById).filter((brand) => brand.status === "ACTIVE");
   }
 
   async findAdminById(adminId: string) {
@@ -1600,5 +1718,141 @@ describe("BrandService", () => {
     });
 
     expect(update.error?.code).toBe("CONFLICT_STATE");
+  });
+
+  it("lists brand-scoped products for member and super admin", async () => {
+    const memberRepo = new RepoStub();
+    const memberService = new BrandService({
+      repository: memberRepo,
+      now: () => new Date(now),
+    });
+
+    const memberResult = await memberService.listBrandScopedProducts({
+      actor: adminActor(),
+      requestId: "req_list_brand_member",
+      brandId: "brand_1",
+      query: { page: 1, pageSize: 1 },
+    });
+    expect(memberResult.error).toBeNull();
+    if (memberResult.error) throw memberResult.error;
+    expect(memberResult.content).toMatchObject({
+      page: 1,
+      pageSize: 1,
+      totalItems: 1,
+      totalPages: 1,
+    });
+    expect(memberResult.content.items[0]).toMatchObject({
+      brandId: "brand_1",
+    });
+
+    const superRepo = new RepoStub();
+    const superService = new BrandService({
+      repository: superRepo,
+      now: () => new Date(now),
+    });
+    const superResult = await superService.listBrandScopedProducts({
+      actor: adminActor({
+        role: "SUPER_ADMIN",
+        actorId: "admin_owner",
+      }),
+      requestId: "req_list_brand_super",
+      brandId: "brand_1",
+      query: { page: 1, pageSize: 20 },
+    });
+    expect(superResult.error).toBeNull();
+  });
+
+  it("denies non-member scope and blocks archived brand visibility", async () => {
+    const deniedRepo = new RepoStub();
+    delete deniedRepo.membershipByAdminId.admin_1;
+    const deniedService = new BrandService({
+      repository: deniedRepo,
+      now: () => new Date(now),
+    });
+
+    const denied = await deniedService.listBrandScopedProducts({
+      actor: adminActor(),
+      requestId: "req_list_brand_denied",
+      brandId: "brand_1",
+      query: {},
+    });
+    expect(denied.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(denied.error?.data).toMatchObject({
+      reason: "BRAND_MEMBERSHIP_REQUIRED",
+    });
+
+    const archivedRepo = new RepoStub();
+    const archivedService = new BrandService({
+      repository: archivedRepo,
+      now: () => new Date(now),
+    });
+
+    const archived = await archivedService.listBrandScopedProducts({
+      actor: adminActor(),
+      requestId: "req_list_brand_archived",
+      brandId: "brand_archived",
+      query: {},
+    });
+    expect(archived.error?.code).toBe("CONFLICT_STATE");
+    expect(archived.error?.data).toMatchObject({
+      reason: "BRAND_ARCHIVED",
+    });
+  });
+
+  it("lists brandless products and admin brands with stable envelope payload", async () => {
+    const repo = new RepoStub();
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const brandless = await service.listBrandlessProducts({
+      actor: adminActor(),
+      requestId: "req_list_brandless",
+      query: { page: 1, pageSize: 20 },
+    });
+    expect(brandless.error).toBeNull();
+    if (brandless.error) throw brandless.error;
+    expect(brandless.content.totalItems).toBe(1);
+    expect(brandless.content.items[0]).toMatchObject({
+      brandId: null,
+    });
+
+    const myBrands = await service.listAdminBrands({
+      actor: adminActor(),
+      requestId: "req_list_admin_brands",
+      query: { page: 1, pageSize: 20 },
+    });
+    expect(myBrands.error).toBeNull();
+    if (myBrands.error) throw myBrands.error;
+    expect(myBrands.content.totalItems).toBeGreaterThan(0);
+    expect(myBrands.content.items[0]).toMatchObject({
+      id: "brand_1",
+      status: "ACTIVE",
+    });
+  });
+
+  it("maps list provider failures to PROVIDER_UNAVAILABLE", async () => {
+    const repo = new RepoStub();
+    repo.listProductsError = new Error("D1_ERROR: list failed");
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const scoped = await service.listBrandScopedProducts({
+      actor: adminActor(),
+      requestId: "req_list_provider_scope",
+      brandId: "brand_1",
+      query: {},
+    });
+    expect(scoped.error?.code).toBe("PROVIDER_UNAVAILABLE");
+
+    const brandless = await service.listBrandlessProducts({
+      actor: adminActor(),
+      requestId: "req_list_provider_brandless",
+      query: {},
+    });
+    expect(brandless.error?.code).toBe("PROVIDER_UNAVAILABLE");
   });
 });

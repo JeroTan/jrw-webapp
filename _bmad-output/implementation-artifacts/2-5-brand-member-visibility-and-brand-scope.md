@@ -1,7 +1,6 @@
 # Story 2.5: Brand Member Visibility and Brand Scope
 
-Status: ready-for-dev
-
+Status: review
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
 ## Story
@@ -22,60 +21,60 @@ so that my catalog workspace matches my JRW collaboration scope.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm dependency gate and prerequisites. (AC: 1-7)
-  - [ ] Verify Stories 2.1, 2.2, 2.3, and 2.4 are `done` in sprint status.
-  - [ ] Confirm `brands` and `brand_memberships` schema exist in `src/domain/schema/catalog.ts`.
-  - [ ] Confirm RBAC guard middleware from Story 1.12 is registered and functional.
-  - [ ] Confirm BrandRepository, BrandService, BrandController, and brand routes exist from Stories 2.1/2.2/2.3/2.4.
-  - [ ] Confirm product domain, repository, service, controller, and routes exist or will be created in Epic 3.
-  - [ ] Confirm audit event `brand.member_joined` exists in `src/domain/audit/events.ts` (pre-defined).
-  - [ ] Do not start brand visibility flow without Stories 2.1 + 2.2 + 2.3 + 2.4 foundation complete.
+- [x] Task 1: Confirm dependency gate and prerequisites. (AC: 1-7)
+  - [x] Verify Stories 2.1, 2.2, 2.3, and 2.4 are `done` in sprint status.
+  - [x] Confirm `brands` and `brand_memberships` schema exist in `src/domain/schema/catalog.ts`.
+  - [x] Confirm RBAC guard middleware from Story 1.12 is registered and functional.
+  - [x] Confirm BrandRepository, BrandService, BrandController, and brand routes exist from Stories 2.1/2.2/2.3/2.4.
+  - [x] Confirm product domain, repository, service, controller, and routes exist or will be created in Epic 3.
+  - [x] Confirm audit event `brand.member_joined` exists in `src/domain/audit/events.ts` (pre-defined).
+  - [x] Do not start brand visibility flow without Stories 2.1 + 2.2 + 2.3 + 2.4 foundation complete.
 
-- [ ] Task 2: Add brand-scoped product query domain rules. (AC: 1-2, 4-5)
-  - [ ] Add `listBrandScopedProducts(...)` domain function in `src/domain/catalog/product.ts` (or `src/domain/brands/brand.ts` if product domain not yet established).
-  - [ ] Add input/output types: `ListBrandScopedProductsInput`, `ListBrandScopedProductsResult`.
-  - [ ] Add failure reason types: `BRAND_NOT_FOUND`, `BRAND_MEMBERSHIP_REQUIRED`, `BRAND_ARCHIVED`.
-  - [ ] Domain rules: validate actor is authenticated ADMIN/SUPER_ADMIN, validate actor has ACTIVE membership in target brand OR is SUPER_ADMIN, validate brand exists, handle archived brand visibility per documented rules.
-  - [ ] Create `src/domain/catalog/product.test.ts` (or extend brand tests) covering: valid brand scope query, multi-brand filtering, archived brand behavior, non-member denial, SUPER_ADMIN elevated access.
+- [x] Task 2: Add brand-scoped product query domain rules. (AC: 1-2, 4-5)
+  - [x] Add `listBrandScopedProducts(...)` domain function in `src/domain/catalog/product.ts` (or `src/domain/brands/brand.ts` if product domain not yet established).
+  - [x] Add input/output types: `ListBrandScopedProductsInput`, `ListBrandScopedProductsResult`.
+  - [x] Add failure reason types: `BRAND_NOT_FOUND`, `BRAND_MEMBERSHIP_REQUIRED`, `BRAND_ARCHIVED`.
+  - [x] Domain rules: validate actor is authenticated ADMIN/SUPER_ADMIN, validate actor has ACTIVE membership in target brand OR is SUPER_ADMIN, validate brand exists, handle archived brand visibility per documented rules.
+  - [x] Create `src/domain/catalog/product.test.ts` (or extend brand tests) covering: valid brand scope query, multi-brand filtering, archived brand behavior, non-member denial, SUPER_ADMIN elevated access.
 
-- [ ] Task 3: Extend brand repository boundary for scoped product queries. (AC: 1-2, 4)
-  - [ ] Extend `src/server/repositories/BrandRepository.ts` or create `src/server/repositories/ProductRepository.ts` with:
-    - [ ] `findProductsByBrand(brandId, options?)`: returns products assigned to a brand with pagination.
-    - [ ] `findBrandlessProducts(options?)`: returns products with no brand assignment.
-    - [ ] `findBrandsByAdmin(adminId)`: returns all brands where admin has ACTIVE membership.
-    - [ ] `findBrandByIdIncludingArchived(brandId)`: reuse existing method for archived brand checks.
-  - [ ] All DTOs use camelCase; map from snake_case at repository boundary.
-  - [ ] Create repository tests covering: find products by brand, find brandless products, find brands by admin, archived brand visibility.
+- [x] Task 3: Extend brand repository boundary for scoped product queries. (AC: 1-2, 4)
+  - [x] Extend `src/server/repositories/BrandRepository.ts` or create `src/server/repositories/ProductRepository.ts` with:
+    - [x] `findProductsByBrand(brandId, options?)`: returns products assigned to a brand with pagination.
+    - [x] `findBrandlessProducts(options?)`: returns products with no brand assignment.
+    - [x] `findBrandsByAdmin(adminId)`: returns all brands where admin has ACTIVE membership.
+    - [x] `findBrandByIdIncludingArchived(brandId)`: reuse existing method for archived brand checks.
+  - [x] All DTOs use camelCase; map from snake_case at repository boundary.
+  - [x] Create repository tests covering: find products by brand, find brandless products, find brands by admin, archived brand visibility.
 
-- [ ] Task 4: Extend brand service with visibility flows. (AC: 1-5, 7)
-  - [ ] Extend `src/server/services/BrandService.ts` or create `src/server/services/ProductService.ts` with:
-    - [ ] `listBrandScopedProducts(input)`: validates actor membership, validates brand exists, returns paginated products for brand scope.
-    - [ ] `listBrandlessProducts(input)`: validates actor has elevated permission or brandless access, returns paginated brandless products.
-    - [ ] `listAdminBrands(input)`: returns all brands where actor has ACTIVE membership.
-    - [ ] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for non-member, `CONFLICT_STATE` for brand not found/archived, `PROVIDER_UNAVAILABLE` for D1 failures.
-  - [ ] Create service tests covering: single-brand visibility success, multi-brand filtering, brandless visibility, non-member denial, archived brand behavior, SUPER_ADMIN elevated access, D1 failure mapping.
+- [x] Task 4: Extend brand service with visibility flows. (AC: 1-5, 7)
+  - [x] Extend `src/server/services/BrandService.ts` or create `src/server/services/ProductService.ts` with:
+    - [x] `listBrandScopedProducts(input)`: validates actor membership, validates brand exists, returns paginated products for brand scope.
+    - [x] `listBrandlessProducts(input)`: validates actor has elevated permission or brandless access, returns paginated brandless products.
+    - [x] `listAdminBrands(input)`: returns all brands where actor has ACTIVE membership.
+    - [x] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for non-member, `CONFLICT_STATE` for brand not found/archived, `PROVIDER_UNAVAILABLE` for D1 failures.
+  - [x] Create service tests covering: single-brand visibility success, multi-brand filtering, brandless visibility, non-member denial, archived brand behavior, SUPER_ADMIN elevated access, D1 failure mapping.
 
-- [ ] Task 5: Add controller methods and API routes. (AC: 1-7)
-  - [ ] Extend `src/server/controllers/BrandController.ts` or create `src/server/controllers/ProductController.ts` with:
-    - [ ] `listBrandScopedProducts(input)`: maps service result to public API envelope.
-    - [ ] `listBrandlessProducts(input)`: maps service result to public API envelope.
-    - [ ] `listAdminBrands(input)`: maps service result to public API envelope.
-  - [ ] Extend `src/server/routes/brands.routes.ts` or add `src/server/routes/products.routes.ts` with:
-    - [ ] `GET /api/brands/:id/products` — list products for a brand scope.
-    - [ ] `GET /api/brands/products/brandless` — list brandless products.
-    - [ ] `GET /api/brands/me` — list brands where current admin is a member.
-    - [ ] Query params: `page`, `pageSize`, `status` (optional filter).
-    - [ ] Request/response schemas using TypeBox.
-    - [ ] Route metadata: `routeDetail(...)` with tag `Brands` or `Products`, auth `{ mode: "required", roles: ["ADMIN", "SUPER_ADMIN"] }`, rate-limit class `admin-read`, documented error codes.
-    - [ ] Controller maps service `AppResult` to public API envelopes; no business rules in controller.
-  - [ ] Create route tests covering: anonymous list denial, brand scope list success, brandless list success, admin brands list success, non-member denial, response schema validation, OpenAPI metadata present, error envelope includes request ID.
+- [x] Task 5: Add controller methods and API routes. (AC: 1-7)
+  - [x] Extend `src/server/controllers/BrandController.ts` or create `src/server/controllers/ProductController.ts` with:
+    - [x] `listBrandScopedProducts(input)`: maps service result to public API envelope.
+    - [x] `listBrandlessProducts(input)`: maps service result to public API envelope.
+    - [x] `listAdminBrands(input)`: maps service result to public API envelope.
+  - [x] Extend `src/server/routes/brands.routes.ts` or add `src/server/routes/products.routes.ts` with:
+    - [x] `GET /api/brands/:id/products` — list products for a brand scope.
+    - [x] `GET /api/brands/products/brandless` — list brandless products.
+    - [x] `GET /api/brands/me` — list brands where current admin is a member.
+    - [x] Query params: `page`, `pageSize`, `status` (optional filter).
+    - [x] Request/response schemas using TypeBox.
+    - [x] Route metadata: `routeDetail(...)` with tag `Brands` or `Products`, auth `{ mode: "required", roles: ["ADMIN", "SUPER_ADMIN"] }`, rate-limit class `admin-read`, documented error codes.
+    - [x] Controller maps service `AppResult` to public API envelopes; no business rules in controller.
+  - [x] Create route tests covering: anonymous list denial, brand scope list success, brandless list success, admin brands list success, non-member denial, response schema validation, OpenAPI metadata present, error envelope includes request ID.
 
-- [ ] Task 6: Validate full flow. (AC: 1-7)
-  - [ ] Run targeted tests:
+- [x] Task 6: Validate full flow. (AC: 1-7)
+  - [x] Run targeted tests:
     - `npx vitest run src/domain/catalog/product.test.ts src/server/repositories/BrandRepository.test.ts src/server/services/BrandService.test.ts src/server/routes/brands.routes.test.ts`
-  - [ ] Run `npm run check`.
-  - [ ] Run `npm run build-test` after targeted tests pass.
-  - [ ] Record exact blockers if any.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run build-test` after targeted tests pass.
+  - [x] Record exact blockers if any.
 
 ### Review Findings
 
@@ -257,7 +256,7 @@ npm run build-test
 
 ### Agent Model Used
 
-- Not yet implemented
+- GPT-5 Codex
 
 ### Implementation Plan
 
@@ -273,16 +272,38 @@ npm run build-test
 
 ### Debug Log References
 
-- Not yet implemented
+- `npx vitest run src/domain/catalog/product.test.ts src/server/repositories/BrandRepository.test.ts src/server/services/BrandService.test.ts src/server/routes/brands.routes.test.ts` (pass).
+- `npm run check` (pass after fixing new type errors).
+- `npm run build-test` (pass).
 
 ### Completion Notes List
 
-- Not yet implemented
+- Added domain visibility decision module for brand-scoped access with explicit failure reasons: `BRAND_NOT_FOUND`, `BRAND_MEMBERSHIP_REQUIRED`, `BRAND_ARCHIVED`.
+- Extended `BrandRepository` with `findProductsByBrand(...)`, `findBrandlessProducts(...)`, and `findBrandsByAdmin(...)`, including pagination metadata and camelCase DTO mapping.
+- Extended `BrandService` with `listBrandScopedProducts(...)`, `listBrandlessProducts(...)`, and `listAdminBrands(...)`, including actor/membership checks and provider failure mapping.
+- Extended `BrandController` and `brands.routes.ts` with:
+  - `GET /api/brands/:id/products`
+  - `GET /api/brands/products/brandless`
+  - `GET /api/brands/me`
+- Added TypeBox query/response contracts, OpenAPI metadata, auth metadata, and `admin-read` rate-limit class support for read endpoints.
+- Added/updated tests across domain, repository, service, and route layers for multi-brand filtering, brandless visibility, non-member denial, archived behavior, request-ID envelope shape, and OpenAPI docs.
 
 ### File List
 
-- Not yet implemented
+- src/domain/catalog/product.ts
+- src/domain/catalog/product.test.ts
+- src/server/repositories/BrandRepository.ts
+- src/server/repositories/BrandRepository.test.ts
+- src/server/services/BrandService.ts
+- src/server/services/BrandService.test.ts
+- src/server/controllers/BrandController.ts
+- src/server/routes/brands.routes.ts
+- src/server/routes/brands.routes.test.ts
+- src/server/openapi/route-metadata.ts
+- _bmad-output/implementation-artifacts/sprint-status.yaml
+- _bmad-output/implementation-artifacts/2-5-brand-member-visibility-and-brand-scope.md
 
 ## Change Log
 
 - 2026-05-18: Story 2.5 context engine created — comprehensive developer guide for brand member visibility and brand scope API.
+- 2026-05-18: Implemented brand member visibility and brand scope APIs with full domain/repository/service/controller/route coverage and validation gates passing.

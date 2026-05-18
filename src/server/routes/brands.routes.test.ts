@@ -47,7 +47,7 @@ const customerContext = {
 } satisfies RequestActorContext;
 
 describe("brands routes", () => {
-  it("documents brand write endpoints with auth metadata and error codes", async () => {
+  it("documents brand read and write endpoints with auth metadata and error codes", async () => {
     const app = createApp();
     const response = await app.handle(
       new Request("https://jrw.test/api/openapi/json")
@@ -77,6 +77,9 @@ describe("brands routes", () => {
     const approve = body.paths?.["/api/brands/{id}/join/{adminId}/approve"]?.post;
     const reject = body.paths?.["/api/brands/{id}/join/{adminId}/reject"]?.post;
     const archive = body.paths?.["/api/brands/{id}/archive"]?.post;
+    const listBrandProducts = body.paths?.["/api/brands/{id}/products"]?.get;
+    const listBrandless = body.paths?.["/api/brands/products/brandless"]?.get;
+    const listMine = body.paths?.["/api/brands/me"]?.get;
 
     expect(post?.summary).toBe("Create brand");
     expect(post?.tags).toContain("Brands");
@@ -167,6 +170,41 @@ describe("brands routes", () => {
     });
     expect(archive?.["x-rate-limit-class"]).toBe("admin-write");
     expect(archive?.responses).toHaveProperty("503");
+
+    expect(listBrandProducts?.summary).toBe("List brand scoped products");
+    expect(listBrandProducts?.tags).toContain("Brands");
+    expect(listBrandProducts?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(listBrandProducts?.["x-rate-limit-class"]).toBe("admin-read");
+    expect(listBrandProducts?.["x-error-codes"]).toEqual(
+      expect.arrayContaining([
+        "AUTH_REQUIRED",
+        "AUTH_FORBIDDEN",
+        "CONFLICT_STATE",
+        "PROVIDER_UNAVAILABLE",
+      ])
+    );
+    expect(listBrandProducts?.responses).toHaveProperty("200");
+
+    expect(listBrandless?.summary).toBe("List brandless products");
+    expect(listBrandless?.tags).toContain("Brands");
+    expect(listBrandless?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(listBrandless?.["x-rate-limit-class"]).toBe("admin-read");
+    expect(listBrandless?.responses).toHaveProperty("200");
+
+    expect(listMine?.summary).toBe("List my brands");
+    expect(listMine?.tags).toContain("Brands");
+    expect(listMine?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(listMine?.["x-rate-limit-class"]).toBe("admin-read");
+    expect(listMine?.responses).toHaveProperty("200");
   });
 
   it("creates brand for admin actor with standard success envelope", async () => {
@@ -1141,6 +1179,232 @@ describe("brands routes", () => {
         code: "CONFLICT_STATE",
         details: {
           requestId: "req_brand_archive_conflict",
+        },
+      },
+    });
+  });
+
+  it("denies anonymous brand-scope list before controller execution", async () => {
+    let controllerCalls = 0;
+    const app = createApp({
+      routes: {
+        brands: {
+          controllerFactory: () => {
+            controllerCalls += 1;
+            return createController({
+              listBrandScopedProducts: async () =>
+                Result.okay({
+                  items: [],
+                  page: 1,
+                  pageSize: 20,
+                  totalItems: 0,
+                  totalPages: 0,
+                }),
+            });
+          },
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/products", {
+        method: "GET",
+        headers: {
+          "x-request-id": "req_brand_products_anonymous",
+        },
+      })
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "AUTH_REQUIRED",
+        details: { requestId: "req_brand_products_anonymous" },
+      },
+    });
+    expect(controllerCalls).toBe(0);
+  });
+
+  it("lists brand-scoped products with request-id envelope", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              listBrandScopedProducts: async () =>
+                Result.okay({
+                  items: [
+                    {
+                      id: "product_1",
+                      name: "Scoped Product 1",
+                      description: "scoped",
+                      brandId: "brand_1",
+                      createdAt: now,
+                      updatedAt: now,
+                    },
+                  ],
+                  page: 1,
+                  pageSize: 20,
+                  totalItems: 1,
+                  totalPages: 1,
+                }),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request(
+        "https://jrw.test/api/brands/brand_1/products?page=1&pageSize=20",
+        {
+          method: "GET",
+          headers: {
+            cookie: "jrw_session=admin-token",
+            "x-request-id": "req_brand_products_success",
+          },
+        }
+      )
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        items: [expect.objectContaining({ brandId: "brand_1" })],
+      },
+      meta: {
+        requestId: "req_brand_products_success",
+        page: 1,
+        pageSize: 20,
+        totalItems: 1,
+        totalPages: 1,
+      },
+    });
+  });
+
+  it("lists brandless products and my brands with stable envelope", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              listBrandlessProducts: async () =>
+                Result.okay({
+                  items: [
+                    {
+                      id: "product_2",
+                      name: "Brandless Product 1",
+                      description: "brandless",
+                      brandId: null,
+                      createdAt: now,
+                      updatedAt: now,
+                    },
+                  ],
+                  page: 1,
+                  pageSize: 20,
+                  totalItems: 1,
+                  totalPages: 1,
+                }),
+              listAdminBrands: async () =>
+                Result.okay({
+                  items: [
+                    {
+                      id: "brand_1",
+                      name: "JRW Lifestyle",
+                      slug: "jrw-lifestyle",
+                      description: "Catalog team",
+                      status: "ACTIVE",
+                      archivedAt: null,
+                      createdAt: now,
+                      updatedAt: now,
+                    },
+                  ],
+                  page: 1,
+                  pageSize: 20,
+                  totalItems: 1,
+                  totalPages: 1,
+                }),
+            }),
+        },
+      },
+    });
+
+    const brandlessResponse = await app.handle(
+      new Request("https://jrw.test/api/brands/products/brandless", {
+        method: "GET",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_brandless_success",
+        },
+      })
+    );
+    expect(brandlessResponse.status).toBe(200);
+    await expect(brandlessResponse.json()).resolves.toMatchObject({
+      data: {
+        items: [expect.objectContaining({ brandId: null })],
+      },
+      meta: { requestId: "req_brandless_success" },
+    });
+
+    const mineResponse = await app.handle(
+      new Request("https://jrw.test/api/brands/me", {
+        method: "GET",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_my_brands_success",
+        },
+      })
+    );
+    expect(mineResponse.status).toBe(200);
+    await expect(mineResponse.json()).resolves.toMatchObject({
+      data: {
+        items: [expect.objectContaining({ id: "brand_1" })],
+      },
+      meta: { requestId: "req_my_brands_success" },
+    });
+  });
+
+  it("returns forbidden envelope for non-member scoped list", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              listBrandScopedProducts: async () =>
+                Result.error(
+                  new GeneralError(
+                    { reason: "BRAND_MEMBERSHIP_REQUIRED" },
+                    "AUTH_FORBIDDEN"
+                  )
+                ),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_2/products", {
+        method: "GET",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_brand_products_forbidden",
+        },
+      })
+    );
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "AUTH_FORBIDDEN",
+        details: {
+          requestId: "req_brand_products_forbidden",
         },
       },
     });

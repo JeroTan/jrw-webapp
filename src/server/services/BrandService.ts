@@ -15,12 +15,14 @@ import {
   updateBrand as updateBrandDraft,
   type BrandUpdateInput,
 } from "@/domain/brands/brand";
+import { listBrandScopedProducts as listBrandScopedProductsDecision } from "@/domain/catalog/product";
 import { evaluateRouteAccess } from "@/domain/auth/rbac";
 import type { AccountEmailNotifier } from "@/domain/notifications/account-emails";
 import type { RequestActorContext } from "@/server/context/request-context";
 import type {
   BrandAdminRecord,
   BrandMembershipRecord,
+  BrandScopedProductListResult,
   BrandRecord,
   BrandRepository,
 } from "@/server/repositories/BrandRepository";
@@ -36,6 +38,10 @@ const brandCreateAuth: BrandCreateAuth = {
   mode: "required",
   roles: ["ADMIN", "SUPER_ADMIN"],
 };
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
 
 export type BrandActorInput = Pick<
   RequestActorContext,
@@ -90,6 +96,31 @@ export type ApproveBrandJoinRequestServiceInput = {
 export type RejectBrandJoinRequestServiceInput =
   ApproveBrandJoinRequestServiceInput;
 
+export type ListBrandQueryInput = {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+};
+
+export type ListBrandScopedProductsServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+  query: ListBrandQueryInput;
+};
+
+export type ListBrandlessProductsServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  query: ListBrandQueryInput;
+};
+
+export type ListAdminBrandsServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  query: ListBrandQueryInput;
+};
+
 export type BrandCreateResult = {
   brand: BrandRecord;
 };
@@ -120,6 +151,16 @@ export type BrandApproveJoinRequestResult = {
 
 export type BrandRejectJoinRequestResult = {
   membership: BrandMembershipRecord;
+};
+
+export type BrandListProductsResult = BrandScopedProductListResult;
+
+export type BrandListAdminBrandsResult = {
+  items: BrandRecord[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
 };
 
 export type BrandServiceOptions = {
@@ -410,6 +451,43 @@ export class BrandService {
 
   private hasElevatedPermission(role: "ADMIN" | "SUPER_ADMIN"): boolean {
     return role === "SUPER_ADMIN";
+  }
+
+  private validPositiveInteger(value: number | undefined): value is number {
+    return (
+      typeof value === "number" &&
+      Number.isFinite(value) &&
+      Number.isInteger(value) &&
+      value > 0
+    );
+  }
+
+  private normalizePage(value: number | undefined): number {
+    return this.validPositiveInteger(value) ? value : DEFAULT_PAGE;
+  }
+
+  private normalizePageSize(value: number | undefined): number {
+    const pageSize = this.validPositiveInteger(value)
+      ? value
+      : DEFAULT_PAGE_SIZE;
+    return Math.min(pageSize, MAX_PAGE_SIZE);
+  }
+
+  private normalizeListQuery(
+    query: ListBrandQueryInput
+  ): { page: number; pageSize: number; status?: string } {
+    const page = this.normalizePage(query.page);
+    const pageSize = this.normalizePageSize(query.pageSize);
+    const status =
+      typeof query.status === "string" && query.status.trim().length > 0
+        ? query.status.trim()
+        : undefined;
+
+    return {
+      page,
+      pageSize,
+      ...(status ? { status } : {}),
+    };
   }
 
   private isActiveBrandMember(
@@ -1051,6 +1129,137 @@ export class BrandService {
       await this.auditPublisher.publish(auditEvent);
 
       return Result.okay({ membership: updatedMembership });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async listBrandScopedProducts(
+    input: ListBrandScopedProductsServiceInput
+  ): Promise<AppResult<BrandListProductsResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    const query = this.normalizeListQuery(input.query);
+
+    try {
+      const brand = await this.repository.findBrandByIdIncludingArchived(
+        input.brandId
+      );
+      const membership = await this.repository.findMembershipByBrandAndAdmin(
+        input.brandId,
+        actor.content.actorId
+      );
+
+      const decision = listBrandScopedProductsDecision({
+        actor: {
+          authenticated: true,
+          role: actor.content.role,
+          actorId: actor.content.actorId,
+        },
+        brandId: input.brandId,
+        brand: brand
+          ? {
+              id: brand.id,
+              status: brand.status,
+            }
+          : null,
+        membership: membership
+          ? {
+              adminId: membership.adminId,
+              role: membership.role,
+              status: membership.status,
+            }
+          : null,
+        page: query.page,
+        pageSize: query.pageSize,
+        status: query.status,
+      });
+
+      if (decision.error) {
+        const code = decision.error.code;
+        if (
+          code === "AUTH_REQUIRED" ||
+          code === "AUTH_FORBIDDEN" ||
+          code === "CONFLICT_STATE"
+        ) {
+          return Result.error(serviceError(code, decision.error.data));
+        }
+
+        return Result.error(
+          serviceError("VALIDATION_FAILED", decision.error.data)
+        );
+      }
+
+      return Result.okay(
+        await this.repository.findProductsByBrand(input.brandId, {
+          page: decision.content.page,
+          pageSize: decision.content.pageSize,
+          status: decision.content.status,
+        })
+      );
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async listBrandlessProducts(
+    input: ListBrandlessProductsServiceInput
+  ): Promise<AppResult<BrandListProductsResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    const query = this.normalizeListQuery(input.query);
+
+    try {
+      return Result.okay(
+        await this.repository.findBrandlessProducts({
+          page: query.page,
+          pageSize: query.pageSize,
+          status: query.status,
+        })
+      );
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async listAdminBrands(
+    input: ListAdminBrandsServiceInput
+  ): Promise<AppResult<BrandListAdminBrandsResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    const query = this.normalizeListQuery(input.query);
+
+    try {
+      const allBrands = await this.repository.findBrandsByAdmin(
+        actor.content.actorId
+      );
+      const totalItems = allBrands.length;
+      const totalPages =
+        totalItems === 0 ? 0 : Math.ceil(totalItems / query.pageSize);
+      const start = (query.page - 1) * query.pageSize;
+
+      return Result.okay({
+        items: allBrands.slice(start, start + query.pageSize),
+        page: query.page,
+        pageSize: query.pageSize,
+        totalItems,
+        totalPages,
+      });
     } catch (error) {
       if (providerFailure(error)) {
         return Result.error(serviceError("PROVIDER_UNAVAILABLE"));

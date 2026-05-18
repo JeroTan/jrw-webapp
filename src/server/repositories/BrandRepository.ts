@@ -6,14 +6,19 @@ import {
   brands,
   brandStatusValues,
   brand_memberships,
+  products,
 } from "@/domain/schema/catalog";
 import { accountStatusValues, admins } from "@/domain/schema/identity";
-import { and, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
 
 type BrandStatusValue = (typeof brandStatusValues)[number];
 type BrandMembershipRoleValue = (typeof brandMembershipRoleValues)[number];
 type BrandMembershipStatusValue = (typeof brandMembershipStatusValues)[number];
 type BrandAdminStatusValue = (typeof accountStatusValues)[number];
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
 
 type BrandRowLike = {
   [key: string]: unknown;
@@ -50,6 +55,16 @@ type BrandAdminRowLike = {
   approved_at: string | null;
 };
 
+type ProductRowLike = {
+  [key: string]: unknown;
+  id: string;
+  name: string;
+  description: string;
+  brand: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type BrandRecord = {
   id: string;
   name: string;
@@ -79,6 +94,29 @@ export type BrandAdminRecord = {
   status: BrandAdminStatusValue;
   emailVerifiedAt: string | null;
   approvedAt: string | null;
+};
+
+export type BrandScopedProductRecord = {
+  id: string;
+  name: string;
+  description: string;
+  brandId: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type ProductListQueryOptions = {
+  page?: number;
+  pageSize?: number;
+  status?: string;
+};
+
+export type BrandScopedProductListResult = {
+  items: BrandScopedProductRecord[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
 };
 
 export type CreateBrandInput = {
@@ -165,6 +203,14 @@ export type BrandRepository = {
     brandId: string
   ): Promise<BrandMembershipRecord | null>;
   findActiveBrandMembers(brandId: string): Promise<BrandMembershipRecord[]>;
+  findProductsByBrand(
+    brandId: string,
+    options?: ProductListQueryOptions
+  ): Promise<BrandScopedProductListResult>;
+  findBrandlessProducts(
+    options?: ProductListQueryOptions
+  ): Promise<BrandScopedProductListResult>;
+  findBrandsByAdmin(adminId: string): Promise<BrandRecord[]>;
   findAdminById(adminId: string): Promise<BrandAdminRecord | null>;
   findAdminByEmail(email: string): Promise<BrandAdminRecord | null>;
 };
@@ -210,6 +256,35 @@ function brandMembershipDtoFromRow(
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
+}
+
+function productDtoFromRow(row: ProductRowLike): BrandScopedProductRecord {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    brandId: row.brand,
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
+}
+
+function validPositiveInteger(value: number | undefined): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    Number.isInteger(value) &&
+    value > 0
+  );
+}
+
+function normalizePage(value: number | undefined): number {
+  return validPositiveInteger(value) ? value : DEFAULT_PAGE;
+}
+
+function normalizePageSize(value: number | undefined): number {
+  const pageSize = validPositiveInteger(value) ? value : DEFAULT_PAGE_SIZE;
+  return Math.min(pageSize, MAX_PAGE_SIZE);
 }
 
 export class DrizzleBrandRepository implements BrandRepository {
@@ -562,6 +637,87 @@ export class DrizzleBrandRepository implements BrandRepository {
       );
 
     return memberships.map(brandMembershipDtoFromRow);
+  }
+
+  async findProductsByBrand(
+    brandId: string,
+    options: ProductListQueryOptions = {}
+  ): Promise<BrandScopedProductListResult> {
+    const page = normalizePage(options.page);
+    const pageSize = normalizePageSize(options.pageSize);
+    const offset = (page - 1) * pageSize;
+    const whereClause = eq(products.brand, brandId);
+
+    const [totalResult] = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(products)
+      .where(whereClause);
+    const totalItems = Number(totalResult?.count ?? 0);
+
+    const rows = await this.db
+      .select()
+      .from(products)
+      .where(whereClause)
+      .orderBy(desc(products.updated_at), desc(products.id))
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      items: rows.map((row) => productDtoFromRow(row)),
+      page,
+      pageSize,
+      totalItems,
+      totalPages: totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize),
+    };
+  }
+
+  async findBrandlessProducts(
+    options: ProductListQueryOptions = {}
+  ): Promise<BrandScopedProductListResult> {
+    const page = normalizePage(options.page);
+    const pageSize = normalizePageSize(options.pageSize);
+    const offset = (page - 1) * pageSize;
+    const whereClause = isNull(products.brand);
+
+    const [totalResult] = await this.db
+      .select({ count: sql<number>`count(*)` })
+      .from(products)
+      .where(whereClause);
+    const totalItems = Number(totalResult?.count ?? 0);
+
+    const rows = await this.db
+      .select()
+      .from(products)
+      .where(whereClause)
+      .orderBy(desc(products.updated_at), desc(products.id))
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      items: rows.map((row) => productDtoFromRow(row)),
+      page,
+      pageSize,
+      totalItems,
+      totalPages: totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize),
+    };
+  }
+
+  async findBrandsByAdmin(adminId: string): Promise<BrandRecord[]> {
+    const rows = await this.db
+      .select({ brand: brands })
+      .from(brands)
+      .innerJoin(
+        brand_memberships,
+        and(
+          eq(brand_memberships.brand_id, brands.id),
+          eq(brand_memberships.admin_id, adminId),
+          eq(brand_memberships.status, "ACTIVE")
+        )
+      )
+      .where(eq(brands.status, "ACTIVE"))
+      .orderBy(desc(brands.updated_at), desc(brands.id));
+
+    return rows.map((row) => brandDtoFromRow(row.brand));
   }
 
   async findAdminById(adminId: string): Promise<BrandAdminRecord | null> {

@@ -59,6 +59,31 @@ const tboxBrandMembershipData = t.Object({
   membership: tboxBrandInvitation,
 });
 
+const tboxBrandProduct = t.Object({
+  id: t.String(),
+  name: t.String(),
+  description: t.String(),
+  brandId: t.Nullable(t.String()),
+  createdAt: t.String({ format: "date-time" }),
+  updatedAt: t.String({ format: "date-time" }),
+});
+
+const tboxBrandProductsListData = t.Object({
+  items: t.Array(tboxBrandProduct),
+  page: t.Number(),
+  pageSize: t.Number(),
+  totalItems: t.Number(),
+  totalPages: t.Number(),
+});
+
+const tboxBrandListData = t.Object({
+  items: t.Array(tboxBrand),
+  page: t.Number(),
+  pageSize: t.Number(),
+  totalItems: t.Number(),
+  totalPages: t.Number(),
+});
+
 const tboxBrandIdParams = t.Object(
   {
     id: t.String({ minLength: 1, maxLength: 128 }),
@@ -110,6 +135,15 @@ const tboxInviteBrandBody = t.Object(
     email: t.Optional(t.String({ format: "email", minLength: 3, maxLength: 254 })),
   },
   { additionalProperties: false, minProperties: 1 }
+);
+
+const tboxBrandListQuery = t.Object(
+  {
+    page: t.Optional(t.Numeric({ minimum: 1, default: 1 })),
+    pageSize: t.Optional(t.Numeric({ minimum: 1, maximum: 100, default: 20 })),
+    status: t.Optional(t.String({ minLength: 1, maxLength: 64 })),
+  },
+  { additionalProperties: false }
 );
 
 export type BrandControllerFactoryInput = {
@@ -227,6 +261,14 @@ const brandUpdateErrors = [
 const brandArchiveErrors = [...brandUpdateErrors] as const;
 const brandInviteErrors = [...brandUpdateErrors] as const;
 const brandJoinErrors = [...brandUpdateErrors] as const;
+const brandReadErrors = [
+  "AUTH_REQUIRED",
+  "AUTH_FORBIDDEN",
+  "VALIDATION_FAILED",
+  "CONFLICT_STATE",
+  "PROVIDER_UNAVAILABLE",
+  "INTERNAL_ERROR",
+] as const;
 
 export function brandsRoutes(
   app: AnyElysia,
@@ -532,6 +574,136 @@ export function brandsRoutes(
         response: {
           200: tboxApiSuccess(tboxBrandMembershipData),
           ...openApiErrorResponses([401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .get(
+      "/brands/:id/products",
+      async (ctx) => {
+        const {
+          request,
+          set,
+          runtimeEnv,
+          requestContext,
+          requestId,
+          params,
+          query,
+        } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+            params: { id: string };
+            query: { page?: number; pageSize?: number; status?: string };
+          };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.listBrandScopedProducts({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+          query,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandIdParams,
+        query: tboxBrandListQuery,
+        detail: routeDetail({
+          summary: "List brand scoped products",
+          description:
+            "Lists products assigned to requested brand for authorized brand members and super admin.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-read",
+          errorCodes: [...brandReadErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandProductsListData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .get(
+      "/brands/products/brandless",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, query } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              query: { page?: number; pageSize?: number; status?: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.listBrandlessProducts({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          query,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        query: tboxBrandListQuery,
+        detail: routeDetail({
+          summary: "List brandless products",
+          description:
+            "Lists products without brand assignment for authenticated catalog admins.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-read",
+          errorCodes: [...brandReadErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandProductsListData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .get(
+      "/brands/me",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, query } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              query: { page?: number; pageSize?: number; status?: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.listAdminBrands({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          query,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        query: tboxBrandListQuery,
+        detail: routeDetail({
+          summary: "List my brands",
+          description:
+            "Lists brands where current admin has active membership in catalog collaboration.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-read",
+          errorCodes: [...brandReadErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandListData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
         },
       }
     )

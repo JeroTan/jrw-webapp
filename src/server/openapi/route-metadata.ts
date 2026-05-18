@@ -15,6 +15,7 @@ export type RouteRateLimitClass =
   | "email-token"
   | "customer-write"
   | "checkout-payment"
+  | "admin-read"
   | "admin-write"
   | "asset-upload"
   | "webhook";
