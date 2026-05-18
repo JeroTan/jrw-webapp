@@ -1,0 +1,14 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { BrandDetail } from "@/features/brands/components/BrandDetail";
+
+const brandId = Astro.params.id ?? "";
+---
+
+<BaseLayout
+  title="Brand Detail | JRW Admin"
+  description="Brand member, invite, join request, and product visibility detail."
+>
+  <BrandDetail brandId={brandId} client:load />
+</BaseLayout>
+

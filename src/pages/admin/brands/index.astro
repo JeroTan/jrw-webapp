@@ -1,0 +1,12 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { BrandList } from "@/features/brands/components/BrandList";
+---
+
+<BaseLayout
+  title="Brands | JRW Admin"
+  description="Brand catalog groups and membership operations."
+>
+  <BrandList client:load />
+</BaseLayout>
+

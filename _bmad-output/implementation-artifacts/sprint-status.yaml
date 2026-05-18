@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-12T08:38:32+08:00"
-last_updated: "2026-05-18T13:34:56.8606766+08:00"
+last_updated: "2026-05-18T14:14:33.1976303+08:00"
 project: jrw-webapp
 project_key: NOKEY
 tracking_system: file-system
@@ -64,7 +64,7 @@ development_status:
   2-4-join-brand-by-invitation-or-approval: done
   2-5-brand-member-visibility-and-brand-scope: done
   2-6-brand-scoped-product-mutation-guards: done
-  2-7-brand-membership-ui-and-language-guardrails: ready-for-dev
+  2-7-brand-membership-ui-and-language-guardrails: in-progress
   epic-2-retrospective: optional
   epic-3: backlog
   3-1-manage-product-categories: backlog
