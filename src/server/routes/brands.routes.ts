@@ -55,9 +55,21 @@ const tboxBrandInviteData = t.Object({
   invitation: tboxBrandInvitation,
 });
 
+const tboxBrandMembershipData = t.Object({
+  membership: tboxBrandInvitation,
+});
+
 const tboxBrandIdParams = t.Object(
   {
     id: t.String({ minLength: 1, maxLength: 128 }),
+  },
+  { additionalProperties: false }
+);
+
+const tboxBrandJoinAdminParams = t.Object(
+  {
+    id: t.String({ minLength: 1, maxLength: 128 }),
+    adminId: t.String({ minLength: 1, maxLength: 128 }),
   },
   { additionalProperties: false }
 );
@@ -214,6 +226,7 @@ const brandUpdateErrors = [
 
 const brandArchiveErrors = [...brandUpdateErrors] as const;
 const brandInviteErrors = [...brandUpdateErrors] as const;
+const brandJoinErrors = [...brandUpdateErrors] as const;
 
 export function brandsRoutes(
   app: AnyElysia,
@@ -357,6 +370,168 @@ export function brandsRoutes(
         response: {
           201: tboxApiSuccess(tboxBrandInviteData),
           ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/brands/:id/accept",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { id: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.acceptBrandInvitation({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandIdParams,
+        detail: routeDetail({
+          summary: "Accept brand invitation",
+          description:
+            "Accepts pending invitation for current admin and activates brand membership.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...brandJoinErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandMembershipData),
+          ...openApiErrorResponses([401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/brands/:id/join",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { id: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.requestBrandJoin({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandIdParams,
+        detail: routeDetail({
+          summary: "Request brand join",
+          description:
+            "Creates pending brand join request for current admin when no active or pending membership exists.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...brandJoinErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          201: tboxApiSuccess(tboxBrandMembershipData),
+          ...openApiErrorResponses([401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/brands/:id/join/:adminId/approve",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { id: string; adminId: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.approveBrandJoinRequest({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+          adminId: params.adminId,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandJoinAdminParams,
+        detail: routeDetail({
+          summary: "Approve brand join request",
+          description:
+            "Approves pending brand join request for target admin and activates membership.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...brandJoinErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandMembershipData),
+          ...openApiErrorResponses([401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/brands/:id/join/:adminId/reject",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { id: string; adminId: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.rejectBrandJoinRequest({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+          adminId: params.adminId,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandJoinAdminParams,
+        detail: routeDetail({
+          summary: "Reject brand join request",
+          description:
+            "Rejects pending brand join request for target admin and revokes pending membership.",
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...brandJoinErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandMembershipData),
+          ...openApiErrorResponses([401, 403, 409, 500, 503]),
         },
       }
     )

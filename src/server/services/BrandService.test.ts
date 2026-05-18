@@ -57,10 +57,14 @@ class RepoStub implements BrandRepository {
   archiveCalls: Array<Record<string, unknown>> = [];
   membershipByAdminId: Record<
     string,
-    { role: "OWNER" | "MEMBER"; status: "ACTIVE" | "PENDING" | "REVOKED" }
+    {
+      role: "OWNER" | "MEMBER";
+      status: "ACTIVE" | "PENDING" | "REVOKED";
+      invitedByAdminId: string | null;
+    }
   > = {
-    admin_1: { role: "OWNER", status: "ACTIVE" },
-    admin_member: { role: "MEMBER", status: "ACTIVE" },
+    admin_1: { role: "OWNER", status: "ACTIVE", invitedByAdminId: null },
+    admin_member: { role: "MEMBER", status: "ACTIVE", invitedByAdminId: null },
   };
   adminById: Record<
     string,
@@ -241,10 +245,102 @@ class RepoStub implements BrandRepository {
       adminId,
       role: membership.role,
       status: membership.status,
-      invitedByAdminId: null,
+      invitedByAdminId: membership.invitedByAdminId,
       createdAt: now,
       updatedAt: now,
     };
+  }
+
+  async updateMembershipStatus(
+    _membershipId: string,
+    _brandId: string,
+    adminId: string,
+    newStatus: "ACTIVE" | "PENDING" | "REVOKED",
+    newRole?: "OWNER" | "MEMBER"
+  ) {
+    const membership = this.membershipByAdminId[adminId];
+    if (!membership || membership.status !== "PENDING") {
+      return null;
+    }
+
+    this.membershipByAdminId[adminId] = {
+      role: newRole ?? membership.role,
+      status: newStatus,
+      invitedByAdminId: membership.invitedByAdminId,
+    };
+
+    return {
+      id: `membership_${adminId}`,
+      brandId: "brand_1",
+      adminId,
+      role: this.membershipByAdminId[adminId].role,
+      status: this.membershipByAdminId[adminId].status,
+      invitedByAdminId: this.membershipByAdminId[adminId].invitedByAdminId,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  async findPendingInvitationByAdminAndBrand(_adminId: string, _brandId: string) {
+    const membership = this.membershipByAdminId[_adminId];
+    if (
+      !membership ||
+      membership.status !== "PENDING" ||
+      !membership.invitedByAdminId
+    ) {
+      return null;
+    }
+
+    return {
+      id: `membership_${_adminId}`,
+      brandId: "brand_1",
+      adminId: _adminId,
+      role: membership.role,
+      status: membership.status,
+      invitedByAdminId: membership.invitedByAdminId,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  async findPendingJoinRequestByAdminAndBrand(
+    _adminId: string,
+    _brandId: string
+  ) {
+    const membership = this.membershipByAdminId[_adminId];
+    if (
+      !membership ||
+      membership.status !== "PENDING" ||
+      membership.invitedByAdminId !== null
+    ) {
+      return null;
+    }
+
+    return {
+      id: `membership_${_adminId}`,
+      brandId: "brand_1",
+      adminId: _adminId,
+      role: membership.role,
+      status: membership.status,
+      invitedByAdminId: membership.invitedByAdminId,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  async findActiveBrandMembers(_brandId: string) {
+    return Object.entries(this.membershipByAdminId)
+      .filter(([, membership]) => membership.status === "ACTIVE")
+      .map(([adminId, membership]) => ({
+        id: `membership_${adminId}`,
+        brandId: "brand_1",
+        adminId,
+        role: membership.role,
+        status: membership.status,
+        invitedByAdminId: membership.invitedByAdminId,
+        createdAt: now,
+        updatedAt: now,
+      }));
   }
 
   async findAdminById(adminId: string) {
@@ -670,6 +766,7 @@ describe("BrandService", () => {
     repo.membershipByAdminId.admin_target = {
       role: "MEMBER",
       status: "ACTIVE",
+      invitedByAdminId: null,
     };
     const activeConflict = await service.inviteAdminToBrand({
       actor: adminActor(),
@@ -681,6 +778,7 @@ describe("BrandService", () => {
     repo.membershipByAdminId.admin_target = {
       role: "MEMBER",
       status: "PENDING",
+      invitedByAdminId: "admin_1",
     };
     const pendingConflict = await service.inviteAdminToBrand({
       actor: adminActor(),
@@ -812,6 +910,386 @@ describe("BrandService", () => {
     expect(repo.createdMembershipCount).toBe(0);
   });
 
+  it("accepts pending invitation and emits joined audit event", async () => {
+    const repo = new RepoStub();
+    repo.membershipByAdminId.admin_1 = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: "admin_owner",
+    };
+    const published: AuditEvent[] = [];
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+      auditPublisher: {
+        publish: async (event) => {
+          published.push(event);
+        },
+      },
+    });
+
+    const result = await service.acceptBrandInvitation({
+      actor: adminActor(),
+      requestId: "req_accept_invitation",
+      brandId: "brand_1",
+    });
+
+    expect(result.error).toBeNull();
+    if (result.error) throw result.error;
+    expect(result.content.membership.status).toBe("ACTIVE");
+    expect(published).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          action: "brand.member_joined",
+          requestId: "req_accept_invitation",
+          safeDetails: expect.objectContaining({
+            targetAdminId: "admin_1",
+          }),
+        }),
+      ])
+    );
+  });
+
+  it("denies accepting invitation for wrong actor and invalid invitation states", async () => {
+    const wrongActorRepo = new RepoStub();
+    wrongActorRepo.findMembershipByBrandAndAdmin = async () => ({
+      id: "membership_admin_target",
+      brandId: "brand_1",
+      adminId: "admin_target",
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: "admin_owner",
+      createdAt: now,
+      updatedAt: now,
+    });
+    const wrongActorService = new BrandService({
+      repository: wrongActorRepo,
+      now: () => new Date(now),
+    });
+    const wrongActor = await wrongActorService.acceptBrandInvitation({
+      actor: adminActor(),
+      requestId: "req_accept_wrong_actor",
+      brandId: "brand_1",
+    });
+    expect(wrongActor.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(wrongActor.error?.data).toMatchObject({
+      reason: "INVITATION_NOT_FOR_ACTOR",
+    });
+
+    const acceptedRepo = new RepoStub();
+    acceptedRepo.membershipByAdminId.admin_1 = {
+      role: "MEMBER",
+      status: "ACTIVE",
+      invitedByAdminId: "admin_owner",
+    };
+    const acceptedService = new BrandService({
+      repository: acceptedRepo,
+      now: () => new Date(now),
+    });
+    const alreadyAccepted = await acceptedService.acceptBrandInvitation({
+      actor: adminActor(),
+      requestId: "req_accept_already_active",
+      brandId: "brand_1",
+    });
+    expect(alreadyAccepted.error?.code).toBe("CONFLICT_STATE");
+    expect(alreadyAccepted.error?.data).toMatchObject({
+      reason: "INVITATION_NOT_PENDING",
+    });
+
+    const revokedRepo = new RepoStub();
+    revokedRepo.membershipByAdminId.admin_1 = {
+      role: "MEMBER",
+      status: "REVOKED",
+      invitedByAdminId: "admin_owner",
+    };
+    const revokedService = new BrandService({
+      repository: revokedRepo,
+      now: () => new Date(now),
+    });
+    const revoked = await revokedService.acceptBrandInvitation({
+      actor: adminActor(),
+      requestId: "req_accept_revoked",
+      brandId: "brand_1",
+    });
+    expect(revoked.error?.code).toBe("VALIDATION_FAILED");
+    expect(revoked.error?.data).toMatchObject({
+      reason: "INVITATION_REVOKED",
+    });
+  });
+
+  it("creates join request and blocks duplicate active or pending membership", async () => {
+    const repo = new RepoStub();
+    delete repo.membershipByAdminId.admin_1;
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const success = await service.requestBrandJoin({
+      actor: adminActor(),
+      requestId: "req_join_success",
+      brandId: "brand_1",
+    });
+    expect(success.error).toBeNull();
+    if (success.error) throw success.error;
+    expect(success.content.membership).toMatchObject({
+      adminId: "admin_1",
+      status: "PENDING",
+      invitedByAdminId: null,
+    });
+
+    repo.membershipByAdminId.admin_1 = {
+      role: "MEMBER",
+      status: "ACTIVE",
+      invitedByAdminId: null,
+    };
+    const duplicateActive = await service.requestBrandJoin({
+      actor: adminActor(),
+      requestId: "req_join_duplicate_active",
+      brandId: "brand_1",
+    });
+    expect(duplicateActive.error?.code).toBe("CONFLICT_STATE");
+    expect(duplicateActive.error?.data).toMatchObject({
+      reason: "DUPLICATE_ACTIVE_MEMBERSHIP",
+    });
+
+    repo.membershipByAdminId.admin_1 = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: null,
+    };
+    const duplicatePending = await service.requestBrandJoin({
+      actor: adminActor(),
+      requestId: "req_join_duplicate_pending",
+      brandId: "brand_1",
+    });
+    expect(duplicatePending.error?.code).toBe("CONFLICT_STATE");
+    expect(duplicatePending.error?.data).toMatchObject({
+      reason: "DUPLICATE_PENDING_REQUEST",
+    });
+  });
+
+  it("approves join request for OWNER, MEMBER, and SUPER_ADMIN", async () => {
+    const ownerRepo = new RepoStub();
+    ownerRepo.membershipByAdminId.admin_target = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: null,
+    };
+    const ownerService = new BrandService({
+      repository: ownerRepo,
+      now: () => new Date(now),
+    });
+    const ownerApproved = await ownerService.approveBrandJoinRequest({
+      actor: adminActor(),
+      requestId: "req_approve_owner",
+      brandId: "brand_1",
+      adminId: "admin_target",
+    });
+    expect(ownerApproved.error).toBeNull();
+    if (ownerApproved.error) throw ownerApproved.error;
+    expect(ownerApproved.content.membership.status).toBe("ACTIVE");
+
+    const memberRepo = new RepoStub();
+    memberRepo.membershipByAdminId.admin_target = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: null,
+    };
+    memberRepo.membershipByAdminId.admin_member = {
+      role: "MEMBER",
+      status: "ACTIVE",
+      invitedByAdminId: null,
+    };
+    const memberService = new BrandService({
+      repository: memberRepo,
+      now: () => new Date(now),
+    });
+    const memberApproved = await memberService.approveBrandJoinRequest({
+      actor: adminActor({ actorId: "admin_member" }),
+      requestId: "req_approve_member",
+      brandId: "brand_1",
+      adminId: "admin_target",
+    });
+    expect(memberApproved.error).toBeNull();
+    if (memberApproved.error) throw memberApproved.error;
+    expect(memberApproved.content.membership.status).toBe("ACTIVE");
+
+    const superRepo = new RepoStub();
+    superRepo.membershipByAdminId.admin_target = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: null,
+    };
+    const superService = new BrandService({
+      repository: superRepo,
+      now: () => new Date(now),
+    });
+    const superApproved = await superService.approveBrandJoinRequest({
+      actor: adminActor({ actorId: "admin_owner", role: "SUPER_ADMIN" }),
+      requestId: "req_approve_super",
+      brandId: "brand_1",
+      adminId: "admin_target",
+    });
+    expect(superApproved.error).toBeNull();
+    if (superApproved.error) throw superApproved.error;
+    expect(superApproved.content.membership.status).toBe("ACTIVE");
+  });
+
+  it("denies unauthorized approval and supports rejection flow", async () => {
+    const unauthorizedRepo = new RepoStub();
+    unauthorizedRepo.membershipByAdminId.admin_target = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: null,
+    };
+    delete unauthorizedRepo.membershipByAdminId.admin_1;
+    const unauthorizedService = new BrandService({
+      repository: unauthorizedRepo,
+      now: () => new Date(now),
+    });
+    const unauthorized = await unauthorizedService.approveBrandJoinRequest({
+      actor: adminActor(),
+      requestId: "req_approve_unauthorized",
+      brandId: "brand_1",
+      adminId: "admin_target",
+    });
+    expect(unauthorized.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(unauthorized.error?.data).toMatchObject({
+      reason: "APPROVER_NOT_AUTHORIZED",
+    });
+
+    const rejectRepo = new RepoStub();
+    rejectRepo.membershipByAdminId.admin_target = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: null,
+    };
+    const rejectService = new BrandService({
+      repository: rejectRepo,
+      now: () => new Date(now),
+    });
+    const rejected = await rejectService.rejectBrandJoinRequest({
+      actor: adminActor(),
+      requestId: "req_reject_join_request",
+      brandId: "brand_1",
+      adminId: "admin_target",
+    });
+    expect(rejected.error).toBeNull();
+    if (rejected.error) throw rejected.error;
+    expect(rejected.content.membership.status).toBe("REVOKED");
+  });
+
+  it("maps join flow provider failures to PROVIDER_UNAVAILABLE", async () => {
+    const joinRepo = new RepoStub();
+    joinRepo.createBrandMembershipError = new Error("D1_ERROR: write failed");
+    delete joinRepo.membershipByAdminId.admin_1;
+    const joinService = new BrandService({
+      repository: joinRepo,
+      now: () => new Date(now),
+    });
+    const joinFailure = await joinService.requestBrandJoin({
+      actor: adminActor(),
+      requestId: "req_join_provider_failure",
+      brandId: "brand_1",
+    });
+    expect(joinFailure.error?.code).toBe("PROVIDER_UNAVAILABLE");
+
+    const acceptRepo = new RepoStub();
+    acceptRepo.membershipByAdminId.admin_1 = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: "admin_owner",
+    };
+    acceptRepo.updateMembershipStatus = async () => {
+      throw new Error("D1_ERROR: transition failed");
+    };
+    const acceptService = new BrandService({
+      repository: acceptRepo,
+      now: () => new Date(now),
+    });
+    const acceptFailure = await acceptService.acceptBrandInvitation({
+      actor: adminActor(),
+      requestId: "req_accept_provider_failure",
+      brandId: "brand_1",
+    });
+    expect(acceptFailure.error?.code).toBe("PROVIDER_UNAVAILABLE");
+  });
+
+  it("emits audit events for join flow with safe details", async () => {
+    const repo = new RepoStub();
+    repo.membershipByAdminId.admin_1 = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: "admin_owner",
+    };
+    repo.membershipByAdminId.admin_target = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: null,
+    };
+    const published: AuditEvent[] = [];
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+      auditPublisher: {
+        publish: async (event) => {
+          published.push(event);
+        },
+      },
+    });
+
+    await service.acceptBrandInvitation({
+      actor: adminActor(),
+      requestId: "req_join_audit_accept",
+      brandId: "brand_1",
+    });
+
+    delete repo.membershipByAdminId.admin_1;
+    await service.requestBrandJoin({
+      actor: adminActor(),
+      requestId: "req_join_audit_request",
+      brandId: "brand_1",
+    });
+
+    repo.membershipByAdminId.admin_target = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: null,
+    };
+    await service.approveBrandJoinRequest({
+      actor: adminActor({ actorId: "admin_owner", role: "SUPER_ADMIN" }),
+      requestId: "req_join_audit_approve",
+      brandId: "brand_1",
+      adminId: "admin_target",
+    });
+
+    repo.membershipByAdminId.admin_target = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: null,
+    };
+    await service.rejectBrandJoinRequest({
+      actor: adminActor({ actorId: "admin_owner", role: "SUPER_ADMIN" }),
+      requestId: "req_join_audit_reject",
+      brandId: "brand_1",
+      adminId: "admin_target",
+    });
+
+    expect(published).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ action: "brand.member_joined" }),
+        expect.objectContaining({
+          action: "brand.member_removed",
+          requestId: "req_join_audit_reject",
+        }),
+      ])
+    );
+    const serialized = JSON.stringify(published);
+    expect(serialized).not.toContain("password");
+    expect(serialized).not.toContain("token");
+  });
+
   it("updates brand for OWNER and MEMBER with safe audit event", async () => {
     const repo = new RepoStub();
     const published: AuditEvent[] = [];
@@ -874,6 +1352,7 @@ describe("BrandService", () => {
     repo.membershipByAdminId.admin_1 = {
       role: "OWNER",
       status: "REVOKED",
+      invitedByAdminId: null,
     };
     const revoked = await service.updateBrand({
       actor: adminActor(),
@@ -1008,6 +1487,7 @@ describe("BrandService", () => {
     repo.membershipByAdminId.admin_1 = {
       role: "OWNER",
       status: "ACTIVE",
+      invitedByAdminId: null,
     };
     repo.existingByIdIncludingArchived = brandRecord({
       status: "ARCHIVED",

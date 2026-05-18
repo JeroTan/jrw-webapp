@@ -56,7 +56,7 @@ export class CatalogService {
     return { id };
   }
 
-  mockListReviews(productId: string) {
+  mockListReviews(_productId: string) {
     return [];
   }
 

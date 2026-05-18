@@ -4,10 +4,14 @@ import {
   type AuditEventPublisher,
 } from "@/domain/audit/events";
 import {
+  acceptBrandInvitation as acceptBrandInvitationDraft,
+  approveBrandJoinRequest as approveBrandJoinRequestDraft,
   archiveBrand as archiveBrandDraft,
   createBrand as createBrandDraft,
   createBrandInvitation,
   detectBrandCreateConflict,
+  rejectBrandJoinRequest as rejectBrandJoinRequestDraft,
+  requestBrandJoin as requestBrandJoinDraft,
   updateBrand as updateBrandDraft,
   type BrandUpdateInput,
 } from "@/domain/brands/brand";
@@ -64,6 +68,28 @@ export type InviteBrandServiceInput = {
   body: Record<string, unknown>;
 };
 
+export type AcceptBrandInvitationServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+};
+
+export type RequestBrandJoinServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+};
+
+export type ApproveBrandJoinRequestServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+  adminId: string;
+};
+
+export type RejectBrandJoinRequestServiceInput =
+  ApproveBrandJoinRequestServiceInput;
+
 export type BrandCreateResult = {
   brand: BrandRecord;
 };
@@ -78,6 +104,22 @@ export type BrandArchiveResult = {
 
 export type BrandInviteResult = {
   invitation: BrandMembershipRecord;
+};
+
+export type BrandAcceptInvitationResult = {
+  membership: BrandMembershipRecord;
+};
+
+export type BrandRequestJoinResult = {
+  membership: BrandMembershipRecord;
+};
+
+export type BrandApproveJoinRequestResult = {
+  membership: BrandMembershipRecord;
+};
+
+export type BrandRejectJoinRequestResult = {
+  membership: BrandMembershipRecord;
 };
 
 export type BrandServiceOptions = {
@@ -124,7 +166,11 @@ function isUniqueConstraintError(error: unknown): boolean {
 
 function mapBrandDomainErrorCode(
   code: string
-): "VALIDATION_FAILED" | "CONFLICT_STATE" {
+): "VALIDATION_FAILED" | "CONFLICT_STATE" | "AUTH_FORBIDDEN" {
+  if (code === "AUTH_FORBIDDEN") {
+    return "AUTH_FORBIDDEN";
+  }
+
   return code === "CONFLICT_STATE" ? "CONFLICT_STATE" : "VALIDATION_FAILED";
 }
 
@@ -375,6 +421,18 @@ export class BrandService {
     return membership.role === "OWNER" || membership.role === "MEMBER";
   }
 
+  private toMembershipState(membership: BrandMembershipRecord | null) {
+    if (!membership) {
+      return null;
+    }
+
+    return {
+      adminId: membership.adminId,
+      role: membership.role,
+      status: membership.status,
+    } as const;
+  }
+
   async createBrand(
     input: CreateBrandServiceInput
   ): Promise<AppResult<BrandCreateResult>> {
@@ -618,6 +676,370 @@ export class BrandService {
         );
       }
 
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async acceptBrandInvitation(
+    input: AcceptBrandInvitationServiceInput
+  ): Promise<AppResult<BrandAcceptInvitationResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    try {
+      const brand = await this.repository.findBrandById(input.brandId);
+      if (!brand) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "BRAND_NOT_FOUND" })
+        );
+      }
+
+      const membership = await this.repository.findMembershipByBrandAndAdmin(
+        input.brandId,
+        actor.content.actorId
+      );
+
+      const decision = acceptBrandInvitationDraft({
+        actorAdminId: actor.content.actorId,
+        invitationMembership: this.toMembershipState(membership),
+      });
+      if (decision.error) {
+        return Result.error(
+          serviceError(
+            mapBrandDomainErrorCode(decision.error.code),
+            decision.error.data
+          )
+        );
+      }
+
+      if (!membership) {
+        return Result.error(
+          serviceError("VALIDATION_FAILED", { reason: "INVITATION_NOT_FOUND" })
+        );
+      }
+
+      const updatedMembership = await this.repository.updateMembershipStatus(
+        membership.id,
+        input.brandId,
+        actor.content.actorId,
+        "ACTIVE"
+      );
+      if (!updatedMembership) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "INVITATION_NOT_PENDING" })
+        );
+      }
+
+      const timestamp = this.now().toISOString();
+      const auditEvent = createAuditEvent({
+        requestId: input.requestId,
+        action: "brand.member_joined",
+        actor: {
+          type: "user",
+          id: actor.content.actorId,
+          role: actor.content.role,
+        },
+        target: {
+          entity: "brand",
+          entityId: brand.id,
+        },
+        safeDetails: {
+          requestId: input.requestId,
+          brandId: brand.id,
+          targetAdminId: updatedMembership.adminId,
+          timestamp,
+        },
+        occurredAt: timestamp,
+      });
+
+      await this.auditPublisher.publish(auditEvent);
+
+      return Result.okay({ membership: updatedMembership });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async requestBrandJoin(
+    input: RequestBrandJoinServiceInput
+  ): Promise<AppResult<BrandRequestJoinResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    try {
+      const brand = await this.repository.findBrandById(input.brandId);
+      if (!brand) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "BRAND_NOT_FOUND" })
+        );
+      }
+
+      const existingMembership =
+        await this.repository.findMembershipByBrandAndAdmin(
+          input.brandId,
+          actor.content.actorId
+        );
+
+      const draft = requestBrandJoinDraft({
+        actorAdminId: actor.content.actorId,
+        existingMembership: this.toMembershipState(existingMembership),
+      });
+      if (draft.error) {
+        return Result.error(
+          serviceError(mapBrandDomainErrorCode(draft.error.code), draft.error.data)
+        );
+      }
+
+      const timestamp = this.now().toISOString();
+      const membership = await this.repository.createBrandMembership({
+        brandId: input.brandId,
+        adminId: draft.content.adminId,
+        role: draft.content.role,
+        status: draft.content.status,
+        invitedByAdminId: draft.content.invitedByAdminId,
+        createdAt: timestamp,
+        updatedAt: timestamp,
+      });
+
+      const auditEvent = createAuditEvent({
+        requestId: input.requestId,
+        action: "brand.member_joined",
+        actor: {
+          type: "user",
+          id: actor.content.actorId,
+          role: actor.content.role,
+        },
+        target: {
+          entity: "brand",
+          entityId: brand.id,
+        },
+        safeDetails: {
+          requestId: input.requestId,
+          brandId: brand.id,
+          targetAdminId: membership.adminId,
+          status: membership.status,
+          timestamp,
+        },
+        occurredAt: timestamp,
+      });
+
+      await this.auditPublisher.publish(auditEvent);
+
+      return Result.okay({ membership });
+    } catch (error) {
+      if (isUniqueConstraintError(error)) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "DUPLICATE_PENDING_REQUEST" })
+        );
+      }
+
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async approveBrandJoinRequest(
+    input: ApproveBrandJoinRequestServiceInput
+  ): Promise<AppResult<BrandApproveJoinRequestResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    try {
+      const brand = await this.repository.findBrandById(input.brandId);
+      if (!brand) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "BRAND_NOT_FOUND" })
+        );
+      }
+
+      const approverMembership = this.hasElevatedPermission(actor.content.role)
+        ? null
+        : await this.repository.findMembershipByBrandAndAdmin(
+            input.brandId,
+            actor.content.actorId
+          );
+      const pendingJoinRequest =
+        await this.repository.findPendingJoinRequestByAdminAndBrand(
+          input.adminId,
+          input.brandId
+        );
+      const targetMembership =
+        pendingJoinRequest ??
+        (await this.repository.findMembershipByBrandAndAdmin(
+          input.brandId,
+          input.adminId
+        ));
+
+      const decision = approveBrandJoinRequestDraft({
+        approverRole: actor.content.role,
+        approverMembership: this.toMembershipState(approverMembership),
+        targetAdminId: input.adminId,
+        joinRequestMembership: this.toMembershipState(targetMembership),
+      });
+      if (decision.error) {
+        return Result.error(
+          serviceError(
+            mapBrandDomainErrorCode(decision.error.code),
+            decision.error.data
+          )
+        );
+      }
+
+      if (!targetMembership) {
+        return Result.error(
+          serviceError("VALIDATION_FAILED", { reason: "JOIN_REQUEST_NOT_FOUND" })
+        );
+      }
+
+      const updatedMembership = await this.repository.updateMembershipStatus(
+        targetMembership.id,
+        input.brandId,
+        input.adminId,
+        "ACTIVE"
+      );
+      if (!updatedMembership) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "JOIN_REQUEST_NOT_PENDING" })
+        );
+      }
+
+      const timestamp = this.now().toISOString();
+      const auditEvent = createAuditEvent({
+        requestId: input.requestId,
+        action: "brand.member_joined",
+        actor: {
+          type: "user",
+          id: actor.content.actorId,
+          role: actor.content.role,
+        },
+        target: {
+          entity: "brand",
+          entityId: brand.id,
+        },
+        safeDetails: {
+          requestId: input.requestId,
+          brandId: brand.id,
+          targetAdminId: updatedMembership.adminId,
+          timestamp,
+        },
+        occurredAt: timestamp,
+      });
+
+      await this.auditPublisher.publish(auditEvent);
+
+      return Result.okay({ membership: updatedMembership });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async rejectBrandJoinRequest(
+    input: RejectBrandJoinRequestServiceInput
+  ): Promise<AppResult<BrandRejectJoinRequestResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    try {
+      const brand = await this.repository.findBrandById(input.brandId);
+      if (!brand) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "BRAND_NOT_FOUND" })
+        );
+      }
+
+      const approverMembership = this.hasElevatedPermission(actor.content.role)
+        ? null
+        : await this.repository.findMembershipByBrandAndAdmin(
+            input.brandId,
+            actor.content.actorId
+          );
+      const pendingJoinRequest =
+        await this.repository.findPendingJoinRequestByAdminAndBrand(
+          input.adminId,
+          input.brandId
+        );
+      const targetMembership =
+        pendingJoinRequest ??
+        (await this.repository.findMembershipByBrandAndAdmin(
+          input.brandId,
+          input.adminId
+        ));
+
+      const decision = rejectBrandJoinRequestDraft({
+        approverRole: actor.content.role,
+        approverMembership: this.toMembershipState(approverMembership),
+        targetAdminId: input.adminId,
+        joinRequestMembership: this.toMembershipState(targetMembership),
+      });
+      if (decision.error) {
+        return Result.error(
+          serviceError(
+            mapBrandDomainErrorCode(decision.error.code),
+            decision.error.data
+          )
+        );
+      }
+
+      if (!targetMembership) {
+        return Result.error(
+          serviceError("VALIDATION_FAILED", { reason: "JOIN_REQUEST_NOT_FOUND" })
+        );
+      }
+
+      const updatedMembership = await this.repository.updateMembershipStatus(
+        targetMembership.id,
+        input.brandId,
+        input.adminId,
+        "REVOKED"
+      );
+      if (!updatedMembership) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "JOIN_REQUEST_NOT_PENDING" })
+        );
+      }
+
+      const timestamp = this.now().toISOString();
+      const auditEvent = createAuditEvent({
+        requestId: input.requestId,
+        action: "brand.member_removed",
+        actor: {
+          type: "user",
+          id: actor.content.actorId,
+          role: actor.content.role,
+        },
+        target: {
+          entity: "brand",
+          entityId: brand.id,
+        },
+        safeDetails: {
+          requestId: input.requestId,
+          brandId: brand.id,
+          targetAdminId: updatedMembership.adminId,
+          status: updatedMembership.status,
+          timestamp,
+        },
+        occurredAt: timestamp,
+      });
+
+      await this.auditPublisher.publish(auditEvent);
+
+      return Result.okay({ membership: updatedMembership });
+    } catch (error) {
       if (providerFailure(error)) {
         return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
       }

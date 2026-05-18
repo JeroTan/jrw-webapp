@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
+  acceptBrandInvitation,
+  approveBrandJoinRequest,
   archiveBrand,
   createBrandInvitation,
   createBrand,
   detectBrandCreateConflict,
   detectBrandUpdateConflict,
+  rejectBrandJoinRequest,
+  requestBrandJoin,
   generateSlug,
   updateBrand,
   validateBrandInvitationTarget,
@@ -357,5 +361,150 @@ describe("brand domain rules", () => {
     expect(alreadyArchived.error?.data).toEqual({
       reason: "ALREADY_ARCHIVED",
     });
+  });
+
+  it("accepts valid pending invitation for current actor", () => {
+    const result = acceptBrandInvitation({
+      actorAdminId: "admin_target",
+      invitationMembership: {
+        adminId: "admin_target",
+        role: "MEMBER",
+        status: "PENDING",
+      },
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.content).toEqual({ newStatus: "ACTIVE" });
+  });
+
+  it("rejects invitation accept when invitation is not pending, revoked, or for different actor", () => {
+    const notPending = acceptBrandInvitation({
+      actorAdminId: "admin_target",
+      invitationMembership: {
+        adminId: "admin_target",
+        role: "MEMBER",
+        status: "ACTIVE",
+      },
+    });
+    expect(notPending.error?.code).toBe("CONFLICT_STATE");
+    expect(notPending.error?.data).toEqual({
+      reason: "INVITATION_NOT_PENDING",
+    });
+
+    const revoked = acceptBrandInvitation({
+      actorAdminId: "admin_target",
+      invitationMembership: {
+        adminId: "admin_target",
+        role: "MEMBER",
+        status: "REVOKED",
+      },
+    });
+    expect(revoked.error?.code).toBe("VALIDATION_FAILED");
+    expect(revoked.error?.data).toEqual({
+      reason: "INVITATION_REVOKED",
+    });
+
+    const wrongActor = acceptBrandInvitation({
+      actorAdminId: "admin_actor",
+      invitationMembership: {
+        adminId: "admin_target",
+        role: "MEMBER",
+        status: "PENDING",
+      },
+    });
+    expect(wrongActor.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(wrongActor.error?.data).toEqual({
+      reason: "INVITATION_NOT_FOR_ACTOR",
+    });
+  });
+
+  it("creates join request draft and blocks duplicate active or pending memberships", () => {
+    const success = requestBrandJoin({
+      actorAdminId: "admin_joiner",
+      existingMembership: null,
+    });
+    expect(success.error).toBeNull();
+    expect(success.content).toEqual({
+      adminId: "admin_joiner",
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: null,
+    });
+
+    const duplicateActive = requestBrandJoin({
+      actorAdminId: "admin_joiner",
+      existingMembership: {
+        adminId: "admin_joiner",
+        role: "MEMBER",
+        status: "ACTIVE",
+      },
+    });
+    expect(duplicateActive.error?.code).toBe("CONFLICT_STATE");
+    expect(duplicateActive.error?.data).toEqual({
+      reason: "DUPLICATE_ACTIVE_MEMBERSHIP",
+    });
+
+    const duplicatePending = requestBrandJoin({
+      actorAdminId: "admin_joiner",
+      existingMembership: {
+        adminId: "admin_joiner",
+        role: "MEMBER",
+        status: "PENDING",
+      },
+    });
+    expect(duplicatePending.error?.code).toBe("CONFLICT_STATE");
+    expect(duplicatePending.error?.data).toEqual({
+      reason: "DUPLICATE_PENDING_REQUEST",
+    });
+  });
+
+  it("approves pending join request for authorized approver and rejects unauthorized approver", () => {
+    const approved = approveBrandJoinRequest({
+      approverRole: "ADMIN",
+      approverMembership: {
+        adminId: "admin_owner",
+        role: "OWNER",
+        status: "ACTIVE",
+      },
+      targetAdminId: "admin_joiner",
+      joinRequestMembership: {
+        adminId: "admin_joiner",
+        role: "MEMBER",
+        status: "PENDING",
+      },
+    });
+    expect(approved.error).toBeNull();
+    expect(approved.content).toEqual({ newStatus: "ACTIVE" });
+
+    const unauthorized = approveBrandJoinRequest({
+      approverRole: "ADMIN",
+      approverMembership: null,
+      targetAdminId: "admin_joiner",
+      joinRequestMembership: {
+        adminId: "admin_joiner",
+        role: "MEMBER",
+        status: "PENDING",
+      },
+    });
+    expect(unauthorized.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(unauthorized.error?.data).toEqual({
+      reason: "APPROVER_NOT_AUTHORIZED",
+    });
+  });
+
+  it("rejects pending join request for authorized approver", () => {
+    const rejected = rejectBrandJoinRequest({
+      approverRole: "SUPER_ADMIN",
+      approverMembership: null,
+      targetAdminId: "admin_joiner",
+      joinRequestMembership: {
+        adminId: "admin_joiner",
+        role: "MEMBER",
+        status: "PENDING",
+      },
+    });
+
+    expect(rejected.error).toBeNull();
+    expect(rejected.content).toEqual({ newStatus: "REVOKED" });
   });
 });

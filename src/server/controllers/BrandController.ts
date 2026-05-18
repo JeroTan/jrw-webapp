@@ -5,14 +5,22 @@ import {
   type ApiResponse,
 } from "@/lib/api/response";
 import type {
+  AcceptBrandInvitationServiceInput,
+  ApproveBrandJoinRequestServiceInput,
   ArchiveBrandServiceInput,
+  BrandAcceptInvitationResult,
+  BrandApproveJoinRequestResult,
   BrandActorInput,
   BrandArchiveResult,
   BrandCreateResult,
   BrandInviteResult,
+  BrandRejectJoinRequestResult,
+  BrandRequestJoinResult,
   BrandUpdateResult,
   CreateBrandServiceInput,
   InviteBrandServiceInput,
+  RejectBrandJoinRequestServiceInput,
+  RequestBrandJoinServiceInput,
   UpdateBrandServiceInput,
 } from "@/server/services/BrandService";
 import type { AppResult } from "@/utils/general/result";
@@ -26,6 +34,18 @@ export type BrandServiceLike = {
   inviteAdminToBrand(
     input: InviteBrandServiceInput
   ): Promise<AppResult<BrandInviteResult>>;
+  acceptBrandInvitation(
+    input: AcceptBrandInvitationServiceInput
+  ): Promise<AppResult<BrandAcceptInvitationResult>>;
+  requestBrandJoin(
+    input: RequestBrandJoinServiceInput
+  ): Promise<AppResult<BrandRequestJoinResult>>;
+  approveBrandJoinRequest(
+    input: ApproveBrandJoinRequestServiceInput
+  ): Promise<AppResult<BrandApproveJoinRequestResult>>;
+  rejectBrandJoinRequest(
+    input: RejectBrandJoinRequestServiceInput
+  ): Promise<AppResult<BrandRejectJoinRequestResult>>;
 };
 
 export type BrandControllerResult<T> = {
@@ -58,6 +78,28 @@ export type InviteBrandControllerInput = {
   brandId: string;
   body: Record<string, unknown>;
 };
+
+export type AcceptBrandInvitationControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+};
+
+export type RequestBrandJoinControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+};
+
+export type ApproveBrandJoinRequestControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+  adminId: string;
+};
+
+export type RejectBrandJoinRequestControllerInput =
+  ApproveBrandJoinRequestControllerInput;
 
 function errorResult<T>(
   result: AppResult<unknown>,
@@ -150,6 +192,74 @@ export class BrandController {
 
     return {
       status: 201,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async acceptBrandInvitation(
+    input: AcceptBrandInvitationControllerInput
+  ): Promise<BrandControllerResult<BrandAcceptInvitationResult>> {
+    const result = await this.service.acceptBrandInvitation(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async requestBrandJoin(
+    input: RequestBrandJoinControllerInput
+  ): Promise<BrandControllerResult<BrandRequestJoinResult>> {
+    const result = await this.service.requestBrandJoin(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 201,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async approveBrandJoinRequest(
+    input: ApproveBrandJoinRequestControllerInput
+  ): Promise<BrandControllerResult<BrandApproveJoinRequestResult>> {
+    const result = await this.service.approveBrandJoinRequest(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async rejectBrandJoinRequest(
+    input: RejectBrandJoinRequestControllerInput
+  ): Promise<BrandControllerResult<BrandRejectJoinRequestResult>> {
+    const result = await this.service.rejectBrandJoinRequest(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
       body: apiSuccessWithRequestId(result.content, input.requestId, {
         code: "SUCCESS",
       }),

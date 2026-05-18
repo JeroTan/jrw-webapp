@@ -5,7 +5,7 @@ export class InventoryDurableObject extends DurableObject {
     super(ctx, env);
   }
 
-  async fetch(request: Request): Promise<Response> {
+  async fetch(_request: Request): Promise<Response> {
     return new Response("Inventory Durable Object");
   }
 }

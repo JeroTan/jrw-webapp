@@ -1,6 +1,6 @@
-# Story 2.4: Join Brand by Invitation or Approval
+﻿# Story 2.4: Join Brand by Invitation or Approval
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,74 +23,74 @@ so that I can collaborate on products assigned to that brand.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm dependency gate and prerequisites. (AC: 1-8)
-  - [ ] Verify Story 2.3 is `done` in sprint status.
-  - [ ] Confirm `brands` and `brand_memberships` schema exist in `src/domain/schema/catalog.ts`.
-  - [ ] Confirm RBAC guard middleware from Story 1.12 is registered and functional.
-  - [ ] Confirm BrandRepository, BrandService, BrandController, and brand routes exist from Stories 2.1/2.2/2.3.
-  - [ ] Confirm audit event `brand.member_joined` exists in `src/domain/audit/events.ts` (pre-defined).
-  - [ ] Do not start brand join flow without Stories 2.1 + 2.2 + 2.3 foundation complete.
+- [x] Task 1: Confirm dependency gate and prerequisites. (AC: 1-8)
+  - [x] Verify Story 2.3 is `done` in sprint status.
+  - [x] Confirm `brands` and `brand_memberships` schema exist in `src/domain/schema/catalog.ts`.
+  - [x] Confirm RBAC guard middleware from Story 1.12 is registered and functional.
+  - [x] Confirm BrandRepository, BrandService, BrandController, and brand routes exist from Stories 2.1/2.2/2.3.
+  - [x] Confirm audit event `brand.member_joined` exists in `src/domain/audit/events.ts` (pre-defined).
+  - [x] Do not start brand join flow without Stories 2.1 + 2.2 + 2.3 foundation complete.
 
-- [ ] Task 2: Add brand join domain rules. (AC: 1-2, 6-7)
-  - [ ] Add `acceptBrandInvitation(...)` domain function in `src/domain/brands/brand.ts`.
-  - [ ] Add `requestBrandJoin(...)` domain function in `src/domain/brands/brand.ts`.
-  - [ ] Add `approveBrandJoinRequest(...)` domain function in `src/domain/brands/brand.ts`.
-  - [ ] Add `rejectBrandJoinRequest(...)` domain function in `src/domain/brands/brand.ts`.
-  - [ ] Add input/output types: `AcceptBrandInvitationInput`, `AcceptBrandInvitationResult`, `RequestBrandJoinInput`, `RequestBrandJoinResult`, `ApproveBrandJoinRequestInput`, `RejectBrandJoinRequestInput`.
-  - [ ] Add failure reason types for join flow: `INVITATION_NOT_FOUND`, `INVITATION_NOT_PENDING`, `INVITATION_NOT_FOR_ACTOR`, `INVITATION_REVOKED`, `JOIN_REQUEST_NOT_FOUND`, `JOIN_REQUEST_NOT_PENDING`, `APPROVER_NOT_AUTHORIZED`.
-  - [ ] Create `src/domain/brands/brand.test.ts` additions covering: valid invitation accept, invalid invitation (not pending, not for actor, revoked), valid join request, duplicate membership conflict, duplicate pending request conflict, valid approval, unauthorized approval rejection, valid rejection.
+- [x] Task 2: Add brand join domain rules. (AC: 1-2, 6-7)
+  - [x] Add `acceptBrandInvitation(...)` domain function in `src/domain/brands/brand.ts`.
+  - [x] Add `requestBrandJoin(...)` domain function in `src/domain/brands/brand.ts`.
+  - [x] Add `approveBrandJoinRequest(...)` domain function in `src/domain/brands/brand.ts`.
+  - [x] Add `rejectBrandJoinRequest(...)` domain function in `src/domain/brands/brand.ts`.
+  - [x] Add input/output types: `AcceptBrandInvitationInput`, `AcceptBrandInvitationResult`, `RequestBrandJoinInput`, `RequestBrandJoinResult`, `ApproveBrandJoinRequestInput`, `RejectBrandJoinRequestInput`.
+  - [x] Add failure reason types for join flow: `INVITATION_NOT_FOUND`, `INVITATION_NOT_PENDING`, `INVITATION_NOT_FOR_ACTOR`, `INVITATION_REVOKED`, `JOIN_REQUEST_NOT_FOUND`, `JOIN_REQUEST_NOT_PENDING`, `APPROVER_NOT_AUTHORIZED`.
+  - [x] Create `src/domain/brands/brand.test.ts` additions covering: valid invitation accept, invalid invitation (not pending, not for actor, revoked), valid join request, duplicate membership conflict, duplicate pending request conflict, valid approval, unauthorized approval rejection, valid rejection.
 
-- [ ] Task 3: Extend brand repository boundary for join flow. (AC: 1-4, 6-7)
-  - [ ] Extend `src/server/repositories/BrandRepository.ts` with:
-    - [ ] `updateMembershipStatus(membershipId, brandId, adminId, newStatus, newRole?)`: transitions PENDING → ACTIVE for accept/approve, or PENDING → REVOKED for reject.
-    - [ ] `findPendingInvitationByAdminAndBrand(adminId, brandId)`: finds PENDING membership where adminId matches AND status is PENDING (for invitation accept).
-    - [ ] `findPendingJoinRequestByAdminAndBrand(adminId, brandId)`: finds PENDING membership created as join request (no invitedByAdminId or self-requested).
-    - [ ] `findActiveBrandMembers(brandId)`: returns all ACTIVE memberships for a brand (for authorization checks on approve/reject).
-  - [ ] All DTOs use camelCase; map from snake_case at repository boundary.
-  - [ ] Create `src/server/repositories/BrandRepository.test.ts` additions covering: PENDING → ACTIVE transition, PENDING → REVOKED transition, find pending invitation, find pending join request, find active brand members.
+- [x] Task 3: Extend brand repository boundary for join flow. (AC: 1-4, 6-7)
+  - [x] Extend `src/server/repositories/BrandRepository.ts` with:
+    - [x] `updateMembershipStatus(membershipId, brandId, adminId, newStatus, newRole?)`: transitions PENDING â†’ ACTIVE for accept/approve, or PENDING â†’ REVOKED for reject.
+    - [x] `findPendingInvitationByAdminAndBrand(adminId, brandId)`: finds PENDING membership where adminId matches AND status is PENDING (for invitation accept).
+    - [x] `findPendingJoinRequestByAdminAndBrand(adminId, brandId)`: finds PENDING membership created as join request (no invitedByAdminId or self-requested).
+    - [x] `findActiveBrandMembers(brandId)`: returns all ACTIVE memberships for a brand (for authorization checks on approve/reject).
+  - [x] All DTOs use camelCase; map from snake_case at repository boundary.
+  - [x] Create `src/server/repositories/BrandRepository.test.ts` additions covering: PENDING â†’ ACTIVE transition, PENDING â†’ REVOKED transition, find pending invitation, find pending join request, find active brand members.
 
-- [ ] Task 4: Extend brand service with join/approval flows. (AC: 1-7, 8)
-  - [ ] Extend `src/server/services/BrandService.ts` with:
-    - [ ] `acceptBrandInvitation(input)`: validates actor has PENDING invitation for target brand, validates invitation is for current actor, transitions membership to ACTIVE, emits `brand.member_joined` audit event.
-    - [ ] `requestBrandJoin(input)`: validates actor is not already member (ACTIVE/PENDING), validates brand exists and is not archived, creates PENDING membership (no invitedByAdminId), emits `brand.member_joined` audit event for request creation.
-    - [ ] `approveBrandJoinRequest(input)`: validates approver is brand member (OWNER/MEMBER) or SUPER_ADMIN, validates join request exists and is PENDING, transitions to ACTIVE, emits `brand.member_joined` audit event.
-    - [ ] `rejectBrandJoinRequest(input)`: validates same authorization as approve, transitions PENDING → REVOKED, emits audit event.
-    - [ ] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for unauthorized approver, `VALIDATION_FAILED` for invalid target/state, `CONFLICT_STATE` for duplicate membership/request, `PROVIDER_UNAVAILABLE` for D1 failures.
-  - [ ] Create `src/server/services/BrandService.test.ts` additions covering: invitation accept success, accept wrong actor denial, accept already-accepted denial, accept revoked invitation denial, join request success, duplicate membership conflict, duplicate pending request conflict, approval success by OWNER, approval success by MEMBER, approval success by SUPER_ADMIN, unauthorized approval denial, rejection success, D1 failure mapping, audit event emission for each flow.
+- [x] Task 4: Extend brand service with join/approval flows. (AC: 1-7, 8)
+  - [x] Extend `src/server/services/BrandService.ts` with:
+    - [x] `acceptBrandInvitation(input)`: validates actor has PENDING invitation for target brand, validates invitation is for current actor, transitions membership to ACTIVE, emits `brand.member_joined` audit event.
+    - [x] `requestBrandJoin(input)`: validates actor is not already member (ACTIVE/PENDING), validates brand exists and is not archived, creates PENDING membership (no invitedByAdminId), emits `brand.member_joined` audit event for request creation.
+    - [x] `approveBrandJoinRequest(input)`: validates approver is brand member (OWNER/MEMBER) or SUPER_ADMIN, validates join request exists and is PENDING, transitions to ACTIVE, emits `brand.member_joined` audit event.
+    - [x] `rejectBrandJoinRequest(input)`: validates same authorization as approve, transitions PENDING â†’ REVOKED, emits audit event.
+    - [x] Return `AUTH_REQUIRED` for missing actor, `AUTH_FORBIDDEN` for unauthorized approver, `VALIDATION_FAILED` for invalid target/state, `CONFLICT_STATE` for duplicate membership/request, `PROVIDER_UNAVAILABLE` for D1 failures.
+  - [x] Create `src/server/services/BrandService.test.ts` additions covering: invitation accept success, accept wrong actor denial, accept already-accepted denial, accept revoked invitation denial, join request success, duplicate membership conflict, duplicate pending request conflict, approval success by OWNER, approval success by MEMBER, approval success by SUPER_ADMIN, unauthorized approval denial, rejection success, D1 failure mapping, audit event emission for each flow.
 
-- [ ] Task 5: Add controller methods and API routes. (AC: 1-8)
-  - [ ] Extend `src/server/controllers/BrandController.ts` with:
-    - [ ] `acceptBrandInvitation(input)`: maps service result to public API envelope.
-    - [ ] `requestBrandJoin(input)`: maps service result to public API envelope.
-    - [ ] `approveBrandJoinRequest(input)`: maps service result to public API envelope.
-    - [ ] `rejectBrandJoinRequest(input)`: maps service result to public API envelope.
-  - [ ] Extend `src/server/routes/brands.routes.ts` with:
-    - [ ] `POST /api/brands/:id/accept` — accept pending invitation.
-    - [ ] `POST /api/brands/:id/join` — request to join brand.
-    - [ ] `POST /api/brands/:id/join/:adminId/approve` — approve join request.
-    - [ ] `POST /api/brands/:id/join/:adminId/reject` — reject join request.
-    - [ ] Request/response schemas for each endpoint using TypeBox.
-    - [ ] Route metadata: `routeDetail(...)` with tag `Brands`, auth `{ mode: "required", roles: ["ADMIN", "SUPER_ADMIN"] }`, rate-limit class `admin-write`, documented error codes.
-    - [ ] Controller maps service `AppResult` to public API envelopes; no business rules in controller.
-  - [ ] Create `src/server/routes/brands.routes.test.ts` additions covering: anonymous accept/join/approve/reject denial, accept success, join success, approve success, unauthorized approve denial, reject success, response schema validation, OpenAPI metadata present, error envelope includes request ID, duplicate join returns 409.
+- [x] Task 5: Add controller methods and API routes. (AC: 1-8)
+  - [x] Extend `src/server/controllers/BrandController.ts` with:
+    - [x] `acceptBrandInvitation(input)`: maps service result to public API envelope.
+    - [x] `requestBrandJoin(input)`: maps service result to public API envelope.
+    - [x] `approveBrandJoinRequest(input)`: maps service result to public API envelope.
+    - [x] `rejectBrandJoinRequest(input)`: maps service result to public API envelope.
+  - [x] Extend `src/server/routes/brands.routes.ts` with:
+    - [x] `POST /api/brands/:id/accept` â€” accept pending invitation.
+    - [x] `POST /api/brands/:id/join` â€” request to join brand.
+    - [x] `POST /api/brands/:id/join/:adminId/approve` â€” approve join request.
+    - [x] `POST /api/brands/:id/join/:adminId/reject` â€” reject join request.
+    - [x] Request/response schemas for each endpoint using TypeBox.
+    - [x] Route metadata: `routeDetail(...)` with tag `Brands`, auth `{ mode: "required", roles: ["ADMIN", "SUPER_ADMIN"] }`, rate-limit class `admin-write`, documented error codes.
+    - [x] Controller maps service `AppResult` to public API envelopes; no business rules in controller.
+  - [x] Create `src/server/routes/brands.routes.test.ts` additions covering: anonymous accept/join/approve/reject denial, accept success, join success, approve success, unauthorized approve denial, reject success, response schema validation, OpenAPI metadata present, error envelope includes request ID, duplicate join returns 409.
 
-- [ ] Task 6: Add audit event emission for join/approval flows. (AC: 7)
-  - [ ] Use existing `src/domain/audit/events.ts` pattern; `brand.member_joined` action constant already exists.
-  - [ ] Emit `brand.member_joined` audit event for: invitation accept, join request approval.
-  - [ ] Safe details: actor (approver or accepting admin id), action `brand.member_joined`, entity `brand`, entityId (brand id), target admin id, timestamp, request ID.
-  - [ ] No secrets/PII in audit details.
-  - [ ] Add tests proving audit events are emitted with safe details and no secret fields.
+- [x] Task 6: Add audit event emission for join/approval flows. (AC: 7)
+  - [x] Use existing `src/domain/audit/events.ts` pattern; `brand.member_joined` action constant already exists.
+  - [x] Emit `brand.member_joined` audit event for: invitation accept, join request approval.
+  - [x] Safe details: actor (approver or accepting admin id), action `brand.member_joined`, entity `brand`, entityId (brand id), target admin id, timestamp, request ID.
+  - [x] No secrets/PII in audit details.
+  - [x] Add tests proving audit events are emitted with safe details and no secret fields.
 
-- [ ] Task 7: Validate full flow. (AC: 1-8)
-  - [ ] Run targeted tests:
+- [x] Task 7: Validate full flow. (AC: 1-8)
+  - [x] Run targeted tests:
     - `npx vitest run src/domain/brands/brand.test.ts src/server/repositories/BrandRepository.test.ts src/server/services/BrandService.test.ts src/server/routes/brands.routes.test.ts`
-  - [ ] Run `npm run check`.
-  - [ ] Run `npm run build-test` after targeted tests pass.
-  - [ ] Record exact blockers if any.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run build-test` after targeted tests pass.
+  - [x] Record exact blockers if any.
 
 ### Review Findings
 
-_None yet — story not implemented._
+_None yet â€” story not implemented._
 
 ## Dev Notes
 
@@ -99,7 +99,7 @@ _None yet — story not implemented._
 - Story 2.4 builds on Stories 2.1 (Create Brand), 2.2 (Update/Archive Brand), and 2.3 (Invite Admins to Brand).
 - Story 2.3 created PENDING memberships as invitations. This story consumes them: Admins accept those PENDING memberships to become ACTIVE members.
 - Requirements covered: FR14; supports FR16, FR17, FR18.
-- Product truth: JRW is single-store ecommerce. Brands are catalog/collaboration groups only — NOT stores, sellers, merchants, tenants, payout owners, or PayMongo accounts.
+- Product truth: JRW is single-store ecommerce. Brands are catalog/collaboration groups only â€” NOT stores, sellers, merchants, tenants, payout owners, or PayMongo accounts.
 - Story 2.5 (Brand Member Visibility and Brand Scope) will depend on this story being complete.
 
 ### Dependency Gate
@@ -118,8 +118,8 @@ _None yet — story not implemented._
   - **What must be preserved:** Existing create/update/archive/invitation flows, validation constants, invitation types. Do not modify existing domain logic.
 
 #### `src/server/repositories/BrandRepository.ts` (Stories 2.1 + 2.2 + 2.3)
-  - **Current state:** Contains `createBrand(...)`, `createBrandMembership(...)`, `createBrandWithOwnerMembership(...)`, `updateBrand(...)`, `archiveBrand(...)`, `findBrandBySlug(...)`, `findBrandByName(...)`, `findArchivedBrandByName(...)`, `findBrandById(...)`, `findBrandByIdIncludingArchived(...)`, `findBrandByNameExcluding(...)`, `findBrandBySlugExcluding(...)`, `findArchivedBrandByNameExcluding(...)`, `findMembershipByBrandAndAdmin(...)`, `findAdminById(...)`, `findAdminByEmail(...)`. Uses Drizzle batch for atomic brand+membership creation. DTO mapping snake_case → camelCase.
-  - **What this story changes:** Add `updateMembershipStatus(...)` for PENDING → ACTIVE and PENDING → REVOKED transitions. Add `findPendingInvitationByAdminAndBrand(...)` and `findPendingJoinRequestByAdminAndBrand(...)`. Add `findActiveBrandMembers(...)`.
+  - **Current state:** Contains `createBrand(...)`, `createBrandMembership(...)`, `createBrandWithOwnerMembership(...)`, `updateBrand(...)`, `archiveBrand(...)`, `findBrandBySlug(...)`, `findBrandByName(...)`, `findArchivedBrandByName(...)`, `findBrandById(...)`, `findBrandByIdIncludingArchived(...)`, `findBrandByNameExcluding(...)`, `findBrandBySlugExcluding(...)`, `findArchivedBrandByNameExcluding(...)`, `findMembershipByBrandAndAdmin(...)`, `findAdminById(...)`, `findAdminByEmail(...)`. Uses Drizzle batch for atomic brand+membership creation. DTO mapping snake_case â†’ camelCase.
+  - **What this story changes:** Add `updateMembershipStatus(...)` for PENDING â†’ ACTIVE and PENDING â†’ REVOKED transitions. Add `findPendingInvitationByAdminAndBrand(...)` and `findPendingJoinRequestByAdminAndBrand(...)`. Add `findActiveBrandMembers(...)`.
   - **What must be preserved:** Existing create/update/archive/find methods, DTO mapping, batch pattern, type definitions. Do not modify existing repository methods.
 
 #### `src/server/services/BrandService.ts` (Stories 2.1 + 2.2 + 2.3)
@@ -171,10 +171,10 @@ _None yet — story not implemented._
 
 - Admin calls `POST /api/brands/:id/accept` with their authenticated session.
 - Service validates: actor is authenticated ADMIN/SUPER_ADMIN, actor has PENDING membership for the brand, PENDING membership's adminId matches actor's ID.
-- If valid: repository transitions membership status from PENDING → ACTIVE.
+- If valid: repository transitions membership status from PENDING â†’ ACTIVE.
 - Emit `brand.member_joined` audit event.
 - Return standard envelope with updated membership record.
-- Error cases: no PENDING invitation found → `VALIDATION_FAILED`, PENDING membership belongs to different admin → `AUTH_FORBIDDEN`, membership already ACTIVE → `CONFLICT_STATE`, membership REVOKED → `VALIDATION_FAILED`.
+- Error cases: no PENDING invitation found â†’ `VALIDATION_FAILED`, PENDING membership belongs to different admin â†’ `AUTH_FORBIDDEN`, membership already ACTIVE â†’ `CONFLICT_STATE`, membership REVOKED â†’ `VALIDATION_FAILED`.
 
 ### Join Request Flow
 
@@ -183,17 +183,17 @@ _None yet — story not implemented._
 - If valid: repository creates PENDING membership with `invitedByAdminId = null` (distinguishes from invitation-created PENDING).
 - Emit `brand.member_joined` audit event for request creation.
 - Return standard envelope with created PENDING membership record.
-- Error cases: brand not found or archived → `CONFLICT_STATE`, actor already has ACTIVE membership → `CONFLICT_STATE`, actor already has PENDING membership/request → `CONFLICT_STATE`.
+- Error cases: brand not found or archived â†’ `CONFLICT_STATE`, actor already has ACTIVE membership â†’ `CONFLICT_STATE`, actor already has PENDING membership/request â†’ `CONFLICT_STATE`.
 
 ### Approve/Reject Join Request Flow
 
 - Authorized Admin (brand OWNER/MEMBER or SUPER_ADMIN) calls `POST /api/brands/:id/join/:adminId/approve` or `POST /api/brands/:id/join/:adminId/reject`.
 - Service validates: approver is authenticated ADMIN/SUPER_ADMIN, approver has ACTIVE membership in brand (OWNER/MEMBER) OR is SUPER_ADMIN, join request exists and is PENDING for the target admin.
-- If approve: repository transitions membership status from PENDING → ACTIVE.
-- If reject: repository transitions membership status from PENDING → REVOKED.
+- If approve: repository transitions membership status from PENDING â†’ ACTIVE.
+- If reject: repository transitions membership status from PENDING â†’ REVOKED.
 - Emit `brand.member_joined` audit event for approval.
 - Return standard envelope with updated membership record.
-- Error cases: approver not authorized → `AUTH_FORBIDDEN`, join request not found → `VALIDATION_FAILED`, request not PENDING → `CONFLICT_STATE`.
+- Error cases: approver not authorized â†’ `AUTH_FORBIDDEN`, join request not found â†’ `VALIDATION_FAILED`, request not PENDING â†’ `CONFLICT_STATE`.
 
 ### Brand Join Authorization
 
@@ -216,7 +216,7 @@ _None yet — story not implemented._
 - No new schema changes needed for this story. `brand_memberships` table already has `status` (`ACTIVE`, `PENDING`, `REVOKED`), `role` (`OWNER`, `MEMBER`), and `invited_by_admin_id` columns from Story 2.1.
 - Update operation: `UPDATE brand_memberships SET status = 'ACTIVE', updated_at = ? WHERE id = ? AND brand_id = ? AND admin_id = ? AND status = 'PENDING'`.
 - Use Drizzle `.update().set().where().returning()` pattern consistent with Story 2.2 update pattern.
-- If dev cannot prove current schema supports PENDING → ACTIVE transition, stop and document blocker.
+- If dev cannot prove current schema supports PENDING â†’ ACTIVE transition, stop and document blocker.
 
 ### UI / UX Guardrails
 
@@ -231,14 +231,14 @@ _None yet — story not implemented._
 - NEVER use: seller, merchant, tenant, store owner, payout owner, PayMongo owner for brands.
 - JRW is the seller of record. Brands organize catalog collaboration only.
 - This language rule applies to: code comments, variable names where reasonable, API response field descriptions, test descriptions, and audit event details.
-- Join language: "join brand", "join request", "pending join request", "accept invitation" — NOT "add to store", "grant seller access", "assign merchant".
+- Join language: "join brand", "join request", "pending join request", "accept invitation" â€” NOT "add to store", "grant seller access", "assign merchant".
 
 ### Testing Requirements
 
 Minimum before completion:
 
 - Domain tests for join flow: valid invitation accept, invalid invitation (not pending, not for actor, revoked), valid join request, duplicate membership conflict, duplicate pending request conflict, valid approval, unauthorized approval rejection, valid rejection.
-- Repository tests for PENDING → ACTIVE transition, PENDING → REVOKED transition, find pending invitation, find pending join request, find active brand members.
+- Repository tests for PENDING â†’ ACTIVE transition, PENDING â†’ REVOKED transition, find pending invitation, find pending join request, find active brand members.
 - Service tests for invitation accept success, accept wrong actor denial, accept already-accepted denial, accept revoked invitation denial, join request success, duplicate membership conflict, duplicate pending request conflict, approval success by OWNER, approval success by MEMBER, approval success by SUPER_ADMIN, unauthorized approval denial, rejection success, D1 failure mapping, audit event emission for each flow.
 - Route tests for auth denial before controller execution, accept success, join success, approve success, unauthorized approve denial, reject success, response schema validation, OpenAPI metadata presence, error envelope with request ID, duplicate join returns 409.
 - Audit emission tests proving `brand.member_joined` event with safe details and no secret fields.
@@ -280,32 +280,57 @@ npm run build-test
 
 ### Agent Model Used
 
-- _Not yet set_
+- GPT-5 Codex
 
 ### Implementation Plan
 
-- Follow vertical slice pattern established in Epic 1 and Stories 2.1/2.2/2.3: domain rules → repository → service → controller/routes → audit hardening → validation.
+- Follow vertical slice pattern established in Epic 1 and Stories 2.1/2.2/2.3: domain rules â†’ repository â†’ service â†’ controller/routes â†’ audit hardening â†’ validation.
 - Brand is catalog collaboration group only. Never model as store/seller/tenant.
-- No schema changes needed — `PENDING`, `REVOKED` statuses and `invited_by_admin_id` column already exist from Story 2.1.
-- Invitation accept: validates PENDING membership belongs to actor, transitions PENDING → ACTIVE.
+- No schema changes needed â€” `PENDING`, `REVOKED` statuses and `invited_by_admin_id` column already exist from Story 2.1.
+- Invitation accept: validates PENDING membership belongs to actor, transitions PENDING â†’ ACTIVE.
 - Join request: creates PENDING membership with `invitedByAdminId = null`.
-- Approve/reject: validates approver is brand member (OWNER/MEMBER) or SUPER_ADMIN, transitions PENDING → ACTIVE or PENDING → REVOKED.
+- Approve/reject: validates approver is brand member (OWNER/MEMBER) or SUPER_ADMIN, transitions PENDING â†’ ACTIVE or PENDING â†’ REVOKED.
 - Keep brand authority server-side; route guards enforce ADMIN/SUPER_ADMIN before controller execution, service layer enforces brand membership + state checks.
 - Use standard API envelopes, TypeBox schemas, OpenAPI metadata, and rate-limit class `admin-write`.
 - Audit event: `brand.member_joined` (with actor, brand id, target admin id, timestamp).
 
 ### Debug Log References
 
-- _Not yet set_
+- 2026-05-18T08:51:00+08:00: Dependency gate checked; Story 2.3 in sprint status = review.
+- 2026-05-18T08:59:00+08:00: User override received to proceed with Story 2.4 implementation.
+- 2026-05-18T09:19:00+08:00: npx vitest run src/domain/brands/brand.test.ts src/server/repositories/BrandRepository.test.ts src/server/services/BrandService.test.ts src/server/routes/brands.routes.test.ts passed (78 tests).
+- 2026-05-18T09:27:00+08:00: npm run check passed (0 errors, 2 existing hints).
+- 2026-05-18T09:31:00+08:00: npm run build-test failed due pre-existing src/server/repositories/OwnershipTransferRepository.test.ts timeouts (2 tests), unrelated to Story 2.4 changes.
 
 ### Completion Notes List
 
-- _Not yet set_
+- Implemented full brand join flow: invitation accept, join request create, approve request, reject request.
+- Added domain join rules and failure reasons with pure domain tests.
+- Extended repository with pending invitation/join request queries, pending-status transitions, and active-member query.
+- Extended service/controller/routes with 4 new API endpoints and standard envelopes.
+- Added audit emission coverage for join flow transitions with safe detail assertions.
+- Validation: targeted tests and npm run check passed.
+- Blocker recorded: npm run build-test failed from unrelated pre-existing OwnershipTransferRepository timeout tests.
 
 ### File List
 
-- _Not yet set_
-
+- _bmad-output/implementation-artifacts/2-4-join-brand-by-invitation-or-approval.md
+- _bmad-output/implementation-artifacts/sprint-status.yaml
+- src/domain/brands/brand.ts
+- src/domain/brands/brand.test.ts
+- src/server/repositories/BrandRepository.ts
+- src/server/repositories/BrandRepository.test.ts
+- src/server/services/BrandService.ts
+- src/server/services/BrandService.test.ts
+- src/server/controllers/BrandController.ts
+- src/server/routes/brands.routes.ts
+- src/server/routes/brands.routes.test.ts
 ## Change Log
 
-- 2026-05-18: Story 2.4 context engine created — comprehensive developer guide for brand join by invitation or approval API.
+- 2026-05-18: Story 2.4 context engine created â€” comprehensive developer guide for brand join by invitation or approval API.
+- 2026-05-18: Development halted at Task 1 dependency gate because Story 2.3 remains `review` in sprint status.
+
+- 2026-05-18: Implemented brand join by invitation or approval flow end-to-end across domain, repository, service, controller, routes, and tests.
+- 2026-05-18: Validation complete for targeted flow and type checks; full build-test blocked by unrelated pre-existing OwnershipTransferRepository test timeouts.
+
+

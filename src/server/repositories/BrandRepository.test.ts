@@ -473,4 +473,92 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
       await mf.dispose();
     }
   });
+
+  it("transitions pending memberships and resolves pending invitation/join request and active members", async () => {
+    const { d1, mf } = await createBrandTestD1();
+
+    try {
+      const repository = new DrizzleBrandRepository(createDb(d1));
+      const brand = await repository.createBrand(
+        {
+          name: "JRW Membership Flow",
+          slug: "jrw-membership-flow",
+          description: null,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+
+      const invitationMembership = await repository.createBrandMembership({
+        brandId: brand.id,
+        adminId: "admin_owner",
+        role: "MEMBER",
+        status: "PENDING",
+        invitedByAdminId: "admin_1",
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const joinRequestMembership = await repository.createBrandMembership({
+        brandId: brand.id,
+        adminId: "admin_1",
+        role: "MEMBER",
+        status: "PENDING",
+        invitedByAdminId: null,
+        createdAt: now,
+        updatedAt: now,
+      });
+
+      const pendingInvitation =
+        await repository.findPendingInvitationByAdminAndBrand(
+          "admin_owner",
+          brand.id
+        );
+      expect(pendingInvitation?.id).toBe(invitationMembership.id);
+
+      const pendingJoinRequest =
+        await repository.findPendingJoinRequestByAdminAndBrand(
+          "admin_1",
+          brand.id
+        );
+      expect(pendingJoinRequest?.id).toBe(joinRequestMembership.id);
+
+      const activatedMembership = await repository.updateMembershipStatus(
+        invitationMembership.id,
+        brand.id,
+        "admin_owner",
+        "ACTIVE"
+      );
+      expect(activatedMembership?.status).toBe("ACTIVE");
+
+      const revokedMembership = await repository.updateMembershipStatus(
+        joinRequestMembership.id,
+        brand.id,
+        "admin_1",
+        "REVOKED"
+      );
+      expect(revokedMembership?.status).toBe("REVOKED");
+
+      const repeatTransition = await repository.updateMembershipStatus(
+        invitationMembership.id,
+        brand.id,
+        "admin_owner",
+        "ACTIVE"
+      );
+      expect(repeatTransition).toBeNull();
+
+      const activeMembers = await repository.findActiveBrandMembers(brand.id);
+      expect(activeMembers).toEqual([
+        expect.objectContaining({
+          id: invitationMembership.id,
+          adminId: "admin_owner",
+          status: "ACTIVE",
+        }),
+      ]);
+    } finally {
+      await mf.dispose();
+    }
+  });
 });

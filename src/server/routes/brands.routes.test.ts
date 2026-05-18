@@ -72,6 +72,10 @@ describe("brands routes", () => {
     const post = body.paths?.["/api/brands"]?.post;
     const patch = body.paths?.["/api/brands/{id}"]?.patch;
     const invite = body.paths?.["/api/brands/{id}/invite"]?.post;
+    const accept = body.paths?.["/api/brands/{id}/accept"]?.post;
+    const join = body.paths?.["/api/brands/{id}/join"]?.post;
+    const approve = body.paths?.["/api/brands/{id}/join/{adminId}/approve"]?.post;
+    const reject = body.paths?.["/api/brands/{id}/join/{adminId}/reject"]?.post;
     const archive = body.paths?.["/api/brands/{id}/archive"]?.post;
 
     expect(post?.summary).toBe("Create brand");
@@ -118,6 +122,42 @@ describe("brands routes", () => {
       ])
     );
     expect(invite?.responses).toHaveProperty("409");
+
+    expect(accept?.summary).toBe("Accept brand invitation");
+    expect(accept?.tags).toContain("Brands");
+    expect(accept?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(accept?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(accept?.responses).toHaveProperty("409");
+
+    expect(join?.summary).toBe("Request brand join");
+    expect(join?.tags).toContain("Brands");
+    expect(join?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(join?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(join?.responses).toHaveProperty("409");
+
+    expect(approve?.summary).toBe("Approve brand join request");
+    expect(approve?.tags).toContain("Brands");
+    expect(approve?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(approve?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(approve?.responses).toHaveProperty("409");
+
+    expect(reject?.summary).toBe("Reject brand join request");
+    expect(reject?.tags).toContain("Brands");
+    expect(reject?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(reject?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(reject?.responses).toHaveProperty("409");
 
     expect(archive?.summary).toBe("Archive brand");
     expect(archive?.tags).toContain("Brands");
@@ -362,6 +402,348 @@ describe("brands routes", () => {
         code: "CONFLICT_STATE",
         details: {
           requestId: "req_brand_invite_conflict",
+        },
+      },
+    });
+  });
+
+  it("denies anonymous accept/join/approve/reject before controller execution", async () => {
+    const cases = [
+      {
+        url: "https://jrw.test/api/brands/brand_1/accept",
+        requestId: "req_brand_accept_anonymous",
+      },
+      {
+        url: "https://jrw.test/api/brands/brand_1/join",
+        requestId: "req_brand_join_anonymous",
+      },
+      {
+        url: "https://jrw.test/api/brands/brand_1/join/admin_2/approve",
+        requestId: "req_brand_approve_anonymous",
+      },
+      {
+        url: "https://jrw.test/api/brands/brand_1/join/admin_2/reject",
+        requestId: "req_brand_reject_anonymous",
+      },
+    ] as const;
+
+    for (const testCase of cases) {
+      let controllerCalls = 0;
+      const app = createApp({
+        routes: {
+          brands: {
+            controllerFactory: () => {
+              controllerCalls += 1;
+              return createController({
+                requestBrandJoin: async () =>
+                  Result.okay({
+                    membership: {
+                      id: "bm_1",
+                      brandId: "brand_1",
+                      adminId: "admin_2",
+                      role: "MEMBER",
+                      status: "PENDING",
+                      invitedByAdminId: null,
+                      createdAt: now,
+                      updatedAt: now,
+                    },
+                  }),
+              });
+            },
+          },
+        },
+      });
+
+      const response = await app.handle(
+        new Request(testCase.url, {
+          method: "POST",
+          headers: {
+            "x-request-id": testCase.requestId,
+          },
+        })
+      );
+
+      expect(response.status).toBe(401);
+      await expect(response.json()).resolves.toMatchObject({
+        error: {
+          code: "AUTH_REQUIRED",
+          details: { requestId: testCase.requestId },
+        },
+      });
+      expect(controllerCalls).toBe(0);
+    }
+  });
+
+  it("accepts brand invitation with standard success envelope", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              acceptBrandInvitation: async () =>
+                Result.okay({
+                  membership: {
+                    id: "bm_1",
+                    brandId: "brand_1",
+                    adminId: "admin_1",
+                    role: "MEMBER",
+                    status: "ACTIVE",
+                    invitedByAdminId: "admin_owner",
+                    createdAt: now,
+                    updatedAt: now,
+                  },
+                }),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/accept", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_brand_accept_success",
+        },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        membership: {
+          id: "bm_1",
+          brandId: "brand_1",
+          adminId: "admin_1",
+          status: "ACTIVE",
+        },
+      },
+      meta: { requestId: "req_brand_accept_success" },
+    });
+  });
+
+  it("creates brand join request with standard success envelope", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              requestBrandJoin: async () =>
+                Result.okay({
+                  membership: {
+                    id: "bm_2",
+                    brandId: "brand_1",
+                    adminId: "admin_1",
+                    role: "MEMBER",
+                    status: "PENDING",
+                    invitedByAdminId: null,
+                    createdAt: now,
+                    updatedAt: now,
+                  },
+                }),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/join", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_brand_join_success",
+        },
+      })
+    );
+
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        membership: {
+          id: "bm_2",
+          brandId: "brand_1",
+          adminId: "admin_1",
+          status: "PENDING",
+        },
+      },
+      meta: { requestId: "req_brand_join_success" },
+    });
+  });
+
+  it("approves brand join request and returns forbidden for unauthorized approver", async () => {
+    const successApp = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              approveBrandJoinRequest: async () =>
+                Result.okay({
+                  membership: {
+                    id: "bm_3",
+                    brandId: "brand_1",
+                    adminId: "admin_2",
+                    role: "MEMBER",
+                    status: "ACTIVE",
+                    invitedByAdminId: null,
+                    createdAt: now,
+                    updatedAt: now,
+                  },
+                }),
+            }),
+        },
+      },
+    });
+
+    const success = await successApp.handle(
+      new Request("https://jrw.test/api/brands/brand_1/join/admin_2/approve", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_brand_approve_success",
+        },
+      })
+    );
+
+    expect(success.status).toBe(200);
+    await expect(success.json()).resolves.toMatchObject({
+      data: {
+        membership: {
+          adminId: "admin_2",
+          status: "ACTIVE",
+        },
+      },
+      meta: { requestId: "req_brand_approve_success" },
+    });
+
+    const forbiddenApp = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              approveBrandJoinRequest: async () =>
+                Result.error(new GeneralError({}, "AUTH_FORBIDDEN")),
+            }),
+        },
+      },
+    });
+
+    const forbidden = await forbiddenApp.handle(
+      new Request("https://jrw.test/api/brands/brand_1/join/admin_2/approve", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_brand_approve_forbidden",
+        },
+      })
+    );
+
+    expect(forbidden.status).toBe(403);
+    await expect(forbidden.json()).resolves.toMatchObject({
+      error: {
+        code: "AUTH_FORBIDDEN",
+        details: { requestId: "req_brand_approve_forbidden" },
+      },
+    });
+  });
+
+  it("rejects join request with standard success envelope", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              rejectBrandJoinRequest: async () =>
+                Result.okay({
+                  membership: {
+                    id: "bm_4",
+                    brandId: "brand_1",
+                    adminId: "admin_2",
+                    role: "MEMBER",
+                    status: "REVOKED",
+                    invitedByAdminId: null,
+                    createdAt: now,
+                    updatedAt: now,
+                  },
+                }),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/join/admin_2/reject", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_brand_reject_success",
+        },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        membership: {
+          adminId: "admin_2",
+          status: "REVOKED",
+        },
+      },
+      meta: { requestId: "req_brand_reject_success" },
+    });
+  });
+
+  it("returns 409 envelope for duplicate join request conflict", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              requestBrandJoin: async () =>
+                Result.error(
+                  new GeneralError(
+                    { reason: "DUPLICATE_PENDING_REQUEST" },
+                    "CONFLICT_STATE"
+                  )
+                ),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/join", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=admin-token",
+          "x-request-id": "req_brand_join_conflict",
+        },
+      })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "CONFLICT_STATE",
+        details: {
+          requestId: "req_brand_join_conflict",
         },
       },
     });

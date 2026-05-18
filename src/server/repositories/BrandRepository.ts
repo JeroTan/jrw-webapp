@@ -8,7 +8,7 @@ import {
   brand_memberships,
 } from "@/domain/schema/catalog";
 import { accountStatusValues, admins } from "@/domain/schema/identity";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, isNotNull, isNull, ne, sql } from "drizzle-orm";
 
 type BrandStatusValue = (typeof brandStatusValues)[number];
 type BrandMembershipRoleValue = (typeof brandMembershipRoleValues)[number];
@@ -149,6 +149,22 @@ export type BrandRepository = {
     brandId: string,
     adminId: string
   ): Promise<BrandMembershipRecord | null>;
+  updateMembershipStatus(
+    membershipId: string,
+    brandId: string,
+    adminId: string,
+    newStatus: BrandMembershipStatusValue,
+    newRole?: BrandMembershipRoleValue
+  ): Promise<BrandMembershipRecord | null>;
+  findPendingInvitationByAdminAndBrand(
+    adminId: string,
+    brandId: string
+  ): Promise<BrandMembershipRecord | null>;
+  findPendingJoinRequestByAdminAndBrand(
+    adminId: string,
+    brandId: string
+  ): Promise<BrandMembershipRecord | null>;
+  findActiveBrandMembers(brandId: string): Promise<BrandMembershipRecord[]>;
   findAdminById(adminId: string): Promise<BrandAdminRecord | null>;
   findAdminByEmail(email: string): Promise<BrandAdminRecord | null>;
 };
@@ -465,6 +481,87 @@ export class DrizzleBrandRepository implements BrandRepository {
       .limit(1);
 
     return membership ? brandMembershipDtoFromRow(membership) : null;
+  }
+
+  async updateMembershipStatus(
+    membershipId: string,
+    brandId: string,
+    adminId: string,
+    newStatus: BrandMembershipStatusValue,
+    newRole?: BrandMembershipRoleValue
+  ): Promise<BrandMembershipRecord | null> {
+    const [membership] = await this.db
+      .update(brand_memberships)
+      .set({
+        status: newStatus,
+        ...(newRole ? { role: newRole } : {}),
+        updated_at: new Date().toISOString(),
+      })
+      .where(
+        and(
+          eq(brand_memberships.id, membershipId),
+          eq(brand_memberships.brand_id, brandId),
+          eq(brand_memberships.admin_id, adminId),
+          eq(brand_memberships.status, "PENDING")
+        )
+      )
+      .returning();
+
+    return membership ? brandMembershipDtoFromRow(membership) : null;
+  }
+
+  async findPendingInvitationByAdminAndBrand(
+    adminId: string,
+    brandId: string
+  ): Promise<BrandMembershipRecord | null> {
+    const [membership] = await this.db
+      .select()
+      .from(brand_memberships)
+      .where(
+        and(
+          eq(brand_memberships.admin_id, adminId),
+          eq(brand_memberships.brand_id, brandId),
+          eq(brand_memberships.status, "PENDING"),
+          isNotNull(brand_memberships.invited_by_admin_id)
+        )
+      )
+      .limit(1);
+
+    return membership ? brandMembershipDtoFromRow(membership) : null;
+  }
+
+  async findPendingJoinRequestByAdminAndBrand(
+    adminId: string,
+    brandId: string
+  ): Promise<BrandMembershipRecord | null> {
+    const [membership] = await this.db
+      .select()
+      .from(brand_memberships)
+      .where(
+        and(
+          eq(brand_memberships.admin_id, adminId),
+          eq(brand_memberships.brand_id, brandId),
+          eq(brand_memberships.status, "PENDING"),
+          isNull(brand_memberships.invited_by_admin_id)
+        )
+      )
+      .limit(1);
+
+    return membership ? brandMembershipDtoFromRow(membership) : null;
+  }
+
+  async findActiveBrandMembers(brandId: string): Promise<BrandMembershipRecord[]> {
+    const memberships = await this.db
+      .select()
+      .from(brand_memberships)
+      .where(
+        and(
+          eq(brand_memberships.brand_id, brandId),
+          eq(brand_memberships.status, "ACTIVE")
+        )
+      );
+
+    return memberships.map(brandMembershipDtoFromRow);
   }
 
   async findAdminById(adminId: string): Promise<BrandAdminRecord | null> {

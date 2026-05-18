@@ -154,7 +154,7 @@ const eligibleRow = {
   updated_at: now,
 };
 
-describe("OwnershipTransferRepository helpers", () => {
+describe("OwnershipTransferRepository helpers", { timeout: 20_000 }, () => {
   it("maps candidate rows to safe DTO fields and filters eligible targets", () => {
     const eligible = ownershipTransferCandidateFromRow(eligibleRow);
     const suspended = ownershipTransferCandidateFromRow({

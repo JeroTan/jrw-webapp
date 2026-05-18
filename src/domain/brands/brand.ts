@@ -120,9 +120,64 @@ export type BrandInvitationFailureReason =
   | "DUPLICATE_ACTIVE_MEMBERSHIP"
   | "DUPLICATE_PENDING_INVITATION";
 
+export type BrandJoinFailureReason =
+  | BrandInvitationFailureReason
+  | "INVITATION_NOT_FOUND"
+  | "INVITATION_NOT_PENDING"
+  | "INVITATION_NOT_FOR_ACTOR"
+  | "INVITATION_REVOKED"
+  | "JOIN_REQUEST_NOT_FOUND"
+  | "JOIN_REQUEST_NOT_PENDING"
+  | "APPROVER_NOT_AUTHORIZED"
+  | "DUPLICATE_PENDING_REQUEST";
+
 export type BrandInvitationResult = AppResult<
   BrandInvitationDraft,
   { reason: BrandInvitationFailureReason }
+>;
+
+export type AcceptBrandInvitationInput = {
+  actorAdminId: string;
+  invitationMembership: BrandInvitationMembershipState | null;
+};
+
+export type AcceptBrandInvitationResult = AppResult<
+  { newStatus: "ACTIVE" },
+  { reason: BrandJoinFailureReason }
+>;
+
+export type RequestBrandJoinInput = {
+  actorAdminId: string;
+  existingMembership: BrandInvitationMembershipState | null;
+};
+
+export type RequestBrandJoinResult = AppResult<
+  {
+    adminId: string;
+    role: "MEMBER";
+    status: "PENDING";
+    invitedByAdminId: null;
+  },
+  { reason: BrandJoinFailureReason }
+>;
+
+export type ApproveBrandJoinRequestInput = {
+  approverRole: BrandInvitationActorRole;
+  approverMembership: BrandInvitationMembershipState | null;
+  targetAdminId: string;
+  joinRequestMembership: BrandInvitationMembershipState | null;
+};
+
+export type RejectBrandJoinRequestInput = ApproveBrandJoinRequestInput;
+
+export type ApproveBrandJoinRequestResult = AppResult<
+  { newStatus: "ACTIVE" },
+  { reason: BrandJoinFailureReason }
+>;
+
+export type RejectBrandJoinRequestResult = AppResult<
+  { newStatus: "REVOKED" },
+  { reason: BrandJoinFailureReason }
 >;
 
 export type BrandInvitationTargetValidationResult = AppResult<
@@ -201,6 +256,148 @@ function actorCanInvite(actor: BrandInvitationActor): boolean {
     (actor.currentMembership.role === "OWNER" ||
       actor.currentMembership.role === "MEMBER")
   );
+}
+
+function joinValidationError(
+  reason: Extract<
+    BrandJoinFailureReason,
+    | "INVITATION_NOT_FOUND"
+    | "INVITATION_REVOKED"
+    | "JOIN_REQUEST_NOT_FOUND"
+    | "TARGET_ADMIN_NOT_FOUND"
+    | "TARGET_ROLE_NOT_ADMIN"
+    | "TARGET_ADMIN_INACTIVE"
+    | "TARGET_ADMIN_SUSPENDED"
+    | "TARGET_EMAIL_NOT_VERIFIED"
+    | "TARGET_ADMIN_NOT_APPROVED"
+  >
+): AppResult<never, { reason: BrandJoinFailureReason }> {
+  return Result.error(new GeneralError({ reason }, "VALIDATION_FAILED"));
+}
+
+function joinConflictError(
+  reason: Extract<
+    BrandJoinFailureReason,
+    | "INVITATION_NOT_PENDING"
+    | "JOIN_REQUEST_NOT_PENDING"
+    | "DUPLICATE_ACTIVE_MEMBERSHIP"
+    | "DUPLICATE_PENDING_INVITATION"
+    | "DUPLICATE_PENDING_REQUEST"
+  >
+): AppResult<never, { reason: BrandJoinFailureReason }> {
+  return Result.error(new GeneralError({ reason }, "CONFLICT_STATE"));
+}
+
+function joinForbiddenError(
+  reason: Extract<
+    BrandJoinFailureReason,
+    "INVITATION_NOT_FOR_ACTOR" | "APPROVER_NOT_AUTHORIZED"
+  >
+): AppResult<never, { reason: BrandJoinFailureReason }> {
+  return Result.error(new GeneralError({ reason }, "AUTH_FORBIDDEN"));
+}
+
+function approverCanManageJoinRequest(
+  approverRole: BrandInvitationActorRole,
+  approverMembership: BrandInvitationMembershipState | null
+): boolean {
+  if (approverRole === "SUPER_ADMIN") {
+    return true;
+  }
+
+  if (!approverMembership) {
+    return false;
+  }
+
+  return (
+    approverMembership.status === "ACTIVE" &&
+    (approverMembership.role === "OWNER" || approverMembership.role === "MEMBER")
+  );
+}
+
+export function acceptBrandInvitation(
+  input: AcceptBrandInvitationInput
+): AcceptBrandInvitationResult {
+  if (!input.invitationMembership) {
+    return joinValidationError("INVITATION_NOT_FOUND");
+  }
+
+  if (input.invitationMembership.adminId !== input.actorAdminId) {
+    return joinForbiddenError("INVITATION_NOT_FOR_ACTOR");
+  }
+
+  if (input.invitationMembership.status === "REVOKED") {
+    return joinValidationError("INVITATION_REVOKED");
+  }
+
+  if (input.invitationMembership.status !== "PENDING") {
+    return joinConflictError("INVITATION_NOT_PENDING");
+  }
+
+  return Result.okay({ newStatus: "ACTIVE" });
+}
+
+export function requestBrandJoin(
+  input: RequestBrandJoinInput
+): RequestBrandJoinResult {
+  if (input.existingMembership?.status === "ACTIVE") {
+    return joinConflictError("DUPLICATE_ACTIVE_MEMBERSHIP");
+  }
+
+  if (input.existingMembership?.status === "PENDING") {
+    return joinConflictError("DUPLICATE_PENDING_REQUEST");
+  }
+
+  return Result.okay({
+    adminId: input.actorAdminId,
+    role: "MEMBER",
+    status: "PENDING",
+    invitedByAdminId: null,
+  });
+}
+
+export function approveBrandJoinRequest(
+  input: ApproveBrandJoinRequestInput
+): ApproveBrandJoinRequestResult {
+  if (!approverCanManageJoinRequest(input.approverRole, input.approverMembership)) {
+    return joinForbiddenError("APPROVER_NOT_AUTHORIZED");
+  }
+
+  if (!input.joinRequestMembership) {
+    return joinValidationError("JOIN_REQUEST_NOT_FOUND");
+  }
+
+  if (input.joinRequestMembership.adminId !== input.targetAdminId) {
+    return joinValidationError("JOIN_REQUEST_NOT_FOUND");
+  }
+
+  if (input.joinRequestMembership.status !== "PENDING") {
+    return joinConflictError("JOIN_REQUEST_NOT_PENDING");
+  }
+
+  return Result.okay({ newStatus: "ACTIVE" });
+}
+
+export function rejectBrandJoinRequest(
+  input: RejectBrandJoinRequestInput
+): RejectBrandJoinRequestResult {
+  if (!approverCanManageJoinRequest(input.approverRole, input.approverMembership)) {
+    return joinForbiddenError("APPROVER_NOT_AUTHORIZED");
+  }
+
+  if (!input.joinRequestMembership) {
+    return joinValidationError("JOIN_REQUEST_NOT_FOUND");
+  }
+
+  if (input.joinRequestMembership.adminId !== input.targetAdminId) {
+    return joinValidationError("JOIN_REQUEST_NOT_FOUND");
+  }
+
+  if (input.joinRequestMembership.status !== "PENDING") {
+    return joinConflictError("JOIN_REQUEST_NOT_PENDING");
+  }
+
+  return Result.okay({ newStatus: "REVOKED" });
 }
 
 export function generateSlug(name: string): string {

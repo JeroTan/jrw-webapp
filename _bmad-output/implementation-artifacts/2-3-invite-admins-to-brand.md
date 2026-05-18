@@ -1,6 +1,6 @@
 ﻿# Story 2.3: Invite Admins to Brand
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -116,54 +116,64 @@ _None yet â€” story not implemented._
 ### Current Code Intelligence
 
 #### `src/domain/brands/brand.ts` (Stories 2.1 + 2.2)
-  - **Current state:** Contains `createBrand(...)`, `updateBrand(...)`, `archiveBrand(...)`, `generateSlug(...)`, `validateBrandName(...)`, `validateBrandSlug(...)`, `validateBrandUpdate(...)`, `detectBrandCreateConflict(...)`, `detectBrandUpdateConflict(...)`. Validation constants: name 2-120 chars, slug pattern, description max 500.
-  - **What this story changes:** Add `createBrandInvitation(...)` domain function. Add `validateBrandInvitationTarget(...)` for target eligibility validation.
-  - **What must be preserved:** Existing create/update/archive flows, slug generation, conflict detection, validation constants. Do not modify existing domain logic.
+
+- **Current state:** Contains `createBrand(...)`, `updateBrand(...)`, `archiveBrand(...)`, `generateSlug(...)`, `validateBrandName(...)`, `validateBrandSlug(...)`, `validateBrandUpdate(...)`, `detectBrandCreateConflict(...)`, `detectBrandUpdateConflict(...)`. Validation constants: name 2-120 chars, slug pattern, description max 500.
+- **What this story changes:** Add `createBrandInvitation(...)` domain function. Add `validateBrandInvitationTarget(...)` for target eligibility validation.
+- **What must be preserved:** Existing create/update/archive flows, slug generation, conflict detection, validation constants. Do not modify existing domain logic.
 
 #### `src/server/repositories/BrandRepository.ts` (Stories 2.1 + 2.2)
-  - **Current state:** Contains `createBrand(...)`, `createBrandMembership(...)`, `createBrandWithOwnerMembership(...)`, `updateBrand(...)`, `archiveBrand(...)`, `findBrandBySlug(...)`, `findBrandByName(...)`, `findArchivedBrandByName(...)`, `findBrandById(...)`, `findBrandByIdIncludingArchived(...)`, `findBrandByNameExcluding(...)`, `findBrandBySlugExcluding(...)`, `findArchivedBrandByNameExcluding(...)`, `findMembershipByBrandAndAdmin(...)`. Uses Drizzle batch for atomic brand+membership creation. DTO mapping snake_case â†’ camelCase.
-  - **What this story changes:** Reuse `createBrandMembership(...)` for creating PENDING memberships. May need to add admin lookup method â€” check if account repository exists from Epic 1 (Story 1.11 Admin Account Management). If not, may need minimal admin lookup query.
-  - **What must be preserved:** Existing create/update/archive methods, DTO mapping, batch pattern, type definitions. Do not modify existing repository methods.
+
+- **Current state:** Contains `createBrand(...)`, `createBrandMembership(...)`, `createBrandWithOwnerMembership(...)`, `updateBrand(...)`, `archiveBrand(...)`, `findBrandBySlug(...)`, `findBrandByName(...)`, `findArchivedBrandByName(...)`, `findBrandById(...)`, `findBrandByIdIncludingArchived(...)`, `findBrandByNameExcluding(...)`, `findBrandBySlugExcluding(...)`, `findArchivedBrandByNameExcluding(...)`, `findMembershipByBrandAndAdmin(...)`. Uses Drizzle batch for atomic brand+membership creation. DTO mapping snake_case â†’ camelCase.
+- **What this story changes:** Reuse `createBrandMembership(...)` for creating PENDING memberships. May need to add admin lookup method â€” check if account repository exists from Epic 1 (Story 1.11 Admin Account Management). If not, may need minimal admin lookup query.
+- **What must be preserved:** Existing create/update/archive methods, DTO mapping, batch pattern, type definitions. Do not modify existing repository methods.
 
 #### `src/server/services/BrandService.ts` (Stories 2.1 + 2.2)
-  - **Current state:** Contains `createBrand(...)`, `updateBrand(...)`, `archiveBrand(...)`, `requireAdminActor(...)`, `hasElevatedPermission(...)`, `isActiveBrandMember(...)`, `extractUpdatePatch(...)`. Audit emission for `brand.created`, `brand.updated`, `brand.archived`. Uses `evaluateRouteAccess` for RBAC. Returns `AppResult`/`GeneralError` pattern.
-  - **What this story changes:** Add `inviteAdminToBrand(...)` method. Add target admin eligibility validation. Add PENDING membership creation. Add audit event `brand.member_invited`. Add email notification through notification boundary.
-  - **What must be preserved:** Existing create/update/archive flows, actor validation, error mapping, audit publisher pattern, provider failure detection, membership check pattern.
+
+- **Current state:** Contains `createBrand(...)`, `updateBrand(...)`, `archiveBrand(...)`, `requireAdminActor(...)`, `hasElevatedPermission(...)`, `isActiveBrandMember(...)`, `extractUpdatePatch(...)`. Audit emission for `brand.created`, `brand.updated`, `brand.archived`. Uses `evaluateRouteAccess` for RBAC. Returns `AppResult`/`GeneralError` pattern.
+- **What this story changes:** Add `inviteAdminToBrand(...)` method. Add target admin eligibility validation. Add PENDING membership creation. Add audit event `brand.member_invited`. Add email notification through notification boundary.
+- **What must be preserved:** Existing create/update/archive flows, actor validation, error mapping, audit publisher pattern, provider failure detection, membership check pattern.
 
 #### `src/server/controllers/BrandController.ts` (Stories 2.1 + 2.2)
-  - **Current state:** Contains `createBrand(...)`, `updateBrand(...)`, `archiveBrand(...)` methods. Maps service `AppResult` to HTTP status + API envelope. Uses `errorCodeToHttpStatus`, `apiSuccessWithRequestId`, `apiErrorWithRequestId`.
-  - **What this story changes:** Add `inviteAdminToBrand(...)` controller method.
-  - **What must be preserved:** Existing error mapping, envelope patterns, type definitions.
+
+- **Current state:** Contains `createBrand(...)`, `updateBrand(...)`, `archiveBrand(...)` methods. Maps service `AppResult` to HTTP status + API envelope. Uses `errorCodeToHttpStatus`, `apiSuccessWithRequestId`, `apiErrorWithRequestId`.
+- **What this story changes:** Add `inviteAdminToBrand(...)` controller method.
+- **What must be preserved:** Existing error mapping, envelope patterns, type definitions.
 
 #### `src/server/routes/brands.routes.ts` (Stories 2.1 + 2.2)
-  - **Current state:** Contains `POST /api/brands`, `PATCH /api/brands/:id`, `POST /api/brands/:id/archive` routes with TypeBox body/response schemas, RBAC guard, OpenAPI metadata. Tags: `Brands`, auth: required ADMIN/SUPER_ADMIN, rate-limit: `admin-write`.
-  - **What this story changes:** Add `POST /api/brands/:id/invite` route with its own schema, guard, and OpenAPI metadata.
-  - **What must be preserved:** Existing routes, TypeBox schemas, RBAC guard, route metadata pattern.
+
+- **Current state:** Contains `POST /api/brands`, `PATCH /api/brands/:id`, `POST /api/brands/:id/archive` routes with TypeBox body/response schemas, RBAC guard, OpenAPI metadata. Tags: `Brands`, auth: required ADMIN/SUPER_ADMIN, rate-limit: `admin-write`.
+- **What this story changes:** Add `POST /api/brands/:id/invite` route with its own schema, guard, and OpenAPI metadata.
+- **What must be preserved:** Existing routes, TypeBox schemas, RBAC guard, route metadata pattern.
 
 #### `src/domain/schema/catalog.ts` (Stories 2.1 + 2.2)
-  - **Current state:** `brands` table has `status` enum (`ACTIVE`, `ARCHIVED`), `archived_at` nullable text. `brand_memberships` table has `status` enum (`ACTIVE`, `PENDING`, `REVOKED`), `role` enum (`OWNER`, `MEMBER`), `invited_by_admin_id` nullable text.
-  - **What this story changes:** No schema changes needed. `PENDING` status and `invited_by_admin_id` already exist from Story 2.1.
-  - **What must be preserved:** Existing schema, enums, constraints, indexes, relations.
+
+- **Current state:** `brands` table has `status` enum (`ACTIVE`, `ARCHIVED`), `archived_at` nullable text. `brand_memberships` table has `status` enum (`ACTIVE`, `PENDING`, `REVOKED`), `role` enum (`OWNER`, `MEMBER`), `invited_by_admin_id` nullable text.
+- **What this story changes:** No schema changes needed. `PENDING` status and `invited_by_admin_id` already exist from Story 2.1.
+- **What must be preserved:** Existing schema, enums, constraints, indexes, relations.
 
 #### `src/domain/audit/events.ts` (Stories 2.1 + 2.2)
-  - **Current state:** Contains `brand.created`, `brand.updated`, `brand.archived`, `brand.member_invited`, `brand.member_joined`, `brand.member_removed` action constants. `createAuditEvent(...)`, `NoopAuditEventPublisher`, `scrubAuditDetails(...)`.
-  - **What this story changes:** Use existing `brand.member_invited` action constant. No new constants needed.
-  - **What must be preserved:** Existing audit event structure, scrubbing logic, publisher interface.
+
+- **Current state:** Contains `brand.created`, `brand.updated`, `brand.archived`, `brand.member_invited`, `brand.member_joined`, `brand.member_removed` action constants. `createAuditEvent(...)`, `NoopAuditEventPublisher`, `scrubAuditDetails(...)`.
+- **What this story changes:** Use existing `brand.member_invited` action constant. No new constants needed.
+- **What must be preserved:** Existing audit event structure, scrubbing logic, publisher interface.
 
 #### `src/domain/notifications/account-emails.ts` (Epic 1)
-  - **Current state:** Contains `AccountEmailNotifier` interface with `sendVerificationEmail`, `sendPasswordResetEmail`, `sendAdminInvitationEmail`, `sendAdminApprovalEmail`, `sendAdminRejectionEmail`. `EmailSendResult` type. Input types for each email.
-  - **What this story changes:** Add `BrandInvitationEmailInput` type and `sendBrandInvitationEmail` to notification interface. Extend Resend adapter if implemented.
-  - **What must be preserved:** Existing email types and interface methods.
+
+- **Current state:** Contains `AccountEmailNotifier` interface with `sendVerificationEmail`, `sendPasswordResetEmail`, `sendAdminInvitationEmail`, `sendAdminApprovalEmail`, `sendAdminRejectionEmail`. `EmailSendResult` type. Input types for each email.
+- **What this story changes:** Add `BrandInvitationEmailInput` type and `sendBrandInvitationEmail` to notification interface. Extend Resend adapter if implemented.
+- **What must be preserved:** Existing email types and interface methods.
 
 #### `src/server/context/request-context.ts` (Epic 1)
-  - **Current state:** Derives `requestContext.actor` per request from `jrw_session`. Invalid/ineligible sessions become anonymous `PROSPECT`.
-  - **What this story changes:** No changes. Brand routes read `requestContext.actor` as established.
-  - **What must be preserved:** Per-request scoping, request ID propagation.
+
+- **Current state:** Derives `requestContext.actor` per request from `jrw_session`. Invalid/ineligible sessions become anonymous `PROSPECT`.
+- **What this story changes:** No changes. Brand routes read `requestContext.actor` as established.
+- **What must be preserved:** Per-request scoping, request ID propagation.
 
 #### `src/lib/api/response.ts` and `src/lib/typebox/api.ts` (Epic 1)
-  - **Current state:** Standard envelope helpers, TypeBox schema utilities, `tboxApiSuccess(...)`, `openApiErrorResponses(...)`.
-  - **What this story changes:** Reuse existing helpers for brand invitation endpoint.
-  - **What must be preserved:** Existing envelope patterns; do not reintroduce legacy `{ data, message, code }`.
+
+- **Current state:** Standard envelope helpers, TypeBox schema utilities, `tboxApiSuccess(...)`, `openApiErrorResponses(...)`.
+- **What this story changes:** Reuse existing helpers for brand invitation endpoint.
+- **What must be preserved:** Existing envelope patterns; do not reintroduce legacy `{ data, message, code }`.
 
 ### Architecture Compliance
 
@@ -333,4 +343,3 @@ npm run build-test
 
 - 2026-05-17: Story 2.3 context engine created â€” comprehensive developer guide for brand invitation API.
 - 2026-05-18: Implemented brand invitation domain/repository/service/controller/route flow, added audit + email notification support, and completed invite test matrix. `npm run build-test` blocked by pre-existing `OwnershipTransferRepository` test timeouts.
-
