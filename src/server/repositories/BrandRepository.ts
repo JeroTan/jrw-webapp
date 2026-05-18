@@ -46,6 +46,8 @@ type BrandAdminRowLike = {
   email: string;
   is_owner: boolean;
   status: BrandAdminStatusValue;
+  email_verified_at: string | null;
+  approved_at: string | null;
 };
 
 export type BrandRecord = {
@@ -75,6 +77,8 @@ export type BrandAdminRecord = {
   email: string;
   role: "ADMIN" | "SUPER_ADMIN";
   status: BrandAdminStatusValue;
+  emailVerifiedAt: string | null;
+  approvedAt: string | null;
 };
 
 export type CreateBrandInput = {
@@ -159,6 +163,8 @@ function adminDtoFromRow(row: BrandAdminRowLike): BrandAdminRecord {
     email: row.email,
     role: row.is_owner ? "SUPER_ADMIN" : "ADMIN",
     status: row.status,
+    emailVerifiedAt: row.email_verified_at,
+    approvedAt: row.approved_at,
   };
 }
 

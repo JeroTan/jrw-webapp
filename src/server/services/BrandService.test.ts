@@ -69,6 +69,8 @@ class RepoStub implements BrandRepository {
       email: string;
       role: "ADMIN" | "SUPER_ADMIN";
       status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+      emailVerifiedAt: string | null;
+      approvedAt: string | null;
     }
   > = {
     admin_1: {
@@ -76,30 +78,40 @@ class RepoStub implements BrandRepository {
       email: "owner@example.test",
       role: "ADMIN",
       status: "ACTIVE",
+      emailVerifiedAt: now,
+      approvedAt: now,
     },
     admin_member: {
       id: "admin_member",
       email: "member@example.test",
       role: "ADMIN",
       status: "ACTIVE",
+      emailVerifiedAt: now,
+      approvedAt: now,
     },
     admin_target: {
       id: "admin_target",
       email: "target@example.test",
       role: "ADMIN",
       status: "ACTIVE",
+      emailVerifiedAt: now,
+      approvedAt: now,
     },
     admin_suspended: {
       id: "admin_suspended",
       email: "suspended@example.test",
       role: "ADMIN",
       status: "SUSPENDED",
+      emailVerifiedAt: now,
+      approvedAt: now,
     },
     admin_owner: {
       id: "admin_owner",
       email: "owner-root@example.test",
       role: "SUPER_ADMIN",
       status: "ACTIVE",
+      emailVerifiedAt: now,
+      approvedAt: now,
     },
   };
 
@@ -451,12 +463,16 @@ describe("BrandService", () => {
       email: "target2@example.test",
       role: "ADMIN",
       status: "ACTIVE",
+      emailVerifiedAt: now,
+      approvedAt: now,
     };
     repo.adminById.admin_target_3 = {
       id: "admin_target_3",
       email: "target3@example.test",
       role: "ADMIN",
       status: "ACTIVE",
+      emailVerifiedAt: now,
+      approvedAt: now,
     };
     const published: AuditEvent[] = [];
     const service = new BrandService({
@@ -550,8 +566,32 @@ describe("BrandService", () => {
     expect(denied.error?.code).toBe("AUTH_FORBIDDEN");
   });
 
-  it("rejects invite for suspended, non-ADMIN role, and missing target", async () => {
+  it("rejects invite for suspended, inactive, unverified, unapproved, non-ADMIN role, and missing target", async () => {
     const repo = new RepoStub();
+    repo.adminById.admin_inactive = {
+      id: "admin_inactive",
+      email: "inactive@example.test",
+      role: "ADMIN",
+      status: "INACTIVE",
+      emailVerifiedAt: now,
+      approvedAt: now,
+    };
+    repo.adminById.admin_unverified = {
+      id: "admin_unverified",
+      email: "unverified@example.test",
+      role: "ADMIN",
+      status: "ACTIVE",
+      emailVerifiedAt: null,
+      approvedAt: now,
+    };
+    repo.adminById.admin_unapproved = {
+      id: "admin_unapproved",
+      email: "unapproved@example.test",
+      role: "ADMIN",
+      status: "ACTIVE",
+      emailVerifiedAt: now,
+      approvedAt: null,
+    };
     const service = new BrandService({
       repository: repo,
       now: () => new Date(now),
@@ -569,6 +609,24 @@ describe("BrandService", () => {
       brandId: "brand_1",
       body: { adminId: "admin_owner" },
     });
+    const inactive = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_invite_inactive_target",
+      brandId: "brand_1",
+      body: { adminId: "admin_inactive" },
+    });
+    const unverified = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_invite_unverified_target",
+      brandId: "brand_1",
+      body: { adminId: "admin_unverified" },
+    });
+    const unapproved = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_invite_unapproved_target",
+      brandId: "brand_1",
+      body: { adminId: "admin_unapproved" },
+    });
     const missing = await service.inviteAdminToBrand({
       actor: adminActor(),
       requestId: "req_invite_missing_target",
@@ -583,6 +641,18 @@ describe("BrandService", () => {
     expect(nonAdminRole.error?.code).toBe("VALIDATION_FAILED");
     expect(nonAdminRole.error?.data).toMatchObject({
       reason: "TARGET_ROLE_NOT_ADMIN",
+    });
+    expect(inactive.error?.code).toBe("VALIDATION_FAILED");
+    expect(inactive.error?.data).toMatchObject({
+      reason: "TARGET_ADMIN_INACTIVE",
+    });
+    expect(unverified.error?.code).toBe("VALIDATION_FAILED");
+    expect(unverified.error?.data).toMatchObject({
+      reason: "TARGET_EMAIL_NOT_VERIFIED",
+    });
+    expect(unapproved.error?.code).toBe("VALIDATION_FAILED");
+    expect(unapproved.error?.data).toMatchObject({
+      reason: "TARGET_ADMIN_NOT_APPROVED",
     });
     expect(missing.error?.code).toBe("VALIDATION_FAILED");
     expect(missing.error?.data).toMatchObject({
@@ -706,6 +776,8 @@ describe("BrandService", () => {
       email: "target2@example.test",
       role: "ADMIN",
       status: "ACTIVE",
+      emailVerifiedAt: now,
+      approvedAt: now,
     };
     const unavailable = await service.inviteAdminToBrand({
       actor: adminActor(),
@@ -714,6 +786,30 @@ describe("BrandService", () => {
       body: { adminId: "admin_target_2" },
     });
     expect(unavailable.error?.code).toBe("PROVIDER_UNAVAILABLE");
+  });
+
+  it("rejects mismatched adminId and email invite target payloads", async () => {
+    const repo = new RepoStub();
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const result = await service.inviteAdminToBrand({
+      actor: adminActor(),
+      requestId: "req_invite_target_mismatch",
+      brandId: "brand_1",
+      body: {
+        adminId: "admin_target",
+        email: "member@example.test",
+      },
+    });
+
+    expect(result.error?.code).toBe("VALIDATION_FAILED");
+    expect(result.error?.data).toMatchObject({
+      reasons: ["target:identifier_mismatch"],
+    });
+    expect(repo.createdMembershipCount).toBe(0);
   });
 
   it("updates brand for OWNER and MEMBER with safe audit event", async () => {

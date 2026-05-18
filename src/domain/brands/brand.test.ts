@@ -191,6 +191,8 @@ describe("brand domain rules", () => {
         adminId: "admin_target",
         role: "ADMIN",
         status: "ACTIVE",
+        emailVerifiedAt: "2026-05-17T20:00:00.000Z",
+        approvedAt: "2026-05-17T20:30:00.000Z",
       },
       existingMembership: null,
     });
@@ -212,6 +214,8 @@ describe("brand domain rules", () => {
         adminId: "target_customer",
         role: "CUSTOMER",
         status: "ACTIVE",
+        emailVerifiedAt: "2026-05-17T20:00:00.000Z",
+        approvedAt: "2026-05-17T20:30:00.000Z",
       },
       existingMembership: null,
     });
@@ -229,6 +233,8 @@ describe("brand domain rules", () => {
         adminId: "admin_suspended",
         role: "ADMIN",
         status: "SUSPENDED",
+        emailVerifiedAt: "2026-05-17T20:00:00.000Z",
+        approvedAt: "2026-05-17T20:30:00.000Z",
       },
       existingMembership: null,
     });
@@ -246,6 +252,8 @@ describe("brand domain rules", () => {
         adminId: "admin_member",
         role: "ADMIN",
         status: "ACTIVE",
+        emailVerifiedAt: "2026-05-17T20:00:00.000Z",
+        approvedAt: "2026-05-17T20:30:00.000Z",
       },
       existingMembership: {
         adminId: "admin_member",
@@ -267,6 +275,8 @@ describe("brand domain rules", () => {
         adminId: "admin_pending",
         role: "ADMIN",
         status: "ACTIVE",
+        emailVerifiedAt: "2026-05-17T20:00:00.000Z",
+        approvedAt: "2026-05-17T20:30:00.000Z",
       },
       existingMembership: {
         adminId: "admin_pending",
@@ -278,6 +288,53 @@ describe("brand domain rules", () => {
     expect(result.error?.code).toBe("CONFLICT_STATE");
     expect(result.error?.data).toEqual({
       reason: "DUPLICATE_PENDING_INVITATION",
+    });
+  });
+
+  it("rejects invitation when target admin is inactive, unverified, or unapproved", () => {
+    const inactive = validateBrandInvitationTarget({
+      targetAdminId: "admin_inactive",
+      targetAdmin: {
+        adminId: "admin_inactive",
+        role: "ADMIN",
+        status: "INACTIVE",
+        emailVerifiedAt: "2026-05-17T20:00:00.000Z",
+        approvedAt: "2026-05-17T20:30:00.000Z",
+      },
+      existingMembership: null,
+    });
+    expect(inactive.error?.data).toEqual({
+      reason: "TARGET_ADMIN_INACTIVE",
+    });
+
+    const unverified = validateBrandInvitationTarget({
+      targetAdminId: "admin_unverified",
+      targetAdmin: {
+        adminId: "admin_unverified",
+        role: "ADMIN",
+        status: "ACTIVE",
+        emailVerifiedAt: null,
+        approvedAt: "2026-05-17T20:30:00.000Z",
+      },
+      existingMembership: null,
+    });
+    expect(unverified.error?.data).toEqual({
+      reason: "TARGET_EMAIL_NOT_VERIFIED",
+    });
+
+    const unapproved = validateBrandInvitationTarget({
+      targetAdminId: "admin_unapproved",
+      targetAdmin: {
+        adminId: "admin_unapproved",
+        role: "ADMIN",
+        status: "ACTIVE",
+        emailVerifiedAt: "2026-05-17T20:00:00.000Z",
+        approvedAt: null,
+      },
+      existingMembership: null,
+    });
+    expect(unapproved.error?.data).toEqual({
+      reason: "TARGET_ADMIN_NOT_APPROVED",
     });
   });
 

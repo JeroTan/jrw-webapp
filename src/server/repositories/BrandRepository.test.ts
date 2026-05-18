@@ -454,6 +454,8 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
         email: "admin1@example.test",
         role: "ADMIN",
         status: "ACTIVE",
+        emailVerifiedAt: now,
+        approvedAt: now,
       });
 
       const ownerAdmin = await repository.findAdminByEmail(
@@ -464,6 +466,8 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
         email: "owner@example.test",
         role: "SUPER_ADMIN",
         status: "ACTIVE",
+        emailVerifiedAt: now,
+        approvedAt: now,
       });
     } finally {
       await mf.dispose();

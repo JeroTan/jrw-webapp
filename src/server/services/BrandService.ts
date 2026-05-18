@@ -303,6 +303,42 @@ export class BrandService {
     }
   }
 
+  private async findInviteTargetAdmin(input: {
+    adminId?: string;
+    email?: string;
+  }): Promise<AppResult<BrandAdminRecord | null>> {
+    if (input.adminId && input.email) {
+      const [adminById, adminByEmail] = await Promise.all([
+        this.repository.findAdminById(input.adminId),
+        this.repository.findAdminByEmail(input.email),
+      ]);
+
+      if (!adminById && !adminByEmail) {
+        return Result.okay(null);
+      }
+
+      if (!adminById || !adminByEmail || adminById.id !== adminByEmail.id) {
+        return Result.error(
+          serviceError("VALIDATION_FAILED", {
+            reasons: ["target:identifier_mismatch"],
+          })
+        );
+      }
+
+      return Result.okay(adminById);
+    }
+
+    if (input.adminId) {
+      return Result.okay(await this.repository.findAdminById(input.adminId));
+    }
+
+    if (input.email) {
+      return Result.okay(await this.repository.findAdminByEmail(input.email));
+    }
+
+    return Result.okay(null);
+  }
+
   private async sendBrandInvitationEmail(input: {
     brand: BrandRecord;
     targetAdmin: BrandAdminRecord;
@@ -471,13 +507,11 @@ export class BrandService {
         return Result.error(serviceError("AUTH_FORBIDDEN"));
       }
 
-      let targetAdmin: BrandAdminRecord | null = null;
-      if (target.content.adminId) {
-        targetAdmin = await this.repository.findAdminById(target.content.adminId);
+      const targetAdminResult = await this.findInviteTargetAdmin(target.content);
+      if (targetAdminResult.error) {
+        return targetAdminResult;
       }
-      if (!targetAdmin && target.content.email) {
-        targetAdmin = await this.repository.findAdminByEmail(target.content.email);
-      }
+      const targetAdmin = targetAdminResult.content;
 
       const existingMembership = targetAdmin
         ? await this.repository.findMembershipByBrandAndAdmin(
@@ -513,6 +547,8 @@ export class BrandService {
               adminId: targetAdmin.id,
               role: targetAdmin.role,
               status: targetAdmin.status,
+              emailVerifiedAt: targetAdmin.emailVerifiedAt,
+              approvedAt: targetAdmin.approvedAt,
             }
           : null,
       });

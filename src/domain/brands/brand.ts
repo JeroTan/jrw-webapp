@@ -97,6 +97,8 @@ export type BrandInvitationTarget = {
   adminId: string;
   role: BrandInvitationTargetRole;
   status: BrandInvitationAccountStatus;
+  emailVerifiedAt: string | null;
+  approvedAt: string | null;
 };
 
 export type BrandInvitationDraft = {
@@ -110,7 +112,10 @@ export type BrandInvitationDraft = {
 export type BrandInvitationFailureReason =
   | "TARGET_ADMIN_NOT_FOUND"
   | "TARGET_ROLE_NOT_ADMIN"
+  | "TARGET_ADMIN_INACTIVE"
   | "TARGET_ADMIN_SUSPENDED"
+  | "TARGET_EMAIL_NOT_VERIFIED"
+  | "TARGET_ADMIN_NOT_APPROVED"
   | "ACTOR_NOT_BRAND_MEMBER"
   | "DUPLICATE_ACTIVE_MEMBERSHIP"
   | "DUPLICATE_PENDING_INVITATION";
@@ -158,7 +163,12 @@ function validationError(reasons: string[]): ValidationResult {
 function invitationValidationError(
   reason: Extract<
     BrandInvitationFailureReason,
-    "TARGET_ADMIN_NOT_FOUND" | "TARGET_ROLE_NOT_ADMIN" | "TARGET_ADMIN_SUSPENDED"
+    | "TARGET_ADMIN_NOT_FOUND"
+    | "TARGET_ROLE_NOT_ADMIN"
+    | "TARGET_ADMIN_INACTIVE"
+    | "TARGET_ADMIN_SUSPENDED"
+    | "TARGET_EMAIL_NOT_VERIFIED"
+    | "TARGET_ADMIN_NOT_APPROVED"
   >
 ): BrandInvitationTargetValidationResult {
   return Result.error(
@@ -321,6 +331,18 @@ export function validateBrandInvitationTarget(
 
   if (input.targetAdmin.status === "SUSPENDED") {
     return invitationValidationError("TARGET_ADMIN_SUSPENDED");
+  }
+
+  if (input.targetAdmin.status !== "ACTIVE") {
+    return invitationValidationError("TARGET_ADMIN_INACTIVE");
+  }
+
+  if (!input.targetAdmin.emailVerifiedAt) {
+    return invitationValidationError("TARGET_EMAIL_NOT_VERIFIED");
+  }
+
+  if (!input.targetAdmin.approvedAt) {
+    return invitationValidationError("TARGET_ADMIN_NOT_APPROVED");
   }
 
   if (input.existingMembership?.status === "ACTIVE") {
