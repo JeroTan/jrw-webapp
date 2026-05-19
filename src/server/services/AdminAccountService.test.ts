@@ -13,6 +13,7 @@ import type {
 import { AdminAccountService } from "./AdminAccountService";
 
 const now = "2026-05-16T12:33:19.000Z";
+const sqliteNow = "2026-05-16 12:33:19";
 
 function adminRecord(
   overrides: Partial<AdminAccountRecord> = {}
@@ -308,6 +309,35 @@ describe("AdminAccountService", () => {
       expectedUpdatedAt: now,
       updatedAt: now,
     });
+  });
+
+  it("normalizes SQLite timestamps in public DTOs without changing concurrency inputs", async () => {
+    const repository = new FakeAdminRepository();
+    repository.admins.push(
+      adminRecord({ createdAt: sqliteNow, updatedAt: sqliteNow })
+    );
+    const service = createService({ repository });
+
+    const listed = await service.listAdminAccounts({
+      actor: ownerActor,
+      requestId: "req_sqlite_list",
+    });
+
+    expect(listed.content?.admins[0]).toMatchObject({
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    const updated = await service.updateAdminAccount({
+      actor: ownerActor,
+      requestId: "req_sqlite_update",
+      adminAccountId: "admin_1",
+      body: { email: "renamed@example.test" },
+    });
+
+    expect(updated.error).toBeNull();
+    expect(repository.updated?.expectedUpdatedAt).toBe(sqliteNow);
+    expect(updated.content?.admin.updatedAt).toBe(now);
   });
 
   it("approves, rejects, suspends, and reactivates admin accounts with safe notification behavior", async () => {

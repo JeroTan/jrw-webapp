@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
+import type { AccountEmailNotifier } from "@/domain/notifications/account-emails";
 import { Result } from "@/utils/general/result";
 import { createApp } from "@/server/app";
 import { AdminAccountController } from "@/server/controllers/AdminAccountController";
 import type { RequestActorContext } from "@/server/context/request-context";
 import type {
+  AdminAccountRecord,
+  AdminAccountRepository,
+} from "@/server/repositories/AdminAccountRepository";
+import type {
   AdminAccountDto,
-  AdminAccountService,
 } from "@/server/services/AdminAccountService";
+import { AdminAccountService } from "@/server/services/AdminAccountService";
 
 function adminDto(overrides: Partial<AdminAccountDto> = {}): AdminAccountDto {
   return {
@@ -34,6 +39,51 @@ function createController(
 
 function deniedStatus(code: string): number {
   return code === "AUTH_REQUIRED" ? 401 : 403;
+}
+
+const sqliteTimestamp = "2026-05-16 12:33:19";
+const publicTimestamp = "2026-05-16T12:33:19.000Z";
+
+const noopEmails = {
+  sendVerificationEmail: async () => ({ ok: true }),
+  sendPasswordResetEmail: async () => ({ ok: true }),
+  sendAdminInvitationEmail: async () => ({ ok: true }),
+  sendAdminApprovalEmail: async () => ({ ok: true }),
+  sendAdminRejectionEmail: async () => ({ ok: true }),
+  sendBrandInvitationEmail: async () => ({ ok: true }),
+} satisfies AccountEmailNotifier;
+
+function readonlyAdminRepository(
+  records: AdminAccountRecord[]
+): AdminAccountRepository {
+  return {
+    listAdminAccounts: async () => records,
+    findAdminAccountById: async (adminAccountId) =>
+      records.find((record) => record.id === adminAccountId) ?? null,
+    findAdminAccountByEmail: async (email) =>
+      records.find(
+        (record) => record.email.toLowerCase() === email.toLowerCase()
+      ) ?? null,
+    findCustomerByEmail: async () => null,
+    createAdminAccount: async () => {
+      throw new Error("Unexpected createAdminAccount call.");
+    },
+    updateAdminAccount: async () => {
+      throw new Error("Unexpected updateAdminAccount call.");
+    },
+    approveAdminAccount: async () => {
+      throw new Error("Unexpected approveAdminAccount call.");
+    },
+    rejectAdminAccount: async () => {
+      throw new Error("Unexpected rejectAdminAccount call.");
+    },
+    suspendAdminAccount: async () => {
+      throw new Error("Unexpected suspendAdminAccount call.");
+    },
+    reactivateAdminAccount: async () => {
+      throw new Error("Unexpected reactivateAdminAccount call.");
+    },
+  };
 }
 
 const ownerContext = {
@@ -287,6 +337,64 @@ describe("admin account routes", () => {
       "suspend",
       "reactivate",
     ]);
+  });
+
+  it("lists Admin accounts when D1 returns SQLite CURRENT_TIMESTAMP strings", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => ownerContext,
+      },
+      routes: {
+        adminAccounts: {
+          controllerFactory: () =>
+            new AdminAccountController(
+              new AdminAccountService({
+                repository: readonlyAdminRepository([
+                  {
+                    id: "owner_1",
+                    email: "owner@example.test",
+                    role: "SUPER_ADMIN",
+                    status: "ACTIVE",
+                    isOwner: true,
+                    emailVerifiedAt: sqliteTimestamp,
+                    approvedAt: sqliteTimestamp,
+                    suspensionReason: null,
+                    rejectionReason: null,
+                    createdAt: sqliteTimestamp,
+                    updatedAt: sqliteTimestamp,
+                  },
+                ]),
+                accountEmails: noopEmails,
+                passwordPepper: "test-pepper-value",
+              })
+            ),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/admin-accounts", {
+        headers: {
+          cookie: "jrw_session=owner-token",
+          "x-request-id": "req_sqlite_timestamps",
+        },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        admins: [
+          {
+            id: "owner_1",
+            role: "SUPER_ADMIN",
+            createdAt: publicTimestamp,
+            updatedAt: publicTimestamp,
+          },
+        ],
+      },
+      meta: { requestId: "req_sqlite_timestamps" },
+    });
   });
 
   it("rejects role/owner mutation fields before controller execution", async () => {

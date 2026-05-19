@@ -123,6 +123,16 @@ function dashboardEligible(record: AdminAccountRecord): boolean {
   return Boolean(record.emailVerifiedAt && record.approvedAt);
 }
 
+function toPublicDateTime(value: string): string {
+  const sqliteTimestamp = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
+  const candidate = sqliteTimestamp.test(value)
+    ? `${value.replace(" ", "T")}Z`
+    : value;
+  const date = new Date(candidate);
+
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
+}
+
 function toAdminDto(record: AdminAccountRecord): AdminAccountDto {
   return {
     id: record.id,
@@ -135,8 +145,8 @@ function toAdminDto(record: AdminAccountRecord): AdminAccountDto {
     dashboardEligible: dashboardEligible(record),
     suspensionReason: record.suspensionReason,
     rejectionReason: record.rejectionReason,
-    createdAt: record.createdAt,
-    updatedAt: record.updatedAt,
+    createdAt: toPublicDateTime(record.createdAt),
+    updatedAt: toPublicDateTime(record.updatedAt),
   };
 }
 
