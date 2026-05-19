@@ -1,4 +1,10 @@
-export const SESSION_COOKIE_NAME = "jrw_session";
+export const ADMIN_SESSION_COOKIE_NAME = "jrw_admin_session";
+export const CUSTOMER_SESSION_COOKIE_NAME = "jrw_customer_session";
+export const SESSION_COOKIE_NAME = ADMIN_SESSION_COOKIE_NAME;
+
+export type SessionCookieName =
+  | typeof ADMIN_SESSION_COOKIE_NAME
+  | typeof CUSTOMER_SESSION_COOKIE_NAME;
 
 export type SessionCookieInstruction =
   | {
@@ -19,9 +25,10 @@ export type SessionCookieJar = Record<
 >;
 
 export function getSessionCookieValue(
-  cookie: SessionCookieJar
+  cookie: SessionCookieJar,
+  cookieName: SessionCookieName = SESSION_COOKIE_NAME
 ): string | undefined {
-  const value = cookie[SESSION_COOKIE_NAME]?.value;
+  const value = cookie[cookieName]?.value;
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
@@ -42,11 +49,12 @@ function secondsUntil(expiresAt: string, now = new Date()): number {
 export function applySessionCookieInstruction(
   cookie: SessionCookieJar,
   request: Request,
-  instruction: SessionCookieInstruction | undefined
+  instruction: SessionCookieInstruction | undefined,
+  cookieName: SessionCookieName = SESSION_COOKIE_NAME
 ): void {
   if (!instruction) return;
 
-  const sessionCookie = cookie[SESSION_COOKIE_NAME];
+  const sessionCookie = cookie[cookieName];
   if (!sessionCookie?.set) return;
 
   const baseCookie = {

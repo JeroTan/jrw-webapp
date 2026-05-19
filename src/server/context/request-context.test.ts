@@ -38,12 +38,12 @@ describe("request context plugin", () => {
     expect(response.headers.get("x-request-id")).toBe("req_test");
   });
 
-  it("derives actor context from session cookie per request", async () => {
+  it("derives actor context from admin session cookie on admin-routed requests", async () => {
     const app = new Elysia()
       .use(
         createRequestContextPlugin({
-          resolveActorFromSession: async ({ sessionToken }) =>
-            sessionToken === "admin-token"
+          resolveActorFromSession: async ({ sessionToken, sessionRealm }) =>
+            sessionToken === "admin-token" && sessionRealm === "ADMIN"
               ? {
                   authenticated: true,
                   role: "ADMIN",
@@ -71,7 +71,7 @@ describe("request context plugin", () => {
     const adminResponse = await app.handle(
       new Request("https://jrw.test/ctx", {
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_admin",
         },
       })
@@ -105,7 +105,7 @@ describe("request context plugin", () => {
     const response = await app.handle(
       new Request("https://jrw.test/ctx", {
         headers: {
-          cookie: "jrw_session=%E0%A4%A",
+          cookie: "jrw_admin_session=%E0%A4%A",
           "x-request-id": "req_bad_cookie",
         },
       })
@@ -117,5 +117,41 @@ describe("request context plugin", () => {
       role: "PROSPECT",
     });
     expect(response.headers.get("x-request-id")).toBe("req_bad_cookie");
+  });
+
+  it("uses customer cookie only for customer-routed requests", async () => {
+    let observedToken: string | undefined;
+    let observedRealm: string | undefined;
+    const app = new Elysia()
+      .use(
+        createRequestContextPlugin({
+          resolveActorFromSession: async ({ sessionToken, sessionRealm }) => {
+            observedToken = sessionToken;
+            observedRealm = sessionRealm;
+            return undefined;
+          },
+        })
+      )
+      .get("/api/customers/me", (ctx) => {
+        const { requestContext } = ctx as typeof ctx & RequestContextDecorations;
+        return requestContext.actor;
+      });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/customers/me", {
+        headers: {
+          cookie: "jrw_admin_session=admin-token; jrw_customer_session=customer-token",
+          "x-request-id": "req_customer_realm",
+        },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      authenticated: false,
+      role: "PROSPECT",
+    });
+    expect(observedToken).toBe("customer-token");
+    expect(observedRealm).toBe("CUSTOMER");
   });
 });

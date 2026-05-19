@@ -284,7 +284,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "content-type": "application/json",
           "x-request-id": "req_brand_create_success",
         },
@@ -376,7 +376,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1/invite", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "content-type": "application/json",
           "x-request-id": "req_brand_invite_non_member",
         },
@@ -424,7 +424,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1/invite", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "content-type": "application/json",
           "x-request-id": "req_brand_invite_success",
         },
@@ -472,7 +472,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1/invite", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "content-type": "application/json",
           "x-request-id": "req_brand_invite_conflict",
         },
@@ -589,7 +589,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1/accept", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_brand_accept_success",
         },
       })
@@ -640,7 +640,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1/join", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_brand_join_success",
         },
       })
@@ -691,7 +691,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1/join/admin_2/approve", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_brand_approve_success",
         },
       })
@@ -727,7 +727,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1/join/admin_2/approve", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_brand_approve_forbidden",
         },
       })
@@ -773,7 +773,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1/join/admin_2/reject", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_brand_reject_success",
         },
       })
@@ -816,7 +816,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1/join", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_brand_join_conflict",
         },
       })
@@ -846,11 +846,11 @@ describe("brands routes", () => {
         name: "customer",
         headers: {
           "x-request-id": "req_brand_customer",
-          cookie: "jrw_session=customer-token",
+          cookie: "jrw_customer_session=customer-token",
         },
         requestContext: customerContext,
-        expectedCode: "AUTH_FORBIDDEN",
-        expectedStatus: 403,
+        expectedCode: "AUTH_REQUIRED",
+        expectedStatus: 401,
       },
     ] as const;
 
@@ -858,7 +858,8 @@ describe("brands routes", () => {
       let controllerCalls = 0;
       const app = createApp({
         requestContext: {
-          resolveActorFromSession: async () => testCase.requestContext,
+          resolveActorFromSession: async ({ sessionToken }) =>
+            sessionToken ? testCase.requestContext : undefined,
         },
         routes: {
           brands: {
@@ -931,7 +932,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "content-type": "application/json",
           "x-request-id": "req_brand_conflict",
         },
@@ -981,7 +982,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1", {
         method: "PATCH",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "content-type": "application/json",
           "x-request-id": "req_brand_update_success",
         },
@@ -1038,7 +1039,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1", {
         method: "PATCH",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "content-type": "application/json",
           "x-request-id": "req_brand_update_clear_description",
         },
@@ -1120,7 +1121,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1", {
         method: "PATCH",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "content-type": "application/json",
           "x-request-id": "req_brand_update_forbidden",
         },
@@ -1170,7 +1171,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1/archive", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_brand_archive_success",
         },
       })
@@ -1213,7 +1214,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1/archive", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_brand_archive_conflict",
         },
       })
@@ -1354,7 +1355,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_1/products/guard", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_guard_create_success",
         },
       })
@@ -1374,7 +1375,7 @@ describe("brands routes", () => {
         {
           method: "POST",
           headers: {
-            cookie: "jrw_session=admin-token",
+            cookie: "jrw_admin_session=admin-token",
             "x-request-id": "req_guard_update_success",
           },
         }
@@ -1395,7 +1396,7 @@ describe("brands routes", () => {
         {
           method: "POST",
           headers: {
-            cookie: "jrw_session=admin-token",
+            cookie: "jrw_admin_session=admin-token",
             "content-type": "application/json",
             "x-request-id": "req_guard_reassign_success",
           },
@@ -1417,7 +1418,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/products/brandless/guard", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_guard_brandless_success",
         },
       })
@@ -1457,7 +1458,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_2/products/guard", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_guard_create_forbidden",
         },
       })
@@ -1476,7 +1477,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/products/product_1/reassign/guard", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "content-type": "application/json",
           "x-request-id": "req_guard_reassign_invalid_body",
         },
@@ -1572,7 +1573,7 @@ describe("brands routes", () => {
         {
           method: "GET",
           headers: {
-            cookie: "jrw_session=admin-token",
+            cookie: "jrw_admin_session=admin-token",
             "x-request-id": "req_brand_products_success",
           },
         }
@@ -1648,7 +1649,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/products/brandless", {
         method: "GET",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_brandless_success",
         },
       })
@@ -1665,7 +1666,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/me", {
         method: "GET",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_my_brands_success",
         },
       })
@@ -1704,7 +1705,7 @@ describe("brands routes", () => {
       new Request("https://jrw.test/api/brands/brand_2/products", {
         method: "GET",
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_brand_products_forbidden",
         },
       })

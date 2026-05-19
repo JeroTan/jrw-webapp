@@ -264,7 +264,7 @@ describe("owner governance routes", () => {
         "https://jrw.test/api/admin/owner/ownership-transfer/candidates",
         {
           headers: {
-            cookie: "jrw_session=owner-token",
+            cookie: "jrw_admin_session=owner-token",
             "x-request-id": "req_candidates",
           },
         }
@@ -274,7 +274,7 @@ describe("owner governance routes", () => {
       new Request("https://jrw.test/api/admin/owner/ownership-transfer", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=owner-token",
+          cookie: "jrw_admin_session=owner-token",
           "content-type": "application/json",
           "x-request-id": "req_transfer",
         },
@@ -309,7 +309,7 @@ describe("owner governance routes", () => {
       meta: { requestId: "req_transfer" },
     });
     expect(transferResponse.headers.get("set-cookie")).toContain(
-      "jrw_session="
+      "jrw_admin_session="
     );
     expect(transferResponse.headers.get("set-cookie")).toContain("Max-Age=0");
     expect(calls).toEqual(["list", "transfer"]);
@@ -328,7 +328,7 @@ describe("owner governance routes", () => {
         "https://jrw.test/api/admin/owner/ownership-transfer/candidates",
         {
           headers: {
-            cookie: "jrw_session=owner-token",
+            cookie: "jrw_admin_session=owner-token",
             "x-request-id": "req_sqlite_timestamp",
           },
         }
@@ -378,16 +378,16 @@ describe("owner governance routes", () => {
         expectedCode: "AUTH_FORBIDDEN",
         requestContext: adminContext,
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_owner_admin",
         },
       },
       {
         name: "customer",
-        expectedCode: "AUTH_FORBIDDEN",
+        expectedCode: "AUTH_REQUIRED",
         requestContext: customerContext,
         headers: {
-          cookie: "jrw_session=customer-token",
+          cookie: "jrw_customer_session=customer-token",
           "x-request-id": "req_owner_customer",
         },
       },
@@ -396,7 +396,7 @@ describe("owner governance routes", () => {
         expectedCode: "AUTH_FORBIDDEN",
         requestContext: prospectContext,
         headers: {
-          cookie: "jrw_session=prospect-token",
+          cookie: "jrw_admin_session=prospect-token",
           "x-request-id": "req_owner_prospect",
         },
       },
@@ -406,7 +406,8 @@ describe("owner governance routes", () => {
       let controllerFactoryCalls = 0;
       const app = createApp({
         requestContext: {
-          resolveActorFromSession: async () => testCase.requestContext,
+          resolveActorFromSession: async ({ sessionToken }) =>
+            sessionToken ? testCase.requestContext : undefined,
         },
         routes: {
           ownerGovernance: {

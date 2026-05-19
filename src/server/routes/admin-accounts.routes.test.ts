@@ -65,7 +65,6 @@ function readonlyAdminRepository(
       records.find(
         (record) => record.email.toLowerCase() === email.toLowerCase()
       ) ?? null,
-    findCustomerByEmail: async () => null,
     createAdminAccount: async () => {
       throw new Error("Unexpected createAdminAccount call.");
     },
@@ -261,7 +260,7 @@ describe("admin account routes", () => {
     });
 
     const baseHeaders = {
-      cookie: "jrw_session=owner-token",
+      cookie: "jrw_admin_session=owner-token",
       "content-type": "application/json",
     };
     const createResponse = await app.handle(
@@ -278,7 +277,7 @@ describe("admin account routes", () => {
     const listResponse = await app.handle(
       new Request("https://jrw.test/api/admin-accounts", {
         headers: {
-          cookie: "jrw_session=owner-token",
+          cookie: "jrw_admin_session=owner-token",
           "x-request-id": "req_list",
         },
       })
@@ -301,7 +300,7 @@ describe("admin account routes", () => {
       new Request("https://jrw.test/api/admin-accounts/admin_1/suspensions", {
         method: "DELETE",
         headers: {
-          cookie: "jrw_session=owner-token",
+          cookie: "jrw_admin_session=owner-token",
           "x-request-id": "req_reactivate",
         },
       })
@@ -340,7 +339,7 @@ describe("admin account routes", () => {
     ]);
   });
 
-  it("returns safe email conflict details when Admin creation email is already used", async () => {
+  it("returns safe email conflict details when Admin creation email is already used in Admin realm", async () => {
     const app = createApp({
       requestContext: {
         resolveActorFromSession: async () => ownerContext,
@@ -353,12 +352,12 @@ describe("admin account routes", () => {
                 Result.error(
                   new GeneralError(
                     {
-                      reason: "CUSTOMER_EMAIL_ALREADY_EXISTS",
+                      reason: "ADMIN_EMAIL_ALREADY_EXISTS",
                       field: "email",
-                      existingAccountKind: "CUSTOMER",
+                      existingAccountKind: "ADMIN",
                     },
                     "CONFLICT_STATE",
-                    "A Customer account already uses this email."
+                    "An Admin account already uses this email."
                   )
                 ),
             }),
@@ -370,7 +369,7 @@ describe("admin account routes", () => {
       new Request("https://jrw.test/api/admin-accounts", {
         method: "POST",
         headers: {
-          cookie: "jrw_session=owner-token",
+          cookie: "jrw_admin_session=owner-token",
           "content-type": "application/json",
           "x-request-id": "req_email_conflict",
         },
@@ -386,11 +385,11 @@ describe("admin account routes", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: {
         code: "CONFLICT_STATE",
-        message: "A Customer account already uses this email.",
+        message: "An Admin account already uses this email.",
         details: {
-          reason: "CUSTOMER_EMAIL_ALREADY_EXISTS",
+          reason: "ADMIN_EMAIL_ALREADY_EXISTS",
           field: "email",
-          existingAccountKind: "CUSTOMER",
+          existingAccountKind: "ADMIN",
           requestId: "req_email_conflict",
         },
       },
@@ -433,7 +432,7 @@ describe("admin account routes", () => {
     const response = await app.handle(
       new Request("https://jrw.test/api/admin-accounts", {
         headers: {
-          cookie: "jrw_session=owner-token",
+          cookie: "jrw_admin_session=owner-token",
           "x-request-id": "req_sqlite_timestamps",
         },
       })
@@ -475,7 +474,7 @@ describe("admin account routes", () => {
       new Request("https://jrw.test/api/admin-accounts/admin_1", {
         method: "PATCH",
         headers: {
-          cookie: "jrw_session=owner-token",
+          cookie: "jrw_admin_session=owner-token",
           "content-type": "application/json",
           "x-request-id": "req_bad_admin_patch",
         },
@@ -510,16 +509,16 @@ describe("admin account routes", () => {
         expectedCode: "AUTH_FORBIDDEN",
         requestContext: adminContext,
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_admin_role",
         },
       },
       {
         name: "customer",
-        expectedCode: "AUTH_FORBIDDEN",
+        expectedCode: "AUTH_REQUIRED",
         requestContext: customerContext,
         headers: {
-          cookie: "jrw_session=customer-token",
+          cookie: "jrw_customer_session=customer-token",
           "x-request-id": "req_admin_customer",
         },
       },
@@ -528,7 +527,7 @@ describe("admin account routes", () => {
         expectedCode: "AUTH_FORBIDDEN",
         requestContext: prospectContext,
         headers: {
-          cookie: "jrw_session=prospect-token",
+          cookie: "jrw_admin_session=prospect-token",
           "x-request-id": "req_admin_prospect",
         },
       },
@@ -538,7 +537,8 @@ describe("admin account routes", () => {
       let controllerFactoryCalls = 0;
       const app = createApp({
         requestContext: {
-          resolveActorFromSession: async () => testCase.requestContext,
+          resolveActorFromSession: async ({ sessionToken }) =>
+            sessionToken ? testCase.requestContext : undefined,
         },
         routes: {
           adminAccounts: {

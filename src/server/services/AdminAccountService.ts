@@ -70,9 +70,9 @@ type ActorScopedInput = {
 };
 
 type AdminEmailConflict = {
-  reason: "ADMIN_EMAIL_ALREADY_EXISTS" | "CUSTOMER_EMAIL_ALREADY_EXISTS";
+  reason: "ADMIN_EMAIL_ALREADY_EXISTS";
   field: "email";
-  existingAccountKind: "ADMIN" | "CUSTOMER";
+  existingAccountKind: "ADMIN";
 };
 
 export type CreateAdminAccountServiceInput = ActorScopedInput & {
@@ -247,10 +247,7 @@ export class AdminAccountService {
     email: string,
     currentAdminId?: string
   ): Promise<AdminEmailConflict | null> {
-    const [admin, customer] = await Promise.all([
-      this.repository.findAdminAccountByEmail(email),
-      this.repository.findCustomerByEmail(email),
-    ]);
+    const admin = await this.repository.findAdminAccountByEmail(email);
 
     if (admin && admin.id !== currentAdminId) {
       return {
@@ -260,24 +257,15 @@ export class AdminAccountService {
       };
     }
 
-    if (customer) {
-      return {
-        reason: "CUSTOMER_EMAIL_ALREADY_EXISTS",
-        field: "email",
-        existingAccountKind: "CUSTOMER",
-      };
-    }
-
     return null;
   }
 
   private emailConflictError(conflict: AdminEmailConflict) {
-    const message =
-      conflict.existingAccountKind === "ADMIN"
-        ? "An Admin account already uses this email."
-        : "A Customer account already uses this email.";
-
-    return serviceError("CONFLICT_STATE", conflict, message);
+    return serviceError(
+      "CONFLICT_STATE",
+      conflict,
+      "An Admin account already uses this email."
+    );
   }
 
   async listAdminAccounts(

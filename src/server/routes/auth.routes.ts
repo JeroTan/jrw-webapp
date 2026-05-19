@@ -1,16 +1,20 @@
 import { t } from "elysia";
+import type { AuthActorKind } from "@/domain/auth/auth-decisions";
 import { validatePasswordPepper } from "@/domain/auth/super-admin-seed";
 import { hashSessionToken } from "@/lib/crypto/session-token";
 import { tboxApiSuccess, openApiErrorResponses } from "@/lib/typebox/api";
 import {
-  SESSION_COOKIE_NAME,
+  ADMIN_SESSION_COOKIE_NAME,
+  CUSTOMER_SESSION_COOKIE_NAME,
   applySessionCookieInstruction,
   getSessionCookieValue,
   type SessionCookieJar,
+  type SessionCookieName,
 } from "@/server/auth/session-cookie";
 import type { OperationalLogger } from "@/adapter/infrastructure/logging/operational-log";
 import { AuthController } from "@/server/controllers/AuthController";
-import { createAuthRepositories } from "@/server/repositories/AuthRepository";
+import { createAdminAuthRepositories } from "@/server/repositories/AdminAuthRepository";
+import { createCustomerAuthRepositories } from "@/server/repositories/CustomerAuthRepository";
 import { AuthService } from "@/server/services/AuthService";
 import type { RequestContextDecorations } from "@/server/context/request-context";
 import { routeDetail } from "@/server/openapi/route-metadata";
@@ -67,14 +71,50 @@ const tboxSessionInspectionData = t.Object({
   session: t.Nullable(tboxSessionSummary),
 });
 
-const tboxSessionCookie = t.Cookie({
-  [SESSION_COOKIE_NAME]: t.Optional(t.String()),
-});
+export type AuthRealm = "admin" | "customer";
+
+type AuthRealmConfig = {
+  realm: AuthRealm;
+  actorKind: AuthActorKind;
+  basePath: string;
+  cookieName: SessionCookieName;
+  tag: string;
+  label: string;
+  optionalRoles: Array<"PROSPECT" | "CUSTOMER" | "ADMIN" | "SUPER_ADMIN">;
+};
+
+const AUTH_REALMS: AuthRealmConfig[] = [
+  {
+    realm: "admin",
+    actorKind: "ADMIN",
+    basePath: "/admin/auth",
+    cookieName: ADMIN_SESSION_COOKIE_NAME,
+    tag: "Admin Auth",
+    label: "admin",
+    optionalRoles: ["PROSPECT", "ADMIN", "SUPER_ADMIN"],
+  },
+  {
+    realm: "customer",
+    actorKind: "CUSTOMER",
+    basePath: "/customer/auth",
+    cookieName: CUSTOMER_SESSION_COOKIE_NAME,
+    tag: "Customer Auth",
+    label: "customer",
+    optionalRoles: ["PROSPECT", "CUSTOMER"],
+  },
+];
+
+function tboxSessionCookie(cookieName: SessionCookieName) {
+  return t.Cookie({
+    [cookieName]: t.Optional(t.String()),
+  });
+}
 
 export type AuthControllerFactoryInput = {
   request: Request;
   runtimeEnv?: Partial<Env> & Record<string, unknown>;
   requestId: string;
+  realm: AuthRealm;
 };
 
 export type AuthRoutesOptions = {
@@ -89,6 +129,12 @@ function getRuntimePasswordPepper(
 
   if (typeof passwordPepper === "string") return passwordPepper;
   return undefined;
+}
+
+function repositoriesForRealm(realm: AuthRealm, db: D1Database) {
+  return realm === "admin"
+    ? createAdminAuthRepositories(db)
+    : createCustomerAuthRepositories(db);
 }
 
 function createRuntimeController(
@@ -114,7 +160,7 @@ function createRuntimeController(
     );
   }
 
-  const repositories = createAuthRepositories(db as D1Database);
+  const repositories = repositoriesForRealm(input.realm, db as D1Database);
   const service = new AuthService({
     ...repositories,
     passwordPepper: pepper.pepper,
@@ -143,10 +189,14 @@ async function sourceIpHash(request: Request): Promise<string | undefined> {
   return sourceIp ? hashSessionToken(`ip:${sourceIp}`) : undefined;
 }
 
-export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
+function registerRealmAuthRoutes(
+  app: AnyElysia,
+  config: AuthRealmConfig,
+  options: AuthRoutesOptions
+) {
   return app
     .post(
-      "/auth/sessions",
+      `${config.basePath}/sessions`,
       async (ctx) => {
         const { request, set, cookie, runtimeEnv, body, requestId } =
           ctx as typeof ctx &
@@ -159,7 +209,7 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
               body: { email: string; password: string };
             };
         const controller = getController(
-          { request, runtimeEnv, requestId },
+          { request, runtimeEnv, requestId, realm: config.realm },
           options
         );
         const result = await controller.createSession({
@@ -172,19 +222,19 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
         applySessionCookieInstruction(
           cookie as SessionCookieJar,
           request,
-          result.cookie
+          result.cookie,
+          config.cookieName
         );
 
         return result.body as never;
       },
       {
         body: tboxSignInBody,
-        cookie: tboxSessionCookie,
+        cookie: tboxSessionCookie(config.cookieName),
         detail: routeDetail({
-          summary: "Create auth session",
-          description:
-            "Authenticates email/password credentials and creates an HttpOnly server-side session cookie.",
-          tags: ["Auth"],
+          summary: `Create ${config.label} auth session`,
+          description: `Authenticates ${config.label} email/password credentials and creates an HttpOnly ${config.label} session cookie.`,
+          tags: [config.tag],
           auth: { mode: "public", roles: ["PROSPECT"] },
           rateLimitClass: "auth-password",
           errorCodes: [
@@ -205,7 +255,7 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
       }
     )
     .delete(
-      "/auth/sessions/current",
+      `${config.basePath}/sessions/current`,
       async (ctx) => {
         const { request, set, cookie, runtimeEnv, requestId } =
           ctx as typeof ctx &
@@ -220,11 +270,11 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
               >;
             };
         const controller = getController(
-          { request, runtimeEnv, requestId },
+          { request, runtimeEnv, requestId, realm: config.realm },
           options
         );
         const result = await controller.deleteCurrentSession({
-          sessionToken: getSessionCookieValue(cookie),
+          sessionToken: getSessionCookieValue(cookie, config.cookieName),
           requestId,
         });
 
@@ -232,21 +282,21 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
         applySessionCookieInstruction(
           cookie as SessionCookieJar,
           request,
-          result.cookie
+          result.cookie,
+          config.cookieName
         );
 
         return result.body as never;
       },
       {
-        cookie: tboxSessionCookie,
+        cookie: tboxSessionCookie(config.cookieName),
         detail: routeDetail({
-          summary: "Delete current auth session",
-          description:
-            "Invalidates the current server-side session when present and clears the browser session cookie.",
-          tags: ["Auth"],
+          summary: `Delete current ${config.label} auth session`,
+          description: `Invalidates the current ${config.label} server-side session when present and clears the ${config.label} session cookie.`,
+          tags: [config.tag],
           auth: {
             mode: "optional",
-            roles: ["PROSPECT", "CUSTOMER", "ADMIN", "SUPER_ADMIN"],
+            roles: config.optionalRoles,
           },
           rateLimitClass: "auth-password",
           errorCodes: [
@@ -262,7 +312,7 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
       }
     )
     .get(
-      "/auth/session",
+      `${config.basePath}/session`,
       async (ctx) => {
         const { request, set, cookie, runtimeEnv, requestId } =
           ctx as typeof ctx &
@@ -271,11 +321,11 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
               cookie: Record<string, { value: unknown }>;
             };
         const controller = getController(
-          { request, runtimeEnv, requestId },
+          { request, runtimeEnv, requestId, realm: config.realm },
           options
         );
         const result = await controller.getCurrentSession({
-          sessionToken: getSessionCookieValue(cookie),
+          sessionToken: getSessionCookieValue(cookie, config.cookieName),
           requestId,
         });
 
@@ -284,15 +334,14 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
         return result.body as never;
       },
       {
-        cookie: tboxSessionCookie,
+        cookie: tboxSessionCookie(config.cookieName),
         detail: routeDetail({
-          summary: "Inspect current auth session",
-          description:
-            "Returns the current actor/session summary when the session cookie maps to an active server-side session.",
-          tags: ["Auth"],
+          summary: `Inspect current ${config.label} auth session`,
+          description: `Returns the current ${config.label} actor/session summary when the ${config.label} cookie maps to an active server-side session.`,
+          tags: [config.tag],
           auth: {
             mode: "optional",
-            roles: ["PROSPECT", "CUSTOMER", "ADMIN", "SUPER_ADMIN"],
+            roles: config.optionalRoles,
           },
           rateLimitClass: "public-read",
           errorCodes: [
@@ -307,4 +356,11 @@ export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
         },
       }
     );
+}
+
+export function authRoutes(app: AnyElysia, options: AuthRoutesOptions = {}) {
+  return AUTH_REALMS.reduce(
+    (routes, config) => registerRealmAuthRoutes(routes, config, options),
+    app
+  );
 }

@@ -399,6 +399,8 @@ FR10: Epic 1 - `STORE_ADMIN` migration/alias handling to `ADMIN`.
 
 FR11: Epic 1 - Role permission enforcement for Super Admin, Admin, Customer, and Prospect.
 
+FR11A: Epic 2.5 - Admin and Customer identity realm separation across auth routes, cookies, repositories, and recovery flows.
+
 FR12: Epic 2 - Admin brand creation.
 
 FR13: Epic 2 - Admin brand update/archive.
@@ -525,6 +527,8 @@ FR73: Epic 1 - Architecture artifact maintenance.
 
 FR74: Epic 1 - Legacy API migration/deprecation plan.
 
+FR75: Epic 2.5 - Identity realm boundary documentation and regression tests.
+
 ## Epic List
 
 ### Epic 1: Trusted Access, Governance, and Rebuild Guardrails
@@ -538,6 +542,12 @@ Users can sign in safely, owner/admin/customer roles work, email flows exist, le
 Admins can create, join, invite, and manage brand-scoped catalog collaboration without turning brands into stores/sellers.
 
 **FRs covered:** FR12, FR13, FR14, FR15, FR16, FR17, FR18, FR19, FR20
+
+### Epic 2.5: Identity Realm Separation Hardening
+
+Admin and Customer accounts remain separate legal/security realms before catalog, storefront, checkout, and audit scope expand.
+
+**FRs covered:** FR11A, FR75; reinforces FR1, FR2, FR4, FR5, FR7, FR8, FR11, FR60, FR65, FR66, FR68
 
 ### Epic 3: Catalog, Product Media, and Inventory Operations
 
@@ -1568,6 +1578,125 @@ So that brands are not mistaken for stores, sellers, tenants, merchants, or paym
 **When** tests/checks run
 **Then** UI/unit tests or documented QA cover brand language, permission states, invite/join status display, brandless product field, and accessibility basics
 **And** `npm run check` passes or blocker is documented.
+
+## Epic 2.5: Identity Realm Separation Hardening
+
+Admin and Customer accounts remain separate legal/security realms before catalog, storefront, checkout, and audit scope expand.
+
+### Story 2.5.1: Document Identity Realm Boundaries and API Contract
+
+As a developer/agent,
+I want Admin and Customer account boundaries documented in planning and API contracts,
+So that future auth, profile, checkout, and audit work does not collapse separate personas into one account model.
+
+**Requirements covered:** FR11A, FR75; supports FR71, FR73, FR74.
+
+**Acceptance Criteria:**
+
+**Given** identity model is reviewed
+**When** documentation is updated
+**Then** `SUPER_ADMIN` and `ADMIN` are documented as Admin realm accounts in `admins`
+**And** `CUSTOMER` is documented as Customer realm account in `customers`
+**And** docs reject shared account table and `is_admin` flag designs.
+
+**Given** same email exists in both realms
+**When** docs describe behavior
+**Then** records are described as unrelated accounts
+**And** no auto-linking, role promotion, shared password, shared OAuth identity, or merged audit identity is implied.
+
+**Given** API docs are generated
+**When** auth/recovery endpoints are listed
+**Then** Admin and Customer route groups, cookies, and allowed roles are distinct
+**And** removed generic auth endpoints are not presented as current behavior.
+
+### Story 2.5.2: Split Generic Auth into Admin and Customer Realms
+
+As a user in either realm,
+I want login, logout, and session inspection to use realm-specific APIs,
+So that Customer code cannot authenticate against Admin storage and Admin code cannot authenticate against Customer storage.
+
+**Requirements covered:** FR11A, FR75; supports FR1, FR4, FR7, FR11.
+
+**Acceptance Criteria:**
+
+**Given** Admin signs in
+**When** `POST /api/admin/auth/sessions` receives valid Admin credentials
+**Then** session has `actor_kind = ADMIN`
+**And** response sets only `jrw_admin_session`.
+
+**Given** Customer signs in
+**When** `POST /api/customer/auth/sessions` receives valid Customer credentials
+**Then** session has `actor_kind = CUSTOMER`
+**And** response sets only `jrw_customer_session`.
+
+**Given** same email exists in `admins` and `customers`
+**When** each realm login endpoint receives its matching password
+**Then** each authenticates only its own realm account
+**And** wrong-realm password or wrong-realm endpoint fails without checking the other table.
+
+**Given** session inspection runs
+**When** Customer endpoint receives Admin cookie or Admin endpoint receives Customer cookie
+**Then** request is treated as anonymous
+**And** no cross-realm account is loaded.
+
+### Story 2.5.3: Remove Cross-Realm Email Conflict and Recovery Lookup
+
+As a Super Admin and Customer,
+I want account creation and recovery to check only the active realm,
+So that separate Admin and Customer records do not block each other or leak realm existence.
+
+**Requirements covered:** FR11A, FR75; supports FR2, FR5, FR60.
+
+**Acceptance Criteria:**
+
+**Given** Customer email already exists
+**When** Super Admin creates Admin with same email
+**Then** create succeeds if no Admin uses that email
+**And** no Customer conflict reason is returned.
+
+**Given** Admin email already exists
+**When** Customer registers with same email
+**Then** registration succeeds if no Customer uses that email
+**And** no Admin lookup or conflict reason is used.
+
+**Given** password reset is requested
+**When** request uses Admin reset route
+**Then** only Admin account storage is queried
+**And** Customer reset route only queries Customer account storage.
+
+**Given** password reset confirmation is submitted
+**When** token belongs to the other realm
+**Then** confirmation returns safe not-found/conflict behavior
+**And** no other-realm password is changed.
+
+### Story 2.5.4: Add Identity Realm Regression Tests
+
+As a maintainer,
+I want automated regression tests for identity realm boundaries,
+So that future work cannot reintroduce shared-account behavior.
+
+**Requirements covered:** FR11A, FR75; supports NFR security/privacy rules.
+
+**Acceptance Criteria:**
+
+**Given** same email exists in both realms
+**When** auth repository and route tests run
+**Then** Admin lookup returns only Admin record
+**And** Customer lookup returns only Customer record.
+
+**Given** wrong-realm cookies are sent
+**When** Admin and Customer session/profile endpoints inspect requests
+**Then** cross-realm cookie is ignored
+**And** protected route returns `AUTH_REQUIRED` instead of treating actor as wrong-role authenticated user.
+
+**Given** account creation tests run
+**When** Admin and Customer use same email across separate tables
+**Then** only same-table duplicate is rejected.
+
+**Given** static boundary tests run
+**When** auth repository source imports are scanned
+**Then** Customer auth repository does not import Admin table
+**And** Admin auth repository does not import Customer table.
 
 ## Epic 3: Catalog, Product Media, and Inventory Operations
 

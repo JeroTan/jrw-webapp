@@ -1,7 +1,6 @@
 import { createDb, type AppDb } from "@/adapter/infrastructure/db/client";
 import {
   admins,
-  customers,
   sessions,
   type accountStatusValues,
 } from "@/domain/schema/identity";
@@ -37,11 +36,6 @@ export type AdminAccountRecord = {
   rejectionReason: string | null;
   createdAt: string;
   updatedAt: string;
-};
-
-export type AdminAccountCustomerConflictRecord = {
-  id: string;
-  email: string;
 };
 
 export type CreateAdminAccountInput = {
@@ -97,9 +91,6 @@ export type AdminAccountRepository = {
     adminAccountId: string
   ): Promise<AdminAccountRecord | null>;
   findAdminAccountByEmail(email: string): Promise<AdminAccountRecord | null>;
-  findCustomerByEmail(
-    email: string
-  ): Promise<AdminAccountCustomerConflictRecord | null>;
   createAdminAccount(
     input: CreateAdminAccountInput
   ): Promise<AdminAccountRecord>;
@@ -203,18 +194,6 @@ export class DrizzleAdminAccountRepository
       .limit(1);
 
     return admin ? adminAccountRecordFromRow(admin) : null;
-  }
-
-  async findCustomerByEmail(
-    email: string
-  ): Promise<AdminAccountCustomerConflictRecord | null> {
-    const [customer] = await this.db
-      .select({ id: customers.id, email: customers.email })
-      .from(customers)
-      .where(sql`lower(${customers.email}) = ${normalizeEmail(email)}`)
-      .limit(1);
-
-    return customer ?? null;
   }
 
   async createAdminAccount(

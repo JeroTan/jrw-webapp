@@ -17,6 +17,7 @@ import type {
   RecoveryAccountRecord,
   RecoveryEmailVerificationTokenRecord,
 } from "@/server/services/AccountRecoveryService";
+import type { RecoveryActorKind } from "@/domain/auth/account-recovery";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { DrizzleAuthRateLimiter } from "./AuthRepository";
 
@@ -95,20 +96,29 @@ function emailVerificationTokenRecord(
 export class DrizzleAccountRecoveryRepository
   implements AccountRecoveryRepository
 {
-  constructor(private readonly db: AppDb) {}
+  constructor(
+    private readonly db: AppDb,
+    private readonly realm: RecoveryActorKind | "BOTH" = "BOTH"
+  ) {}
 
   async findAccountsByEmail(email: string): Promise<AccountRecoveryLookup> {
     const normalizedEmail = normalizeEmail(email);
-    const [admin] = await this.db
-      .select()
-      .from(admins)
-      .where(sql`lower(${admins.email}) = ${normalizedEmail}`)
-      .limit(1);
-    const [customer] = await this.db
-      .select()
-      .from(customers)
-      .where(sql`lower(${customers.email}) = ${normalizedEmail}`)
-      .limit(1);
+    const [admin] =
+      this.realm === "CUSTOMER"
+        ? [undefined]
+        : await this.db
+            .select()
+            .from(admins)
+            .where(sql`lower(${admins.email}) = ${normalizedEmail}`)
+            .limit(1);
+    const [customer] =
+      this.realm === "ADMIN"
+        ? [undefined]
+        : await this.db
+            .select()
+            .from(customers)
+            .where(sql`lower(${customers.email}) = ${normalizedEmail}`)
+            .limit(1);
 
     return {
       admin: admin ? adminRecord(admin) : null,
@@ -141,6 +151,8 @@ export class DrizzleAccountRecoveryRepository
   async createPasswordResetToken(
     input: CreatePasswordResetTokenInput
   ): Promise<PasswordResetTokenRecord | null> {
+    if (this.realm !== "BOTH" && input.actorKind !== this.realm) return null;
+
     const account = await this.findAccountByActor(input);
 
     if (!account) return null;
@@ -195,7 +207,14 @@ export class DrizzleAccountRecoveryRepository
     const [token] = await this.db
       .select()
       .from(password_reset_tokens)
-      .where(eq(password_reset_tokens.token_hash, tokenHash))
+      .where(
+        this.realm === "BOTH"
+          ? eq(password_reset_tokens.token_hash, tokenHash)
+          : and(
+              eq(password_reset_tokens.token_hash, tokenHash),
+              eq(password_reset_tokens.actor_kind, this.realm)
+            )
+      )
       .limit(1);
 
     return token ? passwordResetTokenRecord(token) : null;
@@ -204,6 +223,8 @@ export class DrizzleAccountRecoveryRepository
   async consumePasswordResetToken(
     input: ConsumePasswordResetTokenInput
   ): Promise<boolean> {
+    if (this.realm !== "BOTH" && input.actorKind !== this.realm) return false;
+
     return input.actorKind === "ADMIN"
       ? this.consumeAdminPasswordResetToken(input)
       : this.consumeCustomerPasswordResetToken(input);
@@ -314,11 +335,14 @@ export class DrizzleAccountRecoveryRepository
   }
 }
 
-export function createAccountRecoveryRepositories(dbBinding: D1Database) {
+export function createAccountRecoveryRepositories(
+  dbBinding: D1Database,
+  realm: RecoveryActorKind | "BOTH" = "BOTH"
+) {
   const db = createDb(dbBinding);
 
   return {
-    repository: new DrizzleAccountRecoveryRepository(db),
+    repository: new DrizzleAccountRecoveryRepository(db, realm),
     rateLimiter: new DrizzleAuthRateLimiter(db),
   };
 }

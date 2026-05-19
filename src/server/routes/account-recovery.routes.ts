@@ -1,5 +1,6 @@
 import { t } from "elysia";
 import type { OperationalLogger } from "@/adapter/infrastructure/logging/operational-log";
+import type { RecoveryActorKind } from "@/domain/auth/account-recovery";
 import { createAccountEmailNotifier } from "@/adapter/infrastructure/resend/CustomerVerificationEmailNotifier";
 import { validatePasswordPepper } from "@/domain/auth/super-admin-seed";
 import { hashSessionToken } from "@/lib/crypto/session-token";
@@ -42,6 +43,7 @@ export type AccountRecoveryControllerFactoryInput = {
   request: Request;
   runtimeEnv?: Partial<Env> & Record<string, unknown>;
   requestId: string;
+  realm: RecoveryActorKind;
 };
 
 export type AccountRecoveryRoutesOptions = {
@@ -83,7 +85,10 @@ function createRuntimeController(
     );
   }
 
-  const repositories = createAccountRecoveryRepositories(db as D1Database);
+  const repositories = createAccountRecoveryRepositories(
+    db as D1Database,
+    input.realm
+  );
   const service = new AccountRecoveryService({
     ...repositories,
     passwordPepper: pepper.pepper,
@@ -91,6 +96,7 @@ function createRuntimeController(
       requestUrl: input.request.url,
     }),
     operationalLogger: options.operationalLogger,
+    realm: input.realm,
   });
 
   return new AccountRecoveryController(service);
@@ -118,9 +124,70 @@ export function accountRecoveryRoutes(
   app: AnyElysia,
   options: AccountRecoveryRoutesOptions = {}
 ) {
+  return registerPasswordResetRoutes(
+    registerPasswordResetRoutes(app, "ADMIN", "/admin/auth", options),
+    "CUSTOMER",
+    "/customer/auth",
+    options
+  ).post(
+    "/customer/auth/email-verifications/requests",
+    async (ctx) => {
+      const { request, set, runtimeEnv, body, requestId } =
+        ctx as typeof ctx &
+          RequestContextDecorations & {
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+            body: { email?: unknown };
+          };
+      const controller = getController(
+        { request, runtimeEnv, requestId, realm: "CUSTOMER" },
+        options
+      );
+      const result = await controller.requestEmailVerification({
+        body,
+        requestId,
+        sourceIpHash: await sourceIpHash(request),
+      });
+
+      set.status = result.status;
+
+      return result.body as never;
+    },
+    {
+      body: tboxRecoveryEmailBody,
+      detail: routeDetail({
+        summary: "Request customer verification email",
+        description:
+          "Accepts a customer verification resend request without revealing account existence or verification state.",
+        tags: ["Customer Auth"],
+        auth: { mode: "public", roles: ["PROSPECT", "CUSTOMER"] },
+        rateLimitClass: "email-token",
+        errorCodes: [
+          "VALIDATION_FAILED",
+          "RATE_LIMITED",
+          "PROVIDER_UNAVAILABLE",
+          "INTERNAL_ERROR",
+        ],
+      }),
+      response: {
+        202: tboxApiSuccess(tboxAcceptedData),
+        ...openApiErrorResponses([400, 429, 500, 503]),
+      },
+    }
+  );
+}
+
+function registerPasswordResetRoutes(
+  app: AnyElysia,
+  realm: RecoveryActorKind,
+  basePath: "/admin/auth" | "/customer/auth",
+  options: AccountRecoveryRoutesOptions
+) {
+  const label = realm === "ADMIN" ? "admin" : "customer";
+  const tag = realm === "ADMIN" ? "Admin Auth" : "Customer Auth";
+
   return app
     .post(
-      "/password-resets",
+      `${basePath}/password-resets`,
       async (ctx) => {
         const { request, set, runtimeEnv, body, requestId } =
           ctx as typeof ctx &
@@ -129,7 +196,7 @@ export function accountRecoveryRoutes(
               body: { email?: unknown };
             };
         const controller = getController(
-          { request, runtimeEnv, requestId },
+          { request, runtimeEnv, requestId, realm },
           options
         );
         const result = await controller.requestPasswordReset({
@@ -145,10 +212,9 @@ export function accountRecoveryRoutes(
       {
         body: tboxRecoveryEmailBody,
         detail: routeDetail({
-          summary: "Request password reset",
-          description:
-            "Accepts a Customer or Admin password reset request and sends email only when eligible without revealing account existence.",
-          tags: ["Auth"],
+          summary: `Request ${label} password reset`,
+          description: `Accepts a ${label} password reset request and sends email only when eligible without revealing account existence.`,
+          tags: [tag],
           auth: { mode: "public", roles: ["PROSPECT"] },
           rateLimitClass: "email-token",
           errorCodes: [
@@ -165,7 +231,7 @@ export function accountRecoveryRoutes(
       }
     )
     .post(
-      "/password-resets/confirmations",
+      `${basePath}/password-resets/confirmations`,
       async (ctx) => {
         const { request, set, runtimeEnv, body, requestId } =
           ctx as typeof ctx &
@@ -174,7 +240,7 @@ export function accountRecoveryRoutes(
               body: { token?: unknown; password?: unknown };
             };
         const controller = getController(
-          { request, runtimeEnv, requestId },
+          { request, runtimeEnv, requestId, realm },
           options
         );
         const result = await controller.confirmPasswordReset({
@@ -190,10 +256,9 @@ export function accountRecoveryRoutes(
       {
         body: tboxPasswordResetConfirmationBody,
         detail: routeDetail({
-          summary: "Confirm password reset",
-          description:
-            "Consumes a single-use password reset token and updates the password without issuing or revoking a session cookie.",
-          tags: ["Auth"],
+          summary: `Confirm ${label} password reset`,
+          description: `Consumes a single-use ${label} password reset token and updates the password without issuing or revoking a session cookie.`,
+          tags: [tag],
           auth: { mode: "public", roles: ["PROSPECT"] },
           rateLimitClass: "email-token",
           errorCodes: [
@@ -208,51 +273,6 @@ export function accountRecoveryRoutes(
         response: {
           200: tboxApiSuccess(tboxPasswordResetData),
           ...openApiErrorResponses([400, 404, 409, 429, 500, 503]),
-        },
-      }
-    )
-    .post(
-      "/email-verifications/requests",
-      async (ctx) => {
-        const { request, set, runtimeEnv, body, requestId } =
-          ctx as typeof ctx &
-            RequestContextDecorations & {
-              runtimeEnv?: Partial<Env> & Record<string, unknown>;
-              body: { email?: unknown };
-            };
-        const controller = getController(
-          { request, runtimeEnv, requestId },
-          options
-        );
-        const result = await controller.requestEmailVerification({
-          body,
-          requestId,
-          sourceIpHash: await sourceIpHash(request),
-        });
-
-        set.status = result.status;
-
-        return result.body as never;
-      },
-      {
-        body: tboxRecoveryEmailBody,
-        detail: routeDetail({
-          summary: "Request verification email",
-          description:
-            "Accepts a customer verification resend request without revealing account existence or verification state.",
-          tags: ["Customers"],
-          auth: { mode: "public", roles: ["PROSPECT", "CUSTOMER"] },
-          rateLimitClass: "email-token",
-          errorCodes: [
-            "VALIDATION_FAILED",
-            "RATE_LIMITED",
-            "PROVIDER_UNAVAILABLE",
-            "INTERNAL_ERROR",
-          ],
-        }),
-        response: {
-          202: tboxApiSuccess(tboxAcceptedData),
-          ...openApiErrorResponses([400, 429, 500, 503]),
         },
       }
     );

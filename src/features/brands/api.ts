@@ -200,7 +200,7 @@ export async function fetchBrandProducts(brandId: string): Promise<BrandProductL
 }
 
 export async function fetchSessionActor(): Promise<AuthenticatedActor | null> {
-  const response = await fetch("/api/auth/session", {
+  const response = await fetch("/api/admin/auth/session", {
     headers: { accept: "application/json" },
   });
 

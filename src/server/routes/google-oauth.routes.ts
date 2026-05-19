@@ -4,7 +4,7 @@ import { hashSessionToken } from "@/lib/crypto/session-token";
 import { createGoogleOAuthClientFromEnv } from "@/lib/google/oauth";
 import { openApiErrorResponses } from "@/lib/typebox/api";
 import {
-  SESSION_COOKIE_NAME,
+  CUSTOMER_SESSION_COOKIE_NAME,
   applySessionCookieInstruction,
   type SessionCookieJar,
 } from "@/server/auth/session-cookie";
@@ -31,7 +31,7 @@ const tboxGoogleOAuthCallbackQuery = t.Object({
 });
 
 const tboxSessionCookie = t.Cookie({
-  [SESSION_COOKIE_NAME]: t.Optional(t.String()),
+  [CUSTOMER_SESSION_COOKIE_NAME]: t.Optional(t.String()),
 });
 
 export type GoogleOAuthControllerFactoryInput = {
@@ -179,7 +179,12 @@ export function googleOAuthRoutes(
         });
 
         applyRedirectResult(set, result);
-        applySessionCookieInstruction(cookie, request, result.cookie);
+        applySessionCookieInstruction(
+          cookie,
+          request,
+          result.cookie,
+          CUSTOMER_SESSION_COOKIE_NAME
+        );
 
         return result.body as never;
       },

@@ -1,8 +1,12 @@
 import { Elysia } from "elysia";
-import type { AccountStatus } from "@/domain/auth/auth-decisions";
+import type { AccountStatus, AuthActorKind } from "@/domain/auth/auth-decisions";
 import type { ActorRole } from "@/domain/auth/roles";
-import { SESSION_COOKIE_NAME } from "@/server/auth/session-cookie";
-import { createAuthRepositories } from "@/server/repositories/AuthRepository";
+import {
+  ADMIN_SESSION_COOKIE_NAME,
+  CUSTOMER_SESSION_COOKIE_NAME,
+} from "@/server/auth/session-cookie";
+import { createAdminAuthRepositories } from "@/server/repositories/AdminAuthRepository";
+import { createCustomerAuthRepositories } from "@/server/repositories/CustomerAuthRepository";
 import { AuthService } from "@/server/services/AuthService";
 import { getOrCreateRequestId, REQUEST_ID_HEADER } from "@/utils/request-id";
 
@@ -37,6 +41,7 @@ export type SessionActorResolverInput = {
   request: Request;
   requestId: string;
   sessionToken?: string;
+  sessionRealm: AuthActorKind;
   runtimeEnv?: Partial<Env> & Record<string, unknown>;
 };
 
@@ -79,6 +84,25 @@ function parseCookieHeader(headers: Headers, cookieName: string): string | undef
   return undefined;
 }
 
+function sessionRealmForPath(pathname: string): AuthActorKind {
+  if (
+    pathname.startsWith("/api/customer/") ||
+    pathname.startsWith("/api/customers") ||
+    pathname.startsWith("/api/oauth/google") ||
+    pathname.startsWith("/api/email-verifications")
+  ) {
+    return "CUSTOMER";
+  }
+
+  return "ADMIN";
+}
+
+function cookieNameForRealm(realm: AuthActorKind): string {
+  return realm === "CUSTOMER"
+    ? CUSTOMER_SESSION_COOKIE_NAME
+    : ADMIN_SESSION_COOKIE_NAME;
+}
+
 function actorContextFromInspection(
   inspection: Awaited<ReturnType<AuthService["inspectSession"]>>["content"]
 ): RequestActorContext {
@@ -102,6 +126,7 @@ function actorContextFromInspection(
 
 async function defaultSessionActorResolver({
   sessionToken,
+  sessionRealm,
   runtimeEnv,
   requestId,
 }: SessionActorResolverInput): Promise<RequestActorContext | undefined> {
@@ -109,7 +134,10 @@ async function defaultSessionActorResolver({
     return anonymousActorContext();
   }
 
-  const repositories = createAuthRepositories(runtimeEnv.DB as D1Database);
+  const repositories =
+    sessionRealm === "CUSTOMER"
+      ? createCustomerAuthRepositories(runtimeEnv.DB as D1Database)
+      : createAdminAuthRepositories(runtimeEnv.DB as D1Database);
   const service = new AuthService({
     ...repositories,
     passwordPepper: "unused-request-context-pepper",
@@ -155,12 +183,17 @@ export function createRequestContextPlugin(
       }
     ).runtimeEnv;
     const requestId = getOrCreateRequestId(request.headers);
-    const sessionToken = parseCookieHeader(request.headers, SESSION_COOKIE_NAME);
+    const sessionRealm = sessionRealmForPath(new URL(request.url).pathname);
+    const sessionToken = parseCookieHeader(
+      request.headers,
+      cookieNameForRealm(sessionRealm)
+    );
     const actor =
       (await resolveActorFromSession({
         request,
         requestId,
         sessionToken,
+        sessionRealm,
         runtimeEnv,
       })) ?? anonymousActorContext();
     const requestContext = buildRequestContext(request.headers, actor, requestId);

@@ -431,11 +431,14 @@ Rendering requirements:
 
 ### Authentication Model
 
+- Identity is split by realm. `SUPER_ADMIN` and `ADMIN` are Admin realm accounts in `admins`; `CUSTOMER` is Customer realm account in `customers`. The product must not use a shared account table or `is_admin` flag.
 - `SUPER_ADMIN`: seeded owner, manages Admins, and can transfer ownership to another eligible Admin.
 - `ADMIN`: manages JRW catalog, brands, inventory, prices, orders, and manual return/refund records.
 - `CUSTOMER`: registered buyer using email/password or Google sign-in.
 - `PROSPECT`: anonymous storefront browser.
 - `STORE_ADMIN`: deprecated alias migrated to `ADMIN`.
+- Admin and Customer accounts are separate even when the email string matches in both tables. Same-email records must not auto-link, promote, share password state, or imply same identity.
+- Admin auth and Customer auth use separate route groups, repositories, and cookies: `jrw_admin_session` for Admin realm and `jrw_customer_session` for Customer realm.
 - Admin dashboard access requires Super Admin creation or approved/verified Admin registration if enabled.
 - Customer email verification gates trusted checkout/account flows.
 - Ownership transfer must preserve exactly one owner, require deliberate confirmation, require current Super Admin re-authentication or password confirmation, require an active eligible target Admin, record an audit trail, and demote the old owner to Admin unless explicitly disabled.
@@ -444,7 +447,7 @@ Rendering requirements:
 
 Required route groups and endpoint expectations:
 
-- `auth`: login, logout, customer registration, Admin registration when enabled, email verification, password reset, Google OAuth callback, session inspection.
+- `auth`: realm-specific Admin and Customer login/logout/session inspection, customer registration, Admin registration when enabled, email verification, password reset, Google OAuth callback.
 - `admin`: Admin account management, approval/rejection, suspension/reactivation, ownership transfer, dashboard session.
 - `brands`: brand create/read/update/archive, membership list, invitation, join request, approval/rejection, member removal.
 - `catalog`: categories, products, variants, product images, publish/archive, brand assignment.
@@ -470,7 +473,8 @@ Each implemented endpoint must define:
 Public API responses use camelCase. Persistent database naming may use implementation-specific conventions, but API contracts must stay stable for UI and external integrations.
 
 Core entity groups:
-- Account: Super Admin/Admin/Customer identity, email verification state, approval state, suspension state, provider links, profile fields.
+- Admin account: Super Admin/Admin identity, password credential, owner flag, approval state, suspension state, admin email verification state.
+- Customer account: Customer identity, password/OAuth credential, customer email verification state, profile/contact fields, marketing preference.
 - Brand: brand profile, archived state, membership, invitation/join request, member role within brand.
 - Catalog: category, product, product status, product-brand association, variant, price, image reference, storefront visibility.
 - Inventory: stock quantity, stock state, reservation, release/reconciliation record.
@@ -649,6 +653,7 @@ Resource risks:
 - FR9: Prospect can browse public storefront without account.
 - FR10: System can treat `STORE_ADMIN` as deprecated alias migrated to `ADMIN`.
 - FR11: System can enforce role permissions for Super Admin, Admin, Customer, and Prospect.
+- FR11A: System can keep Admin and Customer account realms separate across tables, auth routes, cookies, repositories, and recovery flows without cross-realm email lookup or account linking.
 
 ### Brands & Collaboration
 
@@ -736,6 +741,7 @@ Resource risks:
 - FR72: System can provide consistent success and error response envelopes.
 - FR73: Project can maintain architecture artifact with directory tree, boundaries, and requirements-to-structure mapping.
 - FR74: Project can provide a migration or deprecation plan for legacy API behavior before broad rebuild implementation.
+- FR75: Project can maintain identity-realm boundary documentation and regression tests that prevent customer-facing code from querying Admin account storage and prevent Admin auth code from querying Customer account storage.
 
 ## Non-Functional Requirements
 
@@ -759,6 +765,8 @@ Resource risks:
 - PayMongo webhooks must reject unsigned or invalid-signature requests before any state mutation.
 - Customer PII fields must be documented, minimized to registration/checkout/fulfillment/support needs, and covered by retention rules before production launch.
 - Ownership transfer must require deliberate confirmation and record an audit trail for actor, target Admin, old role, new role, timestamp, and request ID.
+- Customer-facing auth/profile/recovery code must not query or import Admin account storage. Admin auth code must not query or import Customer account storage. Exceptions require explicit owner/admin management documentation and regression tests.
+- Same email in `admins` and `customers` is treated as two unrelated account records. Realm-specific login endpoint and cookie decide which account can authenticate.
 
 ### Reliability & Data Integrity
 

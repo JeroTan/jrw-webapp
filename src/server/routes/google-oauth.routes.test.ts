@@ -120,7 +120,7 @@ describe("google oauth routes", () => {
 
     expect(response.status).toBe(302);
     expect(response.headers.get("location")).toBe("/checkout");
-    expect(setCookie).toContain("jrw_session=raw-session-token");
+    expect(setCookie).toContain("jrw_customer_session=raw-session-token");
     expect(setCookie).toContain("HttpOnly");
     expect(setCookie).toContain("Secure");
     expect(setCookie).toContain("SameSite=Lax");

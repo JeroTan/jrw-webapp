@@ -9,7 +9,7 @@ function createController(service: Partial<AuthService>): AuthController {
 }
 
 describe("auth routes", () => {
-  it("documents auth endpoints with OpenAPI metadata", async () => {
+  it("documents realm-specific auth endpoints with OpenAPI metadata", async () => {
     const app = createApp();
     const response = await app.handle(
       new Request("https://jrw.test/api/openapi/json")
@@ -31,35 +31,43 @@ describe("auth routes", () => {
       >;
     };
 
-    const createSession = body.paths?.["/api/auth/sessions"]?.post;
-    const deleteSession =
-      body.paths?.["/api/auth/sessions/current"]?.delete;
-    const inspectSession = body.paths?.["/api/auth/session"]?.get;
+    const adminCreate = body.paths?.["/api/admin/auth/sessions"]?.post;
+    const customerCreate = body.paths?.["/api/customer/auth/sessions"]?.post;
+    const adminDelete =
+      body.paths?.["/api/admin/auth/sessions/current"]?.delete;
+    const customerInspect =
+      body.paths?.["/api/customer/auth/session"]?.get;
 
-    expect(createSession?.summary).toBe("Create auth session");
-    expect(createSession?.tags).toContain("Auth");
-    expect(createSession?.["x-auth"]).toEqual({
+    expect(body.paths?.["/api/auth/sessions"]).toBeUndefined();
+    expect(adminCreate?.summary).toBe("Create admin auth session");
+    expect(adminCreate?.tags).toContain("Admin Auth");
+    expect(adminCreate?.["x-auth"]).toEqual({
       mode: "public",
       roles: ["PROSPECT"],
     });
-    expect(createSession?.["x-rate-limit-class"]).toBe("auth-password");
-    expect(createSession?.["x-error-codes"]).toContain("RATE_LIMITED");
-    expect(createSession?.["x-error-codes"]).toContain("PROVIDER_UNAVAILABLE");
-    expect(createSession?.responses).toHaveProperty("503");
-    expect(deleteSession?.["x-auth"]?.mode).toBe("optional");
-    expect(deleteSession?.["x-error-codes"]).toContain("PROVIDER_UNAVAILABLE");
-    expect(deleteSession?.responses).toHaveProperty("503");
-    expect(inspectSession?.["x-rate-limit-class"]).toBe("public-read");
-    expect(inspectSession?.["x-error-codes"]).toContain("PROVIDER_UNAVAILABLE");
-    expect(inspectSession?.responses).toHaveProperty("503");
+    expect(adminCreate?.["x-rate-limit-class"]).toBe("auth-password");
+    expect(adminCreate?.["x-error-codes"]).toContain("RATE_LIMITED");
+    expect(adminCreate?.responses).toHaveProperty("503");
+    expect(customerCreate?.summary).toBe("Create customer auth session");
+    expect(customerCreate?.tags).toContain("Customer Auth");
+    expect(adminDelete?.["x-auth"]?.roles).toEqual([
+      "PROSPECT",
+      "ADMIN",
+      "SUPER_ADMIN",
+    ]);
+    expect(customerInspect?.["x-auth"]?.roles).toEqual([
+      "PROSPECT",
+      "CUSTOMER",
+    ]);
   });
 
-  it("creates a session and sets a secure HttpOnly cookie", async () => {
+  it("creates admin session and sets admin cookie", async () => {
     const app = createApp({
       routes: {
         auth: {
-          controllerFactory: () =>
-            createController({
+          controllerFactory: ({ realm }) => {
+            expect(realm).toBe("admin");
+            return createController({
               signIn: async () =>
                 Result.okay({
                   actor: {
@@ -76,13 +84,14 @@ describe("auth routes", () => {
                     expiresAt: "2026-05-14T00:00:00.000Z",
                   },
                 }),
-            }),
+            });
+          },
         },
       },
     });
 
     const response = await app.handle(
-      new Request("https://jrw.test/api/auth/sessions", {
+      new Request("https://jrw.test/api/admin/auth/sessions", {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -106,14 +115,63 @@ describe("auth routes", () => {
       meta: { requestId: "req_test" },
     });
     expect(JSON.stringify(body)).not.toContain("raw-session-token");
-    expect(setCookie).toContain("jrw_session=raw-session-token");
+    expect(setCookie).toContain("jrw_admin_session=raw-session-token");
     expect(setCookie).toContain("HttpOnly");
     expect(setCookie).toContain("Secure");
     expect(setCookie).toContain("SameSite=Lax");
     expect(setCookie).toContain("Path=/");
   });
 
-  it("clears cookie when deleting current session", async () => {
+  it("creates customer session and sets customer cookie", async () => {
+    const app = createApp({
+      routes: {
+        auth: {
+          controllerFactory: ({ realm }) => {
+            expect(realm).toBe("customer");
+            return createController({
+              signIn: async () =>
+                Result.okay({
+                  actor: {
+                    id: "customer_1",
+                    role: "CUSTOMER",
+                    accountStatus: {
+                      status: "ACTIVE",
+                      emailVerified: true,
+                      approved: false,
+                    },
+                  },
+                  session: {
+                    token: "raw-customer-token",
+                    expiresAt: "2026-05-14T00:00:00.000Z",
+                  },
+                }),
+            });
+          },
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/customer/auth/sessions", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req_customer",
+        },
+        body: JSON.stringify({
+          email: "customer@example.test",
+          password: "correct horse battery staple",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("set-cookie")).toContain(
+      "jrw_customer_session=raw-customer-token"
+    );
+  });
+
+  it("clears only realm cookie when deleting current session", async () => {
     const app = createApp({
       routes: {
         auth: {
@@ -126,10 +184,10 @@ describe("auth routes", () => {
     });
 
     const response = await app.handle(
-      new Request("https://jrw.test/api/auth/sessions/current", {
+      new Request("https://jrw.test/api/admin/auth/sessions/current", {
         method: "DELETE",
         headers: {
-          cookie: "jrw_session=raw-session-token",
+          cookie: "jrw_admin_session=raw-session-token",
           "x-request-id": "req_test",
         },
       })
@@ -142,41 +200,47 @@ describe("auth routes", () => {
       data: { cleared: true, revoked: true },
       meta: { code: "SUCCESS", requestId: "req_test" },
     });
-    expect(setCookie).toContain("jrw_session=");
+    expect(setCookie).toContain("jrw_admin_session=");
     expect(setCookie).toContain("Max-Age=0");
     expect(setCookie).toContain("HttpOnly");
   });
 
-  it("returns anonymous session when no active session exists", async () => {
+  it("does not inspect cross-realm cookie on customer session endpoint", async () => {
+    let observedSessionToken: string | undefined;
     const app = createApp({
       routes: {
         auth: {
           controllerFactory: () =>
             createController({
-              inspectSession: async () =>
-                Result.okay({
+              inspectSession: async (input) => {
+                observedSessionToken = input.sessionToken;
+                return Result.okay({
                   authenticated: false,
                   actor: null,
                   session: null,
-                }),
+                });
+              },
             }),
         },
       },
     });
 
     const response = await app.handle(
-      new Request("https://jrw.test/api/auth/session", {
-        headers: { "x-request-id": "req_test" },
+      new Request("https://jrw.test/api/customer/auth/session", {
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_cross",
+        },
       })
     );
 
-    await expect(response.json()).resolves.toEqual({
+    await expect(response.json()).resolves.toMatchObject({
       data: {
         authenticated: false,
         actor: null,
         session: null,
       },
-      meta: { code: "SUCCESS", requestId: "req_test" },
     });
+    expect(observedSessionToken).toBeUndefined();
   });
 });

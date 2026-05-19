@@ -225,7 +225,7 @@ describe("customer account routes", () => {
     const getResponse = await app.handle(
       new Request("https://jrw.test/api/customers/me", {
         headers: {
-          cookie: "jrw_session=test-session",
+          cookie: "jrw_customer_session=test-session",
           "x-request-id": "req_get",
         },
       })
@@ -234,7 +234,7 @@ describe("customer account routes", () => {
       new Request("https://jrw.test/api/customers/me", {
         method: "PATCH",
         headers: {
-          cookie: "jrw_session=test-session",
+          cookie: "jrw_customer_session=test-session",
           "content-type": "application/json",
           "x-request-id": "req_patch",
         },
@@ -277,7 +277,7 @@ describe("customer account routes", () => {
       new Request("https://jrw.test/api/customers/me", {
         method: "PATCH",
         headers: {
-          cookie: "jrw_session=test-session",
+          cookie: "jrw_customer_session=test-session",
           "content-type": "application/json",
           "x-request-id": "req_bad_profile",
         },
@@ -308,19 +308,19 @@ describe("customer account routes", () => {
       },
       {
         name: "admin",
-        expectedCode: "AUTH_FORBIDDEN",
+        expectedCode: "AUTH_REQUIRED",
         requestContext: adminContext,
         headers: {
-          cookie: "jrw_session=admin-token",
+          cookie: "jrw_admin_session=admin-token",
           "x-request-id": "req_customer_admin",
         },
       },
       {
         name: "owner",
-        expectedCode: "AUTH_FORBIDDEN",
+        expectedCode: "AUTH_REQUIRED",
         requestContext: ownerContext,
         headers: {
-          cookie: "jrw_session=owner-token",
+          cookie: "jrw_admin_session=owner-token",
           "x-request-id": "req_customer_owner",
         },
       },
@@ -330,7 +330,8 @@ describe("customer account routes", () => {
       let controllerFactoryCalls = 0;
       const app = createApp({
         requestContext: {
-          resolveActorFromSession: async () => testCase.requestContext,
+          resolveActorFromSession: async ({ sessionToken }) =>
+            sessionToken ? testCase.requestContext : undefined,
         },
         routes: {
           customers: {

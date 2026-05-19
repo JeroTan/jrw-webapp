@@ -133,6 +133,7 @@ export type AccountRecoveryServiceOptions = {
   now?: () => Date;
   createResetCredential?: () => Promise<PasswordResetCredential>;
   createVerificationCredential?: () => Promise<EmailVerificationCredential>;
+  realm?: RecoveryActorKind | "BOTH";
 };
 
 export type { AccountEmailNotifier };
@@ -189,6 +190,7 @@ export class AccountRecoveryService {
   private readonly now: () => Date;
   private readonly createResetCredential: () => Promise<PasswordResetCredential>;
   private readonly createVerificationCredential: () => Promise<EmailVerificationCredential>;
+  private readonly realm: RecoveryActorKind | "BOTH";
 
   constructor(options: AccountRecoveryServiceOptions) {
     this.repository = options.repository;
@@ -212,6 +214,7 @@ export class AccountRecoveryService {
     this.createVerificationCredential =
       options.createVerificationCredential ??
       (() => createEmailVerificationCredential({ now: this.now() }));
+    this.realm = options.realm ?? "BOTH";
   }
 
   private log(input: {
@@ -314,6 +317,18 @@ export class AccountRecoveryService {
     });
   }
 
+  private lookupForRealm(lookup: AccountRecoveryLookup): AccountRecoveryLookup {
+    if (this.realm === "ADMIN") {
+      return { admin: lookup.admin, customer: null };
+    }
+
+    if (this.realm === "CUSTOMER") {
+      return { admin: null, customer: lookup.customer };
+    }
+
+    return lookup;
+  }
+
   async requestPasswordReset(
     input: RequestPasswordResetInput
   ): Promise<AppResult<RecoveryAcceptedResult>> {
@@ -336,7 +351,9 @@ export class AccountRecoveryService {
       const lookup = await this.repository.findAccountsByEmail(
         validation.value.email
       );
-      const decision = evaluatePasswordResetRequestState(lookup);
+      const decision = evaluatePasswordResetRequestState(
+        this.lookupForRealm(lookup)
+      );
 
       if (decision.action === "accept-without-token") {
         this.logNonTokenDecision({
@@ -432,9 +449,14 @@ export class AccountRecoveryService {
         now: this.now(),
       });
 
-      if (!decision.ok) {
+      if (
+        !decision.ok ||
+        (this.realm !== "BOTH" && decision.actorKind !== this.realm)
+      ) {
         await this.rateLimiter.recordFailure(rateLimit);
-        return Result.error(serviceError(decision.code));
+        return Result.error(
+          serviceError(decision.ok ? "RESOURCE_NOT_FOUND" : decision.code)
+        );
       }
 
       const passwordCredential = await createCustomerPasswordCredential({
@@ -493,7 +515,9 @@ export class AccountRecoveryService {
       const lookup = await this.repository.findAccountsByEmail(
         validation.value.email
       );
-      const decision = evaluateEmailVerificationResendState(lookup);
+      const decision = evaluateEmailVerificationResendState(
+        this.lookupForRealm(lookup)
+      );
 
       if (decision.action === "accept-without-token") {
         this.logNonTokenDecision({

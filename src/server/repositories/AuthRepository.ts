@@ -1,16 +1,11 @@
 import { createDb, type AppDb } from "@/adapter/infrastructure/db/client";
 import {
-  admins,
   auth_rate_limits,
-  customers,
   sessions,
-  type accountStatusValues,
   type sessionStatusValues,
 } from "@/domain/schema/identity";
 import { toApiDateTime, toNullableApiDateTime } from "@/lib/api/date-time";
 import type {
-  AuthAccountRecord,
-  AuthAccountRepository,
   AuthRateLimitInput,
   AuthRateLimiter,
   AuthSessionRecord,
@@ -19,51 +14,12 @@ import type {
 } from "@/server/services/AuthService";
 import { and, eq, sql } from "drizzle-orm";
 
-type AccountStatusValue = (typeof accountStatusValues)[number];
 type SessionStatusValue = (typeof sessionStatusValues)[number];
 
-type AdminRow = typeof admins.$inferSelect;
-type CustomerRow = typeof customers.$inferSelect;
 type SessionRow = typeof sessions.$inferSelect;
-
-function normalizeEmail(email: string): string {
-  return email.trim().toLowerCase();
-}
-
-function accountStatus(value: AccountStatusValue): AuthAccountRecord["status"] {
-  return value;
-}
 
 function sessionStatus(value: SessionStatusValue): AuthSessionRecord["status"] {
   return value;
-}
-
-function adminRecord(row: AdminRow): AuthAccountRecord {
-  return {
-    actorKind: "ADMIN",
-    id: row.id,
-    email: row.email,
-    passwordHash: row.password_hash,
-    passwordSalt: row.password_salt,
-    status: accountStatus(row.status),
-    isOwner: row.is_owner,
-    emailVerifiedAt: row.email_verified_at,
-    approvedAt: row.approved_at,
-  };
-}
-
-function customerRecord(row: CustomerRow): AuthAccountRecord {
-  return {
-    actorKind: "CUSTOMER",
-    id: row.id,
-    email: row.email,
-    passwordHash: row.password_hash,
-    passwordSalt: row.password_salt,
-    status: accountStatus(row.status),
-    isOwner: false,
-    emailVerifiedAt: row.email_verified_at,
-    approvedAt: null,
-  };
 }
 
 function sessionRecord(row: SessionRow): AuthSessionRecord {
@@ -76,54 +32,6 @@ function sessionRecord(row: SessionRow): AuthSessionRecord {
     expiresAt: toApiDateTime(row.expires_at),
     revokedAt: toNullableApiDateTime(row.revoked_at),
   };
-}
-
-export class DrizzleAuthAccountRepository implements AuthAccountRepository {
-  constructor(private readonly db: AppDb) {}
-
-  async findByEmail(email: string): Promise<AuthAccountRecord | null> {
-    const normalizedEmail = normalizeEmail(email);
-    const [admin] = await this.db
-      .select()
-      .from(admins)
-      .where(sql`lower(${admins.email}) = ${normalizedEmail}`)
-      .limit(1);
-
-    if (admin) {
-      return adminRecord(admin);
-    }
-
-    const [customer] = await this.db
-      .select()
-      .from(customers)
-      .where(sql`lower(${customers.email}) = ${normalizedEmail}`)
-      .limit(1);
-
-    return customer ? customerRecord(customer) : null;
-  }
-
-  async findByActor(
-    actorKind: AuthAccountRecord["actorKind"],
-    actorId: string
-  ): Promise<AuthAccountRecord | null> {
-    if (actorKind === "ADMIN") {
-      const [admin] = await this.db
-        .select()
-        .from(admins)
-        .where(eq(admins.id, actorId))
-        .limit(1);
-
-      return admin ? adminRecord(admin) : null;
-    }
-
-    const [customer] = await this.db
-      .select()
-      .from(customers)
-      .where(eq(customers.id, actorId))
-      .limit(1);
-
-    return customer ? customerRecord(customer) : null;
-  }
 }
 
 export class DrizzleAuthSessionRepository implements AuthSessionRepository {
@@ -274,7 +182,6 @@ export function createAuthRepositories(dbBinding: D1Database) {
   const db = createDb(dbBinding);
 
   return {
-    accounts: new DrizzleAuthAccountRepository(db),
     rateLimiter: new DrizzleAuthRateLimiter(db),
     sessions: new DrizzleAuthSessionRepository(db),
   };

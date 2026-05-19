@@ -36,7 +36,6 @@ function adminRecord(
 
 class FakeAdminRepository implements AdminAccountRepository {
   admins: AdminAccountRecord[] = [];
-  customerEmails: string[] = [];
   created?: CreateAdminAccountInput;
   updated?: UpdateAdminAccountInput;
   approved?: ApproveAdminAccountInput;
@@ -58,14 +57,6 @@ class FakeAdminRepository implements AdminAccountRepository {
         (admin) => admin.email.toLowerCase() === email.toLowerCase()
       ) ?? null
     );
-  }
-
-  async findCustomerByEmail(email: string) {
-    const existing = this.customerEmails.find(
-      (customerEmail) => customerEmail.toLowerCase() === email.toLowerCase()
-    );
-
-    return existing ? { id: `customer_${existing}`, email: existing } : null;
   }
 
   async createAdminAccount(input: CreateAdminAccountInput) {
@@ -400,13 +391,12 @@ describe("AdminAccountService", () => {
     expect(sent).toEqual(["approval", "rejection"]);
   });
 
-  it("protects owner invariants and blocks duplicate Admin or Customer emails", async () => {
+  it("protects owner invariants, blocks duplicate Admin emails, and ignores Customer realm emails", async () => {
     const repository = new FakeAdminRepository();
     repository.admins.push(
       adminRecord({ id: "owner_1", role: "SUPER_ADMIN", isOwner: true }),
       adminRecord({ id: "admin_2", email: "duplicate@example.test" })
     );
-    repository.customerEmails.push("customer@example.test");
     const service = createService({ repository });
 
     await expect(
@@ -440,37 +430,17 @@ describe("AdminAccountService", () => {
     await expect(
       service.createAdminAccount({
         actor: ownerActor,
-        requestId: "req_customer_duplicate",
+        requestId: "req_customer_same_email",
         body: {
           email: "CUSTOMER@example.test",
           password: "correct horse battery staple",
         },
       })
     ).resolves.toMatchObject({
-      error: {
-        code: "CONFLICT_STATE",
-        data: {
-          reason: "CUSTOMER_EMAIL_ALREADY_EXISTS",
-          field: "email",
-          existingAccountKind: "CUSTOMER",
-        },
-        message: "A Customer account already uses this email.",
-      },
-    });
-    await expect(
-      service.updateAdminAccount({
-        actor: ownerActor,
-        requestId: "req_update_customer_duplicate",
-        adminAccountId: "admin_2",
-        body: { email: "customer@example.test" },
-      })
-    ).resolves.toMatchObject({
-      error: {
-        code: "CONFLICT_STATE",
-        data: {
-          reason: "CUSTOMER_EMAIL_ALREADY_EXISTS",
-          field: "email",
-          existingAccountKind: "CUSTOMER",
+      content: {
+        admin: {
+          email: "customer@example.test",
+          role: "ADMIN",
         },
       },
     });
