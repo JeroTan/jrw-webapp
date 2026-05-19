@@ -65,7 +65,7 @@ so that JRW can change platform owner while preserving exactly one Super Admin.
   - [x] Add request body schema for transfer: `targetAdminId`, `confirmationPhrase`, `password`. `password` max length follows existing password credential max `1024`; phrase max length should be bounded.
   - [x] Response uses standard envelopes only: `{ data, meta }` or `{ error: { code, message, details? } }`.
   - [x] Route metadata uses `routeDetail(...)` with tag `Owner Governance`, auth `{ mode: "required", roles: ["SUPER_ADMIN"] }`, rate-limit class `admin-write`, and documented error codes.
-  - [x] If route returns after revoking current owner session, clear current `jrw_session` cookie using existing cookie helper pattern or document why forced refresh path is sufficient. Stale owner authority must not survive.
+  - [x] If route returns after revoking current owner session, clear current `jrw_admin_session` cookie using existing cookie helper pattern or document why forced refresh path is sufficient. Stale owner authority must not survive.
   - [x] Update `src/server/routes/route-groups.ts` and `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` with owner governance endpoints.
   - [x] Add route tests proving anonymous/Admin/Customer/Prospect requests deny before controller execution, owner can list candidates, owner can transfer, response schemas match OpenAPI, current cookie/session refresh behavior is explicit, and error envelopes include request ID.
 
@@ -152,7 +152,7 @@ so that JRW can change platform owner while preserving exactly one Super Admin.
   - Preserve: existing Admin account endpoint behavior and schemas.
 
 - `src/server/context/request-context.ts`
-  - Current: derives `requestContext.actor` per request from `jrw_session`; invalid/ineligible sessions become anonymous `PROSPECT`; request ID header is set.
+  - Current after Epic 2.5: derives `requestContext.actor` per request from `jrw_admin_session` for Admin paths; invalid/ineligible/wrong-realm sessions become anonymous `PROSPECT`; request ID header is set.
   - Change: ownership routes read only `requestContext.actor`; no duplicate cookie parsing or account lookup for authorization.
   - Preserve: per-request scoping and request ID propagation.
 

@@ -45,7 +45,7 @@ so that future auth, catalog, checkout, and admin stories build on stable archit
 
 - [x] Move or wrap brownfield route/container patterns into `src/server/**` without claiming completed endpoint behavior. (AC: 3, 4, 5)
   - [x] Migrate useful container pattern from `src/api/container/ApiContainer.ts` to `src/server/routes` or `src/server/openapi` as appropriate.
-  - [x] Prefer JRW route groups named from current PRD/architecture: auth, brands, products, checkout, payments/webhooks, orders, returns-refunds, assets, audit.
+  - [x] Prefer JRW route groups named from current PRD/architecture: admin-auth, customer-auth, brands, products, checkout, payments/webhooks, orders, returns-refunds, assets, audit.
   - [x] Mark moved legacy/mock endpoints as migration-only or remove them from canonical app until they satisfy current contracts.
   - [x] Do not add new backend code under `src/api/**`.
 

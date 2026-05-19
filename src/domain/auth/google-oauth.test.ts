@@ -132,7 +132,6 @@ describe("google oauth domain decisions", () => {
         identity,
         providerLink: { customerId: "customer_1", customer: customer() },
         customerByEmail: customer(),
-        adminEmailExists: false,
       })
     ).toMatchObject({ action: "sign-in-linked", customerId: "customer_1" });
     expect(
@@ -140,7 +139,6 @@ describe("google oauth domain decisions", () => {
         identity,
         providerLink: null,
         customerByEmail: customer(),
-        adminEmailExists: false,
       })
     ).toMatchObject({ action: "link-existing-customer" });
     expect(
@@ -148,7 +146,6 @@ describe("google oauth domain decisions", () => {
         identity,
         providerLink: null,
         customerByEmail: null,
-        adminEmailExists: false,
       })
     ).toMatchObject({ action: "create-customer" });
     expect(
@@ -156,12 +153,11 @@ describe("google oauth domain decisions", () => {
         identity: { ...identity, emailVerified: false },
         providerLink: null,
         customerByEmail: null,
-        adminEmailExists: false,
       })
     ).toMatchObject({ ok: false, code: "AUTHENTICATION" });
   });
 
-  it("rejects unsafe admin collisions, provider/customer mismatch, and inactive customers", () => {
+  it("rejects provider/customer mismatch and inactive customers without Admin realm lookup", () => {
     const identity = {
       sub: "google-sub-1",
       email: "buyer@example.test",
@@ -171,20 +167,11 @@ describe("google oauth domain decisions", () => {
     expect(
       evaluateGoogleOAuthLinkDecision({
         identity,
-        providerLink: null,
-        customerByEmail: customer(),
-        adminEmailExists: true,
-      })
-    ).toMatchObject({ ok: false, code: "AUTH_FORBIDDEN" });
-    expect(
-      evaluateGoogleOAuthLinkDecision({
-        identity,
         providerLink: {
           customerId: "customer_2",
           customer: customer({ id: "customer_2" }),
         },
         customerByEmail: customer({ id: "customer_1" }),
-        adminEmailExists: false,
       })
     ).toMatchObject({ ok: false, code: "CONFLICT_STATE" });
     expect(
@@ -192,7 +179,6 @@ describe("google oauth domain decisions", () => {
         identity,
         providerLink: null,
         customerByEmail: customer({ status: "SUSPENDED" }),
-        adminEmailExists: false,
       })
     ).toMatchObject({ ok: false, code: "ACCOUNT_SUSPENDED" });
   });

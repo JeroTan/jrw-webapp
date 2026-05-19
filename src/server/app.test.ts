@@ -118,7 +118,9 @@ describe("createApp", () => {
 
     expect(response.status).toBe(200);
     expect(body.data?.name).toBe("jrw-webapp-api");
-    expect(body.data?.routeGroups).toContain("auth");
+    expect(body.data?.routeGroups).toContain("admin-auth");
+    expect(body.data?.routeGroups).toContain("customer-auth");
+    expect(body.data?.routeGroups).not.toContain("auth");
     expect(body.data?.routeGroups).toContain("payments");
   });
 

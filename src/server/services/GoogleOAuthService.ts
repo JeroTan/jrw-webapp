@@ -18,11 +18,18 @@ import {
   type GoogleOAuthProviderLinkRecord as DomainGoogleOAuthProviderLinkRecord,
   type GoogleOAuthStateRecord,
 } from "@/domain/auth/google-oauth";
-import { createSessionCredential, type SessionCredential } from "@/domain/auth/session-credentials";
+import {
+  createSessionCredential,
+  type SessionCredential,
+} from "@/domain/auth/session-credentials";
 import { hashSessionToken } from "@/lib/crypto/session-token";
 import { GeneralError, type ErrorCodeType } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
-import type { AuthRateLimiter, AuthRateLimitInput, AuthenticatedActor } from "./AuthService";
+import type {
+  AuthRateLimiter,
+  AuthRateLimitInput,
+  AuthenticatedActor,
+} from "./AuthService";
 
 export type GoogleOAuthProviderLinkRecord =
   DomainGoogleOAuthProviderLinkRecord & {
@@ -88,7 +95,9 @@ type GoogleOAuthSessionCreationInput = {
 };
 
 export type GoogleOAuthRepository = {
-  createOAuthState(input: CreateOAuthStateInput): Promise<GoogleOAuthStateRecord>;
+  createOAuthState(
+    input: CreateOAuthStateInput
+  ): Promise<GoogleOAuthStateRecord>;
   findOAuthStateByHash(input: {
     provider: GoogleOAuthProvider;
     stateHash: string;
@@ -103,7 +112,6 @@ export type GoogleOAuthRepository = {
     providerUserId: string;
   }): Promise<GoogleOAuthProviderLinkRecord | null>;
   findCustomerByEmail(email: string): Promise<GoogleOAuthCustomerRecord | null>;
-  adminEmailExists(email: string): Promise<boolean>;
   createSessionForCustomer(input: {
     customerId: string;
     sessionTokenHash: string;
@@ -220,7 +228,9 @@ function toIsoAfterSeconds(now: Date, seconds: number): string {
   return new Date(now.getTime() + seconds * 1000).toISOString();
 }
 
-function actorFromCustomer(customer: GoogleOAuthCustomerRecord): AuthenticatedActor {
+function actorFromCustomer(
+  customer: GoogleOAuthCustomerRecord
+): AuthenticatedActor {
   return {
     id: customer.id,
     role: "CUSTOMER",
@@ -333,7 +343,9 @@ export class GoogleOAuthService {
     error: GeneralError<unknown>
   ): AppResult<never> {
     const code =
-      error.code === "PROVIDER_UNAVAILABLE" ? "PROVIDER_UNAVAILABLE" : "AUTHENTICATION";
+      error.code === "PROVIDER_UNAVAILABLE"
+        ? "PROVIDER_UNAVAILABLE"
+        : "AUTHENTICATION";
 
     this.log({
       requestId,
@@ -381,19 +393,17 @@ export class GoogleOAuthService {
     session: GoogleOAuthSessionCreationInput;
   }): Promise<GoogleOAuthCustomerRecord | null> {
     const normalizedEmail = normalizeEmail(input.identity.email);
-    const [providerLink, customerByEmail, adminEmailExists] = await Promise.all([
+    const [providerLink, customerByEmail] = await Promise.all([
       this.repository.findProviderLink({
         provider: GOOGLE_OAUTH_PROVIDER,
         providerUserId: input.identity.sub,
       }),
       this.repository.findCustomerByEmail(normalizedEmail),
-      this.repository.adminEmailExists(normalizedEmail),
     ]);
     const decision = evaluateGoogleOAuthLinkDecision({
       identity: input.identity,
       providerLink,
       customerByEmail,
-      adminEmailExists,
     });
 
     if (!decision.ok || decision.action !== "sign-in-linked") {
@@ -439,14 +449,20 @@ export class GoogleOAuthService {
       });
     } catch (error) {
       if (isStorageError(error)) {
-        return this.storageFailure("start-google-oauth", input.requestId, error);
+        return this.storageFailure(
+          "start-google-oauth",
+          input.requestId,
+          error
+        );
       }
 
       throw error;
     }
   }
 
-  private validateCallbackInput(input: HandleGoogleOAuthCallbackInput):
+  private validateCallbackInput(
+    input: HandleGoogleOAuthCallbackInput
+  ):
     | { ok: true; state: string; code: string }
     | { ok: false; code: ErrorCodeType; reason: string } {
     if (typeof input.providerError === "string" && input.providerError) {
@@ -526,20 +542,17 @@ export class GoogleOAuthService {
 
       const identity = identityResult.content;
       const normalizedEmail = normalizeEmail(identity.email);
-      const [providerLink, customerByEmail, adminEmailExists] =
-        await Promise.all([
-          this.repository.findProviderLink({
-            provider: GOOGLE_OAUTH_PROVIDER,
-            providerUserId: identity.sub,
-          }),
-          this.repository.findCustomerByEmail(normalizedEmail),
-          this.repository.adminEmailExists(normalizedEmail),
-        ]);
+      const [providerLink, customerByEmail] = await Promise.all([
+        this.repository.findProviderLink({
+          provider: GOOGLE_OAUTH_PROVIDER,
+          providerUserId: identity.sub,
+        }),
+        this.repository.findCustomerByEmail(normalizedEmail),
+      ]);
       const decision = evaluateGoogleOAuthLinkDecision({
         identity,
         providerLink,
         customerByEmail,
-        adminEmailExists,
       });
 
       if (!decision.ok) {

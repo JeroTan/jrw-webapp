@@ -38,7 +38,8 @@ describe("google oauth routes", () => {
 
     expect(start?.summary).toBe("Start Google OAuth session");
     expect(callback?.summary).toBe("Handle Google OAuth callback");
-    expect(start?.tags).toContain("Auth");
+    expect(start?.tags).toContain("Customer Auth");
+    expect(callback?.tags).toContain("Customer Auth");
     expect(start?.["x-auth"]).toEqual({
       mode: "public",
       roles: ["PROSPECT", "CUSTOMER"],
@@ -72,9 +73,12 @@ describe("google oauth routes", () => {
     });
 
     const response = await app.handle(
-      new Request("https://jrw.test/api/oauth/google/sessions?returnTo=/checkout", {
-        headers: { "x-request-id": "req_start" },
-      })
+      new Request(
+        "https://jrw.test/api/oauth/google/sessions?returnTo=/checkout",
+        {
+          headers: { "x-request-id": "req_start" },
+        }
+      )
     );
 
     expect(response.status).toBe(302);
@@ -176,7 +180,7 @@ describe("google oauth routes", () => {
                 Result.error(
                   new GeneralError(
                     {
-                      reason: "ADMIN_EMAIL_COLLISION",
+                      reason: "PROVIDER_RAW_FAILURE",
                       token: "raw-id-token",
                     },
                     "AUTHENTICATION"
@@ -203,6 +207,6 @@ describe("google oauth routes", () => {
       },
     });
     expect(JSON.stringify(body)).not.toContain("raw-id-token");
-    expect(JSON.stringify(body)).not.toContain("ADMIN_EMAIL_COLLISION");
+    expect(JSON.stringify(body)).not.toContain("PROVIDER_RAW_FAILURE");
   });
 });

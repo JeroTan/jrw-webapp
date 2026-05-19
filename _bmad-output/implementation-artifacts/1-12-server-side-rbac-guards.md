@@ -90,7 +90,7 @@ so that protected routes enforce permissions even if UI controls are bypassed.
   - Preserve: per-request scoping, `x-request-id` response header, anonymous Prospect fallback.
 
 - `src/server/services/AuthService.ts`
-  - Current: `inspectSession` hashes `jrw_session`, checks session state, loads account, and returns anonymous if account is inactive, suspended, unverified, or unapproved.
+  - Current after Epic 2.5: `inspectSession` hashes the route realm cookie (`jrw_admin_session` or `jrw_customer_session`), checks session state, loads only the matching realm account, and returns anonymous if account is inactive, suspended, unverified, unapproved, or from the wrong realm.
   - Change: none expected except tests may add fixtures. Guard should not weaken this anonymous downgrade.
   - Preserve: no raw session token in responses/logs; `touchSession` only after valid session/account.
 

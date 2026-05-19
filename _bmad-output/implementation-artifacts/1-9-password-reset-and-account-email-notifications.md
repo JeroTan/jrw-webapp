@@ -33,7 +33,7 @@ so that account recovery and account lifecycle events work without leaking secre
 - [x] Add token and password-reset domain helpers. (AC: 1-4, 8)
   - [x] Add `src/domain/auth/password-reset-token.ts` plus tests, mirroring `email-verification-token.ts` but clamping TTL to 30 minutes.
   - [x] Reuse `generateSessionToken(32)` and SHA-256 hashing from `src/lib/crypto/session-token.ts`; raw reset token exists only while composing email link/body.
-  - [x] Add account recovery decisions under `src/domain/auth/**` or a focused domain file: valid account, missing account, inactive/suspended account, unverified account, ambiguous admin+customer email collision, expired token, used token, invalid token, password validation failure.
+  - [x] Add account recovery decisions under `src/domain/auth/**` or a focused domain file: valid account, missing account, inactive/suspended account, unverified account, expired token, used token, invalid token, password validation failure. Epic 2.5 removed cross-realm ambiguous email semantics because route path selects realm.
   - [x] Use approved `hashPassword(...)` / `createCustomerPasswordCredential(...)` PBKDF2-SHA256 flow with `PASSWORD_PEPPER`; do not use `src/lib/crypto/hash.ts` or Node-only crypto.
 
 - [x] Add repository operations with atomic token consumption. (AC: 1-4, 8)
@@ -45,9 +45,9 @@ so that account recovery and account lifecycle events work without leaking secre
 
 - [x] Add service/controller layer for reset and resend flows. (AC: 1-8)
   - [x] Add `AccountRecoveryService` / `AccountRecoveryController` or carefully extend `CustomerAccountService` / `CustomerAccountController` without creating a God service.
-  - [x] `POST /api/password-resets`: body `{ email }`; public, `email-token`; valid input returns standard success envelope with `{ accepted: true }` for existing, missing, ineligible, and provider-failed accounts unless rate-limited or request body invalid.
-  - [x] `POST /api/password-resets/confirmations`: body `{ token, password }`; public, `email-token`; valid token updates password and returns `{ reset: true }`; invalid/expired/used token returns safe `RESOURCE_NOT_FOUND` or `CONFLICT_STATE`.
-  - [x] `POST /api/email-verifications/requests`: body `{ email }`; public, `email-token`; returns `{ accepted: true }` without revealing account existence or verification state. For eligible unverified customers, creates new verification credential with <=24h expiry and sends verification email.
+  - [x] Realm password reset request endpoints: `POST /api/admin/auth/password-resets` and `POST /api/customer/auth/password-resets`; body `{ email }`; public, `email-token`; valid input returns standard success envelope with `{ accepted: true }` for existing, missing, ineligible, and provider-failed accounts unless rate-limited or request body invalid.
+  - [x] Realm password reset confirmation endpoints: `POST /api/admin/auth/password-resets/confirmations` and `POST /api/customer/auth/password-resets/confirmations`; body `{ token, password }`; public, `email-token`; valid token updates only matching realm password and returns `{ reset: true }`; invalid/expired/used/wrong-realm token returns safe `RESOURCE_NOT_FOUND` or `CONFLICT_STATE`.
+  - [x] `POST /api/customer/auth/email-verifications/requests`: body `{ email }`; public, `email-token`; returns `{ accepted: true }` without revealing account existence or verification state. For eligible unverified customers, creates new verification credential with <=24h expiry and sends verification email.
   - [x] Provider failure on reset/resend request should be logged with request ID and safe context, then treated as retryable internal state with public `{ accepted: true }` to prevent enumeration. Confirm endpoint may return stable safe provider/storage errors when applicable.
   - [x] Do not issue or revoke session cookies during password reset. User signs in through Story 1.7 session route after reset.
 
@@ -65,14 +65,14 @@ so that account recovery and account lifecycle events work without leaking secre
   - [x] Preserve standard envelopes from `src/lib/api/response.ts`: success `{ data, meta }`; error `{ error: { code, message, details? } }`.
 
 - [x] Enforce privacy, logging, and account-enumeration rules. (AC: 1, 5-8)
-  - [x] Public reset/resend request success bodies must be identical for existing, missing, already verified, suspended/inactive, ambiguous, and provider-failed accounts.
+  - [x] Public reset/resend request success bodies must be identical for existing, missing, already verified, suspended/inactive, wrong-realm, and provider-failed accounts.
   - [x] Logs may include request ID, stable error code, safe actor/resource id, and safe reason labels. Logs must not include email unless already hashed/minimized, raw token, token hash, password, provider payload, phone, address, cookie, JWT, pepper, or stack trace.
   - [x] Keep customer transactional emails independent from `emailMarketingOptIn`; marketing opt-in cannot disable verification/reset/order/payment/fulfillment notices.
   - [x] Use stable error codes already in `src/utils/general/error.ts`; add new codes only if absolutely necessary and update `src/lib/api/errors.ts` plus tests.
 
 - [x] Add focused tests and run validation. (AC: 1-8)
-  - [x] Domain tests: reset credential entropy/hash/30-minute TTL, password validation, token state decisions, ambiguous account email decision, ineligible account no-token decision.
-  - [x] Repository/service tests: reset request for existing/missing/ineligible/ambiguous/provider-failed accounts returns same public success, eligible account creates hashed token only, rate limit caps 3/hour across reset/resend, valid reset updates hash/salt and consumes token, invalid/expired/used token does not mutate password.
+  - [x] Domain tests: reset credential entropy/hash/30-minute TTL, password validation, token state decisions, wrong-realm token decision, ineligible account no-token decision.
+  - [x] Repository/service tests: reset request for existing/missing/ineligible/wrong-realm/provider-failed accounts returns same public success, eligible account creates hashed token only, rate limit caps 3/hour across reset/resend, valid reset updates hash/salt and consumes token, invalid/expired/used token does not mutate password.
   - [x] Controller/route tests: OpenAPI metadata, standard envelopes, no raw token/password/hash/salt in response, request ID propagation, TypeBox validation, provider/storage errors mapped safely.
   - [x] Resend adapter tests: reset, verification resend, Admin invitation/approval/rejection payloads, URL escaping, missing config, provider throw with raw payload scrubbed by logging tests.
   - [x] Schema invariant tests: reset table exists with indexes and no raw token column.
@@ -155,32 +155,33 @@ so that account recovery and account lifecycle events work without leaking secre
 
 ### API Contract Guidance
 
-- `POST /api/password-resets`
-  - Auth: public; follow existing public-route metadata convention with `PROSPECT` role, and describe Customer/Admin target-account support in route description.
+- `POST /api/admin/auth/password-resets` and `POST /api/customer/auth/password-resets`
+  - Auth: public; follow existing public-route metadata convention with `PROSPECT` role. Route path selects target realm; repository for that route must not query the other realm.
   - Rate limit: `email-token`.
   - Body: `email`.
   - Success: `202` or `200` standard envelope with `data.accepted = true`. Use one status consistently and document it in endpoint catalog.
   - Public success must not reveal whether account exists, is verified, is suspended, or whether email send succeeded.
   - Expected errors: `VALIDATION_FAILED`, `RATE_LIMITED`, `PROVIDER_UNAVAILABLE` only for storage/config failures that affect all requests safely, `INTERNAL_ERROR`.
 
-- `POST /api/password-resets/confirmations`
+- `POST /api/admin/auth/password-resets/confirmations` and `POST /api/customer/auth/password-resets/confirmations`
   - Auth: public.
   - Rate limit: `email-token` or documented recovery-confirm class if added.
   - Body: `token`, `password`.
+  - Token lookup is realm-scoped by `actor_kind`; wrong-realm tokens return safe not-found/conflict behavior without changing the other table.
   - Success: `data.reset = true`; no session returned.
   - Errors: `VALIDATION_FAILED`, `RESOURCE_NOT_FOUND`, `CONFLICT_STATE`, `RATE_LIMITED`, `PROVIDER_UNAVAILABLE`, `INTERNAL_ERROR`.
 
-- `POST /api/email-verifications/requests`
+- `POST /api/customer/auth/email-verifications/requests`
   - Auth: public.
   - Rate limit: `email-token`.
   - Body: `email`.
   - Success: `data.accepted = true` with no account-state details.
-  - For already verified, missing, suspended/inactive, ambiguous, or provider-failed accounts, same public success shape.
+  - For already verified, missing, suspended/inactive, wrong-realm, or provider-failed accounts, same public success shape.
 
 ### Account Eligibility Decisions
 
 - Normalize email to lowercase before lookup and rate-limit scope hashing.
-- Admin and customer tables can theoretically contain same email. Treat this as ambiguous: create no reset token, send no email, log safe conflict, return public accepted response.
+- Admin and Customer tables may contain the same email string as unrelated accounts. Password reset is never ambiguous because route path selects realm. Admin recovery queries only `admins`; Customer recovery queries only `customers`.
 - Password reset should create tokens only for active accounts with verified email. For customer accounts without local password but verified email, resetting may create a local password credential; keep this explicit in tests.
 - Suspended/inactive accounts do not get reset tokens. Public response remains accepted to avoid enumeration.
 - Verification resend applies to active unverified customers only. Already verified and missing customer cases return same accepted response.
@@ -254,7 +255,7 @@ GPT-5 Codex
 
 - Story context created from sprint status next backlog item on 2026-05-14.
 - Ultimate context engine analysis completed - comprehensive developer guide created.
-- Added hashed password reset token schema, migration, domain helper, and account recovery decisions for eligible/missing/ineligible/ambiguous accounts and invalid/expired/used tokens.
+- Added hashed password reset token schema, migration, domain helper, and account recovery decisions for eligible/missing/ineligible accounts and invalid/expired/used/wrong-realm tokens. Epic 2.5 later split recovery repositories by Admin and Customer realm.
 - Added `AccountRecoveryService`, controller, repository, and route module for password reset request, reset confirmation, and email verification resend with standard envelopes, route metadata, `email-token` rate limiting, safe logs, and no session side effects.
 - Extended Resend notification boundary with reset email and Admin invitation/approval/rejection contracts while preserving verification config fallback behavior.
 - Updated endpoint catalog and D1 migration plan; remote development migration apply remains documented release blocker because implementation did not run `npm run db:migrate:remote`.

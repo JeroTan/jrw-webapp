@@ -2,7 +2,6 @@ import { createId } from "@paralleldrive/cuid2";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import { createDb, type AppDb } from "@/adapter/infrastructure/db/client";
 import {
-  admins,
   customer_providers,
   customers,
   oauth_state_tokens,
@@ -39,7 +38,9 @@ function accountStatus(
   return value;
 }
 
-function provider(value: OAuthProviderValue): GoogleOAuthStateRecord["provider"] {
+function provider(
+  value: OAuthProviderValue
+): GoogleOAuthStateRecord["provider"] {
   return value;
 }
 
@@ -180,17 +181,6 @@ export class DrizzleGoogleOAuthRepository implements GoogleOAuthRepository {
       .limit(1);
 
     return customer ? customerRecord(customer) : null;
-  }
-
-  async adminEmailExists(email: string): Promise<boolean> {
-    const normalizedEmail = normalizeEmail(email);
-    const [admin] = await this.db
-      .select({ id: admins.id })
-      .from(admins)
-      .where(sql`lower(${admins.email}) = ${normalizedEmail}`)
-      .limit(1);
-
-    return Boolean(admin);
   }
 
   async createSessionForCustomer(input: {

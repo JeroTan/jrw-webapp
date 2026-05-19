@@ -32,7 +32,7 @@ so that future endpoint stories know current contracts, auth metadata, errors, e
   - [x] Create `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md`.
   - [x] Include required columns: method/path, route group, owning story, auth mode, roles, rate-limit class, primary DTO/schema, documented error codes, implementation status, notes.
   - [x] Mark `GET /api/` as the only current completed canonical endpoint unless current code proves more.
-  - [x] Add planned rows for MVP route groups from `src/server/routes/route-groups.ts`: auth, brands, products, checkout, payments, webhooks, orders, returns-refunds, assets, audit.
+  - [x] Add planned rows for MVP route groups from `src/server/routes/route-groups.ts`: admin-auth, customer-auth, brands, products, checkout, payments, webhooks, orders, returns-refunds, assets, audit.
   - [x] Include update rule: every future endpoint story must update this catalog when route method/path, schema, auth, role, rate-limit, or error-code behavior changes.
 
 - [x] Refresh legacy API migration baseline. (AC: 3, 5, 7, 9)
@@ -72,7 +72,7 @@ so that future endpoint stories know current contracts, auth metadata, errors, e
 - `src/server/openapi/documentation.ts` owns OpenAPI `info` and tags for Foundation, Auth, Brands, Products, Checkout, Payments, Orders, Returns/Refunds, Assets, and Audit. [Source: `src/server/openapi/documentation.ts`]
 - `src/server/openapi/route-metadata.ts` already provides `routeDetail(...)` with safe `x-auth`, `x-rate-limit-class`, `x-error-codes`, and `deprecated` metadata. Extend it only if needed; do not create another helper. [Source: `src/server/openapi/route-metadata.ts`; `src/server/openapi/route-metadata.test.ts`]
 - `src/server/routes/foundation.routes.ts` is the current canonical completed endpoint example. It uses `routeDetail(...)`, `tboxApiSuccess(...)`, `openApiErrorResponses(...)`, and `apiSuccessWithRequestId(...)`. [Source: `src/server/routes/foundation.routes.ts`]
-- `src/server/routes/route-groups.ts` lists planned canonical route groups: auth, brands, products, checkout, payments, webhooks, orders, returns-refunds, assets, audit. Use these for endpoint catalog baseline. [Source: `src/server/routes/route-groups.ts`]
+- `src/server/routes/route-groups.ts` lists planned canonical route groups: admin-auth, customer-auth, brands, products, checkout, payments, webhooks, orders, returns-refunds, assets, audit. Use these for endpoint catalog baseline. [Source: `src/server/routes/route-groups.ts`]
 - `src/lib/typebox/api.ts` owns reusable TypeBox response schemas: `tboxApiSuccess`, `tboxApiError`, `tboxApiResponse`, `tboxPaginatedResponse`, `openApiErrorResponses`, plus legacy-only helpers. [Source: `src/lib/typebox/api.ts`]
 - `src/api/**` still exists as deprecated brownfield scaffolding. It is migration source only, not canonical endpoint completion. [Source: `_bmad-output/implementation-artifacts/1-1-legacy-api-migration-notes.md`]
 

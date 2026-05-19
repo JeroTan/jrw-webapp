@@ -191,8 +191,23 @@ describe("AuthRepository", { timeout: 20_000 }, () => {
       new URL("./CustomerAuthRepository.ts", import.meta.url),
       "utf8"
     );
+    const adminRecoverySource = readFileSync(
+      new URL("./AdminAccountRecoveryRepository.ts", import.meta.url),
+      "utf8"
+    );
+    const customerRecoverySource = readFileSync(
+      new URL("./CustomerAccountRecoveryRepository.ts", import.meta.url),
+      "utf8"
+    );
+    const googleOAuthSource = readFileSync(
+      new URL("./GoogleOAuthRepository.ts", import.meta.url),
+      "utf8"
+    );
 
     expect(adminSource).not.toMatch(/\bcustomers\b/);
     expect(customerSource).not.toMatch(/\badmins\b/);
+    expect(adminRecoverySource).not.toMatch(/\bcustomers\b/);
+    expect(customerRecoverySource).not.toMatch(/\badmins\b/);
+    expect(googleOAuthSource).not.toMatch(/\badmins\b/);
   });
 });

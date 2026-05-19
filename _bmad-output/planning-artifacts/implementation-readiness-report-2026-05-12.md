@@ -318,7 +318,7 @@ Total NFRs: 45
 - Risk mitigations cover payment mismatch, overselling, brand permission leakage, PII leakage, and marketplace drift.
 - Browser support covers current stable desktop/mobile browsers, 320px minimum customer viewport, and 768px minimum usable admin viewport.
 - Storefront SEO requires unique metadata, stable product slugs after publication unless redirected, and crawlable primary product content.
-- Required API route groups include `auth`, `admin`, `brands`, `catalog`, `inventory`, `checkout`, `payments`, `orders`, `returns-refunds`, `assets`, and `audit`.
+- Required API route groups include `admin-auth`, `customer-auth`, `admin`, `brands`, `catalog`, `inventory`, `checkout`, `payments`, `orders`, `returns-refunds`, `assets`, and `audit`.
 - Every implemented endpoint must define auth mode, allowed roles, request fields, success/error envelopes, rate-limit class, audit behavior when sensitive, and idempotency behavior when retryable.
 - Public API responses use camelCase. Core entity groups include account, brand, catalog, inventory, checkout, order, return/refund, and audit.
 - Required error code catalog includes auth, validation, state conflict, inventory, payment, webhook, idempotency, rate limit, provider, and internal error codes.

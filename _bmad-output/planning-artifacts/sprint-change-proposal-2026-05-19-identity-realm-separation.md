@@ -44,3 +44,16 @@ Success criteria:
 - Cross-realm cookie is ignored by opposite realm endpoints.
 - Admin creation no longer rejects Customer email collisions.
 - Focused auth, account, route, and repository tests pass.
+
+## 6. Implementation Confirmation - 2026-05-19
+
+Implemented and verified:
+
+- Auth routes split into Admin `/api/admin/auth/*` and Customer `/api/customer/auth/*`; generic `/api/auth/*` removed from current OpenAPI.
+- Cookies split into `jrw_admin_session` and `jrw_customer_session`; request context chooses cookie by route realm and treats wrong-realm cookies as anonymous.
+- Auth repositories split: `AdminAuthRepository` imports/queries only `admins`; `CustomerAuthRepository` imports/queries only `customers`.
+- Account recovery repositories split: `AdminAccountRecoveryRepository` imports/queries only `admins`; `CustomerAccountRecoveryRepository` imports/queries only `customers`; old mixed recovery repository removed.
+- Admin creation/update checks only `admins.email`; Customer registration checks only `customers.email`.
+- Google OAuth remains Customer-only, uses `jrw_customer_session`, and queries only `customers` / `customer_providers`; same Admin email string does not block Customer OAuth.
+- Documentation updated in PRD, Epic 2.5, endpoint catalog, API file-flow doc, and owning implementation stories 1.7-1.13 plus dependent Epic 2 stories.
+- Validation: full Vitest suite passed (`56` files, `343` tests), auth regression subset passed (`12` files, `60` tests), `npx astro check` passed with 0 errors, and `npm run build` passed.

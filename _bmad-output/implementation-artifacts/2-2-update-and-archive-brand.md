@@ -154,7 +154,7 @@ so that JRW can keep brand catalog groups accurate without deleting historical p
   - **What must be preserved:** Existing audit event structure, scrubbing logic, publisher interface.
 
 #### `src/server/context/request-context.ts` (Story 2.1)
-  - **Current state:** Derives `requestContext.actor` per request from `jrw_session`. Invalid/ineligible sessions become anonymous `PROSPECT`.
+  - **Current state after Epic 2.5:** Derives `requestContext.actor` per request from the route realm cookie. Admin brand routes use `jrw_admin_session`; invalid/ineligible/wrong-realm sessions become anonymous `PROSPECT`.
   - **What this story changes:** No changes. Brand routes read `requestContext.actor` as established.
   - **What must be preserved:** Per-request scoping, request ID propagation.
 

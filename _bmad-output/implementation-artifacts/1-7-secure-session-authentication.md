@@ -47,9 +47,9 @@ so that role-protected areas can identify me without exposing credentials or tok
 
 - [x] Add auth route contracts and wire route group. (AC: 1, 2, 3, 4, 5, 7)
   - [x] Add `src/server/routes/auth.routes.ts`.
-  - [x] Implement `POST /api/auth/sessions` for email/password sign-in.
-  - [x] Implement `DELETE /api/auth/sessions/current` for sign-out and cookie clear.
-  - [x] Implement `GET /api/auth/session` for current session/actor inspection.
+  - [x] Implement realm-specific email/password sign-in: `POST /api/admin/auth/sessions` and `POST /api/customer/auth/sessions`.
+  - [x] Implement realm-specific sign-out: `DELETE /api/admin/auth/sessions/current` and `DELETE /api/customer/auth/sessions/current`.
+  - [x] Implement realm-specific session inspection: `GET /api/admin/auth/session` and `GET /api/customer/auth/session`.
   - [x] Wire route in `src/server/routes/index.ts` without disrupting `foundationRoutes`.
   - [x] Use TypeBox request/response schemas from `elysia` `t` and reusable response helpers from `src/lib/typebox/api.ts`.
   - [x] Add OpenAPI `routeDetail(...)` metadata: tags, summary, description, auth mode, roles, rate-limit class, and error codes.
@@ -114,7 +114,7 @@ so that role-protected areas can identify me without exposing credentials or tok
 - `admins` has `email`, `password_hash`, `is_owner`, timestamps, and `admins_single_owner_idx` unique partial expression index.
 - `customers.password_hash` is nullable for OAuth users. Existing schema has no customer verification fields; Story 1.8 owns full customer registration/verification.
 - `_bmad-output/implementation-artifacts/1-4-d1-migration-plan.md` marks Admin sessions/tokens as missing and owned by Story 1.7.
-- `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` plans auth endpoints: `POST /api/auth/sessions`, `DELETE /api/auth/sessions/current`, `GET /api/auth/session`.
+- `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md` documents current realm-specific auth endpoints: Admin auth under `/api/admin/auth/*` and Customer auth under `/api/customer/auth/*`. Generic `/api/auth/*` is removed by Epic 2.5.
 
 ### Required Session Model
 
@@ -142,17 +142,17 @@ so that role-protected areas can identify me without exposing credentials or tok
 
 ### API Contract Expectations
 
-- `POST /api/auth/sessions`
+- `POST /api/admin/auth/sessions` and `POST /api/customer/auth/sessions`
   - Request body: email and password using TypeBox schema. Public JSON field names should be camelCase unless existing validation forces migration; do not leak DB snake_case rows.
   - Success response: `{ data: { actor: { id, role, accountStatus }, session: { expiresAt } }, meta: { requestId, code } }` or close equivalent. Do not return token/cookie value.
   - Error codes: `VALIDATION_FAILED`, `AUTHENTICATION`, `ACCOUNT_SUSPENDED`, `EMAIL_NOT_VERIFIED`, `ADMIN_APPROVAL_REQUIRED`, `RATE_LIMITED`, `INTERNAL_ERROR`.
   - Rate-limit class: `auth-password`.
-- `DELETE /api/auth/sessions/current`
+- `DELETE /api/admin/auth/sessions/current` and `DELETE /api/customer/auth/sessions/current`
   - Request: current session cookie.
   - Success response: standard envelope with revocation/cleared status only.
   - Error behavior: idempotent success is acceptable when no active session exists, but document choice in endpoint catalog.
   - Cookie clear must happen regardless of record state.
-- `GET /api/auth/session`
+- `GET /api/admin/auth/session` and `GET /api/customer/auth/session`
   - Request: optional session cookie.
   - Success response: current actor/session summary when active; anonymous/prospect summary or `AUTH_REQUIRED` only if route contract chooses required auth.
   - Do not expose password hash, token hash, raw account status internals, provider metadata, or PII beyond email if explicitly required and safe.
@@ -294,9 +294,9 @@ GPT-5 Codex
 - Added pure auth/session decisions for role derivation, account eligibility, safe credential failure mapping, and session active/expired/revoked state. Password credential verification now rejects legacy or unsalted hashes as unsupported with generic authentication failure; existing customer rows without PBKDF2 salt remain blocked for password sign-in until Story 1.8 migrates credential shape.
 - Added session credential helper so auth service can issue raw opaque cookie tokens while storing only SHA-256 token hashes.
 - Added canonical AuthService orchestration for sign-in, sign-out, and session inspection with safe generic credential failures and account status denials. Added AuthController envelope mapping that never returns raw session tokens in response bodies. Added Drizzle repositories for Admin/Customer lookup and session create/read/revoke/touch.
-- Added canonical `POST /api/auth/sessions`, `DELETE /api/auth/sessions/current`, and `GET /api/auth/session` route contracts with TypeBox schemas, OpenAPI metadata, standard envelopes, and endpoint catalog status update.
+- Added canonical realm-specific route contracts with TypeBox schemas, OpenAPI metadata, standard envelopes, and endpoint catalog status update: `/api/admin/auth/*` for Admin/Super Admin and `/api/customer/auth/*` for Customer.
 - Session cookie handling uses the Elysia cookie API with opaque raw cookie token only, server-side token hash authority, bounded expiry/max age, and clear-cookie behavior on sign-out regardless of session revocation state.
-- Request context now derives anonymous Prospect or authenticated actor context per request from `jrw_session`, preserving request ID headers and avoiding module-level current actor state.
+- Request context now derives anonymous Prospect or authenticated actor context per request from the route realm cookie: `jrw_admin_session` for Admin paths and `jrw_customer_session` for Customer paths, preserving request ID headers and avoiding module-level current actor state.
 - Auth failures now use stable safe public codes and operational logs containing request ID, safe actor ID/role when known, target `auth-session`, timestamp, and error code only.
 - Auth password attempts are rate-limited with D1-backed hashed scope buckets: max 5 failed credential attempts per 15-minute window for email plus source IP hash; sixth attempt returns `RATE_LIMITED` without account-existence leak. No release blocker remains for AC7.
 - Validation complete: `npm run check`, targeted auth/session Vitest, full Vitest, and Astro build pass. Existing Astro check output still includes legacy unused-parameter hints under frozen `src/api/**`.
@@ -305,6 +305,7 @@ GPT-5 Codex
 
 - 2026-05-13 - Implemented Story 1.7 secure session authentication and moved status to review.
 - 2026-05-14 - Code review completed; applied all review patches and moved status to done.
+- 2026-05-19 - Identity realm correction applied: generic `/api/auth/*` routes replaced with `/api/admin/auth/*` and `/api/customer/auth/*`; session cookies split into `jrw_admin_session` and `jrw_customer_session`; account auth repositories split into `AdminAuthRepository` and `CustomerAuthRepository`; regression tests verify same-email Admin/Customer isolation and wrong-realm cookie ignore behavior.
 
 ## Senior Developer Review (AI)
 
@@ -351,6 +352,8 @@ Review patches complete. No unresolved decision-needed, patch, or deferred items
 - src/server/context/request-context.ts
 - src/server/context/request-context.test.ts
 - src/server/repositories/AuthRepository.ts
+- src/server/repositories/AdminAuthRepository.ts
+- src/server/repositories/CustomerAuthRepository.ts
 - src/server/routes/auth.routes.ts
 - src/server/routes/auth.routes.test.ts
 - src/server/routes/index.ts

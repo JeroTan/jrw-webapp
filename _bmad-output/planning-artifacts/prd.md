@@ -361,7 +361,8 @@ Resend:
 
 Google OAuth:
 - Customer sign-in only for MVP unless Admin OAuth is approved later.
-- Auto-link by verified email only when safe.
+- Auto-link by verified email only inside the Customer realm when safe.
+- Same email string in `admins` does not block or link Google Customer OAuth; Google OAuth must not query Admin account storage.
 - Never overwrite local customer profile fields with provider data unless the local field is empty.
 - OAuth errors must map to safe user-facing messages.
 
@@ -402,7 +403,7 @@ Marketplace drift:
 
 ### Project-Type Overview
 
-JRW Webapp has two major surfaces: public customer storefront and protected admin dashboard. The API backend supports auth, brand collaboration, catalog, inventory, checkout, payment webhooks, orders, returns/refunds, audit, and observability.
+JRW Webapp has two major surfaces: public customer storefront and protected admin dashboard. The API backend supports Admin auth, Customer auth, brand collaboration, catalog, inventory, checkout, payment webhooks, orders, returns/refunds, audit, and observability.
 
 The product is not a marketplace or B2B SaaS in MVP. JRW is the only store and seller of record.
 
@@ -447,7 +448,7 @@ Rendering requirements:
 
 Required route groups and endpoint expectations:
 
-- `auth`: realm-specific Admin and Customer login/logout/session inspection, customer registration, Admin registration when enabled, email verification, password reset, Google OAuth callback.
+- `auth`: realm-specific Admin and Customer login/logout/session inspection, customer registration, Admin registration when enabled, email verification, password reset, and Customer-only Google OAuth callback.
 - `admin`: Admin account management, approval/rejection, suspension/reactivation, ownership transfer, dashboard session.
 - `brands`: brand create/read/update/archive, membership list, invitation, join request, approval/rejection, member removal.
 - `catalog`: categories, products, variants, product images, publish/archive, brand assignment.
@@ -791,7 +792,7 @@ Resource risks:
 
 - PayMongo failures, timeouts, and reconciliation mismatches must map to safe user-facing errors and logged operational events with request ID.
 - Transactional email sends must return success/failure status within 2 seconds at p95 under normal provider availability; failures must be logged and retryable where the action is still valid.
-- Google OAuth callback must validate state, verify email where provided, and reject unsafe account linking.
+- Google OAuth callback must validate state, verify email where provided, and reject unsafe Customer-realm account linking without querying Admin account storage.
 - Product image changes must not break historical order snapshots.
 - Configured error tracking must be environment-gated and must scrub secrets, tokens, raw payment payloads, and unnecessary PII before event submission.
 - External provider failures must map to `PROVIDER_UNAVAILABLE`, `PAYMENT_FAILED`, or another documented safe error code.

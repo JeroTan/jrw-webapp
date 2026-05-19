@@ -11,7 +11,8 @@ import {
 } from "@/server/controllers/AccountRecoveryController";
 import type { RequestContextDecorations } from "@/server/context/request-context";
 import { routeDetail } from "@/server/openapi/route-metadata";
-import { createAccountRecoveryRepositories } from "@/server/repositories/AccountRecoveryRepository";
+import { createAdminAccountRecoveryRepositories } from "@/server/repositories/AdminAccountRecoveryRepository";
+import { createCustomerAccountRecoveryRepositories } from "@/server/repositories/CustomerAccountRecoveryRepository";
 import { AccountRecoveryService } from "@/server/services/AccountRecoveryService";
 import { GeneralError } from "@/utils/general/error";
 import type { AnyElysia } from "elysia";
@@ -85,10 +86,10 @@ function createRuntimeController(
     );
   }
 
-  const repositories = createAccountRecoveryRepositories(
-    db as D1Database,
-    input.realm
-  );
+  const repositories =
+    input.realm === "ADMIN"
+      ? createAdminAccountRecoveryRepositories(db as D1Database)
+      : createCustomerAccountRecoveryRepositories(db as D1Database);
   const service = new AccountRecoveryService({
     ...repositories,
     passwordPepper: pepper.pepper,
@@ -132,12 +133,11 @@ export function accountRecoveryRoutes(
   ).post(
     "/customer/auth/email-verifications/requests",
     async (ctx) => {
-      const { request, set, runtimeEnv, body, requestId } =
-        ctx as typeof ctx &
-          RequestContextDecorations & {
-            runtimeEnv?: Partial<Env> & Record<string, unknown>;
-            body: { email?: unknown };
-          };
+      const { request, set, runtimeEnv, body, requestId } = ctx as typeof ctx &
+        RequestContextDecorations & {
+          runtimeEnv?: Partial<Env> & Record<string, unknown>;
+          body: { email?: unknown };
+        };
       const controller = getController(
         { request, runtimeEnv, requestId, realm: "CUSTOMER" },
         options

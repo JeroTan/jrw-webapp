@@ -1,5 +1,6 @@
 export const serverRouteGroups = [
-  "auth",
+  "admin-auth",
+  "customer-auth",
   "customers",
   "owner-governance",
   "brands",

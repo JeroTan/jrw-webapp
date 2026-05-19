@@ -238,7 +238,7 @@ NFR29: PayMongo failures, timeouts, and reconciliation mismatches must map to sa
 
 NFR30: Transactional email sends must return success/failure status within 2 seconds at p95 under normal provider availability; failures must be logged and retryable where the action is still valid.
 
-NFR31: Google OAuth callback must validate state, verify email where provided, and reject unsafe account linking.
+NFR31: Google OAuth callback must validate state, verify email where provided, and reject unsafe Customer-realm account linking without querying Admin account storage.
 
 NFR32: Product image changes must not break historical order snapshots.
 
@@ -1669,6 +1669,12 @@ So that separate Admin and Customer records do not block each other or leak real
 **Then** confirmation returns safe not-found/conflict behavior
 **And** no other-realm password is changed.
 
+**Given** Google OAuth callback uses a verified email that also exists in Admin realm
+**When** Customer OAuth completes
+**Then** OAuth remains Customer-only
+**And** no Admin account storage is queried
+**And** same Admin email string does not block Customer OAuth account creation or sign-in.
+
 ### Story 2.5.4: Add Identity Realm Regression Tests
 
 As a maintainer,
@@ -1694,9 +1700,21 @@ So that future work cannot reintroduce shared-account behavior.
 **Then** only same-table duplicate is rejected.
 
 **Given** static boundary tests run
-**When** auth repository source imports are scanned
+**When** auth, recovery, and Google OAuth repository source imports are scanned
 **Then** Customer auth repository does not import Admin table
 **And** Admin auth repository does not import Customer table.
+**And** Admin recovery repository does not import Customer table
+**And** Customer recovery and Google OAuth repositories do not import Admin table.
+
+**Implementation confirmation - 2026-05-19:**
+
+- Generic `/api/auth/*` routes removed from current OpenAPI. Admin auth lives under `/api/admin/auth/*`; Customer auth lives under `/api/customer/auth/*`.
+- Cookies split into `jrw_admin_session` and `jrw_customer_session`; request context selects cookie by route realm and ignores wrong-realm cookies.
+- Auth repositories split into `AdminAuthRepository` and `CustomerAuthRepository`; session repository remains shared only for `sessions`.
+- Account recovery repositories split into `AdminAccountRecoveryRepository` and `CustomerAccountRecoveryRepository`; old mixed recovery repository removed.
+- Admin create/update checks only `admins.email`; Customer registration checks only `customers.email`.
+- Google OAuth remains Customer-only and queries only `customers` / `customer_providers`; same Admin email string does not block Customer OAuth.
+- Regression coverage includes same-email auth, wrong-realm cookies, Admin/Customer same-email creation, recovery realm routing, OAuth same-email behavior, and static import-boundary tests.
 
 ## Epic 3: Catalog, Product Media, and Inventory Operations
 

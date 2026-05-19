@@ -348,6 +348,6 @@ GPT-5 Codex
 
 - 2026-05-19: Confirmed canonical brand UI routes are `/admin/brands` and `/admin/brands/:id`; Astro file paths under `src/pages/**` are not URL prefixes.
 - Added lightweight redirects for `/brand`, `/brand/:id`, `/brands`, and `/brands/:id` to the canonical admin brand UI routes.
-- Testing path after seeding Admin: sign in with `POST /api/auth/sessions`, then open `/admin/brands` or redirected `/brand`.
+- Testing path after seeding Admin: sign in with `POST /api/admin/auth/sessions`, then open `/admin/brands` or redirected `/brand`.
 - No Vitest exists for redirect-only Astro aliases; full route/build verification is left to MR. JRW's `npm run build-test` gate.
 - Status: done.

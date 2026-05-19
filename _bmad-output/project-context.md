@@ -183,8 +183,8 @@ Tooling:
 - PayMongo webhooks must verify signature before any state mutation.
 - Webhooks must be idempotent. Duplicate valid events must not duplicate orders, payments, stock movements, emails, or audit logs.
 - Payment success pages must reconcile with JRW server state, not trust redirect params alone.
-- Google OAuth is customer-only for MVP unless admin OAuth is explicitly approved later.
-- Auto-link OAuth by verified email only when safe.
+- Google OAuth is Customer-only for MVP unless Admin OAuth is explicitly approved later.
+- Auto-link OAuth by verified email only inside Customer realm when safe. Same Admin email string must not block or link Customer OAuth, and OAuth code must not query Admin account storage.
 - Resend handles verification, password reset, order, payment, fulfillment, and admin notices.
 - Logs and error events must scrub raw passwords, JWTs, OAuth tokens, PayMongo secrets, raw payment payloads, and unnecessary PII.
 - Philippines privacy and ecommerce trust requirements from PRD apply before production launch.
@@ -240,8 +240,8 @@ Tooling:
 ## Current Implementation Warnings
 
 - Most API handlers still return mock data. Mocks are scaffolding, not accepted feature completion.
-- Admin login is the only currently functional flow noted by README.
-- Authorization middleware and protected route guards are not implemented yet.
+- Auth is realm-specific: Admin auth uses `/api/admin/auth/*` with `jrw_admin_session`; Customer auth uses `/api/customer/auth/*` with `jrw_customer_session`. Generic `/api/auth/*` is removed.
+- Server-side RBAC guards are implemented for completed protected Admin/Customer route groups; future protected endpoints must use the same guard pattern.
 - Durable Object inventory locking is scaffolded only.
 - Storefront and admin UI are not implemented yet.
 - Existing API response shapes are inconsistent; standardize before marking endpoints complete.

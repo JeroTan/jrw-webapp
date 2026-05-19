@@ -94,13 +94,15 @@ export type GoogleOAuthLinkDecision =
       ok: false;
       code: Extract<
         ErrorCodeType,
-        "AUTHENTICATION" | "AUTH_FORBIDDEN" | "ACCOUNT_SUSPENDED" | "CONFLICT_STATE"
+        | "AUTHENTICATION"
+        | "AUTH_FORBIDDEN"
+        | "ACCOUNT_SUSPENDED"
+        | "CONFLICT_STATE"
       >;
       reason:
         | "MISSING_SUB"
         | "MISSING_EMAIL"
         | "EMAIL_UNVERIFIED"
-        | "ADMIN_EMAIL_COLLISION"
         | "PROVIDER_LINK_CUSTOMER_MISSING"
         | "PROVIDER_LINK_EMAIL_MISMATCH"
         | "CUSTOMER_INACTIVE"
@@ -131,9 +133,9 @@ function isBlank(value: string | null | undefined): boolean {
   return !value || value.trim().length === 0;
 }
 
-function customerStatusFailure(customer: GoogleOAuthCustomerRecord):
-  | Extract<GoogleOAuthLinkDecision, { ok: false }>
-  | undefined {
+function customerStatusFailure(
+  customer: GoogleOAuthCustomerRecord
+): Extract<GoogleOAuthLinkDecision, { ok: false }> | undefined {
   if (customer.status === "SUSPENDED") {
     return {
       ok: false,
@@ -186,8 +188,12 @@ export async function createGoogleOAuthCredential(
   const ttlSeconds = clampTtlSeconds(
     input.ttlSeconds ?? MAX_GOOGLE_OAUTH_STATE_TTL_SECONDS
   );
-  const state = generateSessionToken(input.byteLength ?? GOOGLE_OAUTH_TOKEN_BYTES);
-  const nonce = generateSessionToken(input.byteLength ?? GOOGLE_OAUTH_TOKEN_BYTES);
+  const state = generateSessionToken(
+    input.byteLength ?? GOOGLE_OAUTH_TOKEN_BYTES
+  );
+  const nonce = generateSessionToken(
+    input.byteLength ?? GOOGLE_OAUTH_TOKEN_BYTES
+  );
 
   return {
     state,
@@ -245,7 +251,6 @@ export function evaluateGoogleOAuthLinkDecision(input: {
   identity: Partial<GoogleOAuthIdentity>;
   providerLink: GoogleOAuthProviderLinkRecord | null;
   customerByEmail: GoogleOAuthCustomerRecord | null;
-  adminEmailExists: boolean;
 }): GoogleOAuthLinkDecision {
   const { identity, providerLink, customerByEmail } = input;
 
@@ -259,14 +264,6 @@ export function evaluateGoogleOAuthLinkDecision(input: {
 
   if (identity.emailVerified !== true) {
     return { ok: false, code: "AUTHENTICATION", reason: "EMAIL_UNVERIFIED" };
-  }
-
-  if (input.adminEmailExists) {
-    return {
-      ok: false,
-      code: "AUTH_FORBIDDEN",
-      reason: "ADMIN_EMAIL_COLLISION",
-    };
   }
 
   if (providerLink) {
@@ -304,7 +301,9 @@ export function evaluateGoogleOAuthLinkDecision(input: {
     };
   }
 
-  if (normalizeEmail(customerByEmail.email) !== normalizeEmail(identity.email)) {
+  if (
+    normalizeEmail(customerByEmail.email) !== normalizeEmail(identity.email)
+  ) {
     return {
       ok: false,
       code: "CONFLICT_STATE",

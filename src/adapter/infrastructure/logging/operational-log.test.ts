@@ -23,7 +23,7 @@ describe("operational logging foundation", () => {
         email: "customer@example.test",
         phone: "0917 123 4567",
         streetAddress: "123 Sample St",
-        sessionCookie: "jrw_session=raw-session-token",
+        sessionCookie: "jrw_admin_session=raw-session-token",
         safeStatus: "PAYMENT_PENDING",
         providerPayload: { unsafe: "raw-provider" },
         rawProviderPayload: { unsafe: "raw-provider" },

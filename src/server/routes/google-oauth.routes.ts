@@ -140,7 +140,7 @@ export function googleOAuthRoutes(
           summary: "Start Google OAuth session",
           description:
             "Creates a hashed OAuth state/nonce record and redirects Prospect or Customer users to Google OAuth.",
-          tags: ["Auth"],
+          tags: ["Customer Auth"],
           auth: { mode: "public", roles: ["PROSPECT", "CUSTOMER"] },
           rateLimitClass: "oauth-login",
           errorCodes: [
@@ -195,7 +195,7 @@ export function googleOAuthRoutes(
           summary: "Handle Google OAuth callback",
           description:
             "Validates Google OAuth state, verifies the ID token, links or creates a Customer account, sets an HttpOnly session cookie, and redirects safely.",
-          tags: ["Auth"],
+          tags: ["Customer Auth"],
           auth: { mode: "public", roles: ["PROSPECT", "CUSTOMER"] },
           rateLimitClass: "oauth-login",
           errorCodes: [

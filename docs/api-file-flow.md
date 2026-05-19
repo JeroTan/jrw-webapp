@@ -11,7 +11,7 @@ flowchart TD
   D --> F["src/server/middleware/cors.ts"]
   D --> G["onError()<br/>standard error envelope + x-request-id"]
   D --> H["src/lib/elysia/astroBridgeContext.ts<br/>request-scoped Astro data"]
-  H --> I["src/server/context/request-context.ts<br/>requestId + actor from jrw_session"]
+  H --> I["src/server/context/request-context.ts<br/>requestId + actor from realm cookie"]
   I --> J["src/server/routes/index.ts<br/>mount canonical route groups"]
   J --> K["src/server/routes/*.routes.ts<br/>transport schema + handler"]
   K --> L["src/server/controllers/**<br/>orchestrate HTTP-facing use case"]
@@ -68,65 +68,86 @@ flowchart TD
   F --> G["OpenAPI UI or JSON response"]
 ```
 
-### POST /api/auth/sessions
+### Realm-Specific Email/Password Auth
 
 ```mermaid
 flowchart TD
-  A["POST /api/auth/sessions"] --> B["src/pages/api/[...slug].ts"]
+  A["POST /api/admin/auth/sessions<br/>POST /api/customer/auth/sessions"] --> B["src/pages/api/[...slug].ts"]
+  A2["DELETE /api/admin/auth/sessions/current<br/>DELETE /api/customer/auth/sessions/current"] --> B
+  A3["GET /api/admin/auth/session<br/>GET /api/customer/auth/session"] --> B
   B --> C["src/server/app.ts"]
   C --> D["src/server/context/request-context.ts<br/>requestId + actor"]
-  D --> E["src/server/routes/auth.routes.ts<br/>body schema + route handler"]
+  D --> E["src/server/routes/auth.routes.ts<br/>realm route config"]
   E --> F["createRuntimeController()<br/>requires DB + PASSWORD_PEPPER"]
   F --> G["src/server/controllers/AuthController.ts<br/>createSession()"]
   G --> H["src/server/services/AuthService.ts<br/>signIn()"]
   H --> I["src/server/repositories/AuthRepository.ts<br/>rateLimiter.isLimited()"]
-  I --> J["AuthRepository.accounts.findByEmail()<br/>admins then customers"]
-  J --> K["src/domain/auth/password-credentials.ts<br/>verifyPasswordCredential()"]
-  K --> L["src/domain/auth/auth-decisions.ts<br/>evaluateAccountEligibility()"]
-  L --> M["src/domain/auth/session-credentials.ts<br/>createSessionCredential()"]
-  M --> N["AuthRepository.sessions.createSession()<br/>insert sessions"]
-  N --> O["auth.routes.ts<br/>set HttpOnly jrw_session cookie"]
-  O --> P["Response: actor + session, no raw token"]
+  I --> J{"Realm path"}
+  J -->|"Admin"| K["AdminAuthRepository<br/>admins only"]
+  J -->|"Customer"| L["CustomerAuthRepository<br/>customers only"]
+  K --> M["src/domain/auth/password-credentials.ts<br/>verifyPasswordCredential()"]
+  L --> M
+  M --> N["src/domain/auth/auth-decisions.ts<br/>evaluateAccountEligibility()"]
+  N --> O["src/domain/auth/session-credentials.ts<br/>createSessionCredential()"]
+  O --> P["AuthRepository.sessions.createSession()<br/>insert sessions with ADMIN or CUSTOMER actor_kind"]
+  P --> Q["auth.routes.ts<br/>set jrw_admin_session or jrw_customer_session"]
+  Q --> R["Response: actor + session, no raw token"]
 ```
 
-### DELETE /api/auth/sessions/current
+### Realm-Specific Session Delete/Inspect
 
 ```mermaid
 flowchart TD
-  A["DELETE /api/auth/sessions/current"] --> B["src/pages/api/[...slug].ts"]
+  A["DELETE /api/admin/auth/sessions/current<br/>GET /api/admin/auth/session"] --> B["src/pages/api/[...slug].ts"]
+  A2["DELETE /api/customer/auth/sessions/current<br/>GET /api/customer/auth/session"] --> B
   B --> C["src/server/app.ts"]
-  C --> D["src/server/routes/auth.routes.ts<br/>read jrw_session cookie"]
+  C --> D["src/server/routes/auth.routes.ts<br/>read realm cookie"]
   D --> E["createRuntimeController()<br/>requires DB + PASSWORD_PEPPER"]
-  E --> F["src/server/controllers/AuthController.ts<br/>deleteCurrentSession()"]
-  F --> G["src/server/services/AuthService.ts<br/>signOut()"]
+  E --> F["src/server/controllers/AuthController.ts<br/>deleteCurrentSession() or getCurrentSession()"]
+  F --> G["src/server/services/AuthService.ts<br/>signOut() or inspectSession()"]
   G --> H{"Cookie token present?"}
-  H -->|"No"| I["Return cleared=true revoked=false"]
-  H -->|"Yes"| J["src/domain/auth/session-credentials.ts<br/>hashSessionToken()"]
-  J --> K["AuthRepository.sessions.revokeByTokenHash()<br/>update sessions"]
-  I --> L["auth.routes.ts<br/>clear jrw_session cookie"]
-  K --> L
-  L --> M["Response: signed out"]
-```
-
-### GET /api/auth/session
-
-```mermaid
-flowchart TD
-  A["GET /api/auth/session"] --> B["src/pages/api/[...slug].ts"]
-  B --> C["src/server/app.ts"]
-  C --> D["src/server/routes/auth.routes.ts<br/>read jrw_session cookie"]
-  D --> E["createRuntimeController()<br/>requires DB + PASSWORD_PEPPER"]
-  E --> F["src/server/controllers/AuthController.ts<br/>getCurrentSession()"]
-  F --> G["src/server/services/AuthService.ts<br/>inspectSession()"]
-  G --> H{"Cookie token present?"}
-  H -->|"No"| I["Return anonymous actor"]
+  H -->|"No"| I["Return anonymous or revoked=false"]
   H -->|"Yes"| J["hashSessionToken()"]
-  J --> K["AuthRepository.sessions.findByTokenHash()"]
-  K --> L["src/domain/auth/auth-decisions.ts<br/>evaluateSessionState()"]
-  L --> M["AuthRepository.accounts.findByActor()"]
-  M --> N["AuthRepository.sessions.touchSession()"]
-  N --> O["Response: authenticated actor"]
-  I --> P["Response: anonymous actor"]
+  J --> K["AuthRepository.sessions<br/>revoke, find, or touch session"]
+  K --> L{"Realm path"}
+  L -->|"Admin"| M["AdminAuthRepository.findByActor()<br/>admins only"]
+  L -->|"Customer"| N["CustomerAuthRepository.findByActor()<br/>customers only"]
+  M --> O["Response envelope"]
+  N --> O
+  I --> O
+```
+
+### Realm-Specific Password Recovery
+
+```mermaid
+flowchart TD
+  A["POST /api/admin/auth/password-resets<br/>POST /api/admin/auth/password-resets/confirmations"] --> B["src/pages/api/[...slug].ts"]
+  A2["POST /api/customer/auth/password-resets<br/>POST /api/customer/auth/password-resets/confirmations"] --> B
+  A3["POST /api/customer/auth/email-verifications/requests"] --> B
+  B --> C["src/server/app.ts"]
+  C --> D["src/server/routes/account-recovery.routes.ts<br/>realm route config"]
+  D --> E["createRuntimeController()<br/>requires DB + PASSWORD_PEPPER"]
+  E --> F{"Realm path"}
+  F -->|"Admin"| G["AdminAccountRecoveryRepository<br/>admins + password_reset_tokens only"]
+  F -->|"Customer"| H["CustomerAccountRecoveryRepository<br/>customers + password/email tokens only"]
+  G --> I["AccountRecoveryService<br/>reset request or confirmation"]
+  H --> I
+  I --> J["Response envelope<br/>no account enumeration"]
+```
+
+### Google OAuth Customer Sign-In
+
+```mermaid
+flowchart TD
+  A["GET /api/oauth/google/sessions<br/>GET /api/oauth/google/callback"] --> B["src/pages/api/[...slug].ts"]
+  B --> C["src/server/app.ts"]
+  C --> D["src/server/routes/google-oauth.routes.ts"]
+  D --> E["GoogleOAuthController"]
+  E --> F["GoogleOAuthService"]
+  F --> G["GoogleOAuthRepository<br/>customers + customer_providers only"]
+  G --> H["AuthRepository.sessions.createSession()<br/>actor_kind CUSTOMER"]
+  H --> I["google-oauth.routes.ts<br/>set jrw_customer_session"]
+  I --> J["Redirect response"]
 ```
 
 ### POST /api/customers
@@ -176,7 +197,7 @@ flowchart TD
 flowchart TD
   A["GET /api/customers/me"] --> B["src/pages/api/[...slug].ts"]
   B --> C["src/server/app.ts"]
-  C --> D["src/server/context/request-context.ts<br/>actor from jrw_session"]
+  C --> D["src/server/context/request-context.ts<br/>actor from jrw_customer_session"]
   D --> E["src/server/routes/customer.routes.ts"]
   E --> F["createRuntimeController()<br/>requires DB + PASSWORD_PEPPER"]
   F --> G["src/server/controllers/CustomerAccountController.ts<br/>getProfile()"]
@@ -192,7 +213,7 @@ flowchart TD
 flowchart TD
   A["PATCH /api/customers/me"] --> B["src/pages/api/[...slug].ts"]
   B --> C["src/server/app.ts"]
-  C --> D["src/server/context/request-context.ts<br/>actor from jrw_session"]
+  C --> D["src/server/context/request-context.ts<br/>actor from jrw_customer_session"]
   D --> E["src/server/routes/customer.routes.ts<br/>profile patch schema"]
   E --> F["createRuntimeController()<br/>requires DB + PASSWORD_PEPPER"]
   F --> G["src/server/controllers/CustomerAccountController.ts<br/>updateProfile()"]
@@ -203,7 +224,7 @@ flowchart TD
   K --> L["Response: updated CustomerProfileDto"]
 ```
 
-### Unknown /api/** Route
+### Unknown /api/\*\* Route
 
 ```mermaid
 flowchart TD
@@ -220,16 +241,7 @@ flowchart TD
 
 Planned endpoints still start at the same Astro catch-all. Their route/controller/service/domain/repository files do not exist yet or are not complete. Last node stays `To be implemented`.
 
-### Auth Recovery And OAuth
-
-```mermaid
-flowchart TD
-  A["POST /api/password-resets"] --> X["src/pages/api/[...slug].ts"]
-  B["POST /api/oauth/google/sessions"] --> X
-  X --> Y["src/server/app.ts"]
-  Y --> Z["planned src/server/routes/auth.routes.ts expansion"]
-  Z --> T["To be implemented"]
-```
+Auth recovery and Google OAuth are active endpoint flows above.
 
 ### Admin Accounts And Ownership
 

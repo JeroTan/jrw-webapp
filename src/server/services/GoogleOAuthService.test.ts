@@ -54,7 +54,8 @@ class FakeGoogleOAuthRepository implements GoogleOAuthRepository {
     return (
       this.states.find(
         (state) =>
-          state.provider === input.provider && state.stateHash === input.stateHash
+          state.provider === input.provider &&
+          state.stateHash === input.stateHash
       ) ?? null
     );
   }
@@ -101,11 +102,6 @@ class FakeGoogleOAuthRepository implements GoogleOAuthRepository {
     );
   }
 
-  async adminEmailExists(email: string) {
-    this.operations.push("admin-collision");
-    return email.toLowerCase() === "admin@example.test";
-  }
-
   async createSessionForCustomer(input: {
     customerId: string;
     sessionTokenHash: string;
@@ -138,7 +134,8 @@ class FakeGoogleOAuthRepository implements GoogleOAuthRepository {
       );
     }
 
-    customer.displayName = input.profileUpdates.displayName ?? customer.displayName;
+    customer.displayName =
+      input.profileUpdates.displayName ?? customer.displayName;
     customer.firstName = input.profileUpdates.firstName ?? customer.firstName;
     customer.lastName = input.profileUpdates.lastName ?? customer.lastName;
     customer.avatarUrl = input.profileUpdates.avatarUrl ?? customer.avatarUrl;
@@ -157,7 +154,9 @@ class FakeGoogleOAuthRepository implements GoogleOAuthRepository {
     return customer;
   }
 
-  async createCustomerLinkAndSession(input: CreateGoogleCustomerLinkSessionInput) {
+  async createCustomerLinkAndSession(
+    input: CreateGoogleCustomerLinkSessionInput
+  ) {
     this.operations.push("create-customer-session");
     const customer: GoogleOAuthCustomerRecord = {
       id: `customer_${this.customers.length + 1}`,
@@ -237,11 +236,13 @@ function customer(
   };
 }
 
-function createService(input: {
-  repository?: FakeGoogleOAuthRepository;
-  provider?: FakeGoogleProvider;
-  logs?: OperationalLogEvent[];
-} = {}) {
+function createService(
+  input: {
+    repository?: FakeGoogleOAuthRepository;
+    provider?: FakeGoogleProvider;
+    logs?: OperationalLogEvent[];
+  } = {}
+) {
   return new GoogleOAuthService({
     repository: input.repository ?? new FakeGoogleOAuthRepository(),
     provider: input.provider ?? new FakeGoogleProvider(),
@@ -390,7 +391,9 @@ describe("GoogleOAuthService", () => {
   it("rejects callbacks from a different source than the initiating request", async () => {
     const repository = new FakeGoogleOAuthRepository();
     const provider = new FakeGoogleProvider();
-    repository.states.push(await stateRecord({ sourceHash: "source_hash_start" }));
+    repository.states.push(
+      await stateRecord({ sourceHash: "source_hash_start" })
+    );
     const service = createService({ repository, provider });
 
     await expect(
@@ -428,10 +431,9 @@ describe("GoogleOAuthService", () => {
     expect(repository.sessions).toHaveLength(1);
   });
 
-  it("rejects provider errors, unverified email, and Admin email collisions safely", async () => {
+  it("rejects provider errors and unverified email safely without Admin realm lookup", async () => {
     const logs: OperationalLogEvent[] = [];
     const scenarios: Array<{
-      email?: string;
       providerResult?: AppResult<GoogleOAuthIdentity>;
       code: string;
     }> = [
@@ -448,15 +450,6 @@ describe("GoogleOAuthService", () => {
           emailVerified: false,
         }),
         code: "AUTHENTICATION",
-      },
-      {
-        email: "admin@example.test",
-        providerResult: Result.okay({
-          sub: "google-sub-1",
-          email: "admin@example.test",
-          emailVerified: true,
-        }),
-        code: "AUTH_FORBIDDEN",
       },
     ];
 
@@ -481,5 +474,37 @@ describe("GoogleOAuthService", () => {
 
     expect(JSON.stringify(logs)).not.toContain("raw-id-token");
     expect(JSON.stringify(logs)).not.toContain("authorization-code");
+  });
+
+  it("creates a customer when Google email matches an Admin email string", async () => {
+    const repository = new FakeGoogleOAuthRepository();
+    const provider = new FakeGoogleProvider();
+    repository.states.push(await stateRecord());
+    provider.identityResult = Result.okay({
+      sub: "google-sub-admin-email",
+      email: "admin@example.test",
+      emailVerified: true,
+      name: "Customer With Admin Email String",
+    });
+    const service = createService({ repository, provider });
+
+    const result = await service.handleCallback({
+      state: "raw-state",
+      code: "authorization-code",
+      requestId: "req_same_email_google",
+    });
+
+    expect(result).toMatchObject({
+      content: {
+        actor: { role: "CUSTOMER" },
+      },
+    });
+    expect(repository.customers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          email: "admin@example.test",
+        }),
+      ])
+    );
   });
 });

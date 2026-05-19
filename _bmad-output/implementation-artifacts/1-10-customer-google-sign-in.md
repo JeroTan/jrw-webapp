@@ -16,10 +16,10 @@ so that I can access JRW checkout/account flows without creating separate passwo
 2. Given Google callback returns a valid authorization code and verified email for a new Customer, when callback processing succeeds, then an active `CUSTOMER` account is created with nullable password credential fields, email marked verified, and no Admin OAuth path enabled.
 3. Given Google callback returns a verified email matching an existing Customer, when auto-linking is safe, then provider identity links to that Customer account by Google `sub`, and local profile fields are not overwritten unless local field is empty.
 4. Given Google callback returns a known Google `sub` already linked to a Customer, when sign-in succeeds, then that Customer receives a secure HttpOnly session cookie, and no provider access token, refresh token, ID token, or raw OAuth state appears in response, docs, or logs.
-5. Given callback email is unverified, missing, mismatched, already linked to a different Customer, collides with Admin email, or otherwise unsafe, when callback is processed, then sign-in is rejected with safe error code, and no account link/session is created.
+5. Given callback email is unverified, missing, mismatched, already linked to a different Customer, or otherwise unsafe inside the Customer realm, when callback is processed, then sign-in is rejected with safe error code, and no account link/session is created. Same email in the Admin realm is not checked or treated as a collision.
 6. Given OAuth provider returns an error or token/userinfo request fails, when callback is handled, then Customer receives safe failure response or redirect, and operational log includes request ID plus safe provider context only.
 7. Given OAuth session routes exist, when docs are generated, then OpenAPI metadata documents auth mode, roles, rate-limit class, request/response contracts or redirect behavior, and stable safe error codes.
-8. Given implementation finishes, when tests run, then tests cover valid new-account callback, existing provider sign-in, safe email auto-link, invalid/expired/reused state, unverified/missing email, unsafe collisions, provider error, customer-only role enforcement, no token/log leakage, and `npm run check` passes or blocker is documented.
+8. Given implementation finishes, when tests run, then tests cover valid new-account callback, existing provider sign-in, safe Customer email auto-link, invalid/expired/reused state, unverified/missing email, provider/customer mismatch, provider error, customer-only role enforcement, no Admin table import/query, no token/log leakage, and `npm run check` passes or blocker is documented.
 
 ## Tasks / Subtasks
 
@@ -36,8 +36,8 @@ so that I can access JRW checkout/account flows without creating separate passwo
   - [x] Add `src/domain/auth/google-oauth.ts` plus tests.
   - [x] Reuse `generateSessionToken(32)` / SHA-256 helpers from `src/lib/crypto/session-token.ts` for OAuth state and nonce; TTL must clamp to 10 minutes.
   - [x] Validate `returnTo` / redirect path as same-origin relative path only. Reject absolute URLs, protocol-relative URLs, control chars, and unsafe paths; default to `/`.
-  - [x] Model decisions for state missing/expired/used, provider error, missing code, missing `sub`, missing email, `email_verified !== true`, unsafe admin/customer email collision, provider `sub` linked to another Customer, inactive/suspended Customer, and safe existing Customer link.
-  - [x] Safe auto-link rule: normalized verified Google email may link only to an active Customer when no Admin has same normalized email, the Google `sub` is not linked elsewhere, and existing local profile fields remain authoritative unless empty.
+  - [x] Model decisions for state missing/expired/used, provider error, missing code, missing `sub`, missing email, `email_verified !== true`, provider `sub` linked to another Customer, inactive/suspended Customer, and safe existing Customer link. Epic 2.5 removed Admin-account lookup checks from Google OAuth.
+  - [x] Safe auto-link rule: normalized verified Google email may link only to an active Customer when the Google `sub` is not linked elsewhere and existing local profile fields remain authoritative unless empty. Same Admin email string is ignored because Google OAuth is Customer-only.
   - [x] Existing unverified Customer may be marked verified only when Google `email_verified` is true, normalized email matches exactly, and all safe-link checks pass.
 
 - [x] Add Google OAuth provider boundary. (AC: 2-6, 8)
@@ -52,7 +52,7 @@ so that I can access JRW checkout/account flows without creating separate passwo
 
 - [x] Add repository operations with atomic state consumption and linking. (AC: 1-5, 8)
   - [x] Add `src/server/repositories/GoogleOAuthRepository.ts` or equivalent focused repository.
-  - [x] Operations needed: create OAuth state, find state by hash, atomically consume state once, find provider link by `provider/providerUserId`, find Customer by normalized email, detect Admin email collision, create Customer for Google, create provider link, update only empty Customer profile fields from Google claims, mark email verified when safe, and create server-side session.
+  - [x] Operations needed: create OAuth state, find state by hash, atomically consume state once, find provider link by `provider/providerUserId`, find Customer by normalized email, create Customer for Google, create provider link, update only empty Customer profile fields from Google claims, mark email verified when safe, and create server-side Customer session. Repository must query `customers` and `customer_providers`, never `admins`.
   - [x] State consumption must happen before account linking/session creation and must be single-use. Replayed callback must return conflict/not found and create no session.
   - [x] Link/create Customer and provider link in one D1 batch/transactional sequence where possible. Avoid state where provider link exists for missing Customer or session exists before link decision.
   - [x] Preserve `customers.password_hash` and `customers.password_salt` as nullable for OAuth-created accounts; do not create password credentials.
@@ -64,7 +64,7 @@ so that I can access JRW checkout/account flows without creating separate passwo
     - `GET /api/oauth/google/sessions`: creates state and redirects to Google authorization URL.
     - `GET /api/oauth/google/callback`: validates callback, consumes state, links/creates Customer, creates session, sets cookie, and redirects to safe `returnTo` or default path.
   - [x] If implementing Google Identity Services popup mode too, add a separate `POST /api/oauth/google/sessions` only with explicit state/header validation; do not mix popup and redirect semantics in one handler.
-  - [x] Factor session cookie helpers from `src/server/routes/auth.routes.ts` into `src/server/auth/session-cookie.ts` or another shared auth helper so OAuth uses same `jrw_session` flags: HttpOnly, SameSite=Lax, Secure outside local HTTP, path `/`, expiry aligned to session expiry.
+  - [x] Factor session cookie helpers from `src/server/routes/auth.routes.ts` into `src/server/auth/session-cookie.ts` or another shared auth helper so OAuth uses `jrw_customer_session` with the same security flags: HttpOnly, SameSite=Lax, Secure outside local HTTP, path `/`, expiry aligned to session expiry.
   - [x] Add route options through `src/server/routes/index.ts` and `src/server/app.ts` so operational logger injection works like Auth, AccountRecovery, and Customers.
   - [x] Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_REDIRECT_URI` / `APP_BASE_URL` config resolver. Missing or invalid config must fail safely with `PROVIDER_UNAVAILABLE`.
   - [x] Update `.env.example` if exact redirect URI env is required. Do not expose secrets in generated docs.
@@ -74,7 +74,7 @@ so that I can access JRW checkout/account flows without creating separate passwo
   - [x] New Google-created Customer response/session role must be `CUSTOMER`; never create `ADMIN`, `SUPER_ADMIN`, `STORE_ADMIN`, approval state, or dashboard access from Google.
   - [x] Do not overwrite existing `display_name`, `first_name`, `last_name`, or `avatar_url` unless local value is null/empty.
   - [x] Do not modify phone, delivery/contact fields, email marketing preference, password hash/salt, or Admin fields from Google claims.
-  - [x] Existing suspended/inactive Customer cannot sign in through Google. Existing Admin with same email blocks customer auto-link.
+  - [x] Existing suspended/inactive Customer cannot sign in through Google. Existing Admin with same email is not checked because Admin and Customer are separate realms.
   - [x] Keep customer transactional email rules untouched; Google sign-in does not opt customer into marketing.
 
 - [x] Update endpoint catalog and docs. (AC: 7)
@@ -83,9 +83,9 @@ so that I can access JRW checkout/account flows without creating separate passwo
   - [x] OpenAPI/docs must not include example auth codes, state values, ID tokens, access tokens, refresh tokens, client secret, raw Google response, or provider payload.
 
 - [x] Add focused tests and run validation. (AC: 1-8)
-  - [x] Domain tests: state/nonce entropy, hash-only state storage, 10-minute TTL clamp, return path safety, provider identity decisions, verified email auto-link, unsafe collision decisions.
+  - [x] Domain tests: state/nonce entropy, hash-only state storage, 10-minute TTL clamp, return path safety, provider identity decisions, verified Customer email auto-link, and provider/customer mismatch decisions.
   - [x] Schema invariant tests: OAuth state table exists with hashed state/nonce and indexes; no raw token/code columns; provider table stores safe link fields only.
-  - [x] Service/repository tests: start creates hashed state; callback consumes state once; valid new Customer path; existing provider path; existing Customer auto-link path; suspended/inactive/customer-admin collision rejection; profile fields preserved.
+  - [x] Service/repository tests: start creates hashed state; callback consumes state once; valid new Customer path; existing provider path; existing Customer auto-link path; suspended/inactive Customer rejection; same email as Admin remains Customer-only; profile fields preserved.
   - [x] Provider adapter tests: token exchange request shape, ID token verification claims, provider error mapping, no raw token/provider response in logs.
   - [x] Route/controller tests: redirect status/location, set-cookie flags, safe error redirect/envelope, OpenAPI metadata, request ID propagation, no token leakage in response bodies.
   - [x] Run targeted Vitest for new domain/service/route/adapter/schema tests.
@@ -105,7 +105,7 @@ so that I can access JRW checkout/account flows without creating separate passwo
 
 - Story 1.9 completed password reset, verification resend, account email notification boundary, atomic per-email recovery rate limiting, provider error redaction, endpoint catalog updates, and D1 migration plan updates.
 - Story 1.9 fixed provider failure logging that could leak recipient email and changed recovery rate limiting to atomic `consumeAttempt` scoped per normalized email. OAuth provider errors need same scrub discipline.
-- Story 1.9 preserved reset/resend enumeration safety: public responses must not expose missing/ineligible/provider-failed account state. OAuth can fail visibly, but failure reason must stay safe and must not disclose whether an Admin account owns the same email.
+- Story 1.9 preserved reset/resend enumeration safety: public responses must not expose missing/ineligible/provider-failed account state. OAuth can fail visibly, but failure reason must stay safe. Epic 2.5 requires OAuth not query Admin account storage.
 - Story 1.9 validation passed full `npm run build-test`; follow same validation bar for provider/auth/schema changes.
 - Remote development D1 migrations for Stories 1.8 and 1.9 remain documented blockers in migration plan. If Story 1.10 adds OAuth state migration, record dependency on pending remote apply evidence.
 - Recent commits:
@@ -138,10 +138,10 @@ so that I can access JRW checkout/account flows without creating separate passwo
 - `src/server/repositories/AuthRepository.ts`
   - Current state: account lookup, session creation/find/revoke/touch, auth rate limiter with `consumeAttempt`.
   - Change: reuse `DrizzleAuthSessionRepository` and `DrizzleAuthRateLimiter`; avoid duplicating session/rate-limit tables.
-  - Preserve: Admin-first email/password lookup behavior for password auth. OAuth must do its own Admin collision check before customer auto-link.
+  - Preserve after Epic 2.5: auth repositories are realm-specific. OAuth is Customer-only and must not query Admin storage before Customer auto-link.
 
 - `src/server/app.ts` and `src/server/routes/index.ts`
-  - Current state: composes foundation, auth, account recovery, and customer routes with operational logger injection.
+  - Current state: composes foundation, Admin auth, Customer auth, account recovery, and customer routes with operational logger injection.
   - Change: add Google OAuth route group/options in same style.
   - Preserve: Cloudflare adapter, `aot: false`, `normalize: true`, request context, safe error mapper.
 
@@ -168,7 +168,7 @@ so that I can access JRW checkout/account flows without creating separate passwo
 - `GET /api/oauth/google/callback`
   - Auth: public; roles metadata `PROSPECT`, `CUSTOMER`.
   - Query: `code`, `state`, optional Google `error`, plus ignored unrecognized fields.
-  - Success: `302` redirect to safe `returnTo` or default path and sets `jrw_session`.
+  - Success: `302` redirect to safe `returnTo` or default path and sets `jrw_customer_session`.
   - Failure: safe redirect or standard error envelope; no account link/session on failure.
   - Errors: `VALIDATION_FAILED`, `AUTHENTICATION`, `AUTH_FORBIDDEN`, `CONFLICT_STATE`, `RATE_LIMITED`, `PROVIDER_UNAVAILABLE`, `INTERNAL_ERROR`.
 
@@ -182,8 +182,8 @@ so that I can access JRW checkout/account flows without creating separate passwo
 - Provider identity key is Google `sub`; never email.
 - New account: create `customers` row with normalized email, `status = ACTIVE`, `email_verified_at = now`, nullable password hash/salt, optional empty-field profile bootstrap from Google `name`/`given_name`/`family_name`/`picture`.
 - Existing provider link: sign in linked Customer if Customer is `ACTIVE`. Do not re-link by email.
-- Safe auto-link by email: allowed only when Google email is verified, normalized email matches one active Customer, no Admin email collision exists, no existing provider link points to another Customer, and Customer is not suspended/inactive.
-- Unsafe cases: Admin email collision, provider `sub` linked to another Customer, email missing/unverified, normalized email mismatch, inactive/suspended Customer, duplicate ambiguous customer/provider state. Return safe error, no session.
+- Safe auto-link by email: allowed only when Google email is verified, normalized email matches one active Customer, no existing provider link points to another Customer, and Customer is not suspended/inactive.
+- Unsafe Customer-realm cases: provider `sub` linked to another Customer, email missing/unverified, normalized email mismatch, inactive/suspended Customer, duplicate ambiguous customer/provider state. Return safe error, no session. Same email in Admin realm is ignored, not a collision.
 - Local profile preservation: Google may fill only null/empty Customer profile fields. Phone, address, marketing preference, password credential, Admin approval/owner fields stay untouched.
 
 ### Latest Technical Information
@@ -207,7 +207,7 @@ so that I can access JRW checkout/account flows without creating separate passwo
 ### Anti-Patterns To Avoid
 
 - Using Google email as primary provider identity.
-- Auto-linking when an Admin has the same email.
+- Treating an Admin same-email record as linked, promoted, shared, or blocking Customer OAuth.
 - Creating Admin/Super Admin through Google OAuth.
 - Returning raw Google tokens, OAuth state, nonce, auth code, or raw session token in JSON.
 - Storing access token, refresh token, ID token, raw state, raw nonce, raw auth code, or raw provider payload in D1.
@@ -252,9 +252,9 @@ GPT-5 Codex
 - Story context created from sprint status next backlog item on 2026-05-15.
 - Ultimate context engine analysis completed - comprehensive developer guide created.
 - Added `oauth_state_tokens` with hashed state/nonce material, 10-minute state expiry support, single-use indexes, and generated migration `0013_wakeful_crystal.sql`.
-- Added provider-free Google OAuth domain decisions for return path safety, state lifecycle, verified-email linking, Admin collision blocking, suspended/inactive Customer rejection, and empty-field-only profile updates.
+- Added provider-free Google OAuth domain decisions for return path safety, state lifecycle, verified Customer email linking, suspended/inactive Customer rejection, and empty-field-only profile updates.
 - Added Workers-compatible Google OAuth provider boundary using `jose` ID-token verification, online access only, form-urlencoded code exchange, safe config resolution, and no token/raw payload persistence or responses.
-- Added Google OAuth repository/service/controller/routes for redirect start and callback flows, atomic state consumption before provider exchange, Customer-only account creation/linking, provider `sub` identity, and shared secure `jrw_session` cookie handling.
+- Added Google OAuth repository/service/controller/routes for redirect start and callback flows, atomic state consumption before provider exchange, Customer-only account creation/linking, provider `sub` identity, and secure `jrw_customer_session` cookie handling.
 - Updated endpoint catalog, migration plan, `.env.example`, and sprint status. Remote development D1 migration apply remains documented release blocker because implementation did not run `npm run db:migrate:remote`.
 - Added focused schema, domain, provider adapter, service, and route tests; full validation passed.
 - Code review findings fixed: OAuth callback validates initiating source hash, callback errors no longer expose internal decision reasons, OAuth config no longer trusts request origin fallback, JWKS fetch outages map to `PROVIDER_UNAVAILABLE`, and concurrent provider-link races recover through idempotent Customer sign-in.
@@ -290,4 +290,5 @@ GPT-5 Codex
 ### Change Log
 
 - 2026-05-15: Implemented Story 1.10 Customer Google Sign-In with OAuth state migration, domain/provider/repository/service/route layers, docs updates, and full validation; status set to review.
+- 2026-05-19: Epic 2.5 identity realm correction removed Admin-account lookup checks from Google OAuth. `GoogleOAuthRepository` now imports/queries only Customer tables; same Admin email string no longer blocks Customer OAuth. Regression tests cover same-email Customer creation and static import boundaries.
 - 2026-05-16: Applied code review fixes, reran focused and full validation, reviewed remaining tests/docs chunk, and moved Story 1.10 to done.

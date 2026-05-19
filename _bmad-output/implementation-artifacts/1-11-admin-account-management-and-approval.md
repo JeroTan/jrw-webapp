@@ -351,10 +351,12 @@ GPT-5 Codex
 
 - [x] [Review][Patch] Lifecycle email failures returned `PROVIDER_UNAVAILABLE` after persisted Admin changes [`src/server/services/AdminAccountService.ts`:282] - fixed by making feature-gated lifecycle emails non-blocking after create/approve/reject persistence, returning `sent: false` for failed invitation sends and preserving successful account state.
 - [x] [Review][Patch] Stale concurrent lifecycle writes could overwrite newer Admin state [`src/server/services/AdminAccountService.ts`:342] [`src/server/repositories/AdminAccountRepository.ts`:233] - fixed with expected `updatedAt`/status predicates on update, approve, reject, suspend, and reactivate writes, plus `CONFLICT_STATE` mapping when stale writes affect zero rows.
-- [x] [Review][Patch] Admin creation/update allowed email collision with Customer accounts and unique insert races [`src/server/services/AdminAccountService.ts`:263] [`src/server/repositories/AuthRepository.ts`:83] - fixed by checking Customer email conflicts through repository boundary and mapping unique-constraint create/update races to `CONFLICT_STATE`.
+- [x] [Review][Superseded by Epic 2.5] Admin creation/update initially considered Customer email conflicts. Identity realm correction removed cross-realm Customer lookup: Admin creation/update now checks only `admins.email`, while same email in `customers` is allowed as an unrelated Customer account. Same-table unique create/update races still map to `CONFLICT_STATE`.
 - [x] [Review][Dismiss] Reactivated rejected Admin remains `ACTIVE` but dashboard-ineligible until approved [`src/domain/admins/admin-account.ts`:385] - dismissed for this review because AC5 explicitly gates sign-in on verified and approved, so this is not a dashboard-access bypass.
 
 ### Review Debug Log References
+
+- 2026-05-19 - Epic 2.5 identity realm correction confirmed Admin account service/repository no longer imports or queries Customer account storage for Admin create/update email checks. Super Admin can create Admin with email already present in `customers` when no duplicate exists in `admins`.
 
 - 2026-05-16T15:19+08:00: Targeted `cmd.exe /c npx vitest run src/server/services/AdminAccountService.test.ts src/server/repositories/AdminAccountRepository.test.ts` passed: 8 tests.
 - 2026-05-16T15:21+08:00: `cmd.exe /c npm run check` passed with 0 errors; existing legacy unused-parameter hints remain in deprecated `src/api/**`.

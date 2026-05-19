@@ -141,7 +141,7 @@ so that products can be organized and collaborated on without creating separate 
   - Preserve: Cloudflare adapter, `aot: false`, `normalize: true`, safe error mapping.
 
 - `src/server/context/request-context.ts`
-  - Current: derives `requestContext.actor` per request from `jrw_session`; invalid/ineligible sessions become anonymous `PROSPECT`.
+  - Current after Epic 2.5: derives `requestContext.actor` per request from the route realm cookie; Admin brand routes use `jrw_admin_session`, and invalid/ineligible/wrong-realm sessions become anonymous `PROSPECT`.
   - Change: brand routes read only `requestContext.actor`; no duplicate cookie parsing.
   - Preserve: per-request scoping and request ID propagation.
 

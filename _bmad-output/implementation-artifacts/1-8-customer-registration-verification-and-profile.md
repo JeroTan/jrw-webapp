@@ -88,8 +88,8 @@ so that I can build trusted checkout/account identity before buying from JRW.
 
 - Canonical API lives under `src/server/**`; `src/pages/api/[...slug].ts` remains thin Astro-to-Elysia bridge. New backend work belongs under `src/server/**`, not `src/api/**`.
 - `src/server/app.ts` composes Elysia with `CloudflareAdapter`, `aot: false`, `normalize: true`, OpenAPI, CORS, request context, global safe error mapping, and `serverRoutes(...)`.
-- Existing completed auth endpoints are `POST /api/auth/sessions`, `DELETE /api/auth/sessions/current`, and `GET /api/auth/session`.
-- `src/server/context/request-context.ts` derives request ID and actor context from `jrw_session`. Missing/invalid session becomes anonymous `PROSPECT`.
+- Existing completed auth endpoints are realm-specific. Customer email/password auth uses `POST /api/customer/auth/sessions`, `DELETE /api/customer/auth/sessions/current`, and `GET /api/customer/auth/session`; Admin auth uses the parallel `/api/admin/auth/*` routes.
+- `src/server/context/request-context.ts` derives request ID and actor context from the route realm cookie. Customer routes read `jrw_customer_session`; Admin routes read `jrw_admin_session`. Missing/invalid/wrong-realm session becomes anonymous `PROSPECT`.
 - `src/server/services/AuthService.ts` blocks customer sign-in when `email_verified_at` is missing. Story 1.8 must make newly registered customers compatible with this by hashing passwords with the approved PBKDF2 path and setting `email_verified_at` only after successful token verification.
 - `src/domain/schema/identity.ts` already has `customers` with `email`, nullable `password_hash`, `password_salt`, `status`, `email_verified_at`, `avatar_url`, `first_name`, `last_name`, `phone`, address fields, and timestamps.
 - `src/domain/schema/identity.ts` has no verification token table and no explicit `display_name` or email preference field.
@@ -153,7 +153,7 @@ so that I can build trusted checkout/account identity before buying from JRW.
 
 ### Previous Story Intelligence
 
-- Story 1.7 implemented server-side session records, `jrw_session` cookie handling, request-context actor derivation, auth route contracts, auth rate limiting, and PBKDF2 credential verification.
+- Story 1.7 plus Epic 2.5 implemented server-side session records, realm-specific cookies (`jrw_customer_session`, `jrw_admin_session`), request-context actor derivation, auth route contracts, auth rate limiting, and PBKDF2 credential verification.
 - Customer password sign-in currently rejects customers without PBKDF2 hash+salt or without `email_verified_at`. Story 1.8 must create customer credentials in this supported shape.
 - Story 1.7 established `AuthService`, `AuthController`, `AuthRepository`, `auth.routes.ts`, and route tests. Follow these patterns for customer account code instead of inventing parallel response/cookie/error shapes.
 - Story 1.7 added D1-backed `auth_rate_limits`; reuse or factor this instead of creating unrelated rate-limit tables if it fits email-token rate limits.
@@ -378,14 +378,15 @@ Next work should focus on local runtime verification, not feature work:
 
 - `astro.config.mjs` now keeps server-only deps out of the client optimizer and precompiles Worker server deps through a Vite `configEnvironment` plugin. This targets Cloudflare `workerd` dev failures from CommonJS-only dependency output.
 - Runtime code and seed script now use `PASSWORD_PEPPER` only for password hashing. Do not restore `JWT_SECRET` fallback.
-- User's failing `POST /api/auth/sessions` payload used placeholder email/password. Earlier `.env` inspection also showed placeholder `PASSWORD_PEPPER`; with placeholder pepper, auth route correctly returns `INTERNAL_ERROR` before credential check.
+- Earlier failing auth smoke payload used placeholder email/password. Earlier `.env` inspection also showed placeholder `PASSWORD_PEPPER`; with placeholder pepper, auth route correctly returns a safe provider/config error before credential check.
 - Before auth curl can pass, replace local `.env` placeholders with real non-placeholder values: `PASSWORD_PEPPER`, `JWT_SECRET`, `SEED_SUPER_ADMIN_EMAIL`, `SEED_SUPER_ADMIN_PASSWORD`. Also set `RESEND_FROM_EMAIL` before customer registration email tests. Verification links use `APP_BASE_URL`/`PUBLIC_APP_BASE_URL` first, request URL origin second, and `http://localhost:4321` last.
 - Run/check DB setup for same environment used by dev server. Current `seed:super-admin` script executes Wrangler D1 remote by design; if `astro dev` uses local D1, add/use local seed path or test with matching remote-backed runtime.
 - Suggested fast smoke commands after env/DB ready:
   - `npm run dev -- --host 127.0.0.1 --port 4322 --force`
   - `curl.exe -i http://127.0.0.1:4322/api/openapi/json`
-  - `curl.exe -i -X POST http://127.0.0.1:4322/api/auth/sessions -H "content-type: application/json" --data-raw "{\"email\":\"<seed email>\",\"password\":\"<seed password>\"}"`
-  - `curl.exe -i http://127.0.0.1:4322/api/auth/session --cookie "<jrw_session cookie from sign-in>"`
+  - Admin smoke: `curl.exe -i -X POST http://127.0.0.1:4322/api/admin/auth/sessions -H "content-type: application/json" --data-raw "{\"email\":\"<seed admin email>\",\"password\":\"<seed admin password>\"}"`
+  - Customer smoke: `curl.exe -i -X POST http://127.0.0.1:4322/api/customer/auth/sessions -H "content-type: application/json" --data-raw "{\"email\":\"<customer email>\",\"password\":\"<customer password>\"}"`
+  - Session inspect: `curl.exe -i http://127.0.0.1:4322/api/customer/auth/session --cookie "<jrw_customer_session cookie from sign-in>"`
 - If `.vite` cache deletion is needed on Windows, stop any `jrw-webapp` dev Node process first. Locked cache files caused `Access to the path is denied` during cleanup.
 - Latest validation before pause:
   - `npx vitest src/domain/auth/super-admin-seed.test.ts src/server/routes/auth.routes.test.ts src/server/routes/customer.routes.test.ts --run` passed: 16 tests.
@@ -395,14 +396,14 @@ Next work should focus on local runtime verification, not feature work:
   - `npm run check` passed after dependency restore and config update: 0 errors; existing legacy unused-parameter hints only.
   - `npm run dev -- --host 127.0.0.1 --port 4322 --force` via local Astro bin starts successfully.
   - `curl.exe -i http://127.0.0.1:4322/api/openapi/json` now returns `200 OK` with OpenAPI JSON. Earlier `module is not defined` Worker dev failure is fixed.
-  - `curl.exe -i http://127.0.0.1:4322/api/auth/session` and placeholder `POST /api/auth/sessions` returned standard JSON `INTERNAL_ERROR` while `.env` lacked a valid `PASSWORD_PEPPER`. Shell-only `PASSWORD_PEPPER=...` did not reach Cloudflare Worker env; set it in `.env`.
+  - `curl.exe -i http://127.0.0.1:4322/api/customer/auth/session` and placeholder realm auth POST returned a safe provider/config error while `.env` lacked a valid `PASSWORD_PEPPER`. Shell-only `PASSWORD_PEPPER=...` did not reach Cloudflare Worker env; set it in `.env`.
   - `npm run build-test` passed: `astro check`, 100 Vitest tests, and `astro build`.
   - Admin auth curl was retried after `.env` had a valid `PASSWORD_PEPPER`. `npm run wrangler-dev` needed `cross-env CLOUDFLARE_ENV=development` during `astro build`; without it, generated `dist/server/wrangler.json` omitted env-scoped `DB`/`STORAGE`/Durable Object bindings.
-  - After the `wrangler-dev` script fix, `GET /api/auth/session` returned `200 OK` unauthenticated through Wrangler dev with `DB` bound.
-  - `npm run dev -- --host 127.0.0.1 --port 4322 --force` was then used for the actual Astro dev target. `curl.exe http://127.0.0.1:4322/api/openapi/json` returned `200 OK`; `curl.exe http://127.0.0.1:4322/api/auth/session` returned `200 OK` unauthenticated; `POST /api/auth/sessions` returned `500 INTERNAL_ERROR`.
-  - `POST /api/auth/sessions` still fails because remote development D1 has only migrations `0000` through `0006` applied. Current auth needs at least `0009_luxuriant_wendigo.sql` (`sessions`, admin `password_salt`/`status`/verification columns) and `0010_bent_liz_osborn.sql` (`auth_rate_limits`). Apply reviewed remote development migrations before expecting admin sign-in to work.
+  - After the `wrangler-dev` script fix, realm session inspection returned `200 OK` unauthenticated through Wrangler dev with `DB` bound.
+  - `npm run dev -- --host 127.0.0.1 --port 4322 --force` was then used for the actual Astro dev target. `curl.exe http://127.0.0.1:4322/api/openapi/json` returned `200 OK`; realm session inspection returned `200 OK` unauthenticated; realm sign-in returned a safe provider/config error until env and D1 migrations were aligned.
+  - Realm sign-in still fails when remote development D1 has only migrations `0000` through `0006` applied. Current auth needs at least `0009_luxuriant_wendigo.sql` (`sessions`, admin `password_salt`/`status`/verification columns) and `0010_bent_liz_osborn.sql` (`auth_rate_limits`). Apply reviewed remote development migrations before expecting admin sign-in to work.
   - 2026-05-14 follow-up: `npm run db:migrate:remote` applied remote development migrations `0007` through `0011`.
   - Existing owner row was preserved, `.env` seed email was aligned to that owner, and `npm run seed:super-admin -- --replace-owner-credentials REVIEWED_OWNER_CREDENTIAL_REPLACEMENT` replaced development owner credentials with the `.env` password and set owner active/verified/approved.
   - `scripts/seed-super-admin.ts` now launches Wrangler through `cmd.exe /c npx` on Windows Node so the seed script works from this WSL-backed workspace.
-  - Astro dev auth curl passed on the selected dev port: `POST /api/auth/sessions` returned `200 OK` with `SUPER_ADMIN`; `GET /api/auth/session` with the cookie returned `200 OK` authenticated.
+  - Astro dev auth curl passed on the selected dev port: `POST /api/admin/auth/sessions` returned `200 OK` with `SUPER_ADMIN`; `GET /api/admin/auth/session` with `jrw_admin_session` returned `200 OK` authenticated.
   - Auth storage/config failures now return safe actionable details instead of a bare `500`: missing `DB`/invalid `PASSWORD_PEPPER` maps to `PROVIDER_UNAVAILABLE` with safe `reason`, and D1/schema storage exceptions map to `PROVIDER_UNAVAILABLE` with `reason: auth_storage_unavailable`.
