@@ -306,3 +306,13 @@ GPT-5 Codex
 
 - 2026-05-13: Implemented canonical roles, Super Admin seed guardrails, owner unique partial index migration, tests, validation evidence, and D1 baseline update.
 - 2026-05-13: Applied code-review patches for env-only Wrangler scripts, destructive seed confirmation handling, dry-run behavior, owner invariant hardening, and seed verification.
+
+## Post-Retro Fix: Admin Seed For Brand UI Testing
+
+- 2026-05-19: Replaced `scripts/seed-admin.ts` compatibility wrapper with a real Admin seed flow.
+- Added `.env.example` entries: `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD`, optional `SEED_ADMIN_TARGET_ENV`.
+- `npm run seed:admin` now creates or refreshes an approved non-owner Admin (`is_owner = 0`) for brand UI/API testing.
+- Seed refuses to run when `SEED_ADMIN_EMAIL` belongs to current Super Admin owner; use distinct owner/admin emails.
+- Production Admin seed remains fail-closed unless CLI flag passes `REVIEWED_PRODUCTION_ADMIN_SEED`.
+- Targeted tests run only: `npx vitest run src/domain/auth/admin-seed.test.ts` (pass).
+- Status: done. Full `npm run build-test` intentionally left for MR. JRW per Epic 2 retro agreement.

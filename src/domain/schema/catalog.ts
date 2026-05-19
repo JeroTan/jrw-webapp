@@ -94,25 +94,32 @@ export const brand_memberships = sqliteTable(
   ]
 );
 
-export const products = sqliteTable("products", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => createId()),
+export const products = sqliteTable(
+  "products",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
 
-  name: text("name").notNull(),
-  brand: text("brand"),
-  tags: text("tags", { mode: "json" })
-    .$type<string[]>()
-    .notNull()
-    .default(sql`'[]'`),
-  description: text("description").notNull(),
-  created_at: text("created_at")
-    .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
-  updated_at: text("updated_at")
-    .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
-});
+    name: text("name").notNull(),
+    brand: text("brand"),
+    brand_id: text("brand_id").references(() => brands.id, {
+      onDelete: "set null",
+    }),
+    tags: text("tags", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default(sql`'[]'`),
+    description: text("description").notNull(),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [index("idx_products_brand_id").on(table.brand_id)]
+);
 
 export const product_photos = sqliteTable("product_photos", {
   id: text("id")
@@ -178,7 +185,11 @@ export const product_variants = sqliteTable("product_variants", {
 });
 
 // Relationships
-export const productsRelations = relations(products, ({ many }) => ({
+export const productsRelations = relations(products, ({ one, many }) => ({
+  brand: one(brands, {
+    fields: [products.brand_id],
+    references: [brands.id],
+  }),
   photos: many(product_photos),
   variants: many(product_variants),
   categories: many(product_categories),
@@ -186,6 +197,7 @@ export const productsRelations = relations(products, ({ many }) => ({
 
 export const brandsRelations = relations(brands, ({ many, one }) => ({
   memberships: many(brand_memberships),
+  products: many(products),
   createdByAdmin: one(admins, {
     fields: [brands.created_by_admin_id],
     references: [admins.id],

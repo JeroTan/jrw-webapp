@@ -56,6 +56,7 @@ async function createBrandTestD1() {
       id text PRIMARY KEY NOT NULL,
       name text NOT NULL,
       brand text,
+      brand_id text,
       tags text DEFAULT '[]' NOT NULL,
       description text NOT NULL,
       created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -347,8 +348,9 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
       const activeLookup = await repository.findBrandById(created.id);
       expect(activeLookup).toBeNull();
 
-      const includingArchived =
-        await repository.findBrandByIdIncludingArchived(created.id);
+      const includingArchived = await repository.findBrandByIdIncludingArchived(
+        created.id
+      );
       expect(includingArchived?.id).toBe(created.id);
       expect(includingArchived?.status).toBe("ARCHIVED");
     } finally {
@@ -397,12 +399,13 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
       await d1
         .prepare(
           `INSERT INTO products (
-            id, name, brand, tags, description, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+            id, name, brand, brand_id, tags, description, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           "prod_mutation_scoped",
           "Mutation Scoped Product",
+          null,
           activeBrand.id,
           "[]",
           "mutation scoped product",
@@ -414,13 +417,14 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
       await d1
         .prepare(
           `INSERT INTO products (
-            id, name, brand, tags, description, created_at, updated_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+            id, name, brand, brand_id, tags, description, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
         )
         .bind(
           "prod_mutation_brandless",
           "Mutation Brandless Product",
           "   ",
+          null,
           "[]",
           "mutation brandless product",
           now,
@@ -444,9 +448,8 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
       const brandlessAssignment = await repository.findProductBrandAssignment(
         "prod_mutation_brandless"
       );
-      const missingAssignment = await repository.findProductBrandAssignment(
-        "prod_missing"
-      );
+      const missingAssignment =
+        await repository.findProductBrandAssignment("prod_missing");
 
       expect(activeLookup).toMatchObject({
         id: activeBrand.id,
@@ -521,16 +524,12 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
       );
       expect(otherBySlug?.id).toBe(brandTwo.id);
 
-      await repository.archiveBrand(
-        brandTwo.id,
-        "2026-05-17T22:50:00.000Z"
-      );
+      await repository.archiveBrand(brandTwo.id, "2026-05-17T22:50:00.000Z");
 
-      const archivedByName =
-        await repository.findArchivedBrandByNameExcluding(
-          brandOne.id,
-          "JRW Home"
-        );
+      const archivedByName = await repository.findArchivedBrandByNameExcluding(
+        brandOne.id,
+        "JRW Home"
+      );
       expect(archivedByName?.id).toBe(brandTwo.id);
     } finally {
       await mf.dispose();
@@ -587,9 +586,8 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
         approvedAt: now,
       });
 
-      const ownerAdmin = await repository.findAdminByEmail(
-        "OWNER@EXAMPLE.TEST"
-      );
+      const ownerAdmin =
+        await repository.findAdminByEmail("OWNER@EXAMPLE.TEST");
       expect(ownerAdmin).toEqual({
         id: "admin_owner",
         email: "owner@example.test",
@@ -722,19 +720,20 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
 
       const insertProduct = d1.prepare(
         `INSERT INTO products (
-          id, name, brand, tags, description, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+          id, name, brand, brand_id, tags, description, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
       );
 
       await insertProduct
         .bind(
           "prod_brand_1",
           "Scoped Product One",
+          null,
           brand.id,
           "[]",
           "scoped product one",
           now,
-          now
+          "2026-05-17T21:14:00.000Z"
         )
         .run();
       await insertProduct
@@ -742,6 +741,7 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
           "prod_brand_2",
           "Scoped Product Two",
           brand.name,
+          null,
           "[]",
           "scoped product two",
           now,
@@ -753,6 +753,7 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
           "prod_brand_3",
           "Scoped Product Three",
           brand.slug,
+          null,
           "[]",
           "scoped product three",
           now,
@@ -763,6 +764,7 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
         .bind(
           "prod_brandless_1",
           "Brandless Product One",
+          null,
           null,
           "[]",
           "brandless product one",
@@ -775,6 +777,7 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
           "prod_brandless_2",
           "Brandless Product Two",
           null,
+          null,
           "[]",
           "brandless product two",
           now,
@@ -786,6 +789,7 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
           "prod_brandless_blank",
           "Brandless Product Blank",
           "",
+          null,
           "[]",
           "brandless product blank",
           now,
@@ -805,7 +809,7 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
       });
       expect(scoped.items).toHaveLength(1);
       expect(scoped.items[0]).toMatchObject({
-        id: "prod_brand_2",
+        id: "prod_brand_1",
         brandId: brand.id,
       });
 

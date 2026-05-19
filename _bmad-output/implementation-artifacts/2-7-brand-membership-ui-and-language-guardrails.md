@@ -343,3 +343,11 @@ GPT-5 Codex
 - The old `REVIEWED_OWNER_CREDENTIAL_REPLACEMENT_CONFIRMATION` gate was removed since email-matching makes it unnecessary.
 - Files changed: `src/domain/auth/super-admin-seed.ts`, `scripts/seed-super-admin.ts`, `src/domain/auth/super-admin-seed.test.ts`.
 - All 8 seed tests pass, `npm run check` clean.
+
+## Post-Retro Fix: Brand UI Access Path
+
+- 2026-05-19: Confirmed canonical brand UI routes are `/admin/brands` and `/admin/brands/:id`; Astro file paths under `src/pages/**` are not URL prefixes.
+- Added lightweight redirects for `/brand`, `/brand/:id`, `/brands`, and `/brands/:id` to the canonical admin brand UI routes.
+- Testing path after seeding Admin: sign in with `POST /api/auth/sessions`, then open `/admin/brands` or redirected `/brand`.
+- No Vitest exists for redirect-only Astro aliases; full route/build verification is left to MR. JRW's `npm run build-test` gate.
+- Status: done.

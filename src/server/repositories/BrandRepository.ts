@@ -61,6 +61,7 @@ type ProductRowLike = {
   name: string;
   description: string;
   brand: string | null;
+  brand_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -276,11 +277,23 @@ function productDtoFromRow(
   row: ProductRowLike,
   brandIdOverride?: string | null
 ): BrandScopedProductRecord {
+  const fkBrandId =
+    typeof row.brand_id === "string" && row.brand_id.trim().length > 0
+      ? row.brand_id.trim()
+      : null;
+  const legacyBrandId =
+    typeof row.brand === "string" && row.brand.trim().length > 0
+      ? row.brand.trim()
+      : null;
+
   return {
     id: row.id,
     name: row.name,
     description: row.description,
-    brandId: brandIdOverride === undefined ? row.brand : brandIdOverride,
+    brandId:
+      brandIdOverride === undefined
+        ? (fkBrandId ?? legacyBrandId)
+        : brandIdOverride,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -307,6 +320,7 @@ function normalizePageSize(value: number | undefined): number {
 function productBrandScopeClause(brand: ProductBrandLookup) {
   return (
     or(
+      eq(products.brand_id, brand.id),
       sql`trim(${products.brand}) = ${brand.id.trim()}`,
       sql`lower(trim(${products.brand})) = ${normalizeLookup(brand.name)}`,
       sql`lower(trim(${products.brand})) = ${normalizeLookup(brand.slug)}`
@@ -315,7 +329,12 @@ function productBrandScopeClause(brand: ProductBrandLookup) {
 }
 
 function productBrandlessClause() {
-  return sql`trim(coalesce(${products.brand}, '')) = ''`;
+  return (
+    and(
+      isNull(products.brand_id),
+      sql`trim(coalesce(${products.brand}, '')) = ''`
+    ) ?? sql`0 = 1`
+  );
 }
 
 export class DrizzleBrandRepository implements BrandRepository {
@@ -623,6 +642,7 @@ export class DrizzleBrandRepository implements BrandRepository {
     const [product] = await this.db
       .select({
         id: products.id,
+        brandId: products.brand_id,
         brand: products.brand,
       })
       .from(products)
@@ -633,12 +653,18 @@ export class DrizzleBrandRepository implements BrandRepository {
       return null;
     }
 
+    const fkBrandId =
+      typeof product.brandId === "string" && product.brandId.trim().length > 0
+        ? product.brandId.trim()
+        : null;
+    const legacyBrandId =
+      typeof product.brand === "string" && product.brand.trim().length > 0
+        ? product.brand.trim()
+        : null;
+
     return {
       productId: product.id,
-      brandId:
-        typeof product.brand === "string" && product.brand.trim().length > 0
-          ? product.brand.trim()
-          : null,
+      brandId: fkBrandId ?? legacyBrandId,
     };
   }
 

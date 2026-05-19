@@ -299,3 +299,12 @@ _(To be populated by dev agent)_
 - 2026-05-18: Story 2.6 context engine created â€” comprehensive developer guide for brand-scoped product mutation guards.
 - 2026-05-18: Implemented brand-scoped product mutation guards across domain, repository, service, controller, routes, and tests; validated with targeted tests, `npm run check`, and `npm run build-test`.
 
+## Post-Retro Fix: Product Brand FK Preparation
+
+- 2026-05-19: Added nullable `products.brand_id` FK in Drizzle schema with `ON DELETE SET NULL` and index `idx_products_brand_id`.
+- Added migration `migrations/0016_products_brand_id_fk.sql` to backfill `products.brand_id` from legacy `products.brand` by brand id/name/slug, then index FK column.
+- Updated `BrandRepository` product scope queries to prefer `products.brand_id` while preserving legacy `products.brand` fallback until remote D1 is migrated and verified.
+- Guard assignment lookup now returns FK `brand_id` first; legacy text fallback remains only for pre-backfill rows.
+- Targeted tests run only: `npx vitest run src/server/repositories/BrandRepository.test.ts` (pass).
+- Status: done. Full `npm run build-test` intentionally left for MR. JRW per Epic 2 retro agreement.
+
