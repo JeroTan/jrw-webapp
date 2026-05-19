@@ -7,6 +7,7 @@ import {
   type accountStatusValues,
   type sessionStatusValues,
 } from "@/domain/schema/identity";
+import { toApiDateTime, toNullableApiDateTime } from "@/lib/api/date-time";
 import type {
   AuthAccountRecord,
   AuthAccountRepository,
@@ -72,8 +73,8 @@ function sessionRecord(row: SessionRow): AuthSessionRecord {
     actorKind: row.actor_kind,
     actorId: row.actor_id,
     status: sessionStatus(row.status),
-    expiresAt: row.expires_at,
-    revokedAt: row.revoked_at,
+    expiresAt: toApiDateTime(row.expires_at),
+    revokedAt: toNullableApiDateTime(row.revoked_at),
   };
 }
 

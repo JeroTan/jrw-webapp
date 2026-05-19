@@ -9,6 +9,7 @@ import {
   products,
 } from "@/domain/schema/catalog";
 import { accountStatusValues, admins } from "@/domain/schema/identity";
+import { toApiDateTime, toNullableApiDateTime } from "@/lib/api/date-time";
 import { and, desc, eq, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 
 type BrandStatusValue = (typeof brandStatusValues)[number];
@@ -252,9 +253,9 @@ export function brandDtoFromRow(row: BrandRowLike): BrandRecord {
     slug: row.slug,
     description: row.description,
     status: row.status,
-    archivedAt: row.archived_at,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    archivedAt: toNullableApiDateTime(row.archived_at),
+    createdAt: toApiDateTime(row.created_at),
+    updatedAt: toApiDateTime(row.updated_at),
   };
 }
 
@@ -268,8 +269,8 @@ function brandMembershipDtoFromRow(
     role: row.role,
     status: row.status,
     invitedByAdminId: row.invited_by_admin_id,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: toApiDateTime(row.created_at),
+    updatedAt: toApiDateTime(row.updated_at),
   };
 }
 
@@ -294,8 +295,8 @@ function productDtoFromRow(
       brandIdOverride === undefined
         ? (fkBrandId ?? legacyBrandId)
         : brandIdOverride,
-    createdAt: row.created_at,
-    updatedAt: row.updated_at,
+    createdAt: toApiDateTime(row.created_at),
+    updatedAt: toApiDateTime(row.updated_at),
   };
 }
 

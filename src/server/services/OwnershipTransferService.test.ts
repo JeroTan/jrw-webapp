@@ -11,6 +11,7 @@ import type {
 import { OwnershipTransferService } from "./OwnershipTransferService";
 
 const now = "2026-05-17T12:28:00.000Z";
+const sqliteNow = "2026-05-17 12:28:00";
 const pepper = "test-pepper-value";
 
 const ownerActor = {
@@ -156,6 +157,35 @@ describe("OwnershipTransferService", () => {
             emailVerified: true,
             approved: true,
             dashboardEligible: true,
+            createdAt: now,
+            updatedAt: now,
+          },
+        ],
+      },
+    });
+  });
+
+  it("normalizes D1 CURRENT_TIMESTAMP strings for public candidate DTOs", async () => {
+    const repository = new FakeOwnershipTransferRepository();
+    repository.candidates = [
+      candidate({
+        createdAt: sqliteNow,
+        updatedAt: sqliteNow,
+      }),
+    ];
+    const service = createService(repository);
+
+    await expect(
+      service.listCandidates({
+        actor: ownerActor,
+        requestId: "req_candidates",
+      })
+    ).resolves.toMatchObject({
+      content: {
+        candidates: [
+          {
+            createdAt: now,
+            updatedAt: now,
           },
         ],
       },
@@ -287,6 +317,24 @@ describe("OwnershipTransferService", () => {
   it("transfers ownership, revokes role context, and keeps secrets out of result", async () => {
     const repository = new FakeOwnershipTransferRepository();
     repository.owner = await ownerCredential();
+    repository.transferResult = {
+      success: true,
+      previousOwner: target({
+        id: "admin_owner",
+        email: "owner@example.test",
+        role: "ADMIN",
+        isOwner: false,
+        updatedAt: sqliteNow,
+      }),
+      newOwner: target({
+        role: "SUPER_ADMIN",
+        isOwner: true,
+        updatedAt: sqliteNow,
+      }),
+      revokedSessionCount: 2,
+      revokedActorIds: ["admin_owner", "admin_target"],
+      auditLogId: "audit_1",
+    };
     const service = createService(repository);
 
     const result = await service.submitTransfer({
@@ -301,8 +349,18 @@ describe("OwnershipTransferService", () => {
 
     expect(result.error).toBeNull();
     expect(result.content).toMatchObject({
-      previousOwner: { id: "admin_owner", role: "ADMIN", isOwner: false },
-      newOwner: { id: "admin_target", role: "SUPER_ADMIN", isOwner: true },
+      previousOwner: {
+        id: "admin_owner",
+        role: "ADMIN",
+        isOwner: false,
+        updatedAt: now,
+      },
+      newOwner: {
+        id: "admin_target",
+        role: "SUPER_ADMIN",
+        isOwner: true,
+        updatedAt: now,
+      },
       revokedSessionCount: 2,
       sessionRefreshRequired: true,
     });

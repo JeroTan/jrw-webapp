@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AccountEmailNotifier } from "@/domain/notifications/account-emails";
+import { GeneralError } from "@/utils/general/error";
 import { Result } from "@/utils/general/result";
 import { createApp } from "@/server/app";
 import { AdminAccountController } from "@/server/controllers/AdminAccountController";
@@ -337,6 +338,63 @@ describe("admin account routes", () => {
       "suspend",
       "reactivate",
     ]);
+  });
+
+  it("returns safe email conflict details when Admin creation email is already used", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => ownerContext,
+      },
+      routes: {
+        adminAccounts: {
+          controllerFactory: () =>
+            createController({
+              createAdminAccount: async () =>
+                Result.error(
+                  new GeneralError(
+                    {
+                      reason: "CUSTOMER_EMAIL_ALREADY_EXISTS",
+                      field: "email",
+                      existingAccountKind: "CUSTOMER",
+                    },
+                    "CONFLICT_STATE",
+                    "A Customer account already uses this email."
+                  )
+                ),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/admin-accounts", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_session=owner-token",
+          "content-type": "application/json",
+          "x-request-id": "req_email_conflict",
+        },
+        body: JSON.stringify({
+          email: "jerowe.tan99@gmail.com",
+          password: "@Bamu760346@",
+          sendInvitationEmail: true,
+        }),
+      })
+    );
+
+    expect(response.status).toBe(409);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "CONFLICT_STATE",
+        message: "A Customer account already uses this email.",
+        details: {
+          reason: "CUSTOMER_EMAIL_ALREADY_EXISTS",
+          field: "email",
+          existingAccountKind: "CUSTOMER",
+          requestId: "req_email_conflict",
+        },
+      },
+    });
   });
 
   it("lists Admin accounts when D1 returns SQLite CURRENT_TIMESTAMP strings", async () => {

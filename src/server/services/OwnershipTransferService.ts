@@ -9,6 +9,7 @@ import {
   validateOwnershipTransferSubmissionShape,
 } from "@/domain/admins/ownership-transfer";
 import { verifyPasswordCredential } from "@/domain/auth/password-credentials";
+import { toApiDateTime } from "@/lib/api/date-time";
 import { GeneralError, type ErrorCodeType } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
 import {
@@ -109,8 +110,8 @@ function toCandidateDto(
     emailVerified: candidate.emailVerified,
     approved: candidate.approved,
     dashboardEligible: candidate.dashboardEligible,
-    createdAt: candidate.createdAt,
-    updatedAt: candidate.updatedAt,
+    createdAt: toApiDateTime(candidate.createdAt),
+    updatedAt: toApiDateTime(candidate.updatedAt),
   };
 }
 
@@ -125,7 +126,7 @@ function toAccountDto(
     isOwner: account.isOwner,
     emailVerified: Boolean(account.emailVerifiedAt),
     approved: Boolean(account.isOwner || account.approvedAt),
-    updatedAt: account.updatedAt,
+    updatedAt: toApiDateTime(account.updatedAt),
   };
 }
 

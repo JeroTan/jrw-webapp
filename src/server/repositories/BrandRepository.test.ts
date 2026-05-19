@@ -4,6 +4,7 @@ import { createDb } from "@/adapter/infrastructure/db/client";
 import { brandDtoFromRow, DrizzleBrandRepository } from "./BrandRepository";
 
 const now = "2026-05-17T21:10:00.000Z";
+const sqliteNow = "2026-05-17 21:10:00";
 
 async function createBrandTestD1() {
   const mf = new Miniflare({
@@ -122,11 +123,11 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
       name: "JRW Lifestyle",
       slug: "jrw-lifestyle",
       description: "Catalog team",
-      status: "ACTIVE",
+      status: "ARCHIVED",
       created_by_admin_id: "admin_1",
-      archived_at: null,
-      created_at: now,
-      updated_at: now,
+      archived_at: sqliteNow,
+      created_at: sqliteNow,
+      updated_at: sqliteNow,
     });
 
     expect(dto).toEqual({
@@ -134,8 +135,8 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
       name: "JRW Lifestyle",
       slug: "jrw-lifestyle",
       description: "Catalog team",
-      status: "ACTIVE",
-      archivedAt: null,
+      status: "ARCHIVED",
+      archivedAt: now,
       createdAt: now,
       updatedAt: now,
     });
@@ -188,6 +189,103 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
 
       expect(foundBySlug?.id).toBe(brand.id);
       expect(foundByName?.id).toBe(brand.id);
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("normalizes SQLite timestamps for brand, membership, and product API DTOs", async () => {
+    const { d1, mf } = await createBrandTestD1();
+
+    try {
+      const repository = new DrizzleBrandRepository(createDb(d1));
+
+      await d1
+        .prepare(
+          `INSERT INTO brands (
+            id, name, slug, description, status, created_by_admin_id,
+            archived_at, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          "brand_sqlite",
+          "SQLite Brand",
+          "sqlite-brand",
+          null,
+          "ACTIVE",
+          "admin_1",
+          null,
+          sqliteNow,
+          sqliteNow
+        )
+        .run();
+      await d1
+        .prepare(
+          `INSERT INTO brand_memberships (
+            id, brand_id, admin_id, role, status, invited_by_admin_id,
+            created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          "membership_sqlite",
+          "brand_sqlite",
+          "admin_owner",
+          "MEMBER",
+          "ACTIVE",
+          "admin_1",
+          sqliteNow,
+          sqliteNow
+        )
+        .run();
+      await d1
+        .prepare(
+          `INSERT INTO products (
+            id, name, brand, brand_id, tags, description, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          "product_sqlite",
+          "SQLite Product",
+          null,
+          "brand_sqlite",
+          "[]",
+          "sqlite product",
+          sqliteNow,
+          sqliteNow
+        )
+        .run();
+
+      const brand = await repository.findBrandById("brand_sqlite");
+      const membership = await repository.findMembershipByBrandAndAdmin(
+        "brand_sqlite",
+        "admin_owner"
+      );
+      const products = await repository.findProductsByBrand(
+        {
+          id: "brand_sqlite",
+          name: "SQLite Brand",
+          slug: "sqlite-brand",
+        },
+        { page: 1, pageSize: 20 }
+      );
+      const brandsByAdmin = await repository.findBrandsByAdmin("admin_owner");
+
+      expect(brand).toMatchObject({
+        createdAt: now,
+        updatedAt: now,
+      });
+      expect(membership).toMatchObject({
+        createdAt: now,
+        updatedAt: now,
+      });
+      expect(products.items[0]).toMatchObject({
+        createdAt: now,
+        updatedAt: now,
+      });
+      expect(brandsByAdmin[0]).toMatchObject({
+        createdAt: now,
+        updatedAt: now,
+      });
     } finally {
       await mf.dispose();
     }

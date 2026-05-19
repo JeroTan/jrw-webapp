@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
+import { Miniflare } from "miniflare";
 import { Result } from "@/utils/general/result";
+import {
+  bindAstroBridgeDecorations,
+  clearAstroBridgeDecorations,
+} from "@/lib/elysia/astroBridgeContext";
 import { createApp } from "@/server/app";
 import { OwnershipTransferController } from "@/server/controllers/OwnershipTransferController";
 import type { RequestActorContext } from "@/server/context/request-context";
@@ -115,6 +120,55 @@ const prospectContext = {
     approved: true,
   },
 } satisfies RequestActorContext;
+
+async function createOwnershipCandidateD1() {
+  const mf = new Miniflare({
+    modules: true,
+    script: "export default { fetch() { return new Response('ok') } }",
+    d1Databases: ["DB"],
+  });
+  const d1 = await mf.getD1Database("DB");
+
+  await d1
+    .prepare(
+      `CREATE TABLE admins (
+        id text PRIMARY KEY NOT NULL,
+        email text NOT NULL UNIQUE,
+        password_hash text NOT NULL,
+        password_salt text,
+        is_owner integer DEFAULT 0 NOT NULL,
+        status text DEFAULT 'ACTIVE' NOT NULL,
+        email_verified_at text,
+        approved_at text,
+        created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+        updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+      )`
+    )
+    .run();
+
+  await d1
+    .prepare(
+      `INSERT INTO admins (
+        id, email, password_hash, password_salt, is_owner, status,
+        email_verified_at, approved_at, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      "admin_target",
+      "target@example.test",
+      "hash",
+      "salt",
+      0,
+      "ACTIVE",
+      "2026-05-17 12:31:00",
+      "2026-05-17 12:31:00",
+      "2026-05-17 12:31:00",
+      "2026-05-17 12:31:00"
+    )
+    .run();
+
+  return { d1, mf };
+}
 
 describe("owner governance routes", () => {
   it("documents ownership transfer endpoints with owner-only auth metadata", async () => {
@@ -260,6 +314,56 @@ describe("owner governance routes", () => {
     expect(transferResponse.headers.get("set-cookie")).toContain("Max-Age=0");
     expect(calls).toEqual(["list", "transfer"]);
   });
+
+  it(
+    "lists runtime D1 candidates when timestamps use SQLite CURRENT_TIMESTAMP format",
+    async () => {
+      const { d1, mf } = await createOwnershipCandidateD1();
+      const app = createApp({
+        requestContext: {
+          resolveActorFromSession: async () => ownerContext,
+        },
+      });
+      const request = new Request(
+        "https://jrw.test/api/admin/owner/ownership-transfer/candidates",
+        {
+          headers: {
+            cookie: "jrw_session=owner-token",
+            "x-request-id": "req_sqlite_timestamp",
+          },
+        }
+      );
+
+      bindAstroBridgeDecorations(request, {
+        runtimeEnv: {
+          DB: d1,
+          PASSWORD_PEPPER: "test-password-pepper-value",
+        } as unknown as Partial<Env> & Record<string, unknown>,
+      });
+
+      try {
+        const response = await app.handle(request);
+
+        expect(response.status).toBe(200);
+        await expect(response.json()).resolves.toMatchObject({
+          data: {
+            candidates: [
+              {
+                id: "admin_target",
+                createdAt: "2026-05-17T12:31:00.000Z",
+                updatedAt: "2026-05-17T12:31:00.000Z",
+              },
+            ],
+          },
+          meta: { requestId: "req_sqlite_timestamp" },
+        });
+      } finally {
+        clearAstroBridgeDecorations(request);
+        await mf.dispose();
+      }
+    },
+    20_000
+  );
 
   it("denies anonymous, Admin, Customer, and Prospect before controller execution", async () => {
     const cases = [

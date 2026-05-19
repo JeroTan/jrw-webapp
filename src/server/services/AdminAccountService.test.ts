@@ -426,7 +426,17 @@ describe("AdminAccountService", () => {
           password: "correct horse battery staple",
         },
       })
-    ).resolves.toMatchObject({ error: { code: "CONFLICT_STATE" } });
+    ).resolves.toMatchObject({
+      error: {
+        code: "CONFLICT_STATE",
+        data: {
+          reason: "ADMIN_EMAIL_ALREADY_EXISTS",
+          field: "email",
+          existingAccountKind: "ADMIN",
+        },
+        message: "An Admin account already uses this email.",
+      },
+    });
     await expect(
       service.createAdminAccount({
         actor: ownerActor,
@@ -436,7 +446,17 @@ describe("AdminAccountService", () => {
           password: "correct horse battery staple",
         },
       })
-    ).resolves.toMatchObject({ error: { code: "CONFLICT_STATE" } });
+    ).resolves.toMatchObject({
+      error: {
+        code: "CONFLICT_STATE",
+        data: {
+          reason: "CUSTOMER_EMAIL_ALREADY_EXISTS",
+          field: "email",
+          existingAccountKind: "CUSTOMER",
+        },
+        message: "A Customer account already uses this email.",
+      },
+    });
     await expect(
       service.updateAdminAccount({
         actor: ownerActor,
@@ -444,7 +464,16 @@ describe("AdminAccountService", () => {
         adminAccountId: "admin_2",
         body: { email: "customer@example.test" },
       })
-    ).resolves.toMatchObject({ error: { code: "CONFLICT_STATE" } });
+    ).resolves.toMatchObject({
+      error: {
+        code: "CONFLICT_STATE",
+        data: {
+          reason: "CUSTOMER_EMAIL_ALREADY_EXISTS",
+          field: "email",
+          existingAccountKind: "CUSTOMER",
+        },
+      },
+    });
   });
 
   it("keeps committed admin changes successful when lifecycle emails fail", async () => {

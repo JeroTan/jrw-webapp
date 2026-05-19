@@ -83,7 +83,7 @@ function errorResult<T>(
     status: errorCodeToHttpStatus(result.error.code),
     body: apiErrorWithRequestId(
       result.error.code,
-      publicErrorMessage(result.error.code),
+      publicErrorMessage(result.error.code, result.error.message),
       requestId,
       details
     ),

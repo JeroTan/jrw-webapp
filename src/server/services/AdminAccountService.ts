@@ -10,6 +10,7 @@ import {
   type AdminAccountRecord as DomainAdminAccountRecord,
 } from "@/domain/admins/admin-account";
 import type { AccountEmailNotifier } from "@/domain/notifications/account-emails";
+import { toApiDateTime } from "@/lib/api/date-time";
 import { hashPassword, type PasswordHashOptions } from "@/lib/crypto/password";
 import { GeneralError, type ErrorCodeType } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
@@ -68,6 +69,12 @@ type ActorScopedInput = {
   requestId: string;
 };
 
+type AdminEmailConflict = {
+  reason: "ADMIN_EMAIL_ALREADY_EXISTS" | "CUSTOMER_EMAIL_ALREADY_EXISTS";
+  field: "email";
+  existingAccountKind: "ADMIN" | "CUSTOMER";
+};
+
 export type CreateAdminAccountServiceInput = ActorScopedInput & {
   body: Record<string, unknown>;
 };
@@ -84,8 +91,12 @@ export type LifecycleReasonInput = AdminAccountIdInput & {
   body?: Record<string, unknown>;
 };
 
-function serviceError(code: ErrorCodeType): GeneralError<Record<string, never>> {
-  return new GeneralError({}, code);
+function serviceError(
+  code: ErrorCodeType,
+  data: Record<string, unknown> = {},
+  message?: string
+): GeneralError<Record<string, unknown>> {
+  return new GeneralError(data, code, message);
 }
 
 function isUniqueConstraintError(error: unknown): boolean {
@@ -123,16 +134,6 @@ function dashboardEligible(record: AdminAccountRecord): boolean {
   return Boolean(record.emailVerifiedAt && record.approvedAt);
 }
 
-function toPublicDateTime(value: string): string {
-  const sqliteTimestamp = /^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:\.\d+)?$/;
-  const candidate = sqliteTimestamp.test(value)
-    ? `${value.replace(" ", "T")}Z`
-    : value;
-  const date = new Date(candidate);
-
-  return Number.isNaN(date.getTime()) ? value : date.toISOString();
-}
-
 function toAdminDto(record: AdminAccountRecord): AdminAccountDto {
   return {
     id: record.id,
@@ -145,8 +146,8 @@ function toAdminDto(record: AdminAccountRecord): AdminAccountDto {
     dashboardEligible: dashboardEligible(record),
     suspensionReason: record.suspensionReason,
     rejectionReason: record.rejectionReason,
-    createdAt: toPublicDateTime(record.createdAt),
-    updatedAt: toPublicDateTime(record.updatedAt),
+    createdAt: toApiDateTime(record.createdAt),
+    updatedAt: toApiDateTime(record.updatedAt),
   };
 }
 
@@ -242,16 +243,41 @@ export class AdminAccountService {
     }
   }
 
-  private async emailConflictsWithExistingAccount(
+  private async findEmailConflict(
     email: string,
     currentAdminId?: string
-  ): Promise<boolean> {
+  ): Promise<AdminEmailConflict | null> {
     const [admin, customer] = await Promise.all([
       this.repository.findAdminAccountByEmail(email),
       this.repository.findCustomerByEmail(email),
     ]);
 
-    return Boolean(customer || (admin && admin.id !== currentAdminId));
+    if (admin && admin.id !== currentAdminId) {
+      return {
+        reason: "ADMIN_EMAIL_ALREADY_EXISTS",
+        field: "email",
+        existingAccountKind: "ADMIN",
+      };
+    }
+
+    if (customer) {
+      return {
+        reason: "CUSTOMER_EMAIL_ALREADY_EXISTS",
+        field: "email",
+        existingAccountKind: "CUSTOMER",
+      };
+    }
+
+    return null;
+  }
+
+  private emailConflictError(conflict: AdminEmailConflict) {
+    const message =
+      conflict.existingAccountKind === "ADMIN"
+        ? "An Admin account already uses this email."
+        : "A Customer account already uses this email.";
+
+    return serviceError("CONFLICT_STATE", conflict, message);
   }
 
   async listAdminAccounts(
@@ -294,8 +320,9 @@ export class AdminAccountService {
       return Result.error(serviceError(validation.code));
     }
 
-    if (await this.emailConflictsWithExistingAccount(validation.value.email)) {
-      return Result.error(serviceError("CONFLICT_STATE"));
+    const conflict = await this.findEmailConflict(validation.value.email);
+    if (conflict) {
+      return Result.error(this.emailConflictError(conflict));
     }
 
     const passwordCredential = await hashPassword(
@@ -315,7 +342,13 @@ export class AdminAccountService {
       admin = await this.repository.createAdminAccount(defaults);
     } catch (error) {
       if (isUniqueConstraintError(error)) {
-        return Result.error(serviceError("CONFLICT_STATE"));
+        return Result.error(
+          this.emailConflictError({
+            reason: "ADMIN_EMAIL_ALREADY_EXISTS",
+            field: "email",
+            existingAccountKind: "ADMIN",
+          })
+        );
       }
 
       throw error;
@@ -354,14 +387,15 @@ export class AdminAccountService {
     }
 
     const nextEmail = validation.value.email ?? target.content.email;
-    if (
-      validation.value.email &&
-      (await this.emailConflictsWithExistingAccount(
+    if (validation.value.email) {
+      const conflict = await this.findEmailConflict(
         validation.value.email,
         input.adminAccountId
-      ))
-    ) {
-      return Result.error(serviceError("CONFLICT_STATE"));
+      );
+
+      if (conflict) {
+        return Result.error(this.emailConflictError(conflict));
+      }
     }
 
     let admin: AdminAccountRecord | null;
@@ -374,7 +408,13 @@ export class AdminAccountService {
       });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
-        return Result.error(serviceError("CONFLICT_STATE"));
+        return Result.error(
+          this.emailConflictError({
+            reason: "ADMIN_EMAIL_ALREADY_EXISTS",
+            field: "email",
+            existingAccountKind: "ADMIN",
+          })
+        );
       }
 
       throw error;
