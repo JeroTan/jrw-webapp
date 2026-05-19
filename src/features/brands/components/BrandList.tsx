@@ -22,6 +22,9 @@ type BrandCounts = {
   pendingJoinRequests: number | null;
 };
 
+const brandListIntroCopy =
+  "You can manage your list of brands here.";
+
 function statusTone(status: BrandRecord["status"]) {
   return status === "ACTIVE" ? ("success" as const) : ("warning" as const);
 }
@@ -81,6 +84,7 @@ export function BrandList() {
 
         const staticCopy = [
           "Brand catalog groups",
+          brandListIntroCopy,
           "Brand members",
           "Pending invites and join requests",
         ].join(" ");
@@ -171,9 +175,7 @@ export function BrandList() {
         <div>
           <p className="jrw-page-kicker">Catalog collaboration</p>
           <h1 className="jrw-brands__title">Brand catalog groups</h1>
-          <p className="jrw-page-copy">
-            Brands are optional catalog groups. JRW remains seller of record.
-          </p>
+          <p className="jrw-page-copy">{brandListIntroCopy}</p>
         </div>
         <dl className="jrw-brands__metrics" aria-label="Brand status summary">
           <div>
@@ -225,4 +227,3 @@ export function BrandList() {
     </main>
   );
 }
-

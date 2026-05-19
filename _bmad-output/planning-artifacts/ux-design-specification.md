@@ -480,6 +480,10 @@ Typography roles:
 - Storefront product metadata uses Space Mono for price, SKU, status, and variant details.
 - Admin dashboard uses Space Mono heavily for tables, filters, timestamps, audit events, and status.
 - Body copy stays short; UI should not depend on long explanatory prose.
+- UI copy states what the surface is for and what the user can do next. It should not teach internal business policy unless the task requires that policy.
+- Page intro text names the user's work, such as "Manage products", "Review join requests", or "You can manage your list of brands here."
+- Field helper text explains immediate usage or consequence, such as "No brand is valid", not internal architecture or payment ownership.
+- Keep technical boundary language in planning docs, API docs, audit/legal/payment contexts, and developer notes. Routine UI should not say "JRW is seller of record", "single merchant account", "not a tenant", or similar disclaimers.
 
 Type scale:
 - Display/H1: 48px desktop, responsive down to 32px mobile.
@@ -977,7 +981,7 @@ Rules:
 
 Empty states:
 - No products: prompt Admin to create first product.
-- No brands: explain brand optional.
+- No brands: state no brands exist and offer the next action.
 - No orders: show waiting state.
 - No audit events: explain events appear after sensitive changes.
 - Empty storefront category: show alternatives.
@@ -1006,6 +1010,9 @@ Status and heading rhythm:
 Brand language:
 - Use "brand", "catalog group", "brand members".
 - Never use seller, merchant, tenant, store owner, payout owner.
+- Use "catalog group" only when it helps explain product assignment. Do not turn brand UI into a lesson about what brands are not.
+- Routine brand page copy should describe the task: list brands, manage members, review invitations, review join requests, or view linked products.
+- Seller-of-record and payment-owner wording belongs in technical/business docs or payment/legal surfaces, not normal brand management UI.
 
 Audit language:
 - Always show actor, action, target, timestamp, request ID when safe.

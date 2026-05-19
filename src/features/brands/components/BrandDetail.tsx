@@ -242,7 +242,6 @@ export function BrandDetail({ brandId }: { brandId: string }) {
           "Brand detail",
           "brand members",
           "catalog group",
-          "JRW seller of record",
           "Join requests",
           "Invites",
         ].join(" ");
@@ -395,7 +394,7 @@ export function BrandDetail({ brandId }: { brandId: string }) {
           <p className="jrw-page-kicker">Catalog collaboration</p>
           <h1 className="jrw-brands__title">{brand.name}</h1>
           <p className="jrw-page-copy">
-            Brand is catalog group. JRW is seller of record.
+            Manage this brand's members, invitations, join requests, and linked products.
           </p>
         </div>
         <div className="jrw-brands__summary">

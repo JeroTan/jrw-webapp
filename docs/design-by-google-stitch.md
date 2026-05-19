@@ -137,6 +137,18 @@ The typographic system contrasts the bold, humanist geometry of **Satoshi** with
 
 **Logo Treatment:** The "JRW." logo uses Satoshi Bold. The tagline "Apparently Limitless" is positioned directly beneath or adjacent, rendered at 40% of the logo's height in Space Mono with a wide 0.5em tracking to emphasize the technical nature of the system.
 
+## Content & Microcopy
+
+Text should be as precise as the grid. UI copy states what the user is seeing, what they can do, or what changed.
+
+- **Page descriptions:** Describe the surface purpose in plain operational terms. Example: "You can manage your list of brands here."
+- **Section descriptions:** Name available work: manage members, review requests, edit product details, upload images, check order status.
+- **Field helper text:** Explain the field's immediate effect or valid choice. Example: "No brand is valid."
+- **Empty states:** State current state plus next action. Example: "No brands yet. Create a brand to group related products."
+- **Permission messages:** State needed permission or role. Avoid explaining backend architecture.
+- **Avoid:** Internal policy lessons, architecture notes, payment ownership disclaimers, or "what this is not" copy in routine UI.
+- **Keep technical boundaries in docs:** Seller-of-record, PayMongo merchant account, tenant, marketplace, or payout-owner language belongs in PRD, architecture, API docs, audits, or payment/legal contexts unless the user action directly needs it.
+
 ## Layout & Spacing
 
 This design system utilizes a **Modular Grid** logic inspired by terminal interfaces and architectural blueprints.

@@ -11,7 +11,7 @@ sections_completed:
   - workflow_rules
   - anti_patterns
 status: "complete"
-rule_count: 77
+rule_count: 85
 optimized_for_llm: true
 existing_patterns_found: 18
 ---
@@ -216,6 +216,14 @@ Tooling:
 - Status badges must include text and must not rely on color alone.
 - Destructive or authority-changing actions require deliberate confirmation.
 - Ownership transfer needs target eligibility, confirmation phrase, password re-entry, and audit trail.
+- UI copy must state what the screen, section, or field does for the user. Prefer "You can manage your list of brands here" over policy explanations.
+- Page descriptions should name the user's available work: manage records, edit details, review requests, upload images, check status, retry payment, or view history.
+- Helper text should explain immediate field meaning or consequence. Do not use helper text for internal doctrine, architecture notes, legal positioning, payment ownership, or anti-marketplace disclaimers.
+- Keep brand UI labels practical: "Brand", "No brand", "Brand members", "Join requests", "Linked products". Use "catalog group" only when it clarifies product assignment.
+- Do not put "JRW is seller of record", "single merchant account", "not a tenant", or similar technical/business boundary copy in routine UI. Keep that in PRD, architecture, API docs, audits, or payment/legal contexts where users need it.
+- Empty states should say current state plus next action, not abstract domain definitions.
+- Permission text should say why action is unavailable and what permission is needed, without over-explaining server architecture.
+- Before adding UI text, check: can a normal Admin understand what to do next in one short sentence? If not, rewrite.
 
 ### Testing And Quality
 
@@ -265,4 +273,4 @@ For humans:
 - Remove rules once code structure makes them obvious.
 - Review after architecture artifact or major source reorganization.
 
-Last Updated: 2026-05-13
+Last Updated: 2026-05-19

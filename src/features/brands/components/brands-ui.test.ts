@@ -3,12 +3,22 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { BrandInviteTable } from "./BrandInviteTable";
 import { BrandJoinRequestTable } from "./BrandJoinRequestTable";
+import { BrandList } from "./BrandList";
 import { BrandMembershipTable } from "./BrandMembershipTable";
 import { ProductBrandField } from "./ProductBrandField";
 
 const now = "2026-05-18T06:30:00.000Z";
 
 describe("brands UI surfaces", () => {
+  it("describes the brand list page by what admins can manage", () => {
+    const markup = renderToStaticMarkup(createElement(BrandList));
+
+    expect(markup).toContain("You can manage your list of brands here.");
+    expect(markup).not.toContain(
+      "Brands are optional catalog groups. JRW remains seller of record.",
+    );
+  });
+
   it("renders product brand helper text and brandless option", () => {
     const markup = renderToStaticMarkup(
       createElement(ProductBrandField, {
@@ -31,9 +41,10 @@ describe("brands UI surfaces", () => {
     );
 
     expect(markup).toContain("No brand (brandless)");
-    expect(markup).toContain("optional catalog group");
-    expect(markup).toContain("JRW as seller of record");
+    expect(markup).toContain("belongs in a catalog group");
+    expect(markup).toContain("No brand is valid");
     expect(markup).not.toContain("missing seller or store");
+    expect(markup).not.toContain("seller of record");
   });
 
   it("renders text-labeled membership statuses in table", () => {
