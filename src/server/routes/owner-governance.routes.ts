@@ -214,7 +214,28 @@ export function ownerGovernanceRoutes(
         detail: routeDetail({
           summary: "List ownership transfer candidates",
           description:
-            "Returns eligible active approved verified Admin accounts for owner-only ownership transfer governance.",
+            `Returns eligible active approved verified Admin accounts for owner-only ownership transfer governance.
+
+**Path:** \`GET /admin/owner/ownership-transfer/candidates\`
+
+**Authentication:** Required — \`SUPER_ADMIN\` role only. Caller must be the current platform owner (\`isOwner: true\`).
+
+**Request:** No body required.
+
+**Response (200):**
+- \`data.candidates\` (array): Array of eligible admin accounts that can receive ownership.
+  - \`id\` (string): Admin account UUID.
+  - \`email\` (string): Admin email address.
+  - \`role\` (string): Admin role — \`ADMIN\` or \`SUPER_ADMIN\`.
+  - \`status\` (string): Account status — must be \`ACTIVE\` to be eligible.
+  - \`isOwner\` (boolean): Whether this account currently holds ownership (always false for candidates).
+  - \`emailVerified\` (boolean): Whether the email has been verified.
+  - \`approved\` (boolean): Whether the account has been approved.
+  - \`dashboardEligible\` (boolean): Whether the account can access the admin dashboard.
+  - \`createdAt\` (string, ISO 8601): Account creation timestamp.
+  - \`updatedAt\` (string, ISO 8601): Account last update timestamp.
+
+**Eligibility Criteria:** Candidates must be ACTIVE, email verified, approved, and not the current owner.`,
           tags: ["Owner Governance"],
           auth: ownerGovernanceAuth,
           rateLimitClass: "admin-write",
@@ -272,7 +293,46 @@ export function ownerGovernanceRoutes(
         detail: routeDetail({
           summary: "Transfer platform ownership",
           description:
-            "Transfers unique Super Admin ownership after exact confirmation phrase and current owner password re-entry.",
+            `Transfers unique Super Admin ownership after exact confirmation phrase and current owner password re-entry.
+
+**Path:** \`POST /admin/owner/ownership-transfer\`
+
+**Authentication:** Required — \`SUPER_ADMIN\` role only. Caller must be the current platform owner (\`isOwner: true\`).
+
+**Request Body:**
+- \`targetAdminId\` (string, required): The UUID of the admin account to transfer ownership to (1-128 characters). Must be an eligible candidate from the candidates endpoint.
+- \`confirmationPhrase\` (string, required): Exact confirmation phrase required to authorize the transfer. Must match the platform's expected phrase verbatim.
+- \`password\` (string, required): Current owner's password to re-authenticate the transfer (1-128 characters).
+
+**Response (200):**
+- \`data.previousOwner.id\` (string): The previous owner's admin account UUID.
+- \`data.previousOwner.email\` (string): Previous owner's email address.
+- \`data.previousOwner.role\` (string): Previous owner's role — now demoted to \`ADMIN\`.
+- \`data.previousOwner.status\` (string): Previous owner's account status.
+- \`data.previousOwner.isOwner\` (boolean): Now \`false\`.
+- \`data.previousOwner.emailVerified\` (boolean): Email verification status.
+- \`data.previousOwner.approved\` (boolean): Approval status.
+- \`data.previousOwner.updatedAt\` (string, ISO 8601): Last update timestamp.
+- \`data.newOwner.id\` (string): The new owner's admin account UUID.
+- \`data.newOwner.email\` (string): New owner's email address.
+- \`data.newOwner.role\` (string): New owner's role — promoted to \`SUPER_ADMIN\`.
+- \`data.newOwner.status\` (string): New owner's account status.
+- \`data.newOwner.isOwner\` (boolean): Now \`true\`.
+- \`data.newOwner.emailVerified\` (boolean): Email verification status.
+- \`data.newOwner.approved\` (boolean): Approval status.
+- \`data.newOwner.updatedAt\` (string, ISO 8601): Last update timestamp.
+- \`data.revokedSessionCount\` (number): Number of active sessions revoked during the transfer.
+- \`data.revokedActorIds\` (array of strings): List of admin account UUIDs whose sessions were revoked.
+- \`data.auditLogId\` (string): The audit log entry UUID for this transfer event.
+- \`data.sessionRefreshRequired\` (boolean): Whether the current session needs to be refreshed.
+
+**Side Effects:**
+- Transfers ownership from current owner to target admin.
+- Revokes all active sessions for both previous and new owner.
+- Creates an immutable audit log entry.
+- Sets a new session cookie for the new owner.
+
+**Warning:** This is a critical governance operation. The confirmation phrase and password must both be correct.`,
           tags: ["Owner Governance"],
           auth: ownerGovernanceAuth,
           rateLimitClass: "admin-write",

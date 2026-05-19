@@ -337,7 +337,26 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "Create brand",
           description:
-            "Creates a brand as JRW catalog collaboration group and auto-creates OWNER membership for the creator.",
+            `Creates a brand as JRW catalog collaboration group and auto-creates OWNER membership for the creator.
+
+**Path:** \`POST /brands\`
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Account must be active, email verified, and approved.
+
+**Request Body:**
+- \`name\` (string, required): Brand display name (2-120 characters).
+- \`slug\` (string, optional): URL-safe brand identifier. Must be lowercase alphanumeric with hyphens only (pattern: \`^[a-z0-9]+(?:-[a-z0-9]+)*$\`). If omitted, auto-generated from name.
+- \`description\` (string, optional): Brand description (max 500 characters).
+
+**Response (201):**
+- \`data.brand.id\` (string): The newly created brand UUID.
+- \`data.brand.name\` (string): Brand display name.
+- \`data.brand.slug\` (string): URL-safe brand identifier.
+- \`data.brand.description\` (string or null): Brand description.
+- \`data.brand.status\` (string): Brand status — \`ACTIVE\` or \`ARCHIVED\`.
+- \`data.brand.archivedAt\` (string or null): ISO 8601 timestamp when brand was archived (null if active).
+- \`data.brand.createdAt\` (string, ISO 8601): Brand creation timestamp.
+- \`data.brand.updatedAt\` (string, ISO 8601): Brand last update timestamp.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-write",
@@ -387,7 +406,29 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "Update brand",
           description:
-            "Updates allowed brand fields for an active brand catalog collaboration group.",
+            `Updates allowed brand fields for an active brand catalog collaboration group.
+
+**Path:** \`PATCH /brands/:id\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand to update (1-128 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a member of the brand.
+
+**Request Body (at least one field required):**
+- \`name\` (string, optional): New brand display name (2-120 characters).
+- \`slug\` (string, optional): New URL-safe brand identifier. Must be lowercase alphanumeric with hyphens only.
+- \`description\` (string or null, optional): New brand description (max 500 characters). Pass \`null\` to clear.
+
+**Response (200):**
+- \`data.brand.id\` (string): The updated brand UUID.
+- \`data.brand.name\` (string): Updated brand display name.
+- \`data.brand.slug\` (string): Updated URL-safe brand identifier.
+- \`data.brand.description\` (string or null): Updated brand description.
+- \`data.brand.status\` (string): Brand status — \`ACTIVE\` or \`ARCHIVED\`.
+- \`data.brand.archivedAt\` (string or null): ISO 8601 timestamp when brand was archived.
+- \`data.brand.createdAt\` (string, ISO 8601): Brand creation timestamp.
+- \`data.brand.updatedAt\` (string, ISO 8601): Brand last update timestamp.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-write",
@@ -437,7 +478,28 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "Invite brand admin",
           description:
-            "Creates a pending brand membership invitation for an existing eligible admin account.",
+            `Creates a pending brand membership invitation for an existing eligible admin account.
+
+**Path:** \`POST /brands/:id/invite\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand to invite an admin to (1-128 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a brand member with invite permissions.
+
+**Request Body (at least one field required):**
+- \`adminId\` (string, optional): The UUID of the existing admin account to invite (1-128 characters). Either \`adminId\` or \`email\` must be provided.
+- \`email\` (string, optional): The email address of the admin to invite. Must match an existing eligible admin account.
+
+**Response (201):**
+- \`data.invitation.id\` (string): The brand membership invitation UUID.
+- \`data.invitation.brandId\` (string): The brand UUID this invitation is for.
+- \`data.invitation.adminId\` (string): The invited admin account UUID.
+- \`data.invitation.role\` (string): Membership role — \`OWNER\` or \`MEMBER\`.
+- \`data.invitation.status\` (string): Invitation status — \`ACTIVE\`, \`PENDING\`, or \`REVOKED\`.
+- \`data.invitation.invitedByAdminId\` (string or null): The admin UUID who sent this invitation.
+- \`data.invitation.createdAt\` (string, ISO 8601): Invitation creation timestamp.
+- \`data.invitation.updatedAt\` (string, ISO 8601): Invitation last update timestamp.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-write",
@@ -477,7 +539,26 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "Accept brand invitation",
           description:
-            "Accepts pending invitation for current admin and activates brand membership.",
+            `Accepts pending invitation for current admin and activates brand membership.
+
+**Path:** \`POST /brands/:id/accept\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand whose invitation to accept (1-128 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. The calling admin must have a pending invitation for this brand.
+
+**Request:** No body required.
+
+**Response (200):**
+- \`data.membership.id\` (string): The brand membership UUID.
+- \`data.membership.brandId\` (string): The brand UUID.
+- \`data.membership.adminId\` (string): The admin account UUID.
+- \`data.membership.role\` (string): Membership role — \`OWNER\` or \`MEMBER\`.
+- \`data.membership.status\` (string): Updated membership status — now \`ACTIVE\`.
+- \`data.membership.invitedByAdminId\` (string or null): The admin UUID who sent the original invitation.
+- \`data.membership.createdAt\` (string, ISO 8601): Membership creation timestamp.
+- \`data.membership.updatedAt\` (string, ISO 8601): Membership last update timestamp.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-write",
@@ -517,7 +598,26 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "Request brand join",
           description:
-            "Creates pending brand join request for current admin when no active or pending membership exists.",
+            `Creates pending brand join request for current admin when no active or pending membership exists.
+
+**Path:** \`POST /brands/:id/join\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand to request joining (1-128 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must NOT have an existing active or pending membership for this brand.
+
+**Request:** No body required.
+
+**Response (201):**
+- \`data.membership.id\` (string): The brand membership/join request UUID.
+- \`data.membership.brandId\` (string): The brand UUID.
+- \`data.membership.adminId\` (string): The requesting admin account UUID.
+- \`data.membership.role\` (string): Requested membership role — \`MEMBER\`.
+- \`data.membership.status\` (string): Join request status — \`PENDING\` awaiting approval.
+- \`data.membership.invitedByAdminId\` (string or null): Null for join requests (no inviter).
+- \`data.membership.createdAt\` (string, ISO 8601): Join request creation timestamp.
+- \`data.membership.updatedAt\` (string, ISO 8601): Join request last update timestamp.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-write",
@@ -558,7 +658,27 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "Approve brand join request",
           description:
-            "Approves pending brand join request for target admin and activates membership.",
+            `Approves pending brand join request for target admin and activates membership.
+
+**Path:** \`POST /brands/:id/join/:adminId/approve\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand (1-128 characters).
+- \`adminId\` (string, required): The UUID of the admin whose join request to approve (1-128 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a brand member with approval permissions (OWNER role).
+
+**Request:** No body required.
+
+**Response (200):**
+- \`data.membership.id\` (string): The brand membership UUID.
+- \`data.membership.brandId\` (string): The brand UUID.
+- \`data.membership.adminId\` (string): The approved admin account UUID.
+- \`data.membership.role\` (string): Membership role — now \`MEMBER\`.
+- \`data.membership.status\` (string): Updated membership status — now \`ACTIVE\`.
+- \`data.membership.invitedByAdminId\` (string or null): Null for join requests.
+- \`data.membership.createdAt\` (string, ISO 8601): Membership creation timestamp.
+- \`data.membership.updatedAt\` (string, ISO 8601): Membership last update timestamp.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-write",
@@ -599,7 +719,27 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "Reject brand join request",
           description:
-            "Rejects pending brand join request for target admin and revokes pending membership.",
+            `Rejects pending brand join request for target admin and revokes pending membership.
+
+**Path:** \`POST /brands/:id/join/:adminId/reject\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand (1-128 characters).
+- \`adminId\` (string, required): The UUID of the admin whose join request to reject (1-128 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a brand member with approval permissions (OWNER role).
+
+**Request:** No body required.
+
+**Response (200):**
+- \`data.membership.id\` (string): The brand membership UUID.
+- \`data.membership.brandId\` (string): The brand UUID.
+- \`data.membership.adminId\` (string): The rejected admin account UUID.
+- \`data.membership.role\` (string): Membership role.
+- \`data.membership.status\` (string): Updated membership status — now \`REVOKED\`.
+- \`data.membership.invitedByAdminId\` (string or null): Null for join requests.
+- \`data.membership.createdAt\` (string, ISO 8601): Membership creation timestamp.
+- \`data.membership.updatedAt\` (string, ISO 8601): Membership last update timestamp.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-write",
@@ -639,7 +779,24 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "Guard brand product create",
           description:
-            "Checks brand membership and brand status before allowing create product flow in requested brand scope.",
+            `Checks brand membership and brand status before allowing create product flow in requested brand scope. Returns permission verdict without creating a product.
+
+**Path:** \`POST /brands/:id/products/guard\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand scope to check product creation permission for (1-128 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role.
+
+**Request:** No body required.
+
+**Response (200):**
+- \`data.allowed\` (boolean): Always \`true\` when the guard passes (caller has permission).
+- \`data.brandless\` (boolean): Whether the product would be created without brand assignment.
+- \`data.reassignment\` (boolean): Whether this is a product reassignment scenario.
+- \`data.productId\` (string or null): Product UUID if applicable (null for new product creation).
+- \`data.sourceBrandId\` (string or null): Source brand UUID for reassignment scenarios.
+- \`data.targetBrandId\` (string or null): Target brand UUID — the \`id\` from the path parameter.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-write",
@@ -680,7 +837,25 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "Guard brand product update",
           description:
-            "Checks membership and product-brand association before allowing update flow in requested brand scope.",
+            `Checks membership and product-brand association before allowing update flow in requested brand scope. Returns permission verdict without modifying the product.
+
+**Path:** \`POST /brands/:id/products/:productId/guard\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand scope to check product update permission for (1-128 characters).
+- \`productId\` (string, required): The UUID of the product to check update permission for (1-128 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a member of the brand.
+
+**Request:** No body required.
+
+**Response (200):**
+- \`data.allowed\` (boolean): Always \`true\` when the guard passes (caller has permission).
+- \`data.brandless\` (boolean): Whether the product is currently brandless.
+- \`data.reassignment\` (boolean): Whether this involves a brand reassignment.
+- \`data.productId\` (string or null): The product UUID from the path.
+- \`data.sourceBrandId\` (string or null): The product's current brand UUID.
+- \`data.targetBrandId\` (string or null): The target brand UUID from the path.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-write",
@@ -730,7 +905,25 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "Guard brand product reassignment",
           description:
-            "Checks source and target brand permissions before allowing product brand reassignment flow.",
+            `Checks source and target brand permissions before allowing product brand reassignment flow. Returns permission verdict without reassigning the product.
+
+**Path:** \`POST /brands/products/:productId/reassign/guard\`
+
+**Path Parameters:**
+- \`productId\` (string, required): The UUID of the product to check reassignment permission for (1-128 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role.
+
+**Request Body:**
+- \`targetBrandId\` (string, required): The UUID of the brand to reassign the product to (1-128 characters).
+
+**Response (200):**
+- \`data.allowed\` (boolean): Always \`true\` when the guard passes (caller has permission).
+- \`data.brandless\` (boolean): Whether the product is currently brandless.
+- \`data.reassignment\` (boolean): Always \`true\` for this endpoint.
+- \`data.productId\` (string or null): The product UUID from the path.
+- \`data.sourceBrandId\` (string or null): The product's current brand UUID.
+- \`data.targetBrandId\` (string or null): The target brand UUID from the request body.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-write",
@@ -767,7 +960,21 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "Guard brandless product mutation",
           description:
-            "Checks authenticated admin permission before allowing brandless product mutation flow.",
+            `Checks authenticated admin permission before allowing brandless product mutation flow. Returns permission verdict without creating or modifying a product.
+
+**Path:** \`POST /brands/products/brandless/guard\`
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role.
+
+**Request:** No body required.
+
+**Response (200):**
+- \`data.allowed\` (boolean): Always \`true\` when the guard passes (caller has permission).
+- \`data.brandless\` (boolean): Always \`true\` for this endpoint (brandless product scope).
+- \`data.reassignment\` (boolean): Whether this involves a brand reassignment.
+- \`data.productId\` (string or null): Product UUID if applicable.
+- \`data.sourceBrandId\` (string or null): Source brand UUID (null for brandless).
+- \`data.targetBrandId\` (string or null): Target brand UUID (null for brandless).`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-write",
@@ -817,7 +1024,32 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "List brand scoped products",
           description:
-            "Lists products assigned to requested brand for authorized brand members and super admin.",
+            `Lists products assigned to requested brand for authorized brand members and super admin.
+
+**Path:** \`GET /brands/:id/products\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand to list products for (1-128 characters).
+
+**Query Parameters:**
+- \`page\` (number, optional): Page number for pagination (default: 1, minimum: 1).
+- \`pageSize\` (number, optional): Items per page (default: 20, min: 1, max: 100).
+- \`status\` (string, optional): Filter by product status (1-64 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a member of the brand or be a SUPER_ADMIN.
+
+**Response (200):**
+- \`data.items\` (array): Array of product objects.
+  - \`id\` (string): Product UUID.
+  - \`name\` (string): Product name.
+  - \`description\` (string): Product description.
+  - \`brandId\` (string or null): The brand UUID this product belongs to.
+  - \`createdAt\` (string, ISO 8601): Product creation timestamp.
+  - \`updatedAt\` (string, ISO 8601): Product last update timestamp.
+- \`data.page\` (number): Current page number.
+- \`data.pageSize\` (number): Items per page.
+- \`data.totalItems\` (number): Total number of products matching the filter.
+- \`data.totalPages\` (number): Total number of pages.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-read",
@@ -857,7 +1089,29 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "List brandless products",
           description:
-            "Lists products without brand assignment for authenticated catalog admins.",
+            `Lists products without brand assignment for authenticated catalog admins.
+
+**Path:** \`GET /brands/products/brandless\`
+
+**Query Parameters:**
+- \`page\` (number, optional): Page number for pagination (default: 1, minimum: 1).
+- \`pageSize\` (number, optional): Items per page (default: 20, min: 1, max: 100).
+- \`status\` (string, optional): Filter by product status (1-64 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role.
+
+**Response (200):**
+- \`data.items\` (array): Array of brandless product objects.
+  - \`id\` (string): Product UUID.
+  - \`name\` (string): Product name.
+  - \`description\` (string): Product description.
+  - \`brandId\` (string or null): Always \`null\` for brandless products.
+  - \`createdAt\` (string, ISO 8601): Product creation timestamp.
+  - \`updatedAt\` (string, ISO 8601): Product last update timestamp.
+- \`data.page\` (number): Current page number.
+- \`data.pageSize\` (number): Items per page.
+- \`data.totalItems\` (number): Total number of brandless products.
+- \`data.totalPages\` (number): Total number of pages.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-read",
@@ -897,7 +1151,31 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "List my brands",
           description:
-            "Lists brands where current admin has active membership in catalog collaboration.",
+            `Lists brands where current admin has active membership in catalog collaboration.
+
+**Path:** \`GET /brands/me\`
+
+**Query Parameters:**
+- \`page\` (number, optional): Page number for pagination (default: 1, minimum: 1).
+- \`pageSize\` (number, optional): Items per page (default: 20, min: 1, max: 100).
+- \`status\` (string, optional): Filter by brand status — \`ACTIVE\` or \`ARCHIVED\` (1-64 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role.
+
+**Response (200):**
+- \`data.items\` (array): Array of brand objects where the caller is a member.
+  - \`id\` (string): Brand UUID.
+  - \`name\` (string): Brand display name.
+  - \`slug\` (string): URL-safe brand identifier.
+  - \`description\` (string or null): Brand description.
+  - \`status\` (string): Brand status — \`ACTIVE\` or \`ARCHIVED\`.
+  - \`archivedAt\` (string or null): ISO 8601 timestamp when brand was archived.
+  - \`createdAt\` (string, ISO 8601): Brand creation timestamp.
+  - \`updatedAt\` (string, ISO 8601): Brand last update timestamp.
+- \`data.page\` (number): Current page number.
+- \`data.pageSize\` (number): Items per page.
+- \`data.totalItems\` (number): Total number of brands the caller is a member of.
+- \`data.totalPages\` (number): Total number of pages.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-read",
@@ -937,7 +1215,28 @@ export function brandsRoutes(
         detail: routeDetail({
           summary: "Archive brand",
           description:
-            "Archives brand as irreversible MVP soft-delete while preserving historical references.",
+            `Archives brand as irreversible MVP soft-delete while preserving historical references.
+
+**Path:** \`POST /brands/:id/archive\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand to archive (1-128 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a brand OWNER.
+
+**Request:** No body required.
+
+**Response (200):**
+- \`data.brand.id\` (string): The archived brand UUID.
+- \`data.brand.name\` (string): Brand display name.
+- \`data.brand.slug\` (string): URL-safe brand identifier.
+- \`data.brand.description\` (string or null): Brand description.
+- \`data.brand.status\` (string): Now \`ARCHIVED\`.
+- \`data.brand.archivedAt\` (string, ISO 8601): Timestamp when brand was archived.
+- \`data.brand.createdAt\` (string, ISO 8601): Brand creation timestamp.
+- \`data.brand.updatedAt\` (string, ISO 8601): Brand last update timestamp.
+
+**Warning:** Archiving is irreversible. Historical product references are preserved but the brand is removed from active catalogs.`,
           tags: ["Brands"],
           auth: brandCreateAuth,
           rateLimitClass: "admin-write",

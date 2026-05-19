@@ -157,7 +157,19 @@ export function accountRecoveryRoutes(
       detail: routeDetail({
         summary: "Request customer verification email",
         description:
-          "Accepts a customer verification resend request without revealing account existence or verification state.",
+          `Accepts a customer verification resend request without revealing account existence or verification state.
+
+**Path:** \`POST /customer/auth/email-verifications/requests\`
+
+**Authentication:** Public — no authentication required.
+
+**Request Body:**
+- \`email\` (string, required): The customer email address to resend verification to (3-254 characters, valid email format).
+
+**Response (202):**
+- \`data.accepted\` (boolean): Always \`true\` when the request is accepted for processing.
+
+**Security Note:** This endpoint always returns 202 Accepted regardless of whether the email exists or is already verified, to prevent account enumeration attacks.`,
         tags: ["Customer Auth"],
         auth: { mode: "public", roles: ["PROSPECT", "CUSTOMER"] },
         rateLimitClass: "email-token",
@@ -213,7 +225,19 @@ function registerPasswordResetRoutes(
         body: tboxRecoveryEmailBody,
         detail: routeDetail({
           summary: `Request ${label} password reset`,
-          description: `Accepts a ${label} password reset request and sends email only when eligible without revealing account existence.`,
+          description: `Accepts a ${label} password reset request and sends email only when eligible without revealing account existence.
+
+**Path:** \`POST ${basePath}/password-resets\`
+
+**Authentication:** Public — no authentication required.
+
+**Request Body:**
+- \`email\` (string, required): The ${label} account email address to send the password reset link to (3-254 characters, valid email format).
+
+**Response (202):**
+- \`data.accepted\` (boolean): Always \`true\` when the request is accepted for processing.
+
+**Security Note:** This endpoint always returns 202 Accepted regardless of whether the email exists, to prevent account enumeration attacks. The reset email is only sent if the account exists and is eligible for password reset.`,
           tags: [tag],
           auth: { mode: "public", roles: ["PROSPECT"] },
           rateLimitClass: "email-token",
@@ -257,7 +281,20 @@ function registerPasswordResetRoutes(
         body: tboxPasswordResetConfirmationBody,
         detail: routeDetail({
           summary: `Confirm ${label} password reset`,
-          description: `Consumes a single-use ${label} password reset token and updates the password without issuing or revoking a session cookie.`,
+          description: `Consumes a single-use ${label} password reset token and updates the password without issuing or revoking a session cookie.
+
+**Path:** \`POST ${basePath}/password-resets/confirmations\`
+
+**Authentication:** Public — no authentication required.
+
+**Request Body:**
+- \`token\` (string, required): The single-use password reset token from the reset email link (1-2048 characters).
+- \`password\` (string, required): The new password to set (8-1024 characters, must meet security requirements).
+
+**Response (200):**
+- \`data.reset\` (boolean): \`true\` when the token was valid and the password has been updated.
+
+**Security Note:** The token is single-use and expires after consumption. This endpoint does NOT create a session — users must sign in again with the new password after resetting.`,
           tags: [tag],
           auth: { mode: "public", roles: ["PROSPECT"] },
           rateLimitClass: "email-token",

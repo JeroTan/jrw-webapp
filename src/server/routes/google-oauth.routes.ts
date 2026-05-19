@@ -139,7 +139,25 @@ export function googleOAuthRoutes(
         detail: routeDetail({
           summary: "Start Google OAuth session",
           description:
-            "Creates a hashed OAuth state/nonce record and redirects Prospect or Customer users to Google OAuth.",
+            `Creates a hashed OAuth state/nonce record and redirects Prospect or Customer users to Google OAuth.
+
+**Path:** \`GET /oauth/google/sessions\`
+
+**Authentication:** Public — no authentication required.
+
+**Query Parameters:**
+- \`returnTo\` (string, optional): URL path to redirect back to after successful OAuth completion (1-2048 characters). Must be a relative path within the application domain.
+
+**Response (302):** Redirects to Google's OAuth consent page. No JSON body.
+
+**Flow:**
+1. Client calls this endpoint (typically via browser navigation, not fetch).
+2. Server generates a cryptographically secure state/nonce pair and stores it hashed in the database.
+3. Server responds with a 302 redirect to Google's OAuth authorization URL.
+4. User authenticates with Google and consents to the requested scopes.
+5. Google redirects back to \`/oauth/google/callback\` with an authorization code.
+
+**Security:** The state parameter prevents CSRF attacks. The nonce prevents replay attacks on the ID token.`,
           tags: ["Customer Auth"],
           auth: { mode: "public", roles: ["PROSPECT", "CUSTOMER"] },
           rateLimitClass: "oauth-login",
@@ -194,7 +212,35 @@ export function googleOAuthRoutes(
         detail: routeDetail({
           summary: "Handle Google OAuth callback",
           description:
-            "Validates Google OAuth state, verifies the ID token, links or creates a Customer account, sets an HttpOnly session cookie, and redirects safely.",
+            `Validates Google OAuth state, verifies the ID token, links or creates a Customer account, sets an HttpOnly session cookie, and redirects safely.
+
+**Path:** \`GET /oauth/google/callback\`
+
+**Authentication:** Public — no authentication required. This endpoint is called by Google's OAuth redirect.
+
+**Query Parameters (set by Google OAuth redirect):**
+- \`code\` (string, optional): The authorization code from Google (1-4096 characters). Used to exchange for an ID token.
+- \`state\` (string, optional): The OAuth state parameter to validate against the stored hashed state (1-4096 characters).
+- \`error\` (string, optional): Error code from Google if the user denied consent or an error occurred.
+- \`iss\` (string, optional): Issuer identifier from Google (max 2048 characters).
+- \`scope\` (string, optional): Granted OAuth scopes (max 4096 characters).
+- \`authuser\` (string, optional): Google account index for multi-login (max 128 characters).
+- \`prompt\` (string, optional): Consent prompt status (max 1024 characters).
+
+**Response (302):** Redirects to the application (either the \`returnTo\` URL from the start endpoint or the default landing page). No JSON body.
+
+**Flow:**
+1. Google redirects the user's browser to this endpoint with the authorization code and state.
+2. Server validates the state parameter matches the stored hashed state/nonce record.
+3. Server exchanges the authorization code for a Google ID token.
+4. Server verifies the ID token signature, audience, and expiration.
+5. Server looks up or creates a Customer account linked to the Google email.
+6. Server creates a new session and sets the HttpOnly customer session cookie.
+7. Server responds with a 302 redirect to the application.
+
+**Side Effects:** Sets an HttpOnly session cookie (\`customer_session\`) on the response.
+
+**Security:** The state parameter is validated to prevent CSRF. The ID token is verified cryptographically. Suspended accounts are rejected.`,
           tags: ["Customer Auth"],
           auth: { mode: "public", roles: ["PROSPECT", "CUSTOMER"] },
           rateLimitClass: "oauth-login",

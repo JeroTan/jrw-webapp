@@ -233,7 +233,30 @@ function registerRealmAuthRoutes(
         cookie: tboxSessionCookie(config.cookieName),
         detail: routeDetail({
           summary: `Create ${config.label} auth session`,
-          description: `Authenticates ${config.label} email/password credentials and creates an HttpOnly ${config.label} session cookie.`,
+          description: `Authenticates ${config.label} email/password credentials and creates an HttpOnly ${config.label} session cookie.
+
+**Path:** \`POST ${config.basePath}/sessions\`
+
+**Request Body:**
+- \`email\` (string, required): The ${config.label} account email address (3-254 characters, valid email format).
+- \`password\` (string, required): The account password (1-1024 characters).
+
+**Response (200):**
+- \`data.actor.id\` (string): The authenticated ${config.label} account UUID.
+- \`data.actor.role\` (string): The account role — \`SUPER_ADMIN\`, \`ADMIN\`, \`PROSPECT\`, or \`CUSTOMER\`.
+- \`data.actor.accountStatus.status\` (string): Account status — \`ACTIVE\`, \`INACTIVE\`, or \`SUSPENDED\`.
+- \`data.actor.accountStatus.emailVerified\` (boolean): Whether the account email has been verified.
+- \`data.actor.accountStatus.approved\` (boolean): Whether the account has been approved by an admin (admin accounts only).
+- \`data.session.expiresAt\` (string, ISO 8601): The session expiration timestamp (7 days from creation).
+
+**Side Effects:** Sets an HttpOnly session cookie (\`${config.cookieName}\`) on the response.
+
+**Error Codes:**
+- \`400 VALIDATION_FAILED\`: Invalid email format or missing required fields.
+- \`401 AUTHENTICATION\`: Incorrect email or password.
+- \`403 ACCOUNT_SUSPENDED\`: Account has been suspended by an administrator.
+- \`403 EMAIL_NOT_VERIFIED\`: Account email has not been verified (customer accounts).
+- \`403 ADMIN_APPROVAL_REQUIRED\`: Account awaiting admin approval (admin accounts).`,
           tags: [config.tag],
           auth: { mode: "public", roles: ["PROSPECT"] },
           rateLimitClass: "auth-password",
@@ -292,7 +315,19 @@ function registerRealmAuthRoutes(
         cookie: tboxSessionCookie(config.cookieName),
         detail: routeDetail({
           summary: `Delete current ${config.label} auth session`,
-          description: `Invalidates the current ${config.label} server-side session when present and clears the ${config.label} session cookie.`,
+          description: `Invalidates the current ${config.label} server-side session when present and clears the ${config.label} session cookie.
+
+**Path:** \`DELETE ${config.basePath}/sessions/current\`
+
+**Authentication:** Optional — works with or without a valid session cookie. If no session is present, returns success with \`authenticated: false\`.
+
+**Request:** No body required. Reads the session cookie (\`${config.cookieName}\`) from the request.
+
+**Response (200):**
+- \`data.cleared\` (boolean): Whether the server-side session was found and revoked.
+- \`data.revoked\` (boolean): Whether the session cookie was cleared from the response.
+
+**Side Effects:** Clears the \`${config.cookieName}\` HttpOnly cookie on the response and revokes the server-side session record if one existed.`,
           tags: [config.tag],
           auth: {
             mode: "optional",
@@ -337,7 +372,24 @@ function registerRealmAuthRoutes(
         cookie: tboxSessionCookie(config.cookieName),
         detail: routeDetail({
           summary: `Inspect current ${config.label} auth session`,
-          description: `Returns the current ${config.label} actor/session summary when the ${config.label} cookie maps to an active server-side session.`,
+          description: `Returns the current ${config.label} actor/session summary when the ${config.label} cookie maps to an active server-side session.
+
+**Path:** \`GET ${config.basePath}/session\`
+
+**Authentication:** Optional — returns session details if a valid cookie is present, otherwise returns \`authenticated: false\` with null actor/session.
+
+**Request:** No body required. Reads the session cookie (\`${config.cookieName}\`) from the request.
+
+**Response (200):**
+- \`data.authenticated\` (boolean): Whether a valid active session was found.
+- \`data.actor\` (object or null): The authenticated actor details, or null if no valid session.
+  - \`id\` (string): The ${config.label} account UUID.
+  - \`role\` (string): The account role — \`SUPER_ADMIN\`, \`ADMIN\`, \`PROSPECT\`, or \`CUSTOMER\`.
+  - \`accountStatus.status\` (string): Account status — \`ACTIVE\`, \`INACTIVE\`, or \`SUSPENDED\`.
+  - \`accountStatus.emailVerified\` (boolean): Whether the account email has been verified.
+  - \`accountStatus.approved\` (boolean): Whether the account has been approved by an admin.
+- \`data.session\` (object or null): Session metadata, or null if no valid session.
+  - \`expiresAt\` (string, ISO 8601): The session expiration timestamp.`,
           tags: [config.tag],
           auth: {
             mode: "optional",

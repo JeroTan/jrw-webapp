@@ -259,7 +259,28 @@ export function adminAccountRoutes(
         detail: routeDetail({
           summary: "List Admin accounts",
           description:
-            "Returns safe Admin account summaries for Super Admin governance.",
+            `Returns safe Admin account summaries for Super Admin governance.
+
+**Path:** \`GET /admin-accounts\`
+
+**Authentication:** Required — \`SUPER_ADMIN\` role only. Account must be active, email verified, and approved.
+
+**Request:** No body required.
+
+**Response (200):**
+- \`data.admins\` (array): Array of admin account objects.
+  - \`id\` (string): Admin account UUID.
+  - \`email\` (string): Admin email address.
+  - \`role\` (string): Admin role — \`ADMIN\` or \`SUPER_ADMIN\`.
+  - \`status\` (string): Account status — \`ACTIVE\`, \`INACTIVE\`, or \`SUSPENDED\`.
+  - \`isOwner\` (boolean): Whether this account holds platform ownership (only one can be true).
+  - \`emailVerified\` (boolean): Whether the email has been verified.
+  - \`approved\` (boolean): Whether the account has been approved.
+  - \`dashboardEligible\` (boolean): Whether the account can access the admin dashboard.
+  - \`suspensionReason\` (string or null): Reason for suspension if applicable.
+  - \`rejectionReason\` (string or null): Reason for rejection if applicable.
+  - \`createdAt\` (string, ISO 8601): Account creation timestamp.
+  - \`updatedAt\` (string, ISO 8601): Account last update timestamp.`,
           tags: ["Admin Accounts"],
           auth: adminAccountAuth,
           rateLimitClass: "admin-write",
@@ -299,7 +320,31 @@ export function adminAccountRoutes(
         detail: routeDetail({
           summary: "Create Admin account",
           description:
-            "Creates a non-owner ADMIN account and optionally sends an invitation/setup notice through the account email boundary.",
+            `Creates a non-owner ADMIN account and optionally sends an invitation/setup notice through the account email boundary.
+
+**Path:** \`POST /admin-accounts\`
+
+**Authentication:** Required — \`SUPER_ADMIN\` role only.
+
+**Request Body:**
+- \`email\` (string, required): New admin email address (3-254 characters, valid email format).
+- \`password\` (string, required): Initial password for the admin account (8-1024 characters).
+- \`sendInvitationEmail\` (boolean, optional): Whether to send an invitation/setup email to the new admin (default: false).
+
+**Response (201):**
+- \`data.admin.id\` (string): The newly created admin account UUID.
+- \`data.admin.email\` (string): Admin email address.
+- \`data.admin.role\` (string): Always \`ADMIN\` (cannot create SUPER_ADMIN via this endpoint).
+- \`data.admin.status\` (string): Initial account status — \`INACTIVE\` until approved.
+- \`data.admin.isOwner\` (boolean): Always \`false\` (ownership cannot be transferred via this endpoint).
+- \`data.admin.emailVerified\` (boolean): Whether the email has been verified.
+- \`data.admin.approved\` (boolean): Whether the account has been approved.
+- \`data.admin.dashboardEligible\` (boolean): Whether the account can access the admin dashboard.
+- \`data.admin.suspensionReason\` (string or null): Null on creation.
+- \`data.admin.rejectionReason\` (string or null): Null on creation.
+- \`data.admin.createdAt\` (string, ISO 8601): Account creation timestamp.
+- \`data.admin.updatedAt\` (string, ISO 8601): Account last update timestamp.
+- \`data.invitationEmail.sent\` (boolean): Whether the invitation email was successfully sent.`,
           tags: ["Admin Accounts"],
           auth: adminAccountAuth,
           rateLimitClass: "admin-write",
@@ -339,7 +384,30 @@ export function adminAccountRoutes(
         detail: routeDetail({
           summary: "Get Admin account",
           description:
-            "Returns one safe Admin account summary for Super Admin governance.",
+            `Returns one safe Admin account summary for Super Admin governance.
+
+**Path:** \`GET /admin-accounts/:adminAccountId\`
+
+**Path Parameters:**
+- \`adminAccountId\` (string, required): The UUID of the admin account to retrieve (1-128 characters).
+
+**Authentication:** Required — \`SUPER_ADMIN\` role only.
+
+**Request:** No body required.
+
+**Response (200):**
+- \`data.admin.id\` (string): Admin account UUID.
+- \`data.admin.email\` (string): Admin email address.
+- \`data.admin.role\` (string): Admin role — \`ADMIN\` or \`SUPER_ADMIN\`.
+- \`data.admin.status\` (string): Account status — \`ACTIVE\`, \`INACTIVE\`, or \`SUSPENDED\`.
+- \`data.admin.isOwner\` (boolean): Whether this account holds platform ownership.
+- \`data.admin.emailVerified\` (boolean): Whether the email has been verified.
+- \`data.admin.approved\` (boolean): Whether the account has been approved.
+- \`data.admin.dashboardEligible\` (boolean): Whether the account can access the admin dashboard.
+- \`data.admin.suspensionReason\` (string or null): Reason for suspension if applicable.
+- \`data.admin.rejectionReason\` (string or null): Reason for rejection if applicable.
+- \`data.admin.createdAt\` (string, ISO 8601): Account creation timestamp.
+- \`data.admin.updatedAt\` (string, ISO 8601): Account last update timestamp.`,
           tags: ["Admin Accounts"],
           auth: adminAccountAuth,
           rateLimitClass: "admin-write",
@@ -389,7 +457,21 @@ export function adminAccountRoutes(
         detail: routeDetail({
           summary: "Update Admin account",
           description:
-            "Updates editable safe Admin account fields. Role and ownership mutation are intentionally excluded.",
+            `Updates editable safe Admin account fields. Role and ownership mutation are intentionally excluded.
+
+**Path:** \`PATCH /admin-accounts/:adminAccountId\`
+
+**Path Parameters:**
+- \`adminAccountId\` (string, required): The UUID of the admin account to update (1-128 characters).
+
+**Authentication:** Required — \`SUPER_ADMIN\` role only.
+
+**Request Body (at least one field required):**
+- \`email\` (string, optional): New email address for the admin account (3-254 characters, valid email format).
+
+**Response (200):** Returns the updated admin account object with all fields (same schema as GET /admin-accounts/:adminAccountId).
+
+**Note:** Role changes, ownership transfers, and password resets must use dedicated endpoints. This endpoint only allows email updates.`,
           tags: ["Admin Accounts"],
           auth: adminAccountAuth,
           rateLimitClass: "admin-write",
@@ -439,7 +521,25 @@ export function adminAccountRoutes(
         detail: routeDetail({
           summary: "Approve or reject Admin account",
           description:
-            "Approves or rejects a verified Admin registration while preserving owner invariants.",
+            `Approves or rejects a verified Admin registration while preserving owner invariants.
+
+**Path:** \`POST /admin-accounts/:adminAccountId/approvals\`
+
+**Path Parameters:**
+- \`adminAccountId\` (string, required): The UUID of the admin account to approve or reject (1-128 characters).
+
+**Authentication:** Required — \`SUPER_ADMIN\` role only.
+
+**Request Body:**
+- \`action\` (string, required): The approval decision — \`approve\` or \`reject\`.
+- \`reason\` (string, optional): Reason for rejection (1-240 characters). Required when action is \`reject\`, ignored for \`approve\`.
+- \`sendRejectionEmail\` (boolean, optional): Whether to send a rejection notification email to the admin (default: false).
+
+**Response (200):** Returns the updated admin account object with all fields.
+
+**Behavior:**
+- \`approve\`: Sets \`approved: true\`, making the account eligible for dashboard access (if email verified and active).
+- \`reject\`: Sets \`approved: false\` and records the rejection reason. Account cannot sign in.`,
           tags: ["Admin Accounts"],
           auth: adminAccountAuth,
           rateLimitClass: "admin-write",
@@ -489,7 +589,25 @@ export function adminAccountRoutes(
         detail: routeDetail({
           summary: "Suspend Admin account",
           description:
-            "Suspends a non-owner Admin account and revokes active dashboard-capable sessions.",
+            `Suspends a non-owner Admin account and revokes active dashboard-capable sessions.
+
+**Path:** \`POST /admin-accounts/:adminAccountId/suspensions\`
+
+**Path Parameters:**
+- \`adminAccountId\` (string, required): The UUID of the admin account to suspend (1-128 characters).
+
+**Authentication:** Required — \`SUPER_ADMIN\` role only.
+
+**Request Body:**
+- \`reason\` (string, optional): Reason for suspension (1-240 characters).
+
+**Response (200):** Returns the updated admin account object with all fields.
+
+**Behavior:**
+- Sets account status to \`SUSPENDED\`.
+- Records the suspension reason.
+- Revokes all active dashboard-capable sessions for the suspended admin.
+- Cannot suspend the platform owner account (returns 409 CONFLICT_STATE).`,
           tags: ["Admin Accounts"],
           auth: adminAccountAuth,
           rateLimitClass: "admin-write",
@@ -529,7 +647,24 @@ export function adminAccountRoutes(
         detail: routeDetail({
           summary: "Reactivate Admin account",
           description:
-            "Reactivates a suspended or inactive non-owner Admin without changing role or ownership.",
+            `Reactivates a suspended or inactive non-owner Admin without changing role or ownership.
+
+**Path:** \`DELETE /admin-accounts/:adminAccountId/suspensions\`
+
+**Path Parameters:**
+- \`adminAccountId\` (string, required): The UUID of the admin account to reactivate (1-128 characters).
+
+**Authentication:** Required — \`SUPER_ADMIN\` role only.
+
+**Request:** No body required.
+
+**Response (200):** Returns the updated admin account object with all fields.
+
+**Behavior:**
+- Sets account status to \`ACTIVE\` (from \`SUSPENDED\` or \`INACTIVE\`).
+- Clears the suspension reason.
+- Does NOT change role, ownership, or approval status.
+- Cannot reactivate the platform owner through this endpoint (returns 409 CONFLICT_STATE).`,
           tags: ["Admin Accounts"],
           auth: adminAccountAuth,
           rateLimitClass: "admin-write",

@@ -229,7 +229,41 @@ export function customerRoutes(
         detail: routeDetail({
           summary: "Register customer",
           description:
-            "Creates an unverified customer account and sends a verification email through the notification boundary. Only email and password are required for signup. Optional profile/contact fields are accepted for early profile setup, but the intended storefront flow collects name, phone, and delivery details later through PATCH /customers/me or the checkout contact/delivery step.",
+            `Creates an unverified customer account and sends a verification email through the notification boundary. Only email and password are required for signup. Optional profile/contact fields are accepted for early profile setup, but the intended storefront flow collects name, phone, and delivery details later through PATCH /customers/me or the checkout contact/delivery step.
+
+**Path:** \`POST /customers\`
+
+**Authentication:** Public — no authentication required.
+
+**Request Body:**
+- \`email\` (string, required): Customer email address (3-254 characters, valid email format).
+- \`password\` (string, required): Account password (8-1024 characters, must meet security requirements).
+- \`displayName\` (string, optional): Display name shown in storefront (1-120 characters).
+- \`firstName\` (string, optional): Customer first name (1-80 characters).
+- \`lastName\` (string, optional): Customer last name (1-80 characters).
+- \`phone\` (string, optional): Contact phone number (7-32 characters).
+- \`streetAddress\` (string, optional): Street address for delivery (1-240 characters).
+- \`barangay\` (string, optional): Barangay/district for delivery (1-120 characters).
+- \`cityProvince\` (string, optional): City or province for delivery (1-120 characters).
+- \`postalCode\` (string, optional): Postal/ZIP code (1-24 characters).
+- \`emailMarketingOptIn\` (boolean, optional): Whether customer opts into marketing emails.
+
+**Response (201):**
+- \`data.customer.id\` (string): The newly created customer UUID.
+- \`data.customer.email\` (string): Customer email address.
+- \`data.customer.role\` (string): Always \`CUSTOMER\`.
+- \`data.customer.emailVerified\` (boolean): Always \`false\` on registration — must verify via email.
+- \`data.customer.displayName\` (string or null): Display name if provided.
+- \`data.customer.firstName\` (string or null): First name if provided.
+- \`data.customer.lastName\` (string or null): Last name if provided.
+- \`data.customer.phone\` (string or null): Phone number if provided.
+- \`data.customer.streetAddress\` (string or null): Street address if provided.
+- \`data.customer.barangay\` (string or null): Barangay if provided.
+- \`data.customer.cityProvince\` (string or null): City/province if provided.
+- \`data.customer.postalCode\` (string or null): Postal code if provided.
+- \`data.customer.avatarUrl\` (string or null): Avatar URL (null on registration).
+- \`data.customer.emailMarketingOptIn\` (boolean): Marketing opt-in preference.
+- \`data.verificationEmail.sent\` (boolean): Whether the verification email was successfully sent.`,
           tags: ["Customers"],
           auth: { mode: "public", roles: ["PROSPECT"] },
           rateLimitClass: "email-token",
@@ -274,7 +308,19 @@ export function customerRoutes(
         detail: routeDetail({
           summary: "Verify customer email",
           description:
-            "Consumes a single-use email verification token and marks the customer email verified when valid.",
+            `Consumes a single-use email verification token and marks the customer email verified when valid.
+
+**Path:** \`POST /email-verifications\`
+
+**Authentication:** Public — no authentication required.
+
+**Request Body:**
+- \`token\` (string, required): The single-use email verification token from the verification email link (1-2048 characters).
+
+**Response (200):**
+- \`data.verified\` (boolean): \`true\` when the token was valid and the email is now verified.
+
+**Note:** The token is single-use and expires after consumption. Attempting to reuse the same token will return a 409 CONFLICT_STATE error.`,
           tags: ["Customers"],
           auth: { mode: "public", roles: ["PROSPECT", "CUSTOMER"] },
           rateLimitClass: "email-token",
@@ -317,7 +363,29 @@ export function customerRoutes(
         detail: routeDetail({
           summary: "Get current customer profile",
           description:
-            "Returns the safe profile summary for the authenticated customer.",
+            `Returns the safe profile summary for the authenticated customer.
+
+**Path:** \`GET /customers/me\`
+
+**Authentication:** Required — \`CUSTOMER\` role. Account must be active and email verified.
+
+**Request:** No body required.
+
+**Response (200):**
+- \`id\` (string): The customer account UUID.
+- \`email\` (string): Customer email address.
+- \`role\` (string): Always \`CUSTOMER\`.
+- \`emailVerified\` (boolean): Whether the email has been verified.
+- \`displayName\` (string or null): Display name.
+- \`firstName\` (string or null): First name.
+- \`lastName\` (string or null): Last name.
+- \`phone\` (string or null): Contact phone number.
+- \`streetAddress\` (string or null): Street address for delivery.
+- \`barangay\` (string or null): Barangay/district.
+- \`cityProvince\` (string or null): City or province.
+- \`postalCode\` (string or null): Postal/ZIP code.
+- \`avatarUrl\` (string or null): Avatar image URL.
+- \`emailMarketingOptIn\` (boolean): Marketing email preference.`,
           tags: ["Customers"],
           auth: customerProfileAuth,
           rateLimitClass: "public-read",
@@ -358,7 +426,26 @@ export function customerRoutes(
         detail: routeDetail({
           summary: "Update current customer profile",
           description:
-            "Updates allowed profile/contact fields for the authenticated customer.",
+            `Updates allowed profile/contact fields for the authenticated customer.
+
+**Path:** \`PATCH /customers/me\`
+
+**Authentication:** Required — \`CUSTOMER\` role. Account must be active and email verified.
+
+**Request Body (at least one field required, all optional):**
+- \`displayName\` (string, optional): New display name (1-120 characters).
+- \`firstName\` (string, optional): New first name (1-80 characters).
+- \`lastName\` (string, optional): New last name (1-80 characters).
+- \`phone\` (string, optional): New contact phone number (7-32 characters).
+- \`streetAddress\` (string, optional): New street address (1-240 characters).
+- \`barangay\` (string, optional): New barangay/district (1-120 characters).
+- \`cityProvince\` (string, optional): New city or province (1-120 characters).
+- \`postalCode\` (string, optional): New postal/ZIP code (1-24 characters).
+- \`emailMarketingOptIn\` (boolean, optional): New marketing email preference.
+
+**Response (200):** Returns the updated customer profile object with all fields (same schema as GET /customers/me).
+
+**Note:** Email and password cannot be changed through this endpoint. Use the account recovery flow for password changes.`,
           tags: ["Customers"],
           auth: customerProfileAuth,
           rateLimitClass: "customer-write",
