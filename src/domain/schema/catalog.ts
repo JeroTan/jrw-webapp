@@ -24,6 +24,7 @@ export const brandMembershipStatusValues = [
   "REVOKED",
 ] as const;
 export const categoryStatusValues = ["ACTIVE", "ARCHIVED"] as const;
+export const productStatusValues = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
 
 export const brands = sqliteTable(
   "brands",
@@ -103,6 +104,7 @@ export const products = sqliteTable(
       .$defaultFn(() => createId()),
 
     name: text("name").notNull(),
+    slug: text("slug").notNull(),
     brand: text("brand"),
     brand_id: text("brand_id").references(() => brands.id, {
       onDelete: "set null",
@@ -111,7 +113,11 @@ export const products = sqliteTable(
       .$type<string[]>()
       .notNull()
       .default(sql`'[]'`),
+    summary: text("summary"),
     description: text("description").notNull(),
+    status: text("status", { enum: productStatusValues })
+      .notNull()
+      .default("DRAFT"),
     created_at: text("created_at")
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
@@ -119,7 +125,11 @@ export const products = sqliteTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
   },
-  (table) => [index("idx_products_brand_id").on(table.brand_id)]
+  (table) => [
+    uniqueIndex("products_slug_unique").on(table.slug),
+    index("idx_products_brand_id").on(table.brand_id),
+    index("idx_products_status").on(table.status),
+  ]
 );
 
 export const product_photos = sqliteTable("product_photos", {

@@ -1,0 +1,398 @@
+import { createDb, type AppDb } from "@/adapter/infrastructure/db/client";
+import { createId } from "@paralleldrive/cuid2";
+import {
+  brandMembershipRoleValues,
+  brandMembershipStatusValues,
+  brandStatusValues,
+  brand_memberships,
+  brands,
+  productStatusValues,
+  product_categories,
+  products,
+} from "@/domain/schema/catalog";
+import type {
+  ProductListResult,
+  ProductRecord,
+  ProductStatus,
+} from "@/domain/products/types";
+import { toApiDateTime } from "@/lib/api/date-time";
+import { and, desc, eq, ne, sql } from "drizzle-orm";
+
+const DEFAULT_PAGE = 1;
+const DEFAULT_PAGE_SIZE = 20;
+const MAX_PAGE_SIZE = 100;
+
+type ProductStatusValue = (typeof productStatusValues)[number];
+type BrandStatusValue = (typeof brandStatusValues)[number];
+type BrandMembershipRoleValue = (typeof brandMembershipRoleValues)[number];
+type BrandMembershipStatusValue = (typeof brandMembershipStatusValues)[number];
+
+type ProductRowLike = {
+  [key: string]: unknown;
+  id: string;
+  name: string;
+  slug: string;
+  summary: string | null;
+  description: string;
+  status: ProductStatusValue;
+  brand: string | null;
+  brand_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProductBrandRecord = {
+  id: string;
+  name: string;
+  status: BrandStatusValue;
+};
+
+export type ProductBrandMembershipRecord = {
+  adminId: string;
+  role: BrandMembershipRoleValue;
+  status: BrandMembershipStatusValue;
+};
+
+export type CreateProductRecordInput = {
+  name: string;
+  slug: string;
+  summary: string | null;
+  description: string;
+  status: ProductStatusValue;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type UpdateProductRecordInput = {
+  name?: string;
+  slug?: string;
+  summary?: string | null;
+  description?: string;
+  updatedAt: string;
+};
+
+export type ListProductOptions = {
+  page?: number;
+  pageSize?: number;
+  status?: ProductStatus;
+  brandId?: string;
+  categoryId?: string;
+  search?: string;
+  includeArchived?: boolean;
+};
+
+export type ProductRepository = {
+  create(input: CreateProductRecordInput): Promise<ProductRecord>;
+  findById(productId: string): Promise<ProductRecord | null>;
+  findBySlug(slug: string): Promise<ProductRecord | null>;
+  list(options: ListProductOptions): Promise<ProductListResult>;
+  update(
+    productId: string,
+    input: UpdateProductRecordInput
+  ): Promise<ProductRecord>;
+  findBrandById(brandId: string): Promise<ProductBrandRecord | null>;
+  findBrandMembership(
+    brandId: string,
+    adminId: string
+  ): Promise<ProductBrandMembershipRecord | null>;
+};
+
+function normalizeLookup(value: string): string {
+  return value.trim().toLowerCase();
+}
+
+function validPositiveInteger(value: number | undefined): value is number {
+  return (
+    typeof value === "number" &&
+    Number.isFinite(value) &&
+    Number.isInteger(value) &&
+    value > 0
+  );
+}
+
+function normalizePage(value: number | undefined): number {
+  return validPositiveInteger(value) ? value : DEFAULT_PAGE;
+}
+
+function normalizePageSize(value: number | undefined): number {
+  const pageSize = validPositiveInteger(value) ? value : DEFAULT_PAGE_SIZE;
+  return Math.min(pageSize, MAX_PAGE_SIZE);
+}
+
+function toProductRecord(input: {
+  row: ProductRowLike;
+  brandName?: string | null;
+  linkedCategoryCount?: number | null;
+}): ProductRecord {
+  const fallbackBrandName =
+    typeof input.row.brand === "string" && input.row.brand.trim().length > 0
+      ? input.row.brand.trim()
+      : null;
+
+  return {
+    id: input.row.id,
+    name: input.row.name,
+    slug: input.row.slug,
+    summary: input.row.summary,
+    description: input.row.description,
+    status: input.row.status,
+    brandId: input.row.brand_id,
+    brandName:
+      typeof input.brandName === "string" && input.brandName.trim().length > 0
+        ? input.brandName
+        : fallbackBrandName,
+    linkedCategoryCount: Number(input.linkedCategoryCount ?? 0),
+    createdAt: toApiDateTime(input.row.created_at),
+    updatedAt: toApiDateTime(input.row.updated_at),
+  };
+}
+
+function activeMembership(
+  membership: ProductBrandMembershipRecord | null
+): membership is ProductBrandMembershipRecord {
+  if (!membership) {
+    return false;
+  }
+
+  if (membership.status !== "ACTIVE") {
+    return false;
+  }
+
+  return membership.role === "OWNER" || membership.role === "MEMBER";
+}
+
+export class DrizzleProductRepository implements ProductRepository {
+  constructor(private readonly db: AppDb) {}
+
+  async create(input: CreateProductRecordInput): Promise<ProductRecord> {
+    const [product] = await this.db
+      .insert(products)
+      .values({
+        id: createId(),
+        name: input.name,
+        slug: input.slug,
+        summary: input.summary,
+        description: input.description,
+        status: input.status,
+        created_at: input.createdAt,
+        updated_at: input.updatedAt,
+      })
+      .returning();
+
+    return toProductRecord({
+      row: product,
+      linkedCategoryCount: 0,
+    });
+  }
+
+  async findById(productId: string): Promise<ProductRecord | null> {
+    const [row] = await this.db
+      .select({
+        product: products,
+        brandName: brands.name,
+        linkedCategoryCount:
+          sql<number>`cast(count(${product_categories.category_id}) as integer)`,
+      })
+      .from(products)
+      .leftJoin(brands, eq(brands.id, products.brand_id))
+      .leftJoin(product_categories, eq(product_categories.product_id, products.id))
+      .where(eq(products.id, productId))
+      .groupBy(products.id, brands.name)
+      .limit(1);
+
+    return row
+      ? toProductRecord({
+          row: row.product,
+          brandName: row.brandName,
+          linkedCategoryCount: row.linkedCategoryCount,
+        })
+      : null;
+  }
+
+  async findBySlug(slug: string): Promise<ProductRecord | null> {
+    const [product] = await this.db
+      .select()
+      .from(products)
+      .where(sql`lower(${products.slug}) = ${normalizeLookup(slug)}`)
+      .limit(1);
+
+    return product
+      ? toProductRecord({
+          row: product,
+          linkedCategoryCount: 0,
+        })
+      : null;
+  }
+
+  async list(options: ListProductOptions): Promise<ProductListResult> {
+    const page = normalizePage(options.page);
+    const pageSize = normalizePageSize(options.pageSize);
+    const offset = (page - 1) * pageSize;
+    const normalizedSearch = options.search
+      ? `%${normalizeLookup(options.search)}%`
+      : undefined;
+
+    const filters = [
+      ...(options.status ? [eq(products.status, options.status)] : []),
+      ...(!options.status && !options.includeArchived
+        ? [ne(products.status, "ARCHIVED")]
+        : []),
+      ...(options.brandId ? [eq(products.brand_id, options.brandId)] : []),
+      ...(normalizedSearch
+        ? [
+            sql`(
+              lower(${products.name}) like ${normalizedSearch}
+              or lower(${products.slug}) like ${normalizedSearch}
+            )`,
+          ]
+        : []),
+      ...(options.categoryId
+        ? [
+            sql`exists (
+              select 1
+              from ${product_categories}
+              where ${product_categories.product_id} = ${products.id}
+                and ${product_categories.category_id} = ${options.categoryId}
+            )`,
+          ]
+        : []),
+    ];
+    const whereClause = filters.length > 0 ? and(...filters) : undefined;
+
+    const [totalResult] = await this.db
+      .select({ count: sql<number>`cast(count(distinct ${products.id}) as integer)` })
+      .from(products)
+      .where(whereClause);
+    const totalItems = Number(totalResult?.count ?? 0);
+
+    const rows = await this.db
+      .select({
+        product: products,
+        brandName: brands.name,
+        linkedCategoryCount:
+          sql<number>`cast(count(${product_categories.category_id}) as integer)`,
+      })
+      .from(products)
+      .leftJoin(brands, eq(brands.id, products.brand_id))
+      .leftJoin(product_categories, eq(product_categories.product_id, products.id))
+      .where(whereClause)
+      .groupBy(products.id, brands.name)
+      .orderBy(desc(products.updated_at), desc(products.id))
+      .limit(pageSize)
+      .offset(offset);
+
+    return {
+      items: rows.map((row) =>
+        toProductRecord({
+          row: row.product,
+          brandName: row.brandName,
+          linkedCategoryCount: row.linkedCategoryCount,
+        })
+      ),
+      page,
+      pageSize,
+      totalItems,
+      totalPages: totalItems === 0 ? 0 : Math.ceil(totalItems / pageSize),
+    };
+  }
+
+  async update(
+    productId: string,
+    input: UpdateProductRecordInput
+  ): Promise<ProductRecord> {
+    const [updated] = await this.db
+      .update(products)
+      .set({
+        ...(input.name !== undefined ? { name: input.name } : {}),
+        ...(input.slug !== undefined ? { slug: input.slug } : {}),
+        ...(input.summary !== undefined ? { summary: input.summary } : {}),
+        ...(input.description !== undefined
+          ? { description: input.description }
+          : {}),
+        updated_at: input.updatedAt,
+      })
+      .where(eq(products.id, productId))
+      .returning();
+
+    if (!updated) {
+      throw new Error("D1_ERROR: product not found for update");
+    }
+
+    const [row] = await this.db
+      .select({
+        brandName: brands.name,
+        linkedCategoryCount:
+          sql<number>`cast(count(${product_categories.category_id}) as integer)`,
+      })
+      .from(products)
+      .leftJoin(brands, eq(brands.id, products.brand_id))
+      .leftJoin(product_categories, eq(product_categories.product_id, products.id))
+      .where(eq(products.id, productId))
+      .groupBy(products.id, brands.name)
+      .limit(1);
+
+    return toProductRecord({
+      row: updated,
+      brandName: row?.brandName,
+      linkedCategoryCount: row?.linkedCategoryCount ?? 0,
+    });
+  }
+
+  async findBrandById(brandId: string): Promise<ProductBrandRecord | null> {
+    const [brand] = await this.db
+      .select({
+        id: brands.id,
+        name: brands.name,
+        status: brands.status,
+      })
+      .from(brands)
+      .where(eq(brands.id, brandId))
+      .limit(1);
+
+    return brand
+      ? {
+          id: brand.id,
+          name: brand.name,
+          status: brand.status,
+        }
+      : null;
+  }
+
+  async findBrandMembership(
+    brandId: string,
+    adminId: string
+  ): Promise<ProductBrandMembershipRecord | null> {
+    const [membership] = await this.db
+      .select({
+        adminId: brand_memberships.admin_id,
+        role: brand_memberships.role,
+        status: brand_memberships.status,
+      })
+      .from(brand_memberships)
+      .where(
+        and(
+          eq(brand_memberships.brand_id, brandId),
+          eq(brand_memberships.admin_id, adminId)
+        )
+      )
+      .limit(1);
+
+    return membership
+      ? {
+          adminId: membership.adminId,
+          role: membership.role,
+          status: membership.status,
+        }
+      : null;
+  }
+}
+
+export function createProductRepositories(dbBinding: D1Database) {
+  const db = createDb(dbBinding);
+
+  return {
+    repository: new DrizzleProductRepository(db),
+  };
+}
+
+export { activeMembership };

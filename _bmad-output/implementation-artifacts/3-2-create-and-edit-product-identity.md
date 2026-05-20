@@ -1,6 +1,6 @@
 # Story 3.2: Create and Edit Product Identity
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -22,77 +22,77 @@ so that JRW can maintain accurate product records before variants, media, stock,
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm scope and current baseline. (AC: 1-7)
-  - [ ] Verify Epic 2 is `done` and Story 3.1 is `done`; do not reopen.
-  - [ ] Verify this story is the second Epic 3 backlog item after Story 3.1.
-  - [ ] Confirm existing `products` table in `src/domain/schema/catalog.ts` — current fields: `id`, `name`, `brand` (legacy), `brand_id`, `tags`, `description`, `created_at`, `updated_at`.
-  - [ ] Confirm no existing product routes, controller, service, repository, or UI exist yet.
-  - [ ] Confirm existing shared primitives from Story 3.0 and category UI from 3.1 are available.
-  - [ ] Do not add variants, images, stock, pricing, brand assignment, categories, or publish/archive logic in this story.
+- [x] Task 1: Confirm scope and current baseline. (AC: 1-7)
+  - [x] Verify Epic 2 is `done` and Story 3.1 is `done`; do not reopen.
+  - [x] Verify this story is the second Epic 3 backlog item after Story 3.1.
+  - [x] Confirm existing `products` table in `src/domain/schema/catalog.ts` — current fields: `id`, `name`, `brand` (legacy), `brand_id`, `tags`, `description`, `created_at`, `updated_at`.
+  - [x] Confirm no existing product routes, controller, service, repository, or UI exist yet.
+  - [x] Confirm existing shared primitives from Story 3.0 and category UI from 3.1 are available.
+  - [x] Do not add variants, images, stock, pricing, brand assignment, categories, or publish/archive logic in this story.
 
-- [ ] Task 2: Extend product domain schema and types. (AC: 1-3, 5)
-  - [ ] Extend `products` table in `src/domain/schema/catalog.ts` with missing fields: `slug`, `summary`, `status` (`DRAFT`/`PUBLISHED`/`ARCHIVED`), ensure `slug` has unique index.
-  - [ ] Add product DTO types in `src/domain/products/types.ts` for create, update, list, and detail responses.
-  - [ ] Add product validation schemas: Zod for forms, TypeBox for API contracts.
-  - [ ] Ensure slug generation is unique and handles conflicts with numeric suffixes.
-  - [ ] Default status on create is `DRAFT`.
+- [x] Task 2: Extend product domain schema and types. (AC: 1-3, 5)
+  - [x] Extend `products` table in `src/domain/schema/catalog.ts` with missing fields: `slug`, `summary`, `status` (`DRAFT`/`PUBLISHED`/`ARCHIVED`), ensure `slug` has unique index.
+  - [x] Add product DTO types in `src/domain/products/types.ts` for create, update, list, and detail responses.
+  - [x] Add product validation schemas: Zod for forms, TypeBox for API contracts.
+  - [x] Ensure slug generation is unique and handles conflicts with numeric suffixes.
+  - [x] Default status on create is `DRAFT`.
 
-- [ ] Task 3: Add product repository and service layer. (AC: 1-4)
-  - [ ] Add `ProductRepository` under `src/server/repositories/ProductRepository.ts` with methods: `create`, `findById`, `findBySlug`, `list`, `update`.
-  - [ ] Add `ProductService` under `src/server/services/ProductService.ts` with use cases: `createProduct`, `getProduct`, `listProducts`, `updateProduct`.
-  - [ ] Service layer enforces: slug uniqueness, Admin auth requirement, status defaults to DRAFT.
-  - [ ] Service returns `AppResult`/`GeneralError` patterns; no business rules in controllers.
-  - [ ] List method supports pagination (default 20, max 100), `status` filter, `brand_id` filter, `category_id` filter, search by name/slug.
-  - [ ] Brand membership guard: if product has `brand_id`, Admin must be brand member or have elevated permission.
+- [x] Task 3: Add product repository and service layer. (AC: 1-4)
+  - [x] Add `ProductRepository` under `src/server/repositories/ProductRepository.ts` with methods: `create`, `findById`, `findBySlug`, `list`, `update`.
+  - [x] Add `ProductService` under `src/server/services/ProductService.ts` with use cases: `createProduct`, `getProduct`, `listProducts`, `updateProduct`.
+  - [x] Service layer enforces: slug uniqueness, Admin auth requirement, status defaults to DRAFT.
+  - [x] Service returns `AppResult`/`GeneralError` patterns; no business rules in controllers.
+  - [x] List method supports pagination (default 20, max 100), `status` filter, `brand_id` filter, `category_id` filter, search by name/slug.
+  - [x] Brand membership guard: if product has `brand_id`, Admin must be brand member or have elevated permission.
 
-- [ ] Task 4: Add product API routes and controllers. (AC: 1-6)
-  - [ ] Add `ProductController` under `src/server/controllers/ProductController.ts` adapting service results to `{ data, meta }` envelopes.
-  - [ ] Add product routes under `src/server/routes/products.routes.ts` with endpoints:
+- [x] Task 4: Add product API routes and controllers. (AC: 1-6)
+  - [x] Add `ProductController` under `src/server/controllers/ProductController.ts` adapting service results to `{ data, meta }` envelopes.
+  - [x] Add product routes under `src/server/routes/products.routes.ts` with endpoints:
     - `GET /api/admin/products` — list with pagination and filters
     - `POST /api/admin/products` — create
     - `GET /api/admin/products/:productId` — detail
     - `PATCH /api/admin/products/:productId` — update identity fields
-  - [ ] All routes require Admin authentication via existing RBAC guards.
-  - [ ] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
-  - [ ] Register product routes in `src/server/app.ts` composer.
-  - [ ] API JSON uses camelCase; database uses snake_case; controller maps rows to DTOs.
+  - [x] All routes require Admin authentication via existing RBAC guards.
+  - [x] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
+  - [x] Register product routes in `src/server/app.ts` composer.
+  - [x] API JSON uses camelCase; database uses snake_case; controller maps rows to DTOs.
 
-- [ ] Task 5: Add admin product list UI. (AC: 1-3, 5)
-  - [ ] Create `src/features/admin-products/` folder structure.
-  - [ ] Add `src/features/admin-products/api.ts` with typed fetch helpers for product CRUD.
-  - [ ] Add `src/features/admin-products/components/ProductList.tsx` as React island for `/admin/products`.
-  - [ ] Use Story 3.0 resource browser primitives: `PageToolbar`, `SearchInput`, `DataTable`, `EmptyState`, `Skeleton`.
-  - [ ] Product list table shows: name, slug, status, brand (if any), linked category count, actions (Edit).
-  - [ ] Search filters by product name and slug, case-insensitive.
-  - [ ] Loading skeleton mirrors table structure with stable dimensions.
-  - [ ] Empty state says "No products exist" with "Create first product" action.
+- [x] Task 5: Add admin product list UI. (AC: 1-3, 5)
+  - [x] Create `src/features/admin-products/` folder structure.
+  - [x] Add `src/features/admin-products/api.ts` with typed fetch helpers for product CRUD.
+  - [x] Add `src/features/admin-products/components/ProductList.tsx` as React island for `/admin/products`.
+  - [x] Use Story 3.0 resource browser primitives: `PageToolbar`, `SearchInput`, `DataTable`, `EmptyState`, `Skeleton`.
+  - [x] Product list table shows: name, slug, status, brand (if any), linked category count, actions (Edit).
+  - [x] Search filters by product name and slug, case-insensitive.
+  - [x] Loading skeleton mirrors table structure with stable dimensions.
+  - [x] Empty state says "No products exist" with "Create first product" action.
 
-- [ ] Task 6: Add admin product create/edit UI. (AC: 1-2, 3)
-  - [ ] Add `src/features/admin-products/components/ProductEditor.tsx` as side panel or modal form.
-  - [ ] Form fields: name (required), slug (auto-generated but editable), summary (optional), description (required).
-  - [ ] Form validation with Zod schema; inline errors for required fields, slug conflicts.
-  - [ ] Create and update use same form component with different submission handlers.
-  - [ ] Success toast on save; error summary at form top on validation failure.
-  - [ ] Dirty-state protection: warn before navigating away with unsaved changes.
+- [x] Task 6: Add admin product create/edit UI. (AC: 1-2, 3)
+  - [x] Add `src/features/admin-products/components/ProductEditor.tsx` as side panel or modal form.
+  - [x] Form fields: name (required), slug (auto-generated but editable), summary (optional), description (required).
+  - [x] Form validation with Zod schema; inline errors for required fields, slug conflicts.
+  - [x] Create and update use same form component with different submission handlers.
+  - [x] Success toast on save; error summary at form top on validation failure.
+  - [x] Dirty-state protection: warn before navigating away with unsaved changes.
 
-- [ ] Task 7: Styles and accessibility. (AC: 4-7)
-  - [ ] Product UI uses JRW tokens: 0px corners, 1px borders, no shadows, cobalt for focus/selected.
-  - [ ] Status badges use text labels: "Draft", "Published", "Archived" — not color alone.
-  - [ ] Table rows keyboard accessible; actions reachable via keyboard.
-  - [ ] Form has visible labels, required markers, inline errors, and error summary.
-  - [ ] Respect `prefers-reduced-motion` for any transitions.
+- [x] Task 7: Styles and accessibility. (AC: 4-7)
+  - [x] Product UI uses JRW tokens: 0px corners, 1px borders, no shadows, cobalt for focus/selected.
+  - [x] Status badges use text labels: "Draft", "Published", "Archived" — not color alone.
+  - [x] Table rows keyboard accessible; actions reachable via keyboard.
+  - [x] Form has visible labels, required markers, inline errors, and error summary.
+  - [x] Respect `prefers-reduced-motion` for any transitions.
 
-- [ ] Task 8: Targeted tests and checks. (AC: 1-7)
-  - [ ] Add domain/service tests in `src/domain/products/product.test.ts` covering: create success, slug uniqueness, default DRAFT status, invalid data, list pagination.
-  - [ ] Add route/controller tests in `src/server/routes/products.routes.test.ts` covering: create/update success, invalid data, duplicate slug, non-Admin denial, pagination.
-  - [ ] Add UI tests in `src/features/admin-products/components/products-ui.test.ts` covering: list rendering, search filtering, create/edit form, empty/loading states.
-  - [ ] Run changed-target tests only: `npx vitest run src/domain/products src/server/routes/products.routes.test.ts src/features/admin-products`.
-  - [ ] Run `npm run check` after typed/component changes.
-  - [ ] Do not run full `npm run build-test` unless implementation touches broader surfaces or MR. JRW asks for final full verdict.
+- [x] Task 8: Targeted tests and checks. (AC: 1-7)
+  - [x] Add domain/service tests in `src/domain/products/product.test.ts` covering: create success, slug uniqueness, default DRAFT status, invalid data, list pagination.
+  - [x] Add route/controller tests in `src/server/routes/products.routes.test.ts` covering: create/update success, invalid data, duplicate slug, non-Admin denial, pagination.
+  - [x] Add UI tests in `src/features/admin-products/components/products-ui.test.ts` covering: list rendering, search filtering, create/edit form, empty/loading states.
+  - [x] Run changed-target tests only: `npx vitest run src/domain/products src/server/routes/products.routes.test.ts src/features/admin-products`.
+  - [x] Run `npm run check` after typed/component changes.
+  - [x] Do not run full `npm run build-test` unless implementation touches broader surfaces or MR. JRW asks for final full verdict.
 
 ### Review Findings
 
-- [ ] [Review][Patch] Document any review findings here after code review.
+- [x] [Review][Patch] No additional review findings during implementation; ready for independent code review.
 
 ## Dev Notes
 
@@ -302,7 +302,7 @@ npm run check
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex (Codex desktop)
 
 ### Implementation Plan
 
@@ -319,16 +319,43 @@ npm run check
 
 ### Debug Log References
 
-- [To be filled after implementation]
+- `python3 _bmad/scripts/resolve_customization.py --skill .agents/skills/bmad-dev-story --key workflow` resolved workflow activation config.
+- `npx vitest run src/domain/products src/server/routes/products.routes.test.ts src/features/admin-products` failed first (missing modules), then passed after implementation (19/19).
+- `npm run check` passed after fixing one type import mismatch in `src/domain/products/product.test.ts`.
+- `npm run build-test` passed fully (`astro check`, `vitest run` 396 tests, `astro build`).
 
 ### Completion Notes List
 
-- [To be filled after implementation]
+- Implemented Product Identity vertical slice end-to-end: schema extension, migration, domain validation/helpers, repository/service/controller/route layers, app route registration.
+- Added admin product UI for list + create/edit modal with search, status badges, skeleton/empty states, validation feedback, and unsaved-change guard.
+- Implemented slug behavior: auto-generate + numeric suffix for generated collisions, explicit slug conflict returns `CONFLICT_STATE` with `DUPLICATE_SLUG`.
+- Enforced mutation guard for branded products: non-owner Admin must be active brand member unless actor is `SUPER_ADMIN`.
+- Verified acceptance criteria through targeted tests and full regression gate.
 
 ### File List
 
-- [To be filled after implementation]
+- migrations/0018_product_identity_baseline.sql
+- src/domain/schema/catalog.ts
+- src/domain/products/types.ts
+- src/domain/products/schemas.ts
+- src/domain/products/product.ts
+- src/domain/products/product.test.ts
+- src/server/repositories/ProductRepository.ts
+- src/server/services/ProductService.ts
+- src/server/controllers/ProductController.ts
+- src/server/routes/products.routes.ts
+- src/server/routes/products.routes.test.ts
+- src/server/routes/index.ts
+- src/server/app.ts
+- src/features/admin-products/types.ts
+- src/features/admin-products/api.ts
+- src/features/admin-products/components/ProductList.tsx
+- src/features/admin-products/components/ProductEditor.tsx
+- src/features/admin-products/components/products-ui.test.ts
+- src/pages/admin/products/index.astro
+- src/styles/global.css
 
 ## Change Log
 
 - 2026-05-20: Story 3.2 context engine created for product identity CRUD API, admin product list UI, create/edit form, targeted tests, and Drizzle schema extension.
+- 2026-05-20: Story implementation complete; product identity API + admin UI delivered, regression gates passed, status moved to `review`.
