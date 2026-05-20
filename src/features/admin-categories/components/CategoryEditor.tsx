@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Button, Input, Modal, Textarea, Toggle } from "@/components/ui";
+import { slugifyCategoryText } from "@/domain/categories/category";
 import { zodCreateCategoryInput } from "@/domain/categories/schemas";
 import type { CategoryMutationInput, CategoryRecord } from "../types";
 
@@ -32,7 +33,9 @@ function emptyValidationState(): CategoryEditorValidationState {
   return { summary: [], fields: {} };
 }
 
-function toEditorFormState(category?: CategoryRecord | null): CategoryEditorFormState {
+function toEditorFormState(
+  category?: CategoryRecord | null
+): CategoryEditorFormState {
   if (!category) {
     return {
       name: "",
@@ -52,9 +55,7 @@ function toEditorFormState(category?: CategoryRecord | null): CategoryEditorForm
   };
 }
 
-function issueToField(
-  path: string
-): keyof CategoryEditorFormState | undefined {
+function issueToField(path: string): keyof CategoryEditorFormState | undefined {
   switch (path) {
     case "name":
       return "name";
@@ -71,20 +72,23 @@ function issueToField(
   }
 }
 
-function validateCategoryInput(
-  form: CategoryEditorFormState
-): {
-  okay: true;
-  value: CategoryMutationInput;
-} | {
-  okay: false;
-  validation: CategoryEditorValidationState;
-} {
+export function suggestedCategorySlug(name: string): string {
+  return name.trim().length > 0 ? slugifyCategoryText(name) : "";
+}
+
+function validateCategoryInput(form: CategoryEditorFormState):
+  | {
+      okay: true;
+      value: CategoryMutationInput;
+    }
+  | {
+      okay: false;
+      validation: CategoryEditorValidationState;
+    } {
   const payload = {
     name: form.name,
     slug: form.slug.trim().length > 0 ? form.slug : undefined,
-    description:
-      form.description.trim().length > 0 ? form.description : null,
+    description: form.description.trim().length > 0 ? form.description : null,
     sortOrder: Number(form.sortOrder),
     isVisible: form.isVisible,
   };
@@ -155,6 +159,9 @@ export function CategoryEditor({
   const [validation, setValidation] = useState<CategoryEditorValidationState>(
     () => emptyValidationState()
   );
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(
+    () => mode === "edit"
+  );
 
   useEffect(() => {
     if (!open) {
@@ -165,7 +172,8 @@ export function CategoryEditor({
     setForm(next);
     setBaselineForm(serializeFormState(next));
     setValidation(emptyValidationState());
-  }, [category, open]);
+    setSlugManuallyEdited(mode === "edit");
+  }, [category, mode, open]);
 
   const isDirty = useMemo(
     () => serializeFormState(form) !== baselineForm,
@@ -196,6 +204,25 @@ export function CategoryEditor({
     if (validation.fields[key] || validation.summary.length > 0) {
       setValidation(emptyValidationState());
     }
+  }
+
+  function updateName(value: string) {
+    setForm((previous) => ({
+      ...previous,
+      name: value,
+      slug:
+        mode === "create" && !slugManuallyEdited
+          ? suggestedCategorySlug(value)
+          : previous.slug,
+    }));
+    if (validation.fields.name || validation.summary.length > 0) {
+      setValidation(emptyValidationState());
+    }
+  }
+
+  function updateSlug(value: string) {
+    setSlugManuallyEdited(true);
+    updateField("slug", value);
   }
 
   function handleClose() {
@@ -256,7 +283,11 @@ export function CategoryEditor({
         </>
       }
     >
-      <form className="jrw-categories__editor-form" id="category-editor-form" onSubmit={handleSubmit}>
+      <form
+        className="jrw-categories__editor-form"
+        id="category-editor-form"
+        onSubmit={handleSubmit}
+      >
         {validation.summary.length > 0 ? (
           <section
             aria-live="assertive"
@@ -275,7 +306,7 @@ export function CategoryEditor({
         <Input
           error={validation.fields.name}
           label="Category name"
-          onChange={(event) => updateField("name", event.currentTarget.value)}
+          onChange={(event) => updateName(event.currentTarget.value)}
           required
           value={form.name}
         />
@@ -283,7 +314,7 @@ export function CategoryEditor({
         <Input
           error={validation.fields.slug}
           label="Slug"
-          onChange={(event) => updateField("slug", event.currentTarget.value)}
+          onChange={(event) => updateSlug(event.currentTarget.value)}
           placeholder="home-decor"
           value={form.slug}
         />

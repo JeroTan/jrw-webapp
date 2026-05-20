@@ -5,7 +5,8 @@ import { createApp } from "@/server/app";
 import { CategoryController } from "@/server/controllers/CategoryController";
 import type { RequestActorContext } from "@/server/context/request-context";
 import type { CategoryRecord } from "@/domain/categories/types";
-import type { CategoryService } from "@/server/services/CategoryService";
+import { CategoryService } from "@/server/services/CategoryService";
+import type { CategoryRepository } from "@/server/repositories/CategoryRepository";
 
 const now = "2026-05-20T06:30:00.000Z";
 
@@ -47,7 +48,9 @@ const customerContext = {
   },
 } satisfies RequestActorContext;
 
-function categoryRecord(overrides: Partial<CategoryRecord> = {}): CategoryRecord {
+function categoryRecord(
+  overrides: Partial<CategoryRecord> = {}
+): CategoryRecord {
   return {
     id: "cat_1",
     name: "Home Decor",
@@ -59,6 +62,51 @@ function categoryRecord(overrides: Partial<CategoryRecord> = {}): CategoryRecord
     createdAt: now,
     updatedAt: now,
     linkedProductCount: 2,
+    ...overrides,
+  };
+}
+
+function repositoryDouble(
+  overrides: Partial<CategoryRepository> = {}
+): CategoryRepository {
+  return {
+    create: async (input) =>
+      categoryRecord({
+        name: input.name,
+        slug: input.slug,
+        description: input.description,
+        sortOrder: input.sortOrder,
+        isVisible: input.isVisible,
+        status: input.status,
+        createdAt: input.createdAt,
+        updatedAt: input.updatedAt,
+        linkedProductCount: 0,
+      }),
+    findById: async () => categoryRecord(),
+    findBySlug: async () => null,
+    list: async () => ({
+      items: [],
+      page: 1,
+      pageSize: 20,
+      totalItems: 0,
+      totalPages: 0,
+    }),
+    update: async (categoryId, input) =>
+      categoryRecord({
+        id: categoryId,
+        name: input.name ?? "Home Decor",
+        slug: input.slug ?? "home-decor",
+        description: input.description ?? null,
+        sortOrder: input.sortOrder ?? 0,
+        isVisible: input.isVisible ?? true,
+        updatedAt: input.updatedAt,
+      }),
+    archive: async (categoryId, timestamp) =>
+      categoryRecord({
+        id: categoryId,
+        status: "ARCHIVED",
+        updatedAt: timestamp,
+      }),
     ...overrides,
   };
 }
@@ -425,5 +473,76 @@ describe("categories routes", () => {
         },
       },
     });
+  });
+
+  it("auto-suffixes generated slugs but rejects explicit slug conflicts", async () => {
+    const generatedSlugs: string[] = [];
+    const service = new CategoryService({
+      now: () => new Date(now),
+      repository: repositoryDouble({
+        findBySlug: async (slug) =>
+          slug === "home-decor"
+            ? categoryRecord({ id: "existing", slug })
+            : null,
+        create: async (input) => {
+          generatedSlugs.push(input.slug);
+          return categoryRecord({
+            slug: input.slug,
+            name: input.name,
+            description: input.description,
+            sortOrder: input.sortOrder,
+            isVisible: input.isVisible,
+            createdAt: input.createdAt,
+            updatedAt: input.updatedAt,
+          });
+        },
+      }),
+    });
+
+    const generated = await service.createCategory({
+      actor: adminContext,
+      requestId: "req_generated_slug",
+      body: {
+        name: "Home Decor",
+      },
+    });
+    expect(generated.error).toBeNull();
+    expect(generated.content?.category.slug).toBe("home-decor-1");
+    expect(generatedSlugs).toEqual(["home-decor-1"]);
+
+    const explicit = await service.createCategory({
+      actor: adminContext,
+      requestId: "req_explicit_slug",
+      body: {
+        name: "Explicit Home",
+        slug: "home-decor",
+      },
+    });
+    expect(explicit.error?.code).toBe("CONFLICT_STATE");
+    expect(explicit.error?.data).toMatchObject({ reason: "DUPLICATE_SLUG" });
+  });
+
+  it("rejects non-boolean visibility before persistence", async () => {
+    let createCalls = 0;
+    const service = new CategoryService({
+      repository: repositoryDouble({
+        create: async (input) => {
+          createCalls += 1;
+          return categoryRecord({ slug: input.slug });
+        },
+      }),
+    });
+
+    const result = await service.createCategory({
+      actor: adminContext,
+      requestId: "req_invalid_visibility",
+      body: {
+        name: "Bad Visibility",
+        isVisible: "false",
+      },
+    });
+
+    expect(result.error?.code).toBe("VALIDATION_FAILED");
+    expect(createCalls).toBe(0);
   });
 });

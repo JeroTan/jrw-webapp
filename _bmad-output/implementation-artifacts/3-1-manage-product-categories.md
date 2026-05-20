@@ -1,6 +1,6 @@
 # Story 3.1: Manage Product Categories
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -94,7 +94,10 @@ so that JRW storefront and admin catalog can organize products clearly.
 
 ### Review Findings
 
-- [ ] [Review] [Pending] — will be populated after code review.
+- [x] [Review][Patch] Explicit slug conflicts were auto-renamed instead of returning conflict [src/server/services/CategoryService.ts] — fixed.
+- [x] [Review][Patch] Service coerced non-boolean visibility to `false` before validation [src/server/services/CategoryService.ts] — fixed.
+- [x] [Review][Patch] Category editor did not auto-generate an editable slug from the category name [src/features/admin-categories/components/CategoryEditor.tsx] — fixed.
+- [x] [Review][Patch] Legacy category migration could emit invalid slug characters [migrations/0017_category_admin_baseline.sql] — fixed.
 
 ## Dev Notes
 

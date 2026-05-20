@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { CategoryEditor } from "./CategoryEditor";
+import { suggestedCategorySlug } from "./CategoryEditor";
 import {
   categoryArchiveMessage,
   CategoryList,
@@ -117,10 +118,16 @@ describe("categories UI surfaces", () => {
     expect(editMarkup).toContain("Save changes");
   });
 
+  it("suggests editable slugs from category names", () => {
+    expect(suggestedCategorySlug(" Home Decor / Gifts ")).toBe(
+      "home-decor-gifts"
+    );
+    expect(suggestedCategorySlug("")).toBe("");
+  });
+
   it("builds archive confirmation message", () => {
     expect(categoryArchiveMessage("Kitchen")).toBe(
       'Archive category "Kitchen"? Historical references remain readable.'
     );
   });
 });
-

@@ -125,8 +125,11 @@ function zodReasons(error: unknown): string[] {
     return ["payload:invalid"];
   }
 
-  const issues = (error as { issues?: Array<{ path: Array<string | number>; message: string }> })
-    .issues;
+  const issues = (
+    error as {
+      issues?: Array<{ path: Array<string | number>; message: string }>;
+    }
+  ).issues;
   if (!issues || issues.length === 0) {
     return ["payload:invalid"];
   }
@@ -182,18 +185,15 @@ export class CategoryService {
   private normalizeCreateBody(body: Record<string, unknown>) {
     return {
       name: body.name,
-      slug:
-        typeof body.slug === "string" && body.slug.trim().length > 0
-          ? body.slug
-          : undefined,
+      slug: this.hasOwnField(body, "slug") ? body.slug : undefined,
       description: this.hasOwnField(body, "description")
-        ? (body.description as string | null)
+        ? body.description
         : undefined,
       sortOrder: this.hasOwnField(body, "sortOrder")
         ? Number(body.sortOrder)
         : undefined,
       isVisible: this.hasOwnField(body, "isVisible")
-        ? body.isVisible === true
+        ? body.isVisible
         : undefined,
     };
   }
@@ -214,10 +214,18 @@ export class CategoryService {
       patch.sortOrder = Number(body.sortOrder);
     }
     if (this.hasOwnField(body, "isVisible")) {
-      patch.isVisible = body.isVisible === true;
+      patch.isVisible = body.isVisible;
     }
 
     return patch;
+  }
+
+  private hasExplicitSlug(body: Record<string, unknown>): boolean {
+    return (
+      this.hasOwnField(body, "slug") &&
+      typeof body.slug === "string" &&
+      body.slug.trim().length > 0
+    );
   }
 
   private async resolveUniqueSlug(
@@ -239,6 +247,25 @@ export class CategoryService {
     }
 
     throw new Error("D1_ERROR: could not resolve unique slug");
+  }
+
+  private async resolveAvailableSlug(
+    requestedSlug: string,
+    excludeCategoryId?: string
+  ): Promise<AppResult<string>> {
+    const candidate = normalizeCategorySlug(requestedSlug).slice(
+      0,
+      CATEGORY_SLUG_MAX_LENGTH
+    );
+    const existing = await this.repository.findBySlug(candidate);
+
+    if (existing && existing.id !== excludeCategoryId) {
+      return Result.error(
+        serviceError("CONFLICT_STATE", { reason: "DUPLICATE_SLUG" })
+      );
+    }
+
+    return Result.okay(candidate);
   }
 
   async createCategory(
@@ -264,7 +291,14 @@ export class CategoryService {
     }
 
     try {
-      const slug = await this.resolveUniqueSlug(draft.content.slug);
+      const slugResult = this.hasExplicitSlug(input.body)
+        ? await this.resolveAvailableSlug(draft.content.slug)
+        : Result.okay(await this.resolveUniqueSlug(draft.content.slug));
+      if (slugResult.error) {
+        return Result.error(slugResult.error);
+      }
+
+      const slug = slugResult.content;
       const timestamp = this.now().toISOString();
       const category = await this.repository.create({
         name: draft.content.name,
@@ -280,7 +314,9 @@ export class CategoryService {
       return Result.okay({ category });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
-        return Result.error(serviceError("CONFLICT_STATE"));
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "DUPLICATE_SLUG" })
+        );
       }
 
       if (providerFailure(error)) {
@@ -390,17 +426,27 @@ export class CategoryService {
       };
 
       if (patchDraft.content.slug !== undefined) {
-        updatePatch.slug = await this.resolveUniqueSlug(
+        const slugResult = await this.resolveAvailableSlug(
           patchDraft.content.slug,
           existing.id
         );
+        if (slugResult.error) {
+          return Result.error(slugResult.error);
+        }
+
+        updatePatch.slug = slugResult.content;
       }
 
-      const category = await this.repository.update(input.categoryId, updatePatch);
+      const category = await this.repository.update(
+        input.categoryId,
+        updatePatch
+      );
       return Result.okay({ category });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
-        return Result.error(serviceError("CONFLICT_STATE"));
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "DUPLICATE_SLUG" })
+        );
       }
 
       if (providerFailure(error)) {

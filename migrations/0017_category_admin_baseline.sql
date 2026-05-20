@@ -12,6 +12,43 @@ CREATE TABLE `categories__new` (
 	`updated_at` text DEFAULT CURRENT_TIMESTAMP NOT NULL
 );
 
+WITH RECURSIVE
+	`category_source`(`id`, `name`, `normalized_name`) AS (
+		SELECT `id`, `name`, lower(trim(`name`))
+		FROM `categories`
+	),
+	`category_slug_chars`(`id`, `name`, `position`, `slug`, `last_dash`) AS (
+		SELECT `id`, `name`, 1, '', 1
+		FROM `category_source`
+		UNION ALL
+		SELECT
+			`category_slug_chars`.`id`,
+			`category_slug_chars`.`name`,
+			`position` + 1,
+			CASE
+				WHEN substr(`category_source`.`normalized_name`, `position`, 1) GLOB '[a-z0-9]' THEN
+					`slug` || substr(`category_source`.`normalized_name`, `position`, 1)
+				WHEN `last_dash` = 0 THEN
+					`slug` || '-'
+				ELSE
+					`slug`
+			END,
+			CASE
+				WHEN substr(`category_source`.`normalized_name`, `position`, 1) GLOB '[a-z0-9]' THEN 0
+				ELSE 1
+			END
+		FROM `category_slug_chars`
+		JOIN `category_source` ON `category_source`.`id` = `category_slug_chars`.`id`
+		WHERE `position` <= length(`category_source`.`normalized_name`)
+	),
+	`category_slugs`(`id`, `slug`) AS (
+		SELECT
+			`id`,
+			trim(`slug`, '-')
+		FROM `category_slug_chars`
+		JOIN `category_source` USING (`id`, `name`)
+		WHERE `position` > length(`category_source`.`normalized_name`)
+	)
 INSERT INTO `categories__new` (
 	`id`,
 	`name`,
@@ -24,16 +61,24 @@ INSERT INTO `categories__new` (
 	`updated_at`
 )
 SELECT
-	`id`,
-	`name`,
-	substr(lower(replace(trim(`name`), ' ', '-')), 1, 113) || '-' || substr(`id`, 1, 6),
+	`categories`.`id`,
+	`categories`.`name`,
+	substr(
+		CASE
+			WHEN `category_slugs`.`slug` = '' THEN 'category'
+			ELSE `category_slugs`.`slug`
+		END,
+		1,
+		100
+	) || '-' || printf('%06d', row_number() OVER (ORDER BY `categories`.`id`)),
 	NULL,
 	0,
 	true,
 	'ACTIVE',
 	CURRENT_TIMESTAMP,
 	CURRENT_TIMESTAMP
-FROM `categories`;
+FROM `categories`
+JOIN `category_slugs` ON `category_slugs`.`id` = `categories`.`id`;
 
 CREATE TABLE `product_categories__new` (
 	`product_id` text NOT NULL,
@@ -59,4 +104,3 @@ CREATE INDEX `idx_categories_visible` ON `categories` (`is_visible`);
 CREATE INDEX `idx_categories_sort_order` ON `categories` (`sort_order`);
 
 PRAGMA foreign_keys=ON;
-
