@@ -16,6 +16,7 @@ workflowStatus: "complete"
 lastStep: 8
 status: "complete"
 completedAt: "2026-05-11"
+lastEdited: "2026-05-20"
 project_name: "jrw-webapp"
 user_name: "MR. JRW"
 date: "2026-05-11"
@@ -340,7 +341,8 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 
 **Loading State Patterns:**
 - Buttons show pending state for mutations.
-- Tables/grids use stable skeletons.
+- Tables, grids, cards, and lists use stable skeletons.
+- Skeleton pulse behavior is centralized and reduced-motion safe.
 - Checkout shows blocking validation before PayMongo handoff.
 - Admin conflict responses rollback stale UI and show allowed next action.
 
@@ -516,11 +518,11 @@ Routes declare TypeBox contracts, OpenAPI metadata, auth metadata, rate-limit cl
 Astro owns page routing and SEO shells. React feature modules own interactive surfaces. Shared primitives go in `src/components/**`; feature-specific UI stays in `src/features/**`.
 
 `src/components/**` is intentionally narrow:
-- `src/components/ui/**` for shared primitives such as buttons, inputs, modals, drawers, tabs, and badges.
-- `src/components/layout/**` for shells and page frames.
-- `src/components/feedback/**` for toasts, skeletons, empty states, and error states.
-- `src/components/navigation/**` for nav, breadcrumbs, tabs, and menus.
-- `src/components/data-display/**` for tables, status indicators, timelines, and list primitives.
+- `src/components/ui/**` for `Button`, `IconButton`, `Input`, `SearchInput`, `SegmentedControl`, `ViewToggle`, modal/drawer triggers, tabs, badges, and low-level interactive controls.
+- `src/components/layout/**` for `DashboardShell`, storefront shell, page frames, sidebar slots, top bars, and footer layout.
+- `src/components/feedback/**` for `Skeleton`, empty states, toasts, and error states.
+- `src/components/navigation/**` for `SidebarNav`, `TopNav`, breadcrumbs, tabs, menus, and view toggles when navigation-like.
+- `src/components/data-display/**` for `DataTable`, `ResourceCard`, `ResourceList`, status indicators, timelines, and list primitives.
 
 **Service Boundaries:**
 Controllers adapt transport data. Services orchestrate use cases. Domain modules enforce business rules. Repositories/adapters handle D1, Durable Objects, R2, PayMongo, Resend, and Google OAuth.
@@ -597,7 +599,7 @@ Structure supports storefront, admin dashboard, Super Admin governance, brand co
 All PRD feature areas map to domains, features, routes, adapters, or infrastructure.
 
 **Functional Requirements Coverage:**
-FR1-FR74 are architecturally supported by identity/RBAC, admin governance, brands, catalog, storefront, checkout, payments, orders, returns/refunds, notifications, audit, and API contract structure.
+FR1-FR77 are architecturally supported by identity/RBAC, admin governance, brands, catalog, storefront, checkout, payments, orders/returns/refunds, notifications, audit, API contract structure, resource browsing, and component-level UI specifications.
 
 **Non-Functional Requirements Coverage:**
 Performance, security/privacy, reliability, accessibility, integration, observability, and maintainability are addressed through Cloudflare runtime, server-side guards, Durable Object inventory coordination, OpenAPI contracts, request IDs, safe logs, WCAG-oriented UI rules, and domain tests.

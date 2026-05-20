@@ -2,6 +2,7 @@
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
 workflowStatus: "complete"
 completedAt: "2026-05-11"
+lastEdited: "2026-05-20"
 lastStep: 14
 inputDocuments:
   - "_bmad-output/planning-artifacts/prd.md"
@@ -686,19 +687,32 @@ flowchart TD
 Foundation primitives:
 
 - Button / IconButton
-- Input / Textarea / Select
+- Input / Textarea / Select / SearchInput
 - Checkbox / Toggle
 - Badge / StatusBadge
-- Tabs / SegmentedControl
-- DataTable
+- Tabs / SegmentedControl / ViewToggle
+- DataTable / ResourceList / ResourceCard
+- PageToolbar / FilterBar / Pagination
 - Modal / Drawer / SidePanel
 - Toast / ConfirmDialog
 - EmptyState / Skeleton
-- Pagination / Stepper
+- Stepper
 
 All primitives use JRW tokens: 0px radius, 1px borders, no shadows, visible focus, text-first status.
 
 ### Custom Components
+
+### ResourceBrowser
+
+**Purpose:** Let Admin browse manageable records with search, optional filters, and a view mode suited to the record type.
+
+**Usage:** Brands, categories, products, orders, customers, audit where appropriate.
+
+**Anatomy:** Page title/description, toolbar, search input, optional filters, view toggle, card/list/table region, pagination, empty state, skeleton state.
+
+**States:** Loading, empty, filtered empty, cards, list/table, permission-limited, error.
+
+**Accessibility:** Search has visible label, view toggle exposes selected mode, cards/list rows are keyboard reachable, status text is not color-only.
 
 ### ProductCard
 
@@ -907,8 +921,9 @@ Warning:
 
 Loading:
 - Button loading for actions.
-- Skeletons for product grid, tables, order timeline.
+- Skeletons for product grid, tables, cards, order timeline.
 - Stable dimensions; loading must not shift layout.
+- Skeleton animation must respect reduced motion. Use one standard: `motion-safe:animate-pulse` where Tailwind utilities are used, or centralized `jrw-skeleton` CSS that mirrors pulse behavior.
 
 Conflict:
 - For stale inventory, update cart and explain item changed.
@@ -953,7 +968,9 @@ Customer account:
 Admin:
 - Sidebar: Dashboard, Products, Brands, Inventory, Orders, Customers, Audit, Settings.
 - Top context bar: role, active brand scope, search/action area.
-- Tables lead to side panels or detail pages.
+- Resource overview pages use a toolbar with search/filter controls on the left and view toggle/actions on the right.
+- Dense operational datasets default to table/list. Digestible resource overviews may default to responsive cards with optional list/table view.
+- Tables, lists, or cards lead to side panels or detail pages.
 
 Super Admin:
 - Separate owner-only nav group: Admin Accounts, Ownership Transfer, Audit.
@@ -1012,6 +1029,7 @@ Brand language:
 - Never use seller, merchant, tenant, store owner, payout owner.
 - Use "catalog group" only when it helps explain product assignment. Do not turn brand UI into a lesson about what brands are not.
 - Routine brand page copy should describe the task: list brands, manage members, review invitations, review join requests, or view linked products.
+- Brand overview pages may use cards. Card content should prioritize brand name, status, member count, pending invitations/requests, linked product count, and primary action. Avoid policy lectures in card descriptions.
 - Seller-of-record and payment-owner wording belongs in technical/business docs or payment/legal surfaces, not normal brand management UI.
 
 Audit language:

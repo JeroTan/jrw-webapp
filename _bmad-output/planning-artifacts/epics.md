@@ -14,7 +14,7 @@ workflowStatus: "complete"
 projectName: "jrw-webapp"
 userName: "MR. JRW"
 createdDate: "2026-05-11"
-lastUpdated: "2026-05-13"
+lastUpdated: "2026-05-20"
 completedAt: "2026-05-12"
 ---
 
@@ -176,6 +176,12 @@ FR73: Project can maintain architecture artifact with directory tree, boundaries
 
 FR74: Project can provide a migration or deprecation plan for legacy API behavior before broad rebuild implementation.
 
+FR75: Project can maintain identity-realm boundary documentation and regression tests that prevent customer-facing code from querying Admin account storage and prevent Admin auth code from querying Customer account storage.
+
+FR76: Admin resource pages can provide searchable, responsive browse controls with appropriate card/list/table views so records are digestible without losing dense operational scanning.
+
+FR77: Project can maintain component-level UI specifications for shared shell, navigation, footer, toolbar, view toggle, search, card/list/table, loading, empty, and permission patterns.
+
 ### NonFunctional Requirements
 
 NFR1: Public storefront initial usable load must be under 2.5 seconds at p75 on typical mobile 4G as measured by Lighthouse or WebPageTest mobile profile.
@@ -329,7 +335,7 @@ UX-DR9: Implement customer-safe `OrderTimeline` with separate payment, fulfillme
 
 UX-DR10: Implement `DashboardShell` with sidebar, top context bar, role badge, active brand scope, action/search region, admin and Super Admin scope states, forbidden/loading states, skip link, landmarks, and keyboard navigation.
 
-UX-DR11: Implement table-first admin dashboard patterns: dense tables, filters, status bands, side panels, stable skeletons, row drill-in, visible request ID where safe, and no card-heavy dashboard layout.
+UX-DR11: Implement admin resource browsing patterns: dense tables for operational datasets, responsive cards for digestible resource overviews, search/filter toolbars, view toggles where useful, status bands, side panels, stable skeletons, row/card drill-in, visible request ID where safe, and no decorative card-heavy dashboard layout.
 
 UX-DR12: Implement `ProductEditor` with identity, media, brand, categories, variants, pricing, inventory, publish status, draft/dirty/saving/validation/publish-blocked/saved states, field labels, error summary, and keyboard save support.
 
@@ -374,6 +380,8 @@ UX-DR31: Add UX QA requirements for storefront widths 320, 375, 390, 430, 768, 1
 UX-DR32: Add accessibility QA requirements: automated axe or equivalent scan for core pages, keyboard-only walkthrough for storefront, checkout, admin product editor, order detail, and ownership transfer, screen reader spot check for statuses/errors/dialogs/drawers, contrast check for status badges, and reduced-motion check.
 
 UX-DR33: Add performance UX QA requirements: storefront usable load under 2.5s p75, product images sized to target, checkout feedback visible within 300ms, and admin mutation feedback visible within 300ms.
+
+UX-DR34: Define and implement shared component-level specs for DashboardShell, SidebarNav, TopBar, Footer, PageToolbar, SearchInput, ViewToggle, ResourceCard, ResourceList, DataTable, EmptyState, and Skeleton so future admin/storefront work reuses consistent primitives.
 
 ### FR Coverage Map
 
@@ -529,6 +537,10 @@ FR74: Epic 1 - Legacy API migration/deprecation plan.
 
 FR75: Epic 2.5 - Identity realm boundary documentation and regression tests.
 
+FR76: Epic 3.0 - Searchable responsive admin resource browser patterns.
+
+FR77: Epic 3.0 - Component-level UI specifications for shared shell, navigation, footer, toolbar, resource views, loading, empty, and permission patterns.
+
 ## Epic List
 
 ### Epic 1: Trusted Access, Governance, and Rebuild Guardrails
@@ -553,7 +565,7 @@ Admin and Customer accounts remain separate legal/security realms before catalog
 
 Admins can manage categories, products, variants, images, prices, stock, publish states, and order-safe product snapshots.
 
-**FRs covered:** FR21, FR22, FR23, FR24, FR25, FR26, FR27, FR28, FR29, FR30, FR31
+**FRs covered:** FR21, FR22, FR23, FR24, FR25, FR26, FR27, FR28, FR29, FR30, FR31, FR76, FR77
 
 ### Epic 4: Product-First Storefront and Cart
 
@@ -1719,6 +1731,49 @@ So that future work cannot reintroduce shared-account behavior.
 ## Epic 3: Catalog, Product Media, and Inventory Operations
 
 Admins can manage categories, products, variants, images, prices, stock, publish states, and order-safe product snapshots.
+
+### Story 3.0: Admin Resource Browser and Component System
+
+As an Admin,
+I want searchable resource pages with clear card/list/table patterns,
+So that brands, catalog records, and future admin resources are easy to scan and manage.
+
+**Requirements covered:** FR76, FR77; supports UX-DR10, UX-DR11, UX-DR21, UX-DR23, UX-DR29, UX-DR34.
+
+**Acceptance Criteria:**
+
+**Given** Admin opens `/admin/brands`
+**When** brands load
+**Then** default view shows responsive brand cards with brand name, status, member count, pending invites/requests, linked product count, and primary action
+**And** card design follows the sharp 1px JRW module style.
+
+**Given** Admin uses the brand resource toolbar
+**When** Admin searches by brand name or slug
+**Then** matching cards/list rows are shown
+**And** empty search state states no matching brands and offers a clear reset action.
+
+**Given** Admin changes view mode
+**When** card/list toggle is used
+**Then** selected mode persists during the current page session
+**And** both modes expose the same important fields and actions.
+
+**Given** brand data is loading
+**When** skeleton renders
+**Then** skeleton dimensions match the target card/list layout
+**And** pulse animation respects reduced motion using the approved skeleton standard.
+
+**Given** component inventory is documented
+**When** future admin pages are built
+**Then** specs exist for DashboardShell, SidebarNav, TopBar, Footer, PageToolbar, SearchInput, ViewToggle, ResourceCard, ResourceList, DataTable, EmptyState, and Skeleton.
+
+**Given** accessibility QA runs
+**When** keyboard and screen-reader checks are performed
+**Then** search, view toggle, card actions, list actions, focus states, status labels, and empty/loading states are usable without relying on color alone.
+
+**Given** implementation finishes
+**When** tests/checks run
+**Then** tests cover search filtering, card/list toggle, brand card copy, skeleton markup, reduced-motion behavior where testable, and accessibility basics
+**And** `npm run check` passes or blocker is documented.
 
 ### Story 3.1: Manage Product Categories
 

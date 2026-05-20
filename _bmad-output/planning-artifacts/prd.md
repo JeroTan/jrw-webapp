@@ -36,7 +36,7 @@ projectName: "jrw-webapp"
 userName: "MR. JRW"
 createdDate: "2026-05-11"
 completedAt: "2026-05-11"
-lastEdited: "2026-05-13"
+lastEdited: "2026-05-20"
 projectContext: "brownfield_rebuild_with_existing_tangram_docs_and_partial_api_implementation"
 classification:
   projectType:
@@ -61,6 +61,8 @@ editHistory:
     changes: "Validation-guided edit: separated product requirements from architecture details, added measurable NFRs, added web/API project-type details, refined FRs, and preserved architecture handoff context."
   - date: "2026-05-11"
     changes: "Removed stale deleted-folder reference from PRD input documents; no product requirements changed."
+  - date: "2026-05-20"
+    changes: "Added approved admin resource browsing and component-level UI specification requirements FR76-FR77."
 ---
 
 # Product Requirements Document - jrw-webapp
@@ -743,6 +745,8 @@ Resource risks:
 - FR73: Project can maintain architecture artifact with directory tree, boundaries, and requirements-to-structure mapping.
 - FR74: Project can provide a migration or deprecation plan for legacy API behavior before broad rebuild implementation.
 - FR75: Project can maintain identity-realm boundary documentation and regression tests that prevent customer-facing code from querying Admin account storage and prevent Admin auth code from querying Customer account storage.
+- FR76: Admin resource pages can provide searchable, responsive browse controls with appropriate card/list/table views so records are digestible without losing dense operational scanning.
+- FR77: Project can maintain component-level UI specifications for shared shell, navigation, footer, toolbar, view toggle, search, card/list/table, loading, empty, and permission patterns.
 
 ## Non-Functional Requirements
 
