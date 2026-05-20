@@ -421,7 +421,13 @@ export class ProductService {
         }
       }
 
-      return Result.okay(await this.repository.list(query.content));
+      return Result.okay(
+        await this.repository.list({
+          ...query.content,
+          viewerAdminId: actor.content.actorId,
+          restrictToViewerMembership: actor.content.role !== "SUPER_ADMIN",
+        })
+      );
     } catch (error) {
       if (providerFailure(error)) {
         return Result.error(serviceError("PROVIDER_UNAVAILABLE"));

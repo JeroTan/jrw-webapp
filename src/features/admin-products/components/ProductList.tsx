@@ -84,6 +84,10 @@ function productActionErrorMessage(error: unknown, fallback: string): string {
   }
 
   if (failure.code === "AUTH_FORBIDDEN") {
+    if (reason === "BRAND_MEMBERSHIP_REQUIRED") {
+      return "You need active membership in this product brand.";
+    }
+
     return "You do not have access to manage products.";
   }
 

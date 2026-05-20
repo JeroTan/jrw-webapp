@@ -1,6 +1,6 @@
 # Story 3.2: Create and Edit Product Identity
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -92,7 +92,9 @@ so that JRW can maintain accurate product records before variants, media, stock,
 
 ### Review Findings
 
-- [x] [Review][Patch] No additional review findings during implementation; ready for independent code review.
+- [x] [Review][Patch] Enforce brand-membership visibility guard in product list flow [`src/server/services/ProductService.ts`, `src/server/repositories/ProductRepository.ts`]
+- [x] [Review][Patch] Surface precise brand-membership denial message for `AUTH_FORBIDDEN` errors in product UI [`src/features/admin-products/components/ProductList.tsx`]
+- [x] [Review][Patch] Add regression coverage for membership-scoped product list options [`src/domain/products/product.test.ts`]
 
 ## Dev Notes
 

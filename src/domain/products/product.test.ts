@@ -30,6 +30,11 @@ const adminActor = {
   },
 };
 
+const superAdminActor = {
+  ...adminActor,
+  role: "SUPER_ADMIN" as const,
+};
+
 function productRecord(overrides: Partial<ProductRecord> = {}): ProductRecord {
   return {
     id: "prod_1",
@@ -283,6 +288,72 @@ describe("ProductService", () => {
       pageSize: 30,
       totalItems: 1,
       totalPages: 1,
+    });
+  });
+
+  it("restricts list visibility to admin brand memberships", async () => {
+    let capturedOptions: Record<string, unknown> | null = null;
+    const service = new ProductService({
+      repository: repositoryDouble({
+        list: async (options) => {
+          capturedOptions = options as Record<string, unknown>;
+          return {
+            items: [productRecord()],
+            page: 1,
+            pageSize: 20,
+            totalItems: 1,
+            totalPages: 1,
+          };
+        },
+      }),
+    });
+
+    const listed = await service.listProducts({
+      actor: adminActor,
+      requestId: "req_list_membership_scope",
+      query: {
+        page: 1,
+        pageSize: 20,
+      },
+    });
+
+    expect(listed.error).toBeNull();
+    expect(capturedOptions).toMatchObject({
+      viewerAdminId: "admin_1",
+      restrictToViewerMembership: true,
+    });
+  });
+
+  it("does not restrict list visibility for super admin", async () => {
+    let capturedOptions: Record<string, unknown> | null = null;
+    const service = new ProductService({
+      repository: repositoryDouble({
+        list: async (options) => {
+          capturedOptions = options as Record<string, unknown>;
+          return {
+            items: [productRecord()],
+            page: 1,
+            pageSize: 20,
+            totalItems: 1,
+            totalPages: 1,
+          };
+        },
+      }),
+    });
+
+    const listed = await service.listProducts({
+      actor: superAdminActor,
+      requestId: "req_list_super_scope",
+      query: {
+        page: 1,
+        pageSize: 20,
+      },
+    });
+
+    expect(listed.error).toBeNull();
+    expect(capturedOptions).toMatchObject({
+      viewerAdminId: "admin_1",
+      restrictToViewerMembership: false,
     });
   });
 });

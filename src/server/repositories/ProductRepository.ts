@@ -79,6 +79,8 @@ export type ListProductOptions = {
   categoryId?: string;
   search?: string;
   includeArchived?: boolean;
+  viewerAdminId?: string;
+  restrictToViewerMembership?: boolean;
 };
 
 export type ProductRepository = {
@@ -236,6 +238,24 @@ export class DrizzleProductRepository implements ProductRepository {
       ...(options.status ? [eq(products.status, options.status)] : []),
       ...(!options.status && !options.includeArchived
         ? [ne(products.status, "ARCHIVED")]
+        : []),
+      ...(options.restrictToViewerMembership && options.viewerAdminId
+        ? [
+            sql`(
+              ${products.brand_id} is null
+              or exists (
+                select 1
+                from ${brand_memberships}
+                where ${brand_memberships.brand_id} = ${products.brand_id}
+                  and ${brand_memberships.admin_id} = ${options.viewerAdminId}
+                  and ${brand_memberships.status} = 'ACTIVE'
+                  and (
+                    ${brand_memberships.role} = 'OWNER'
+                    or ${brand_memberships.role} = 'MEMBER'
+                  )
+              )
+            )`,
+          ]
         : []),
       ...(options.brandId ? [eq(products.brand_id, options.brandId)] : []),
       ...(normalizedSearch
