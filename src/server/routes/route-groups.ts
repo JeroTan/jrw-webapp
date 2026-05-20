@@ -4,6 +4,7 @@ export const serverRouteGroups = [
   "customers",
   "owner-governance",
   "brands",
+  "categories",
   "products",
   "checkout",
   "payments",

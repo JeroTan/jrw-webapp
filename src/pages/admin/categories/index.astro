@@ -1,0 +1,12 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { CategoryList } from "@/features/admin-categories/components/CategoryList";
+---
+
+<BaseLayout
+  title="Categories | JRW Admin"
+  description="Product category management and archive controls."
+>
+  <CategoryList client:load />
+</BaseLayout>
+

@@ -23,6 +23,7 @@ export const brandMembershipStatusValues = [
   "PENDING",
   "REVOKED",
 ] as const;
+export const categoryStatusValues = ["ACTIVE", "ARCHIVED"] as const;
 
 export const brands = sqliteTable(
   "brands",
@@ -132,13 +133,36 @@ export const product_photos = sqliteTable("product_photos", {
     .references(() => products.id, { onDelete: "cascade" }),
 });
 
-export const categories = sqliteTable("categories", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => createId()),
-  name: text("name").notNull(),
-  type: text("type").notNull(), // CLOTHING, STYLE, SEASON
-});
+export const categories = sqliteTable(
+  "categories",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    description: text("description"),
+    sort_order: integer("sort_order").notNull().default(0),
+    is_visible: integer("is_visible", { mode: "boolean" })
+      .notNull()
+      .default(true),
+    status: text("status", { enum: categoryStatusValues })
+      .notNull()
+      .default("ACTIVE"),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("categories_slug_unique").on(table.slug),
+    index("idx_categories_status").on(table.status),
+    index("idx_categories_visible").on(table.is_visible),
+    index("idx_categories_sort_order").on(table.sort_order),
+  ]
+);
 
 export const product_categories = sqliteTable(
   "product_categories",
