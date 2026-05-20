@@ -220,9 +220,9 @@ _(To be populated by code review)_
 |--------|-------------------|-----------------------------------|
 | View brand list | Authenticated ADMIN/SUPER_ADMIN | Show list; filter to authorized brands only |
 | View brand detail | Brand member OR SUPER_ADMIN | Show detail; hide restricted tabs |
-| Invite admin to brand | Brand OWNER or SUPER_ADMIN | Hide/disable invite button with tooltip |
-| Approve/reject join request | Brand OWNER or SUPER_ADMIN | Hide/disable approve/reject buttons |
-| Archive brand | Brand OWNER or SUPER_ADMIN | Hide/disable archive button; show ConfirmDialog |
+| Invite admin to brand | Active brand member or elevated Admin | Hide/disable invite button with tooltip |
+| Approve/reject join request | Active brand member or elevated Admin | Hide/disable approve/reject buttons |
+| Archive brand | Active brand member or elevated Admin | Hide/disable archive button; show ConfirmDialog |
 | Create product in brand | Brand member OR SUPER_ADMIN | Guard check from Story 2.6; hide/disable create |
 | Edit product in brand | Brand member OR SUPER_ADMIN | Guard check from Story 2.6; hide/disable edit |
 

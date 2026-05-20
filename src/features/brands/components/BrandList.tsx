@@ -1,29 +1,96 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { DataTable, type DataTableColumn } from "@/components/data-display/DataTable";
+import {
+  DataTable,
+  ResourceCard,
+  ResourceList,
+  type DataTableColumn,
+} from "@/components/data-display";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { Skeleton } from "@/components/feedback/Skeleton";
 import { StatusBadge } from "@/components/feedback/StatusBadge";
+import { PageToolbar } from "@/components/layout";
+import { Button, SearchInput, ViewToggle } from "@/components/ui";
 import {
   fetchBrandInvites,
   fetchBrandJoinRequests,
   fetchBrandList,
   fetchBrandMembers,
-  isNotFoundFailure,
+  fetchBrandProducts,
 } from "../api";
 import { validateBrandCopy } from "../language";
 import type { BrandRecord } from "../types";
 
 type LoadState = "loading" | "ready" | "failed";
+export type BrandResourceViewMode = "cards" | "list";
+
+type BrandViewStorage = {
+  getItem: (key: string) => string | null;
+  setItem: (key: string, value: string) => void;
+};
 
 type BrandCounts = {
   brandMembers: number | null;
+  linkedProducts: number | null;
   pendingInvites: number | null;
   pendingJoinRequests: number | null;
 };
 
-const brandListIntroCopy =
-  "You can manage your list of brands here.";
+const brandResourceViewStorageKey = "jrw.brandResourceViewMode";
+const brandListIntroCopy = "You can manage your list of brands here.";
+const brandResourceViewOptions = [
+  { label: "Cards", value: "cards" },
+  { label: "List", value: "list" },
+] satisfies Array<{ label: string; value: BrandResourceViewMode }>;
+
+function getSessionStorage(): BrandViewStorage | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+export function readBrandResourceViewMode(
+  storage: BrandViewStorage | null = getSessionStorage()
+): BrandResourceViewMode {
+  try {
+    const storedValue = storage?.getItem(brandResourceViewStorageKey);
+    return storedValue === "list" ? "list" : "cards";
+  } catch {
+    return "cards";
+  }
+}
+
+export function writeBrandResourceViewMode(
+  value: BrandResourceViewMode,
+  storage: BrandViewStorage | null = getSessionStorage()
+) {
+  try {
+    storage?.setItem(brandResourceViewStorageKey, value);
+  } catch {
+    // Session persistence is convenience only.
+  }
+}
+
+export function filterBrandsByQuery(
+  brands: BrandRecord[],
+  query: string
+): BrandRecord[] {
+  const normalizedQuery = query.trim().toLowerCase();
+
+  if (normalizedQuery.length === 0) {
+    return brands;
+  }
+
+  return brands.filter((brand) =>
+    `${brand.name} ${brand.slug}`.toLowerCase().includes(normalizedQuery)
+  );
+}
 
 function statusTone(status: BrandRecord["status"]) {
   return status === "ACTIVE" ? ("success" as const) : ("warning" as const);
@@ -33,34 +100,45 @@ function countLabel(value: number | null): string {
   return value === null ? "Unavailable" : String(value);
 }
 
+function countValue(
+  counts: BrandCounts | undefined,
+  key: keyof BrandCounts
+): string {
+  return counts ? countLabel(counts[key]) : "Loading";
+}
+
 async function loadBrandCounts(brandId: string): Promise<BrandCounts> {
   const defaultCounts: BrandCounts = {
     brandMembers: null,
+    linkedProducts: null,
     pendingInvites: null,
     pendingJoinRequests: null,
   };
 
-  const [members, invites, joinRequests] = await Promise.all([
+  const [members, invites, joinRequests, products] = await Promise.allSettled([
     fetchBrandMembers(brandId),
     fetchBrandInvites(brandId),
     fetchBrandJoinRequests(brandId),
-  ]).catch((error: unknown) => {
-    if (isNotFoundFailure(error)) {
-      return [null, null, null] as const;
-    }
-
-    return [null, null, null] as const;
-  });
-
-  if (!members || !invites || !joinRequests) {
-    return defaultCounts;
-  }
+    fetchBrandProducts(brandId),
+  ]);
 
   return {
-    brandMembers: members.length,
-    pendingInvites: invites.filter((row) => row.status === "PENDING").length,
-    pendingJoinRequests: joinRequests.filter((row) => row.status === "PENDING")
-      .length,
+    brandMembers:
+      members.status === "fulfilled"
+        ? members.value.filter((row) => row.status === "ACTIVE").length
+        : defaultCounts.brandMembers,
+    linkedProducts:
+      products.status === "fulfilled"
+        ? products.value.totalItems
+        : defaultCounts.linkedProducts,
+    pendingInvites:
+      invites.status === "fulfilled"
+        ? invites.value.filter((row) => row.status === "PENDING").length
+        : defaultCounts.pendingInvites,
+    pendingJoinRequests:
+      joinRequests.status === "fulfilled"
+        ? joinRequests.value.filter((row) => row.status === "PENDING").length
+        : defaultCounts.pendingJoinRequests,
   };
 }
 
@@ -71,6 +149,22 @@ export function BrandList() {
     Record<string, BrandCounts>
   >({});
   const [copyViolations, setCopyViolations] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [viewMode, setViewMode] = useState<BrandResourceViewMode>(() =>
+    readBrandResourceViewMode()
+  );
+
+  const visibleBrands = useMemo(
+    () => filterBrandsByQuery(brands, searchQuery),
+    [brands, searchQuery]
+  );
+
+  const hasSearchQuery = searchQuery.trim().length > 0;
+
+  function handleViewModeChange(nextViewMode: BrandResourceViewMode) {
+    setViewMode(nextViewMode);
+    writeBrandResourceViewMode(nextViewMode);
+  }
 
   useEffect(() => {
     let active = true;
@@ -87,16 +181,17 @@ export function BrandList() {
           brandListIntroCopy,
           "Brand members",
           "Pending invites and join requests",
+          "Linked products",
         ].join(" ");
 
         const violations = validateBrandCopy(staticCopy, "BrandList");
         setCopyViolations(violations);
 
         const countEntries = await Promise.all(
-          result.items.map(async (brand) => [
-            brand.id,
-            await loadBrandCounts(brand.id),
-          ] as const),
+          result.items.map(
+            async (brand) =>
+              [brand.id, await loadBrandCounts(brand.id)] as const
+          )
         );
 
         if (!active) return;
@@ -135,8 +230,7 @@ export function BrandList() {
         key: "members",
         header: "Brand members",
         align: "right",
-        cell: (brand) =>
-          countLabel(countsByBrandId[brand.id]?.brandMembers ?? null),
+        cell: (brand) => countValue(countsByBrandId[brand.id], "brandMembers"),
       },
       {
         key: "pending",
@@ -156,18 +250,69 @@ export function BrandList() {
         },
       },
       {
+        key: "linked-products",
+        header: "Linked products",
+        align: "right",
+        cell: (brand) =>
+          countValue(countsByBrandId[brand.id], "linkedProducts"),
+      },
+      {
         key: "action",
         header: "Action",
         align: "right",
         cell: (brand) => (
-          <a className="jrw-brands__table-link" href={`/admin/brands/${brand.id}`}>
+          <a
+            className="jrw-brands__table-link"
+            href={`/admin/brands/${brand.id}`}
+          >
             Open detail
           </a>
         ),
       },
     ],
-    [countsByBrandId],
+    [countsByBrandId]
   );
+
+  function renderBrandCard(brand: BrandRecord) {
+    const counts = countsByBrandId[brand.id];
+
+    return (
+      <ResourceCard
+        action={
+          <a
+            className="jrw-brands__table-link"
+            href={`/admin/brands/${brand.id}`}
+          >
+            Open detail
+          </a>
+        }
+        key={brand.id}
+        meta={brand.slug}
+        stats={[
+          {
+            label: "Brand members",
+            value: countValue(counts, "brandMembers"),
+          },
+          {
+            label: "Pending invites",
+            value: countValue(counts, "pendingInvites"),
+          },
+          {
+            label: "Join requests",
+            value: countValue(counts, "pendingJoinRequests"),
+          },
+          {
+            label: "Linked products",
+            value: countValue(counts, "linkedProducts"),
+          },
+        ]}
+        status={
+          <StatusBadge label={brand.status} tone={statusTone(brand.status)} />
+        }
+        title={brand.name}
+      />
+    );
+  }
 
   return (
     <main className="jrw-brands">
@@ -189,9 +334,45 @@ export function BrandList() {
         </dl>
       </header>
 
+      <PageToolbar
+        actions={
+          <ViewToggle
+            label="Brand view"
+            onChange={handleViewModeChange}
+            options={brandResourceViewOptions}
+            value={viewMode}
+          />
+        }
+        main={
+          <SearchInput
+            label="Search brands"
+            onChange={(event) => setSearchQuery(event.currentTarget.value)}
+            placeholder="Search by name or slug"
+            value={searchQuery}
+          />
+        }
+      />
+
       <section className="jrw-brands__section">
         {loadState === "loading" ? (
-          <Skeleton lines={4} label="Loading brand catalog groups" />
+          <ResourceList
+            className="jrw-brands__card-grid"
+            label="Loading brand cards"
+          >
+            {Array.from({ length: 3 }).map((_, index) => (
+              <div
+                className="jrw-resource-card jrw-resource-card--skeleton"
+                key={index}
+                role="listitem"
+              >
+                <Skeleton
+                  className="jrw-resource-card__skeleton"
+                  label={`Loading brand card ${index + 1}`}
+                  lines={5}
+                />
+              </div>
+            ))}
+          </ResourceList>
         ) : null}
 
         {loadState === "failed" ? (
@@ -201,13 +382,41 @@ export function BrandList() {
           />
         ) : null}
 
-        {loadState === "ready" ? (
+        {loadState === "ready" && visibleBrands.length === 0 ? (
+          <EmptyState
+            action={
+              hasSearchQuery ? (
+                <Button onClick={() => setSearchQuery("")} size="sm">
+                  Reset search
+                </Button>
+              ) : undefined
+            }
+            title={hasSearchQuery ? "No matching brands." : "No brands yet."}
+            message={
+              hasSearchQuery
+                ? "Try another brand name or slug."
+                : "Create a brand to group related products."
+            }
+          />
+        ) : null}
+
+        {loadState === "ready" &&
+        visibleBrands.length > 0 &&
+        viewMode === "cards" ? (
+          <ResourceList className="jrw-brands__card-grid" label="Brand cards">
+            {visibleBrands.map((brand) => renderBrandCard(brand))}
+          </ResourceList>
+        ) : null}
+
+        {loadState === "ready" &&
+        visibleBrands.length > 0 &&
+        viewMode === "list" ? (
           <DataTable
             caption="Brand list"
             columns={columns}
             emptyMessage="No catalog groups available for this account."
             getRowId={(row) => row.id}
-            rows={brands}
+            rows={visibleBrands}
           />
         ) : null}
 

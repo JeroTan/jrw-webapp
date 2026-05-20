@@ -82,9 +82,11 @@ export type BrandMembershipRecord = {
   id: string;
   brandId: string;
   adminId: string;
+  adminEmail?: string;
   role: BrandMembershipRoleValue;
   status: BrandMembershipStatusValue;
   invitedByAdminId: string | null;
+  invitedByLabel?: string;
   createdAt: string;
   updatedAt: string;
 };
@@ -218,6 +220,9 @@ export type BrandRepository = {
     adminId: string,
     brandId: string
   ): Promise<BrandMembershipRecord | null>;
+  findBrandMemberships(brandId: string): Promise<BrandMembershipRecord[]>;
+  findBrandInvitations(brandId: string): Promise<BrandMembershipRecord[]>;
+  findBrandJoinRequests(brandId: string): Promise<BrandMembershipRecord[]>;
   findActiveBrandMembers(brandId: string): Promise<BrandMembershipRecord[]>;
   findProductsByBrand(
     brand: ProductBrandLookup,
@@ -734,6 +739,49 @@ export class DrizzleBrandRepository implements BrandRepository {
       .limit(1);
 
     return membership ? brandMembershipDtoFromRow(membership) : null;
+  }
+
+  async findBrandMemberships(brandId: string): Promise<BrandMembershipRecord[]> {
+    const memberships = await this.db
+      .select()
+      .from(brand_memberships)
+      .where(eq(brand_memberships.brand_id, brandId))
+      .orderBy(desc(brand_memberships.updated_at), desc(brand_memberships.id));
+
+    return memberships.map(brandMembershipDtoFromRow);
+  }
+
+  async findBrandInvitations(brandId: string): Promise<BrandMembershipRecord[]> {
+    const memberships = await this.db
+      .select()
+      .from(brand_memberships)
+      .where(
+        and(
+          eq(brand_memberships.brand_id, brandId),
+          isNotNull(brand_memberships.invited_by_admin_id)
+        )
+      )
+      .orderBy(desc(brand_memberships.updated_at), desc(brand_memberships.id));
+
+    return memberships.map(brandMembershipDtoFromRow);
+  }
+
+  async findBrandJoinRequests(
+    brandId: string
+  ): Promise<BrandMembershipRecord[]> {
+    const memberships = await this.db
+      .select()
+      .from(brand_memberships)
+      .where(
+        and(
+          eq(brand_memberships.brand_id, brandId),
+          eq(brand_memberships.role, "MEMBER"),
+          isNull(brand_memberships.invited_by_admin_id)
+        )
+      )
+      .orderBy(desc(brand_memberships.updated_at), desc(brand_memberships.id));
+
+    return memberships.map(brandMembershipDtoFromRow);
   }
 
   async findActiveBrandMembers(brandId: string): Promise<BrandMembershipRecord[]> {

@@ -138,27 +138,11 @@ export async function fetchBrandList(): Promise<BrandListResult> {
 }
 
 export async function fetchBrandDetail(brandId: string): Promise<BrandRecord> {
-  const detailResponse = await fetch(`/api/brands/${brandId}`, {
+  const response = await fetch(`/api/brands/${brandId}`, {
     headers: { accept: "application/json" },
   });
-
-  if (detailResponse.ok) {
-    const payload = await readApiEnvelope<{ brand: BrandRecord }>(detailResponse);
-    return payload.brand;
-  }
-
-  const list = await fetchBrandList();
-  const fallback = list.items.find((item) => item.id === brandId);
-
-  if (fallback) {
-    return fallback;
-  }
-
-  throw toApiFailure({
-    code: "RESOURCE_NOT_FOUND",
-    message: "Brand not found.",
-    status: 404,
-  });
+  const payload = await readApiEnvelope<{ brand: BrandRecord }>(response);
+  return payload.brand;
 }
 
 export async function fetchBrandMembers(

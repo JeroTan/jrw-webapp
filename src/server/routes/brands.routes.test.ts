@@ -71,11 +71,16 @@ describe("brands routes", () => {
 
     const post = body.paths?.["/api/brands"]?.post;
     const patch = body.paths?.["/api/brands/{id}"]?.patch;
+    const detail = body.paths?.["/api/brands/{id}"]?.get;
     const invite = body.paths?.["/api/brands/{id}/invite"]?.post;
     const accept = body.paths?.["/api/brands/{id}/accept"]?.post;
     const join = body.paths?.["/api/brands/{id}/join"]?.post;
     const approve = body.paths?.["/api/brands/{id}/join/{adminId}/approve"]?.post;
     const reject = body.paths?.["/api/brands/{id}/join/{adminId}/reject"]?.post;
+    const listMembers = body.paths?.["/api/brands/{id}/members"]?.get;
+    const listInvites = body.paths?.["/api/brands/{id}/invites"]?.get;
+    const listJoinRequests =
+      body.paths?.["/api/brands/{id}/join-requests"]?.get;
     const guardCreate = body.paths?.["/api/brands/{id}/products/guard"]?.post;
     const guardUpdate =
       body.paths?.["/api/brands/{id}/products/{productId}/guard"]?.post;
@@ -114,6 +119,15 @@ describe("brands routes", () => {
     });
     expect(patch?.["x-rate-limit-class"]).toBe("admin-write");
     expect(patch?.responses).toHaveProperty("409");
+
+    expect(detail?.summary).toBe("Get brand detail");
+    expect(detail?.tags).toContain("Brands");
+    expect(detail?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(detail?.["x-rate-limit-class"]).toBe("admin-read");
+    expect(detail?.responses).toHaveProperty("200");
 
     expect(invite?.summary).toBe("Invite brand admin");
     expect(invite?.tags).toContain("Brands");
@@ -168,6 +182,33 @@ describe("brands routes", () => {
     });
     expect(reject?.["x-rate-limit-class"]).toBe("admin-write");
     expect(reject?.responses).toHaveProperty("409");
+
+    expect(listMembers?.summary).toBe("List brand members");
+    expect(listMembers?.tags).toContain("Brands");
+    expect(listMembers?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(listMembers?.["x-rate-limit-class"]).toBe("admin-read");
+    expect(listMembers?.responses).toHaveProperty("200");
+
+    expect(listInvites?.summary).toBe("List brand invites");
+    expect(listInvites?.tags).toContain("Brands");
+    expect(listInvites?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(listInvites?.["x-rate-limit-class"]).toBe("admin-read");
+    expect(listInvites?.responses).toHaveProperty("200");
+
+    expect(listJoinRequests?.summary).toBe("List brand join requests");
+    expect(listJoinRequests?.tags).toContain("Brands");
+    expect(listJoinRequests?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN", "SUPER_ADMIN"],
+    });
+    expect(listJoinRequests?.["x-rate-limit-class"]).toBe("admin-read");
+    expect(listJoinRequests?.responses).toHaveProperty("200");
 
     expect(guardCreate?.summary).toBe("Guard brand product create");
     expect(guardCreate?.tags).toContain("Brands");
@@ -305,6 +346,166 @@ describe("brands routes", () => {
         },
       },
       meta: { requestId: "req_brand_create_success" },
+    });
+  });
+
+  it("loads brand detail and membership lists with standard success envelopes", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        brands: {
+          controllerFactory: () =>
+            createController({
+              getBrandDetail: async () =>
+                Result.okay({
+                  brand: {
+                    id: "brand_1",
+                    name: "JRW Lifestyle",
+                    slug: "jrw-lifestyle",
+                    description: "Catalog team",
+                    status: "ACTIVE",
+                    archivedAt: null,
+                    createdAt: now,
+                    updatedAt: now,
+                  },
+                }),
+              listBrandMembers: async () =>
+                Result.okay({
+                  items: [
+                    {
+                      id: "bm_member",
+                      brandId: "brand_1",
+                      adminId: "admin_1",
+                      adminEmail: "owner@example.test",
+                      role: "OWNER",
+                      status: "ACTIVE",
+                      invitedByAdminId: null,
+                      createdAt: now,
+                      updatedAt: now,
+                    },
+                  ],
+                }),
+              listBrandInvites: async () =>
+                Result.okay({
+                  items: [
+                    {
+                      id: "bm_invite",
+                      brandId: "brand_1",
+                      adminId: "admin_2",
+                      adminEmail: "invitee@example.test",
+                      role: "MEMBER",
+                      status: "PENDING",
+                      invitedByAdminId: "admin_1",
+                      invitedByLabel: "owner@example.test",
+                      createdAt: now,
+                      updatedAt: now,
+                    },
+                  ],
+                }),
+              listBrandJoinRequests: async () =>
+                Result.okay({
+                  items: [
+                    {
+                      id: "bm_join",
+                      brandId: "brand_1",
+                      adminId: "admin_3",
+                      adminEmail: "requester@example.test",
+                      role: "MEMBER",
+                      status: "PENDING",
+                      invitedByAdminId: null,
+                      createdAt: now,
+                      updatedAt: now,
+                    },
+                  ],
+                }),
+            }),
+        },
+      },
+    });
+
+    const detailResponse = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1", {
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_brand_detail_success",
+        },
+      })
+    );
+    const membersResponse = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/members", {
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_brand_members_success",
+        },
+      })
+    );
+    const invitesResponse = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/invites", {
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_brand_invites_success",
+        },
+      })
+    );
+    const joinRequestsResponse = await app.handle(
+      new Request("https://jrw.test/api/brands/brand_1/join-requests", {
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_brand_join_requests_success",
+        },
+      })
+    );
+
+    expect(detailResponse.status).toBe(200);
+    await expect(detailResponse.json()).resolves.toMatchObject({
+      data: {
+        brand: {
+          id: "brand_1",
+          name: "JRW Lifestyle",
+        },
+      },
+      meta: { requestId: "req_brand_detail_success" },
+    });
+
+    expect(membersResponse.status).toBe(200);
+    await expect(membersResponse.json()).resolves.toMatchObject({
+      data: {
+        items: [
+          {
+            id: "bm_member",
+            adminEmail: "owner@example.test",
+          },
+        ],
+      },
+      meta: { requestId: "req_brand_members_success" },
+    });
+
+    expect(invitesResponse.status).toBe(200);
+    await expect(invitesResponse.json()).resolves.toMatchObject({
+      data: {
+        items: [
+          {
+            id: "bm_invite",
+            invitedByLabel: "owner@example.test",
+          },
+        ],
+      },
+      meta: { requestId: "req_brand_invites_success" },
+    });
+
+    expect(joinRequestsResponse.status).toBe(200);
+    await expect(joinRequestsResponse.json()).resolves.toMatchObject({
+      data: {
+        items: [
+          {
+            id: "bm_join",
+            adminEmail: "requester@example.test",
+          },
+        ],
+      },
+      meta: { requestId: "req_brand_join_requests_success" },
     });
   });
 

@@ -21,6 +21,7 @@ import {
   inviteBrandMember,
   isNotFoundFailure,
   rejectJoinRequest,
+  type ApiFailure,
 } from "../api";
 import { validateBrandCopy } from "../language";
 import type {
@@ -72,7 +73,56 @@ function statusTone(status: BrandRecord["status"]) {
   return status === "ACTIVE" ? ("success" as const) : ("warning" as const);
 }
 
-function resolvePermissions(input: {
+function brandActionErrorMessage(
+  error: unknown,
+  fallback: string
+): string {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("code" in error) ||
+    typeof (error as ApiFailure).code !== "string"
+  ) {
+    return fallback;
+  }
+
+  const failure = error as ApiFailure;
+  const reason =
+    typeof failure.details === "object" &&
+    failure.details !== null &&
+    "reason" in failure.details &&
+    typeof (failure.details as { reason?: unknown }).reason === "string"
+      ? String((failure.details as { reason: string }).reason)
+      : null;
+
+  if (failure.code === "AUTH_FORBIDDEN") {
+    return "You don't have access to do that for this brand.";
+  }
+
+  if (failure.code === "CONFLICT_STATE") {
+    if (reason === "DUPLICATE_PENDING_INVITATION") {
+      return "This admin already has a pending invite.";
+    }
+
+    if (reason === "DUPLICATE_ACTIVE_MEMBERSHIP") {
+      return "This admin is already part of this brand.";
+    }
+
+    if (reason === "DUPLICATE_PENDING_REQUEST") {
+      return "This admin already asked to join this brand.";
+    }
+  }
+
+  if (failure.code === "PROVIDER_UNAVAILABLE") {
+    return "We couldn't complete that right now. Try again soon.";
+  }
+
+  return typeof failure.message === "string" && failure.message.trim().length > 0
+    ? failure.message
+    : fallback;
+}
+
+export function resolveBrandActionPermissions(input: {
   actor: AuthenticatedActor | null;
   members: BrandMembershipRecord[];
   membersUnavailable: boolean;
@@ -82,7 +132,7 @@ function resolvePermissions(input: {
       canApproveJoinRequests: false,
       canArchiveBrand: false,
       canInviteMembers: false,
-      reason: "Admin session required.",
+      reason: "Sign in as an admin to manage this brand.",
     };
   }
 
@@ -91,7 +141,7 @@ function resolvePermissions(input: {
       canApproveJoinRequests: true,
       canArchiveBrand: true,
       canInviteMembers: true,
-      reason: "Allowed by super admin role.",
+      reason: "You can manage this brand.",
     };
   }
 
@@ -100,7 +150,7 @@ function resolvePermissions(input: {
       canApproveJoinRequests: false,
       canArchiveBrand: false,
       canInviteMembers: false,
-      reason: "Membership API unavailable. Verify permissions from server response.",
+      reason: "We couldn't confirm your access right now. Refresh and try again.",
     };
   }
 
@@ -113,24 +163,15 @@ function resolvePermissions(input: {
       canApproveJoinRequests: false,
       canArchiveBrand: false,
       canInviteMembers: false,
-      reason: "Active brand membership required.",
-    };
-  }
-
-  if (actorMembership.role === "OWNER") {
-    return {
-      canApproveJoinRequests: true,
-      canArchiveBrand: true,
-      canInviteMembers: true,
-      reason: "Allowed for owner membership.",
+      reason: "You need to join this brand before you can manage it.",
     };
   }
 
   return {
-    canApproveJoinRequests: false,
-    canArchiveBrand: false,
-    canInviteMembers: false,
-    reason: "Owner membership required for this action.",
+    canApproveJoinRequests: true,
+    canArchiveBrand: true,
+    canInviteMembers: true,
+    reason: "You can manage this brand.",
   };
 }
 
@@ -171,7 +212,7 @@ export function BrandDetail({ brandId }: { brandId: string }) {
 
   const permissions = useMemo(
     () =>
-      resolvePermissions({
+      resolveBrandActionPermissions({
         actor,
         members: members.items,
         membersUnavailable: members.unavailable,
@@ -268,7 +309,7 @@ export function BrandDetail({ brandId }: { brandId: string }) {
       setActionToast({
         tone: "warning",
         title: "Invite email required",
-        message: "Provide admin email before sending invite.",
+        message: "Enter an admin email before sending this invite.",
       });
       return;
     }
@@ -281,17 +322,16 @@ export function BrandDetail({ brandId }: { brandId: string }) {
       setActionToast({
         tone: "success",
         title: "Invite sent",
-        message: "Brand invitation created.",
+        message: "This admin now has a pending invite.",
       });
     } catch (error) {
-      const message =
-        typeof error === "object" && error !== null && "message" in error
-          ? String(error.message)
-          : "Invite failed.";
       setActionToast({
         tone: "error",
         title: "Invite failed",
-        message,
+        message: brandActionErrorMessage(
+          error,
+          "We couldn't send the invite right now."
+        ),
       });
     } finally {
       setSendingInvite(false);
@@ -318,18 +358,17 @@ export function BrandDetail({ brandId }: { brandId: string }) {
         title: action === "approve" ? "Join approved" : "Join rejected",
         message:
           action === "approve"
-            ? "Brand member activated."
-            : "Join request rejected.",
+            ? "This admin can now access this brand."
+            : "This join request was declined.",
       });
     } catch (error) {
-      const message =
-        typeof error === "object" && error !== null && "message" in error
-          ? String(error.message)
-          : "Join decision failed.";
       setActionToast({
         tone: "error",
         title: "Action failed",
-        message,
+        message: brandActionErrorMessage(
+          error,
+          "We couldn't update this request right now."
+        ),
       });
     } finally {
       setPendingJoinAdminId(null);
@@ -347,17 +386,16 @@ export function BrandDetail({ brandId }: { brandId: string }) {
       setActionToast({
         tone: "warning",
         title: "Brand archived",
-        message: "Catalog group archived. Historical references remain intact.",
+        message: "This brand is now archived.",
       });
     } catch (error) {
-      const message =
-        typeof error === "object" && error !== null && "message" in error
-          ? String(error.message)
-          : "Archive failed.";
       setActionToast({
         tone: "error",
         title: "Archive failed",
-        message,
+        message: brandActionErrorMessage(
+          error,
+          "We couldn't archive this brand right now."
+        ),
       });
     } finally {
       setArchiving(false);
@@ -380,7 +418,7 @@ export function BrandDetail({ brandId }: { brandId: string }) {
         <section className="jrw-brands__section">
           <EmptyState
             title="Brand detail unavailable"
-            message="Could not load brand detail for this catalog group."
+            message="We couldn't load this brand right now."
           />
         </section>
       </main>
@@ -394,7 +432,7 @@ export function BrandDetail({ brandId }: { brandId: string }) {
           <p className="jrw-page-kicker">Catalog collaboration</p>
           <h1 className="jrw-brands__title">{brand.name}</h1>
           <p className="jrw-page-copy">
-            Manage this brand's members, invitations, join requests, and linked products.
+            Manage people, invites, join requests, and linked products for this brand.
           </p>
         </div>
         <div className="jrw-brands__summary">
@@ -408,7 +446,7 @@ export function BrandDetail({ brandId }: { brandId: string }) {
           <p className="jrw-page-kicker">Brand actions</p>
           <form className="jrw-brands__actions" onSubmit={handleInviteSubmit}>
             <Input
-              description="Invite admin by email as brand member."
+              description="Invite an admin to join this brand by email."
               disabled={!permissions.canInviteMembers || sendingInvite}
               label="Invite admin email"
               onChange={(event) => setInviteEmail(event.currentTarget.value)}
@@ -449,8 +487,8 @@ export function BrandDetail({ brandId }: { brandId: string }) {
               label: "Brand members",
               content: members.unavailable ? (
                 <EmptyState
-                  title="Members unavailable"
-                  message="Members API route not available. Server authorization remains source of truth."
+                  title="Couldn't load members"
+                  message="We couldn't load the member list right now. Refresh and try again."
                 />
               ) : (
                 <BrandMembershipTable
@@ -464,8 +502,8 @@ export function BrandDetail({ brandId }: { brandId: string }) {
               label: "Invites",
               content: invites.unavailable ? (
                 <EmptyState
-                  title="Invites unavailable"
-                  message="Invite listing route not available. Send invite action still enforced by server."
+                  title="Couldn't load invites"
+                  message="We couldn't load invites right now. Refresh and try again."
                 />
               ) : (
                 <BrandInviteTable
@@ -480,8 +518,8 @@ export function BrandDetail({ brandId }: { brandId: string }) {
               label: "Join requests",
               content: joinRequests.unavailable ? (
                 <EmptyState
-                  title="Join requests unavailable"
-                  message="Join request listing route not available. Approve/reject guard still enforced by server."
+                  title="Couldn't load join requests"
+                  message="We couldn't load join requests right now. Refresh and try again."
                 />
               ) : (
                 <BrandJoinRequestTable
@@ -500,7 +538,7 @@ export function BrandDetail({ brandId }: { brandId: string }) {
               content: products.unavailable ? (
                 <EmptyState
                   title="Products unavailable"
-                  message="Brand products could not load."
+                  message="We couldn't load linked products right now."
                 />
               ) : (
                 <DataTable
@@ -544,7 +582,7 @@ export function BrandDetail({ brandId }: { brandId: string }) {
 
       <ConfirmDialog
         confirmLabel="Archive brand"
-        message="Archive this catalog group. Product history references remain, but active collaboration stops."
+        message="Archive this brand. Past product history stays in place, but no one can keep working in it."
         onCancel={() => setArchiveDialogOpen(false)}
         onConfirm={handleArchiveConfirm}
         open={archiveDialogOpen}

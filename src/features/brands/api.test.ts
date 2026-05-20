@@ -36,48 +36,27 @@ describe("brand API client", () => {
     expect(result.pageSize).toBe(100);
   });
 
-  it("falls back to brand list when detail route is unavailable", async () => {
-    const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(
-        jsonResponse(
-          {
-            error: {
-              code: "NOT_FOUND",
-              message: "Missing brand detail route.",
-            },
+  it("loads brand detail from brand detail route", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        data: {
+          brand: {
+            id: "brand_1",
+            name: "JRW Studio",
+            slug: "jrw-studio",
+            description: null,
+            status: "ACTIVE",
+            archivedAt: null,
+            createdAt: "2026-05-18T06:30:00.000Z",
+            updatedAt: "2026-05-18T06:30:00.000Z",
           },
-          404,
-        ),
-      )
-      .mockResolvedValueOnce(
-        jsonResponse({
-          data: {
-            items: [
-              {
-                id: "brand_1",
-                name: "JRW Studio",
-                slug: "jrw-studio",
-                description: null,
-                status: "ACTIVE",
-                archivedAt: null,
-                createdAt: "2026-05-18T06:30:00.000Z",
-                updatedAt: "2026-05-18T06:30:00.000Z",
-              },
-            ],
-            page: 1,
-            pageSize: 100,
-            totalItems: 1,
-            totalPages: 1,
-          },
-        }),
-      );
+        },
+      }),
+    );
 
     const result = await fetchBrandDetail("brand_1");
 
-    expect(fetchMock).toHaveBeenNthCalledWith(1, "/api/brands/brand_1", {
-      headers: { accept: "application/json" },
-    });
-    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/brands/me?page=1&pageSize=100", {
+    expect(fetchMock).toHaveBeenCalledWith("/api/brands/brand_1", {
       headers: { accept: "application/json" },
     });
     expect(result).toMatchObject({

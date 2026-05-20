@@ -90,6 +90,16 @@ export type RequestBrandJoinServiceInput = {
   brandId: string;
 };
 
+export type GetBrandDetailServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+};
+
+export type ListBrandMembersServiceInput = GetBrandDetailServiceInput;
+export type ListBrandInvitesServiceInput = GetBrandDetailServiceInput;
+export type ListBrandJoinRequestsServiceInput = GetBrandDetailServiceInput;
+
 export type ApproveBrandJoinRequestServiceInput = {
   actor: BrandActorInput | undefined;
   requestId: string;
@@ -174,6 +184,10 @@ export type BrandRequestJoinResult = {
   membership: BrandMembershipRecord;
 };
 
+export type BrandDetailResult = {
+  brand: BrandRecord;
+};
+
 export type BrandApproveJoinRequestResult = {
   membership: BrandMembershipRecord;
 };
@@ -190,6 +204,10 @@ export type BrandListAdminBrandsResult = {
   pageSize: number;
   totalItems: number;
   totalPages: number;
+};
+
+export type BrandListMembershipsResult = {
+  items: BrandMembershipRecord[];
 };
 
 export type BrandProductMutationGuardResult = {
@@ -547,6 +565,63 @@ export class BrandService {
       role: membership.role,
       status: membership.status,
     } as const;
+  }
+
+  private async requireBrandReadAccess(input: {
+    actorId: string;
+    brandId: string;
+    role: "ADMIN" | "SUPER_ADMIN";
+  }): Promise<AppResult<BrandRecord>> {
+    const brand = await this.repository.findBrandByIdIncludingArchived(
+      input.brandId
+    );
+    if (!brand) {
+      return Result.error(
+        serviceError("CONFLICT_STATE", { reason: "BRAND_NOT_FOUND" })
+      );
+    }
+
+    if (this.hasElevatedPermission(input.role)) {
+      return Result.okay(brand);
+    }
+
+    const membership = await this.repository.findMembershipByBrandAndAdmin(
+      input.brandId,
+      input.actorId
+    );
+    if (!this.isActiveBrandMember(membership)) {
+      return Result.error(serviceError("AUTH_FORBIDDEN"));
+    }
+
+    return Result.okay(brand);
+  }
+
+  private async enrichMembershipRows(
+    rows: BrandMembershipRecord[]
+  ): Promise<BrandMembershipRecord[]> {
+    const adminIds = Array.from(
+      new Set(
+        rows.flatMap((row) =>
+          row.invitedByAdminId ? [row.adminId, row.invitedByAdminId] : [row.adminId]
+        )
+      )
+    );
+
+    const admins = await Promise.all(
+      adminIds.map(async (adminId) => [
+        adminId,
+        await this.repository.findAdminById(adminId),
+      ] as const)
+    );
+    const adminMap = new Map(admins);
+
+    return rows.map((row) => ({
+      ...row,
+      adminEmail: adminMap.get(row.adminId)?.email ?? row.adminId,
+      invitedByLabel: row.invitedByAdminId
+        ? adminMap.get(row.invitedByAdminId)?.email ?? row.invitedByAdminId
+        : undefined,
+    }));
   }
 
   private guardSuccess(
@@ -1197,6 +1272,119 @@ export class BrandService {
       await this.auditPublisher.publish(auditEvent);
 
       return Result.okay({ membership: updatedMembership });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async getBrandDetail(
+    input: GetBrandDetailServiceInput
+  ): Promise<AppResult<BrandDetailResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    try {
+      const access = await this.requireBrandReadAccess({
+        actorId: actor.content.actorId,
+        brandId: input.brandId,
+        role: actor.content.role,
+      });
+      if (access.error) {
+        return access;
+      }
+
+      return Result.okay({ brand: access.content });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async listBrandMembers(
+    input: ListBrandMembersServiceInput
+  ): Promise<AppResult<BrandListMembershipsResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    try {
+      const access = await this.requireBrandReadAccess({
+        actorId: actor.content.actorId,
+        brandId: input.brandId,
+        role: actor.content.role,
+      });
+      if (access.error) {
+        return access;
+      }
+
+      const memberships = await this.repository.findBrandMemberships(input.brandId);
+      return Result.okay({
+        items: await this.enrichMembershipRows(memberships),
+      });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async listBrandInvites(
+    input: ListBrandInvitesServiceInput
+  ): Promise<AppResult<BrandListMembershipsResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    try {
+      const access = await this.requireBrandReadAccess({
+        actorId: actor.content.actorId,
+        brandId: input.brandId,
+        role: actor.content.role,
+      });
+      if (access.error) {
+        return access;
+      }
+
+      const memberships = await this.repository.findBrandInvitations(input.brandId);
+      return Result.okay({
+        items: await this.enrichMembershipRows(memberships),
+      });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async listBrandJoinRequests(
+    input: ListBrandJoinRequestsServiceInput
+  ): Promise<AppResult<BrandListMembershipsResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    try {
+      const access = await this.requireBrandReadAccess({
+        actorId: actor.content.actorId,
+        brandId: input.brandId,
+        role: actor.content.role,
+      });
+      if (access.error) {
+        return access;
+      }
+
+      const memberships = await this.repository.findBrandJoinRequests(input.brandId);
+      return Result.okay({
+        items: await this.enrichMembershipRows(memberships),
+      });
     } catch (error) {
       if (providerFailure(error)) {
         return Result.error(serviceError("PROVIDER_UNAVAILABLE"));

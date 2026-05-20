@@ -32,7 +32,7 @@ export function BrandJoinRequestTable({
   onApprove,
   onReject,
   pendingAdminId = null,
-  permissionReason = "Join request decisions require owner-level brand permission.",
+  permissionReason = "You need access to review join requests for this brand.",
   rows,
 }: BrandJoinRequestTableProps) {
   const columns = useMemo<Array<DataTableColumn<BrandJoinRequestRecord>>>(
@@ -57,7 +57,7 @@ export function BrandJoinRequestTable({
         header: "Next action",
         cell: (row) => {
           if (!canManageJoinRequests) {
-            return `Unavailable. ${permissionReason}`;
+            return permissionReason;
           }
 
           if (row.status !== "PENDING") {
@@ -108,4 +108,3 @@ export function BrandJoinRequestTable({
     />
   );
 }
-

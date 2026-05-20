@@ -22,7 +22,10 @@ export function Skeleton({
       role="status"
     >
       {Array.from({ length: lines }).map((_, index) => (
-        <span className="jrw-skeleton__line" key={index} />
+        <span
+          className="jrw-skeleton__line motion-safe:animate-pulse"
+          key={index}
+        />
       ))}
     </div>
   );

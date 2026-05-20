@@ -424,6 +424,32 @@ class RepoStub implements BrandRepository {
     };
   }
 
+  async findBrandMemberships(_brandId: string) {
+    return Object.entries(this.membershipByAdminId).map(([adminId, membership]) => ({
+      id: `membership_${adminId}`,
+      brandId: "brand_1",
+      adminId,
+      role: membership.role,
+      status: membership.status,
+      invitedByAdminId: membership.invitedByAdminId,
+      createdAt: now,
+      updatedAt: now,
+    }));
+  }
+
+  async findBrandInvitations(_brandId: string) {
+    return (await this.findBrandMemberships(_brandId)).filter(
+      (membership) => membership.invitedByAdminId !== null
+    );
+  }
+
+  async findBrandJoinRequests(_brandId: string) {
+    return (await this.findBrandMemberships(_brandId)).filter(
+      (membership) =>
+        membership.role === "MEMBER" && membership.invitedByAdminId === null
+    );
+  }
+
   async findActiveBrandMembers(_brandId: string) {
     return Object.entries(this.membershipByAdminId)
       .filter(([, membership]) => membership.status === "ACTIVE")
@@ -554,6 +580,92 @@ describe("BrandService", () => {
         entity: "brand",
       },
     });
+  });
+
+  it("loads brand detail and membership surfaces for active brand members", async () => {
+    const repo = new RepoStub();
+    repo.membershipByAdminId.admin_pending_invite = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: "admin_1",
+    };
+    repo.membershipByAdminId.admin_pending_request = {
+      role: "MEMBER",
+      status: "PENDING",
+      invitedByAdminId: null,
+    };
+    repo.adminById.admin_pending_invite = {
+      id: "admin_pending_invite",
+      email: "invitee@example.test",
+      role: "ADMIN",
+      status: "ACTIVE",
+      emailVerifiedAt: now,
+      approvedAt: now,
+    };
+    repo.adminById.admin_pending_request = {
+      id: "admin_pending_request",
+      email: "requester@example.test",
+      role: "ADMIN",
+      status: "ACTIVE",
+      emailVerifiedAt: now,
+      approvedAt: now,
+    };
+    const service = new BrandService({
+      repository: repo,
+      now: () => new Date(now),
+    });
+
+    const detail = await service.getBrandDetail({
+      actor: adminActor({ actorId: "admin_member" }),
+      requestId: "req_brand_detail",
+      brandId: "brand_1",
+    });
+    const members = await service.listBrandMembers({
+      actor: adminActor({ actorId: "admin_member" }),
+      requestId: "req_brand_members",
+      brandId: "brand_1",
+    });
+    const invites = await service.listBrandInvites({
+      actor: adminActor({ actorId: "admin_member" }),
+      requestId: "req_brand_invites",
+      brandId: "brand_1",
+    });
+    const joinRequests = await service.listBrandJoinRequests({
+      actor: adminActor({ actorId: "admin_member" }),
+      requestId: "req_brand_join_requests",
+      brandId: "brand_1",
+    });
+
+    expect(detail.error).toBeNull();
+    expect(detail.content?.brand.id).toBe("brand_1");
+    expect(members.error).toBeNull();
+    expect(members.content?.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          adminId: "admin_member",
+          adminEmail: "member@example.test",
+        }),
+        expect.objectContaining({
+          adminId: "admin_pending_invite",
+          adminEmail: "invitee@example.test",
+        }),
+      ])
+    );
+    expect(invites.content?.items).toEqual([
+      expect.objectContaining({
+        adminId: "admin_pending_invite",
+        adminEmail: "invitee@example.test",
+        invitedByLabel: "owner@example.test",
+      }),
+    ]);
+    expect(joinRequests.content?.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          adminId: "admin_pending_request",
+          adminEmail: "requester@example.test",
+        }),
+      ])
+    );
   });
 
   it("denies customer, prospect, suspended admin, and unapproved admin", async () => {

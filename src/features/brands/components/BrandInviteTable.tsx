@@ -31,7 +31,7 @@ function inviteTone(status: BrandInviteRecord["status"]) {
 export function BrandInviteTable({
   canManageInvites = false,
   loading = false,
-  permissionReason = "Invite management requires owner-level brand permission.",
+  permissionReason = "You need access to manage invites for this brand.",
   rows,
 }: BrandInviteTableProps) {
   const columns = useMemo<Array<DataTableColumn<BrandInviteRecord>>>(
@@ -66,7 +66,7 @@ export function BrandInviteTable({
             ? row.status === "PENDING"
               ? "Awaiting acceptance."
               : "No next action."
-            : `Unavailable. ${permissionReason}`,
+            : permissionReason,
       },
     ],
     [canManageInvites, permissionReason],
@@ -84,4 +84,3 @@ export function BrandInviteTable({
     />
   );
 }
-

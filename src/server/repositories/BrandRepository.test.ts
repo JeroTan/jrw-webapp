@@ -750,6 +750,40 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
         );
       expect(pendingJoinRequest?.id).toBe(joinRequestMembership.id);
 
+      const brandMemberships = await repository.findBrandMemberships(brand.id);
+      expect(brandMemberships).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: invitationMembership.id,
+            adminId: "admin_owner",
+            status: "PENDING",
+          }),
+          expect.objectContaining({
+            id: joinRequestMembership.id,
+            adminId: "admin_1",
+            status: "PENDING",
+          }),
+        ])
+      );
+
+      const brandInvites = await repository.findBrandInvitations(brand.id);
+      expect(brandInvites).toEqual([
+        expect.objectContaining({
+          id: invitationMembership.id,
+          adminId: "admin_owner",
+          invitedByAdminId: "admin_1",
+        }),
+      ]);
+
+      const brandJoinRequests = await repository.findBrandJoinRequests(brand.id);
+      expect(brandJoinRequests).toEqual([
+        expect.objectContaining({
+          id: joinRequestMembership.id,
+          adminId: "admin_1",
+          invitedByAdminId: null,
+        }),
+      ]);
+
       const activatedMembership = await repository.updateMembershipStatus(
         invitationMembership.id,
         brand.id,

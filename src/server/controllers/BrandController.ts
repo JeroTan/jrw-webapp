@@ -13,20 +13,26 @@ import type {
   BrandActorInput,
   BrandArchiveResult,
   BrandCreateResult,
+  BrandDetailResult,
   BrandInviteResult,
   BrandListAdminBrandsResult,
+  BrandListMembershipsResult,
   BrandListProductsResult,
   BrandProductMutationGuardResult,
   BrandRejectJoinRequestResult,
   BrandRequestJoinResult,
   BrandUpdateResult,
   CreateBrandServiceInput,
+  GetBrandDetailServiceInput,
   GuardBrandProductCreateServiceInput,
   GuardBrandProductReassignmentServiceInput,
   GuardBrandProductUpdateServiceInput,
   GuardBrandlessProductMutationServiceInput,
   InviteBrandServiceInput,
   ListAdminBrandsServiceInput,
+  ListBrandInvitesServiceInput,
+  ListBrandJoinRequestsServiceInput,
+  ListBrandMembersServiceInput,
   ListBrandlessProductsServiceInput,
   ListBrandQueryInput,
   ListBrandScopedProductsServiceInput,
@@ -38,6 +44,9 @@ import type { AppResult } from "@/utils/general/result";
 
 export type BrandServiceLike = {
   createBrand(input: CreateBrandServiceInput): Promise<AppResult<BrandCreateResult>>;
+  getBrandDetail(
+    input: GetBrandDetailServiceInput
+  ): Promise<AppResult<BrandDetailResult>>;
   updateBrand(input: UpdateBrandServiceInput): Promise<AppResult<BrandUpdateResult>>;
   archiveBrand(
     input: ArchiveBrandServiceInput
@@ -72,6 +81,15 @@ export type BrandServiceLike = {
   listBrandScopedProducts(
     input: ListBrandScopedProductsServiceInput
   ): Promise<AppResult<BrandListProductsResult>>;
+  listBrandMembers(
+    input: ListBrandMembersServiceInput
+  ): Promise<AppResult<BrandListMembershipsResult>>;
+  listBrandInvites(
+    input: ListBrandInvitesServiceInput
+  ): Promise<AppResult<BrandListMembershipsResult>>;
+  listBrandJoinRequests(
+    input: ListBrandJoinRequestsServiceInput
+  ): Promise<AppResult<BrandListMembershipsResult>>;
   listBrandlessProducts(
     input: ListBrandlessProductsServiceInput
   ): Promise<AppResult<BrandListProductsResult>>;
@@ -96,6 +114,12 @@ export type UpdateBrandControllerInput = {
   requestId: string;
   brandId: string;
   body: Record<string, unknown>;
+};
+
+export type BrandDetailControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
 };
 
 export type ArchiveBrandControllerInput = {
@@ -139,6 +163,10 @@ export type ListBrandScopedProductsControllerInput = {
   brandId: string;
   query: ListBrandQueryInput;
 };
+
+export type ListBrandMembersControllerInput = BrandDetailControllerInput;
+export type ListBrandInvitesControllerInput = BrandDetailControllerInput;
+export type ListBrandJoinRequestsControllerInput = BrandDetailControllerInput;
 
 export type ListBrandlessProductsControllerInput = {
   actor: BrandActorInput | undefined;
@@ -257,6 +285,23 @@ export class BrandController {
     };
   }
 
+  async getBrandDetail(
+    input: BrandDetailControllerInput
+  ): Promise<BrandControllerResult<BrandDetailResult>> {
+    const result = await this.service.getBrandDetail(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
   async inviteAdminToBrand(
     input: InviteBrandControllerInput
   ): Promise<BrandControllerResult<BrandInviteResult>> {
@@ -359,6 +404,57 @@ export class BrandController {
         pageSize: result.content.pageSize,
         totalItems: result.content.totalItems,
         totalPages: result.content.totalPages,
+      }),
+    };
+  }
+
+  async listBrandMembers(
+    input: ListBrandMembersControllerInput
+  ): Promise<BrandControllerResult<BrandListMembershipsResult>> {
+    const result = await this.service.listBrandMembers(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async listBrandInvites(
+    input: ListBrandInvitesControllerInput
+  ): Promise<BrandControllerResult<BrandListMembershipsResult>> {
+    const result = await this.service.listBrandInvites(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async listBrandJoinRequests(
+    input: ListBrandJoinRequestsControllerInput
+  ): Promise<BrandControllerResult<BrandListMembershipsResult>> {
+    const result = await this.service.listBrandJoinRequests(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
       }),
     };
   }

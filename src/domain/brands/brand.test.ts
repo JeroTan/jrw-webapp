@@ -211,6 +211,33 @@ describe("brand domain rules", () => {
     });
   });
 
+  it("creates valid brand invitation draft for active member actor", () => {
+    const result = createBrandInvitation({
+      invitingActor: {
+        adminId: "admin_member",
+        role: "ADMIN",
+        currentMembership: {
+          adminId: "admin_member",
+          role: "MEMBER",
+          status: "ACTIVE",
+        },
+      },
+      targetAdminId: "admin_target",
+      brandId: "brand_1",
+      targetAdmin: {
+        adminId: "admin_target",
+        role: "ADMIN",
+        status: "ACTIVE",
+        emailVerifiedAt: "2026-05-17T20:00:00.000Z",
+        approvedAt: "2026-05-17T20:30:00.000Z",
+      },
+      existingMembership: null,
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.content?.invitedByAdminId).toBe("admin_member");
+  });
+
   it("rejects invitation when target is not ADMIN role", () => {
     const result = validateBrandInvitationTarget({
       targetAdminId: "target_customer",
@@ -475,6 +502,23 @@ describe("brand domain rules", () => {
     });
     expect(approved.error).toBeNull();
     expect(approved.content).toEqual({ newStatus: "ACTIVE" });
+
+    const memberApproved = approveBrandJoinRequest({
+      approverRole: "ADMIN",
+      approverMembership: {
+        adminId: "admin_member",
+        role: "MEMBER",
+        status: "ACTIVE",
+      },
+      targetAdminId: "admin_joiner",
+      joinRequestMembership: {
+        adminId: "admin_joiner",
+        role: "MEMBER",
+        status: "PENDING",
+      },
+    });
+    expect(memberApproved.error).toBeNull();
+    expect(memberApproved.content).toEqual({ newStatus: "ACTIVE" });
 
     const unauthorized = approveBrandJoinRequest({
       approverRole: "ADMIN",

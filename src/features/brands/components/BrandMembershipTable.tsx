@@ -45,7 +45,7 @@ function nextActionLabel(row: BrandMembershipRecord): string {
 
 export function BrandMembershipTable({
   loading = false,
-  permissionReason = "Server authorization remains source of truth.",
+  permissionReason = "You need access to manage this brand.",
   rows,
 }: BrandMembershipTableProps) {
   const columns = useMemo<Array<DataTableColumn<BrandMembershipRecord>>>(
@@ -95,4 +95,3 @@ export function BrandMembershipTable({
     />
   );
 }
-

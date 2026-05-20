@@ -7,8 +7,7 @@ const brandId = Astro.params.id ?? "";
 
 <BaseLayout
   title="Brand Detail | JRW Admin"
-  description="Brand member, invite, join request, and product visibility detail."
+  description="Manage brand members, invites, join requests, and products."
 >
   <BrandDetail brandId={brandId} client:load />
 </BaseLayout>
-

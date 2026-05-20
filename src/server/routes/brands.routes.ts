@@ -44,9 +44,11 @@ const tboxBrandInvitation = t.Object({
   id: t.String(),
   brandId: t.String(),
   adminId: t.String(),
+  adminEmail: t.Optional(t.String()),
   role: tboxBrandMembershipRole,
   status: tboxBrandMembershipStatus,
   invitedByAdminId: t.Nullable(t.String()),
+  invitedByLabel: t.Optional(t.String()),
   createdAt: t.String({ format: "date-time" }),
   updatedAt: t.String({ format: "date-time" }),
 });
@@ -57,6 +59,10 @@ const tboxBrandInviteData = t.Object({
 
 const tboxBrandMembershipData = t.Object({
   membership: tboxBrandInvitation,
+});
+
+const tboxBrandMembershipListData = t.Object({
+  items: t.Array(tboxBrandInvitation),
 });
 
 const tboxBrandProduct = t.Object({
@@ -485,7 +491,7 @@ export function brandsRoutes(
 **Path Parameters:**
 - \`id\` (string, required): The UUID of the brand to invite an admin to (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a brand member with invite permissions.
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
 
 **Request Body (at least one field required):**
 - \`adminId\` (string, optional): The UUID of the existing admin account to invite (1-128 characters). Either \`adminId\` or \`email\` must be provided.
@@ -666,7 +672,7 @@ export function brandsRoutes(
 - \`id\` (string, required): The UUID of the brand (1-128 characters).
 - \`adminId\` (string, required): The UUID of the admin whose join request to approve (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a brand member with approval permissions (OWNER role).
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
 
 **Request:** No body required.
 
@@ -727,7 +733,7 @@ export function brandsRoutes(
 - \`id\` (string, required): The UUID of the brand (1-128 characters).
 - \`adminId\` (string, required): The UUID of the admin whose join request to reject (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a brand member with approval permissions (OWNER role).
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
 
 **Request:** No body required.
 
@@ -1188,6 +1194,223 @@ export function brandsRoutes(
         },
       }
     )
+    .get(
+      "/brands/:id",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { id: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.getBrandDetail({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandIdParams,
+        detail: routeDetail({
+          summary: "Get brand detail",
+          description:
+            `Returns one brand for an authorized brand member or elevated admin.
+
+**Path:** \`GET /brands/:id\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand to load (1-128 characters).
+
+**Authentication:** Required â€” \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+
+**Response (200):**
+- \`data.brand.id\` (string): Brand UUID.
+- \`data.brand.name\` (string): Brand display name.
+- \`data.brand.slug\` (string): URL-safe brand identifier.
+- \`data.brand.description\` (string or null): Brand description.
+- \`data.brand.status\` (string): Brand status â€” \`ACTIVE\` or \`ARCHIVED\`.
+- \`data.brand.archivedAt\` (string or null): ISO 8601 timestamp when brand was archived.
+- \`data.brand.createdAt\` (string, ISO 8601): Brand creation timestamp.
+- \`data.brand.updatedAt\` (string, ISO 8601): Brand last update timestamp.`,
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-read",
+          errorCodes: [...brandReadErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandCreateData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .get(
+      "/brands/:id/members",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { id: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.listBrandMembers({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandIdParams,
+        detail: routeDetail({
+          summary: "List brand members",
+          description:
+            `Lists member records for one brand, including active and pending states.
+
+**Path:** \`GET /brands/:id/members\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand to inspect (1-128 characters).
+
+**Authentication:** Required â€” \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+
+**Response (200):**
+- \`data.items\` (array): Brand member records for this brand.
+  - \`id\` (string): Membership UUID.
+  - \`brandId\` (string): Brand UUID.
+  - \`adminId\` (string): Admin UUID.
+  - \`adminEmail\` (string, optional): Admin email when available.
+  - \`role\` (string): Membership role â€” \`OWNER\` or \`MEMBER\`.
+  - \`status\` (string): Membership status â€” \`ACTIVE\`, \`PENDING\`, or \`REVOKED\`.
+  - \`invitedByAdminId\` (string or null): Admin UUID who sent invite, or null for self-requested membership.
+  - \`invitedByLabel\` (string, optional): Email label for inviter when available.
+  - \`createdAt\` (string, ISO 8601): Membership creation timestamp.
+  - \`updatedAt\` (string, ISO 8601): Membership last update timestamp.`,
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-read",
+          errorCodes: [...brandReadErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandMembershipListData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .get(
+      "/brands/:id/invites",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { id: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.listBrandInvites({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandIdParams,
+        detail: routeDetail({
+          summary: "List brand invites",
+          description:
+            `Lists invite records sent for one brand.
+
+**Path:** \`GET /brands/:id/invites\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand to inspect (1-128 characters).
+
+**Authentication:** Required â€” \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+
+**Response (200):**
+- \`data.items\` (array): Invite records for this brand with invitee and inviter details when available.`,
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-read",
+          errorCodes: [...brandReadErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandMembershipListData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .get(
+      "/brands/:id/join-requests",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { id: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.listBrandJoinRequests({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandIdParams,
+        detail: routeDetail({
+          summary: "List brand join requests",
+          description:
+            `Lists join requests sent for one brand.
+
+**Path:** \`GET /brands/:id/join-requests\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand to inspect (1-128 characters).
+
+**Authentication:** Required â€” \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+
+**Response (200):**
+- \`data.items\` (array): Join request records for this brand with requester details when available.`,
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-read",
+          errorCodes: [...brandReadErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandMembershipListData),
+          ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
     .post(
       "/brands/:id/archive",
       async (ctx) => {
@@ -1222,7 +1445,7 @@ export function brandsRoutes(
 **Path Parameters:**
 - \`id\` (string, required): The UUID of the brand to archive (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a brand OWNER.
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
 
 **Request:** No body required.
 

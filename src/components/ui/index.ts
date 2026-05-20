@@ -5,6 +5,8 @@ export * from "./IconButton";
 export * from "./Input";
 export * from "./Modal";
 export * from "./Select";
+export * from "./SearchInput";
 export * from "./Tabs";
 export * from "./Textarea";
 export * from "./Toggle";
+export * from "./ViewToggle";
