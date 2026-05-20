@@ -537,14 +537,14 @@ p {
 .jrw-view-toggle {
   display: inline-grid;
   grid-auto-flow: column;
-  min-height: var(--jrw-control-height);
+  min-height: var(--jrw-control-height-md);
   border: var(--jrw-border-width) solid var(--jrw-color-strong-border);
   background: var(--jrw-color-surface);
 }
 
 .jrw-view-toggle__option {
   min-width: 88px;
-  min-height: var(--jrw-control-height);
+  min-height: var(--jrw-control-height-md);
   border: 0;
   border-right: var(--jrw-border-width) solid var(--jrw-color-strong-border);
   background: var(--jrw-color-surface);

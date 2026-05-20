@@ -1,6 +1,6 @@
 # Story 3.0: Admin Resource Browser and Component System
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -68,6 +68,10 @@ so that brands, catalog records, and future admin resources are easy to scan and
   - [x] Run changed-target tests only: `npx vitest run src/features/brands/components/brands-ui.test.ts` plus any changed shared primitive tests.
   - [x] Run `npm run check` after typed/component changes.
   - [x] Do not run full `npm run build-test` unless implementation touches broader build surfaces or MR. JRW asks for final full verdict.
+
+### Review Findings
+
+- [x] [Review][Patch] View toggle used undefined control height token [src/styles/global.css:540] — fixed by switching sizing to `--jrw-control-height-md` and adding a primitive CSS regression test.
 
 ## Dev Notes
 
@@ -241,6 +245,8 @@ GPT-5 Codex
 - `git diff --check` - pass, CRLF warnings only.
 - `npx vitest run src\components\primitives.test.ts src\features\brands\components\brands-ui.test.ts` - pass after skeleton pulse polish, 2 files, 17 tests.
 - `npm run check` - pass after skeleton pulse polish, 0 errors. Existing hints remain in `src/pages/brand/[id].astro` and `src/pages/brands/[id].astro`.
+- `npx vitest run src\components\primitives.test.ts src\features\brands\components\brands-ui.test.ts src\features\brands\api.test.ts src\server\routes\brands.routes.test.ts src\server\services\BrandService.test.ts src\server\repositories\BrandRepository.test.ts src\domain\brands\brand.test.ts` - pass during code review, 7 files, 122 tests.
+- `npm run check` - pass during code review, 0 errors. Existing hints remain in `src/pages/brand/[id].astro` and `src/pages/brands/[id].astro`.
 
 ### Completion Notes List
 
@@ -275,6 +281,7 @@ GPT-5 Codex
 
 ## Change Log
 
+- 2026-05-20: Code review fixed view toggle sizing token and marked Story 3.0 done.
 - 2026-05-20: Replaced custom stepped skeleton pulse with Tailwind `motion-safe:animate-pulse` and updated targeted tests.
 - 2026-05-20: Implemented Story 3.0 admin resource browser, shared browse primitives, brand card/list/search UI, skeleton/card styles, component inventory docs, and targeted tests.
 - 2026-05-20: Story 3.0 context engine created for admin resource browser, brand card/list/search UI, component inventory, skeleton standard, and targeted test scope.

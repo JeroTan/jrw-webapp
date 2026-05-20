@@ -201,4 +201,14 @@ describe("shared UI primitives", () => {
     expect(globalCss).not.toContain("steps(6)");
     expect(globalCss).not.toContain("jrw-skeleton-pulse");
   });
+
+  it("uses defined control height tokens for view toggle sizing", () => {
+    const globalCss = readFileSync(
+      join(process.cwd(), "src/styles/global.css"),
+      "utf8"
+    );
+
+    expect(globalCss).toContain("min-height: var(--jrw-control-height-md)");
+    expect(globalCss).not.toContain("var(--jrw-control-height)");
+  });
 });
