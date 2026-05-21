@@ -499,23 +499,45 @@ export class DrizzleProductRepository implements ProductRepository {
       )
     );
 
-    await this.db
-      .delete(product_categories)
-      .where(eq(product_categories.product_id, productId));
-
     if (normalizedCategoryIds.length > 0) {
-      await this.db.insert(product_categories).values(
-        normalizedCategoryIds.map((categoryId) => ({
-          product_id: productId,
-          category_id: categoryId,
-        }))
-      );
+      const [, , updatedRows] = await this.db.batch([
+        this.db
+          .delete(product_categories)
+          .where(eq(product_categories.product_id, productId)),
+        this.db.insert(product_categories).values(
+          normalizedCategoryIds.map((categoryId) => ({
+            product_id: productId,
+            category_id: categoryId,
+          }))
+        ),
+        this.db
+          .update(products)
+          .set({ updated_at: updatedAt })
+          .where(eq(products.id, productId))
+          .returning({ id: products.id }),
+      ]);
+
+      if (!updatedRows[0]) {
+        throw new Error("D1_ERROR: product not found for category assignment");
+      }
+
+      return;
     }
 
-    await this.db
-      .update(products)
-      .set({ updated_at: updatedAt })
-      .where(eq(products.id, productId));
+    const [, updatedRows] = await this.db.batch([
+      this.db
+        .delete(product_categories)
+        .where(eq(product_categories.product_id, productId)),
+      this.db
+        .update(products)
+        .set({ updated_at: updatedAt })
+        .where(eq(products.id, productId))
+        .returning({ id: products.id }),
+    ]);
+
+    if (!updatedRows[0]) {
+      throw new Error("D1_ERROR: product not found for category assignment");
+    }
   }
 
   async removeCategory(

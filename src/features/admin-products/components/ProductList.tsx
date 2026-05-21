@@ -525,13 +525,25 @@ export function ProductList(props: ProductListProps) {
             action={
               <Button
                 onClick={() => {
-                  setSearchQuery("");
-                  setBrandFilter("");
-                  setCategoryFilter("");
+                  if (hasActiveFilters) {
+                    setSearchQuery("");
+                    setBrandFilter("");
+                    setCategoryFilter("");
+                    return;
+                  }
+
+                  setEditorState({
+                    mode: "create",
+                    product: null,
+                    organization: null,
+                    organizationReady: false,
+                    organizationUnavailable: false,
+                  });
                 }}
                 size="sm"
+                variant={hasActiveFilters ? "secondary" : "primary"}
               >
-                Reset filters
+                {hasActiveFilters ? "Reset filters" : "Create first product"}
               </Button>
             }
             message={

@@ -85,6 +85,25 @@ function toEditorFormState(input: {
   };
 }
 
+function productOrganizationFields(input: {
+  mode: ProductEditorMode;
+  organization?: ProductOrganizationRecord | null;
+}): Pick<ProductEditorFormState, "brandId" | "categoryIds"> {
+  const { mode, organization } = input;
+
+  if (mode !== "edit") {
+    return {
+      brandId: "",
+      categoryIds: [],
+    };
+  }
+
+  return {
+    brandId: organization?.brand?.id ?? "",
+    categoryIds: (organization?.categories ?? []).map((category) => category.id),
+  };
+}
+
 function issueToField(path: string): keyof ProductEditorFormState | undefined {
   switch (path) {
     case "name":
@@ -205,6 +224,46 @@ function serializeFormState(form: ProductEditorFormState): string {
   return JSON.stringify(form);
 }
 
+function applyProductOrganizationFields(
+  form: ProductEditorFormState,
+  input: {
+    mode: ProductEditorMode;
+    organization?: ProductOrganizationRecord | null;
+  }
+): ProductEditorFormState {
+  return {
+    ...form,
+    ...productOrganizationFields(input),
+  };
+}
+
+function parseSerializedFormState(
+  value: string,
+  fallback: ProductEditorFormState
+): ProductEditorFormState {
+  try {
+    const parsed = JSON.parse(value) as Partial<ProductEditorFormState>;
+    return {
+      name: typeof parsed.name === "string" ? parsed.name : fallback.name,
+      slug: typeof parsed.slug === "string" ? parsed.slug : fallback.slug,
+      summary:
+        typeof parsed.summary === "string" ? parsed.summary : fallback.summary,
+      description:
+        typeof parsed.description === "string"
+          ? parsed.description
+          : fallback.description,
+      brandId: typeof parsed.brandId === "string" ? parsed.brandId : fallback.brandId,
+      categoryIds: Array.isArray(parsed.categoryIds)
+        ? parsed.categoryIds.filter(
+            (categoryId): categoryId is string => typeof categoryId === "string"
+          )
+        : fallback.categoryIds,
+    };
+  } catch {
+    return fallback;
+  }
+}
+
 function actionErrorMessage(error: unknown): string {
   if (
     typeof error === "object" &&
@@ -271,7 +330,38 @@ export function ProductEditor({
     setBaselineForm(serializeFormState(next));
     setValidation(emptyValidationState());
     setSlugManuallyEdited(mode === "edit");
-  }, [product, mode, open, organization]);
+  }, [product, mode, open]);
+
+  useEffect(() => {
+    if (!open || mode !== "edit" || !organizationReady) {
+      return;
+    }
+
+    setForm((previous) =>
+      applyProductOrganizationFields(previous, {
+        mode,
+        organization,
+      })
+    );
+    setBaselineForm((previous) =>
+      serializeFormState(
+        applyProductOrganizationFields(
+          parseSerializedFormState(
+            previous,
+            toEditorFormState({
+              product,
+              mode,
+              organization,
+            })
+          ),
+          {
+            mode,
+            organization,
+          }
+        )
+      )
+    );
+  }, [mode, open, organization, organizationReady, product]);
 
   const isDirty = useMemo(
     () => serializeFormState(form) !== baselineForm,

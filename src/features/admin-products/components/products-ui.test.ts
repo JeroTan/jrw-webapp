@@ -88,7 +88,7 @@ describe("products UI surfaces", () => {
     );
 
     expect(emptyMarkup).toContain("No products exist");
-    expect(emptyMarkup).toContain("Reset filters");
+    expect(emptyMarkup).toContain("Create first product");
 
     const readyMarkup = renderToStaticMarkup(
       createElement(ProductList, {
