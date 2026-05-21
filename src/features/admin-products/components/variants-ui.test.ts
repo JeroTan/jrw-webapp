@@ -79,6 +79,26 @@ describe("variants UI surfaces", () => {
     expect(markup).toContain("Create first variant");
   });
 
+  it("disables row actions for archived variants", () => {
+    const markup = renderToStaticMarkup(
+      createElement(VariantList, {
+        productId: "prod_1",
+        autoLoad: false,
+        initialLoadState: "ready",
+        initialVariants: [
+          variant({
+            status: "ARCHIVED",
+            hasAvailableStock: false,
+            stock: 0,
+          }),
+        ],
+      })
+    );
+
+    expect(markup).toContain("Archived");
+    expect((markup.match(/disabled=\"\"/g) ?? []).length).toBe(2);
+  });
+
   it("renders variant editor create and edit flows", () => {
     const createMarkup = renderToStaticMarkup(
       createElement(VariantEditor, {

@@ -210,9 +210,12 @@ export function VariantList({
         key: "actions",
         header: "Actions",
         align: "right",
-        cell: (variant) => (
-          <div className="jrw-variants__table-actions">
+        cell: (variant) => {
+          const isArchived = variant.status === "ARCHIVED";
+          return (
+            <div className="jrw-variants__table-actions">
             <Button
+              disabled={isArchived}
               onClick={() =>
                 setEditorState({
                   mode: "edit",
@@ -225,7 +228,7 @@ export function VariantList({
               Edit
             </Button>
             <Button
-              disabled={variant.status === "ARCHIVED"}
+              disabled={isArchived}
               onClick={async () => {
                 if (
                   typeof window !== "undefined" &&
@@ -268,8 +271,9 @@ export function VariantList({
             >
               Archive
             </Button>
-          </div>
-        ),
+            </div>
+          );
+        },
       },
     ],
     [productId]
@@ -410,11 +414,15 @@ export function VariantList({
           />
         ) : null}
 
-        {loadState === "ready" && visibleVariants.length > 0 ? (
+        {loadState === "ready" && variants.length > 0 ? (
           <DataTable
             caption="Variant list"
             columns={columns}
-            emptyMessage="No variants exist."
+            emptyMessage={
+              searchQuery.trim().length > 0
+                ? "No variants match this search."
+                : "No variants exist."
+            }
             getRowId={(row) => row.id}
             rows={visibleVariants}
           />

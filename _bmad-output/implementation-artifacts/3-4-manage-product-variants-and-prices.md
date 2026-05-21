@@ -1,6 +1,6 @@
 # Story 3.4: Manage Product Variants and Prices
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -98,7 +98,8 @@ so that customers can choose purchasable options with accurate JRW pricing.
 
 ### Review Findings
 
-_(To be filled during code review)_
+- [x] [Review][Patch] Disable edit action for archived variants in variant list table to prevent guaranteed conflict save attempts. [`src/features/admin-products/components/VariantList.tsx`]
+- [x] [Review][Patch] Always render variant table in ready state so search with zero matches shows explicit empty message instead of blank section. [`src/features/admin-products/components/VariantList.tsx`]
 
 ## Dev Notes
 
