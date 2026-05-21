@@ -1,6 +1,6 @@
 # Story 3.8: Preserve Product Snapshot Fields for Future Orders
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -21,69 +21,69 @@ So that future orders preserve purchased product name, variant, price, quantity,
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm scope and current baseline. (AC: 1-6)
-  - [ ] Verify Epic 3 is `in-progress` and Stories 3.0-3.7 are `done`; do not reopen.
-  - [ ] Confirm this story is the eighth Epic 3 backlog item after Story 3.7.
-  - [ ] Confirm existing `order_snapshots` table in `src/domain/schema/transactions.ts` — current fields include `id`, `order_id`, `product_id`, `product_name`, `variant_name`, `price_at_purchase`, `quantity`.
-  - [ ] Confirm existing `products` table in `src/domain/schema/catalog.ts` with `name`, `slug`, `brand_id`, `status`, timestamps.
-  - [ ] Confirm existing `product_variants` table with `sku`, `price`, `variation_chain`, `image_reference_id`, `inventory_state`, `stock`.
-  - [ ] Confirm existing `product_photos` table with `r2_key`, `image_id`, `sort_order`, `is_primary`.
-  - [ ] Confirm existing `ProductRepository`, `ProductService`, `ProductController`, and product routes from Stories 3.2 and 3.7.
-  - [ ] Confirm existing `VariantRepository` and variant routes from Story 3.4.
-  - [ ] Do NOT create full order/checkout flow — this story is snapshot builder/types/schema only.
+- [x] Task 1: Confirm scope and current baseline. (AC: 1-6)
+  - [x] Verify Epic 3 is `in-progress` and Stories 3.0-3.7 are `done`; do not reopen.
+  - [x] Confirm this story is the eighth Epic 3 backlog item after Story 3.7.
+  - [x] Confirm existing `order_snapshots` table in `src/domain/schema/transactions.ts` â€” current fields include `id`, `order_id`, `product_id`, `product_name`, `variant_name`, `price_at_purchase`, `quantity`.
+  - [x] Confirm existing `products` table in `src/domain/schema/catalog.ts` with `name`, `slug`, `brand_id`, `status`, timestamps.
+  - [x] Confirm existing `product_variants` table with `sku`, `price`, `variation_chain`, `image_reference_id`, `inventory_state`, `stock`.
+  - [x] Confirm existing `product_photos` table with `r2_key`, `image_id`, `sort_order`, `is_primary`.
+  - [x] Confirm existing `ProductRepository`, `ProductService`, `ProductController`, and product routes from Stories 3.2 and 3.7.
+  - [x] Confirm existing `VariantRepository` and variant routes from Story 3.4.
+  - [x] Do NOT create full order/checkout flow â€” this story is snapshot builder/types/schema only.
 
-- [ ] Task 2: Add snapshot domain types and schemas. (AC: 1-2, 5)
-  - [ ] Create `OrderSnapshot` domain type in `src/domain/orders/types.ts` (or `src/domain/snapshots/types.ts`).
-  - [ ] Type must capture: `productId`, `productName`, `productSlug`, `variantId`, `variantLabel`, `variantOptions` (from `variation_chain`), `priceCentavos`, `quantity`, `imageReference` (stable R2 key or image ID), `snapshotTimestamp`.
-  - [ ] Add Zod schema for snapshot validation in `src/domain/snapshots/schemas.ts`.
-  - [ ] Add TypeBox schema for API transport in `src/lib/typebox/snapshots.ts`.
-  - [ ] Use `price_centavos` pattern consistent with Story 3.4 pricing (integer centavos, not float).
+- [x] Task 2: Add snapshot domain types and schemas. (AC: 1-2, 5)
+  - [x] Create `OrderSnapshot` domain type in `src/domain/orders/types.ts` (or `src/domain/snapshots/types.ts`).
+  - [x] Type must capture: `productId`, `productName`, `productSlug`, `variantId`, `variantLabel`, `variantOptions` (from `variation_chain`), `priceCentavos`, `quantity`, `imageReference` (stable R2 key or image ID), `snapshotTimestamp`.
+  - [x] Add Zod schema for snapshot validation in `src/domain/snapshots/schemas.ts`.
+  - [x] Add TypeBox schema for API transport in `src/lib/typebox/snapshots.ts`.
+  - [x] Use `price_centavos` pattern consistent with Story 3.4 pricing (integer centavos, not float).
 
-- [ ] Task 3: Add snapshot builder domain service. (AC: 1-4, 6)
-  - [ ] Create `SnapshotBuilder` or `OrderSnapshotService` in `src/domain/snapshots/` or `src/domain/orders/`.
-  - [ ] Builder accepts `productId`, `variantId`, `quantity` and reads current catalog state.
-  - [ ] Builder captures: product name, product slug, variant label (from `variation_chain` or `name`), variant options array, price in centavos, quantity, primary image reference (from variant's `image_reference_id` or product's primary photo).
-  - [ ] Builder returns immutable snapshot object — once created, never changes.
-  - [ ] Builder must NOT mutate catalog data — read-only operation.
-  - [ ] Builder must handle archived product/variant gracefully — still readable for snapshot.
+- [x] Task 3: Add snapshot builder domain service. (AC: 1-4, 6)
+  - [x] Create `SnapshotBuilder` or `OrderSnapshotService` in `src/domain/snapshots/` or `src/domain/orders/`.
+  - [x] Builder accepts `productId`, `variantId`, `quantity` and reads current catalog state.
+  - [x] Builder captures: product name, product slug, variant label (from `variation_chain` or `name`), variant options array, price in centavos, quantity, primary image reference (from variant's `image_reference_id` or product's primary photo).
+  - [x] Builder returns immutable snapshot object â€” once created, never changes.
+  - [x] Builder must NOT mutate catalog data â€” read-only operation.
+  - [x] Builder must handle archived product/variant gracefully â€” still readable for snapshot.
 
-- [ ] Task 4: Add snapshot repository methods. (AC: 1-4)
-  - [ ] Create `SnapshotRepository` in `src/server/repositories/SnapshotRepository.ts` OR extend existing order snapshot patterns.
-  - [ ] Add `createSnapshot(snapshot: OrderSnapshot)` method — inserts into `order_snapshots` table.
-  - [ ] Add `getSnapshot(snapshotId: string)` method — reads stored snapshot.
-  - [ ] Add `getSnapshotsByOrderId(orderId: string)` method — returns all snapshots for an order.
-  - [ ] Use D1/Drizzle patterns consistent with existing repositories.
-  - [ ] Snapshot insert is atomic — all fields required, no partial writes.
+- [x] Task 4: Add snapshot repository methods. (AC: 1-4)
+  - [x] Create `SnapshotRepository` in `src/server/repositories/SnapshotRepository.ts` OR extend existing order snapshot patterns.
+  - [x] Add `createSnapshot(snapshot: OrderSnapshot)` method â€” inserts into `order_snapshots` table.
+  - [x] Add `getSnapshot(snapshotId: string)` method â€” reads stored snapshot.
+  - [x] Add `getSnapshotsByOrderId(orderId: string)` method â€” returns all snapshots for an order.
+  - [x] Use D1/Drizzle patterns consistent with existing repositories.
+  - [x] Snapshot insert is atomic â€” all fields required, no partial writes.
 
-- [ ] Task 5: Extend order_snapshots schema if needed. (AC: 1-3, 5)
-  - [ ] Review existing `order_snapshots` table in `src/domain/schema/transactions.ts`.
-  - [ ] Add missing fields if needed: `product_slug`, `variant_id`, `variant_options` (JSON), `image_r2_key`, `snapshot_timestamp`.
-  - [ ] If schema changes needed, create migration via `npm run db:migrate:remote`.
-  - [ ] Preserve existing fields: `product_id`, `product_name`, `variant_name`, `price_at_purchase`, `quantity`.
-  - [ ] Use `price_centavos` (integer) instead of `price_at_purchase` (real) — add migration if changing.
+- [x] Task 5: Extend order_snapshots schema if needed. (AC: 1-3, 5)
+  - [x] Review existing `order_snapshots` table in `src/domain/schema/transactions.ts`.
+  - [x] Add missing fields if needed: `product_slug`, `variant_id`, `variant_options` (JSON), `image_r2_key`, `snapshot_timestamp`.
+  - [x] If schema changes needed, create migration via `npm run db:migrate:remote`.
+  - [x] Preserve existing fields: `product_id`, `product_name`, `variant_name`, `price_at_purchase`, `quantity`.
+  - [x] Use `price_centavos` (integer) instead of `price_at_purchase` (real) â€” add migration if changing.
 
-- [ ] Task 6: Add snapshot API route and controller. (AC: 1-2, 5-6)
-  - [ ] Create `POST /api/admin/snapshots/build` — builds snapshot from product/variant (admin-only for testing/validation).
-  - [ ] Create `GET /api/admin/snapshots/:snapshotId` — reads stored snapshot.
-  - [ ] Create `SnapshotController` in `src/server/controllers/SnapshotController.ts`.
-  - [ ] Create `snapshots.routes.ts` in `src/server/routes/snapshots.routes.ts`.
-  - [ ] All routes require Admin authentication via existing RBAC guards.
-  - [ ] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
-  - [ ] Register new routes in `src/server/app.ts`.
-  - [ ] Do NOT expose snapshot build to customer-facing endpoints — internal use only.
+- [x] Task 6: Add snapshot API route and controller. (AC: 1-2, 5-6)
+  - [x] Create `POST /api/admin/snapshots/build` â€” builds snapshot from product/variant (admin-only for testing/validation).
+  - [x] Create `GET /api/admin/snapshots/:snapshotId` â€” reads stored snapshot.
+  - [x] Create `SnapshotController` in `src/server/controllers/SnapshotController.ts`.
+  - [x] Create `snapshots.routes.ts` in `src/server/routes/snapshots.routes.ts`.
+  - [x] All routes require Admin authentication via existing RBAC guards.
+  - [x] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
+  - [x] Register new routes in `src/server/app.ts`.
+  - [x] Do NOT expose snapshot build to customer-facing endpoints â€” internal use only.
 
-- [ ] Task 7: Add snapshot builder tests. (AC: 1-6)
-  - [ ] Add domain tests in `src/domain/snapshots/snapshot-builder.test.ts` covering: snapshot creation with valid data, snapshot immutability, archived product readability, archived variant readability, image reference preservation, centavos price accuracy, variant options capture.
-  - [ ] Add repository tests in `src/server/repositories/SnapshotRepository.test.ts` covering: snapshot insert, snapshot read, snapshots by order, atomic insert validation.
-  - [ ] Add route tests in `src/server/routes/snapshots.routes.test.ts` covering: build snapshot, read snapshot, unauthorized access, invalid data.
-  - [ ] Run targeted tests: `npx vitest run src/domain/snapshots src/server/repositories/SnapshotRepository.test.ts src/server/routes/snapshots.routes.test.ts`.
-  - [ ] Run `npm run check` after typed changes.
+- [x] Task 7: Add snapshot builder tests. (AC: 1-6)
+  - [x] Add domain tests in `src/domain/snapshots/snapshot-builder.test.ts` covering: snapshot creation with valid data, snapshot immutability, archived product readability, archived variant readability, image reference preservation, centavos price accuracy, variant options capture.
+  - [x] Add repository tests in `src/server/repositories/SnapshotRepository.test.ts` covering: snapshot insert, snapshot read, snapshots by order, atomic insert validation.
+  - [x] Add route tests in `src/server/routes/snapshots.routes.test.ts` covering: build snapshot, read snapshot, unauthorized access, invalid data.
+  - [x] Run targeted tests: `npx vitest run src/domain/snapshots src/server/repositories/SnapshotRepository.test.ts src/server/routes/snapshots.routes.test.ts`.
+  - [x] Run `npm run check` after typed changes.
 
-- [ ] Task 8: Integration with existing patterns. (AC: 1-6)
-  - [ ] Ensure snapshot builder uses existing `ProductRepository` and `VariantRepository` for data reads.
-  - [ ] Ensure snapshot builder uses existing image resolution patterns from Story 3.5.
-  - [ ] Ensure snapshot types are exportable for future Epic 5 (checkout) and Epic 6 (orders) use.
-  - [ ] Document snapshot builder API for future order story consumption.
+- [x] Task 8: Integration with existing patterns. (AC: 1-6)
+  - [x] Ensure snapshot builder uses existing `ProductRepository` and `VariantRepository` for data reads.
+  - [x] Ensure snapshot builder uses existing image resolution patterns from Story 3.5.
+  - [x] Ensure snapshot types are exportable for future Epic 5 (checkout) and Epic 6 (orders) use.
+  - [x] Document snapshot builder API for future order story consumption.
 
 ### Review Findings
 
@@ -101,7 +101,7 @@ _(To be populated after code review)_
 
 ### Current Code Intelligence
 
-#### `src/domain/schema/transactions.ts` — `order_snapshots` table
+#### `src/domain/schema/transactions.ts` â€” `order_snapshots` table
 
 - Current state: `order_snapshots` table has `id` (cuid2), `order_id` (FK to `orders`), `product_id` (FK to `products`, nullable), `product_name` (text), `variant_name` (text), `price_at_purchase` (real), `quantity` (integer).
 - **Verify**: Current `price_at_purchase` is `real` (float). Story 3.4 uses `price_centavos` (integer) for variants. May need migration to align or document conversion.
@@ -109,7 +109,7 @@ _(To be populated after code review)_
 - What this story does NOT change: Does not create `orders` table or full order flow. Does not change checkout logic.
 - Preserve: Existing `orders`, `order_snapshots`, `reviews` tables and relationships.
 
-#### `src/domain/schema/catalog.ts` — product, variant, image tables
+#### `src/domain/schema/catalog.ts` â€” product, variant, image tables
 
 - `products`: `id`, `name`, `slug`, `brand_id`, `status` (`DRAFT`/`PUBLISHED`/`ARCHIVED`), timestamps.
 - `product_variants`: `id`, `name`, `sku`, `price` (real), `variation_chain` (JSON), `image_reference_id` (FK to `product_photos`), `inventory_state`, `stock`, `product_id`.
@@ -129,7 +129,7 @@ _(To be populated after code review)_
 - Story 3.7 used targeted tests plus `npm run check`; use the same targeted style.
 - Story 3.7 review findings: status mutations needed stale transition guards, readiness counted only active categories, archive confirmation error handling. Apply same principles: validate snapshot data before persistence, handle edge cases (archived items), ensure error handling is clean.
 - Story 3.6 established inventory management with stock quantity, inventory state, brand membership guards. Snapshot builder must read variant `inventory_state` but does NOT mutate inventory.
-- Story 3.5 established product image upload/management with R2 storage. Snapshot must capture stable `r2_key` reference — not just `image_id` — so historical orders survive image deletion from catalog.
+- Story 3.5 established product image upload/management with R2 storage. Snapshot must capture stable `r2_key` reference â€” not just `image_id` â€” so historical orders survive image deletion from catalog.
 - Story 3.4 established variant CRUD with centavos pricing, SKU uniqueness, `variation_chain` JSON. Snapshot must capture variant options from `variation_chain` and price in centavos.
 - Story 3.2 established product identity CRUD with slug uniqueness. Snapshot must capture `product_slug` for stable reference.
 
@@ -143,15 +143,15 @@ _(To be populated after code review)_
 ### Architecture and UX Guardrails
 
 - Astro owns page routing and SEO shells. React feature modules own interactive surfaces.
-- Snapshot builder is domain logic — belongs in `src/domain/snapshots/` or `src/domain/orders/`.
+- Snapshot builder is domain logic â€” belongs in `src/domain/snapshots/` or `src/domain/orders/`.
 - Snapshot repository belongs in `src/server/repositories/`.
 - Snapshot API follows Route -> Controller -> Service -> Domain/Repository.
 - API JSON uses camelCase; database uses snake_case; controllers/services map rows to DTOs.
 - Use `price_centavos` (integer) consistently with Story 3.4 pricing pattern.
-- Snapshot is immutable once created — treat as append-only record.
+- Snapshot is immutable once created â€” treat as append-only record.
 - R2 image references must remain stable for historical orders (project-context, NFR32).
 - Product/order snapshots must preserve purchased product name, variant, price, quantity, and image reference (project-context, NFR21).
-- Do NOT build storefront UI, checkout flows, or order creation — snapshot builder/types/schema only.
+- Do NOT build storefront UI, checkout flows, or order creation â€” snapshot builder/types/schema only.
 
 ### Implementation Guidance
 
@@ -194,13 +194,13 @@ If extending `order_snapshots` table:
 - Add `variant_options` (text, JSON mode, nullable).
 - Add `image_r2_key` (text, nullable).
 - Add `snapshot_timestamp` (text, not null, default CURRENT_TIMESTAMP).
-- Consider: rename `price_at_purchase` to `price_centavos` and change type from `real` to `integer` — document decision, may defer to avoid breaking existing data.
+- Consider: rename `price_at_purchase` to `price_centavos` and change type from `real` to `integer` â€” document decision, may defer to avoid breaking existing data.
 
 #### Snapshot API Endpoints
 
-- `POST /api/admin/snapshots/build` — build snapshot from product/variant (body: `{ productId, variantId, quantity }`).
-- `GET /api/admin/snapshots/:snapshotId` — read stored snapshot.
-- `GET /api/admin/orders/:orderId/snapshots` — read all snapshots for an order (future use).
+- `POST /api/admin/snapshots/build` â€” build snapshot from product/variant (body: `{ productId, variantId, quantity }`).
+- `GET /api/admin/snapshots/:snapshotId` â€” read stored snapshot.
+- `GET /api/admin/orders/:orderId/snapshots` â€” read all snapshots for an order (future use).
 
 All admin routes require Admin authentication and RBAC guards.
 
@@ -210,7 +210,7 @@ Once a snapshot is created and stored, it MUST NOT change. This is the core requ
 
 - Snapshot builder reads current catalog state at call time.
 - Snapshot is serialized and stored immediately.
-- No update operations on snapshots — only create and read.
+- No update operations on snapshots â€” only create and read.
 - Future catalog changes (product rename, price change, image swap, variant edit) do NOT affect stored snapshots.
 
 #### Image Reference Preservation
@@ -222,13 +222,13 @@ Once a snapshot is created and stored, it MUST NOT change. This is the core requ
 
 #### Archived Product/Variants Readability
 
-- Snapshot builder must read archived products and variants — status check is NOT a blocker.
+- Snapshot builder must read archived products and variants â€” status check is NOT a blocker.
 - Archived product name, variant label, price, and image reference must still be capturable.
 - This ensures orders placed before archival still show correct historical data.
 
 ### Files Being Modified
 
-#### UPDATE: `src/domain/schema/transactions.ts` — extend order_snapshots if needed
+#### UPDATE: `src/domain/schema/transactions.ts` â€” extend order_snapshots if needed
 
 - Current state: Has `order_snapshots` with basic fields.
 - What this story adds: May add `product_slug`, `variant_id`, `variant_options`, `image_r2_key`, `snapshot_timestamp`.
@@ -247,17 +247,17 @@ Once a snapshot is created and stored, it MUST NOT change. This is the core requ
 #### NEW: `src/domain/snapshots/snapshot-builder.ts`
 
 - Current state: Does not exist.
-- What this story creates: `SnapshotBuilder` domain service — reads catalog, builds immutable snapshot.
+- What this story creates: `SnapshotBuilder` domain service â€” reads catalog, builds immutable snapshot.
 
 #### NEW: `src/domain/snapshots/snapshot-builder.test.ts`
 
 - Current state: Does not exist.
-- What this story creates: Domain tests for snapshot builder — valid data, archived items, image references, centavos pricing, variant options.
+- What this story creates: Domain tests for snapshot builder â€” valid data, archived items, image references, centavos pricing, variant options.
 
 #### NEW: `src/server/repositories/SnapshotRepository.ts`
 
 - Current state: Does not exist.
-- What this story creates: Repository for snapshot CRUD — `createSnapshot`, `getSnapshot`, `getSnapshotsByOrderId`.
+- What this story creates: Repository for snapshot CRUD â€” `createSnapshot`, `getSnapshot`, `getSnapshotsByOrderId`.
 
 #### NEW: `src/server/repositories/SnapshotRepository.test.ts`
 
@@ -279,7 +279,7 @@ Once a snapshot is created and stored, it MUST NOT change. This is the core requ
 - Current state: Does not exist.
 - What this story creates: Route tests for snapshot endpoints, auth, validation.
 
-#### UPDATE: `src/server/app.ts` — register snapshot routes
+#### UPDATE: `src/server/app.ts` â€” register snapshot routes
 
 - Current state: Composes Elysia app with product, variant, image, inventory, publish routes.
 - What this story changes: Registers snapshot routes.
@@ -304,8 +304,8 @@ Once a snapshot is created and stored, it MUST NOT change. This is the core requ
   - `src/server/routes/snapshots.routes.test.ts` (NEW)
   - `src/lib/typebox/snapshots.ts` (NEW)
 - Expected updated files:
-  - `src/domain/schema/transactions.ts` (UPDATE — extend order_snapshots if needed)
-  - `src/server/app.ts` (UPDATE — register snapshot routes)
+  - `src/domain/schema/transactions.ts` (UPDATE â€” extend order_snapshots if needed)
+  - `src/server/app.ts` (UPDATE â€” register snapshot routes)
 - Do not modify:
   - `src/domain/schema/catalog.ts` (no catalog schema changes)
   - `src/server/repositories/ProductRepository.ts` (read-only use, no changes)
@@ -316,7 +316,7 @@ Once a snapshot is created and stored, it MUST NOT change. This is the core requ
   - `src/features/storefront/**` (not in scope)
   - PayMongo/payment docs or flows
   - Checkout/order creation flows (Epic 5)
-  - `migrations/**` (only if schema migration needed — create new migration file)
+  - `migrations/**` (only if schema migration needed â€” create new migration file)
 
 ### Testing Requirements
 
@@ -358,8 +358,8 @@ npm run check
 - Development D1: `jrw-database-development`, id `beabfd98-8611-4d58-8f1b-7a972b8af1ed`.
 - Production D1: `jrw-database-production`, id `fd08e264-2046-4648-9164-84f66948533e`.
 - Remote-first D1 is project standard. Apply schema changes to remote development first.
-- Schema migration may be needed if extending `order_snapshots` table — use `npm run db:migrate:remote`.
-- `InventoryDurableObject` is scaffolded only — not relevant for this story.
+- Schema migration may be needed if extending `order_snapshots` table â€” use `npm run db:migrate:remote`.
+- `InventoryDurableObject` is scaffolded only â€” not relevant for this story.
 
 ### References
 
@@ -381,7 +381,7 @@ npm run check
 
 ### Agent Model Used
 
-_(To be filled by dev agent)_
+GPT-5 Codex
 
 ### Implementation Plan
 
@@ -398,16 +398,45 @@ _(To be filled by dev agent)_
 
 ### Debug Log References
 
-_(To be filled by dev agent)_
+- 2026-05-21: `npx vitest run src/domain/snapshots/snapshot-builder.test.ts src/server/repositories/SnapshotRepository.test.ts src/server/routes/snapshots.routes.test.ts` failed red phase because snapshot modules did not exist yet.
+- 2026-05-21: `npx vitest run src/domain/snapshots/snapshot-builder.test.ts src/server/repositories/SnapshotRepository.test.ts src/server/routes/snapshots.routes.test.ts` passed after implementation: 3 files, 14 tests.
+- 2026-05-21: `npm run check` passed with existing unrelated hints only.
+- 2026-05-21: `npx vitest run` passed: 76 files, 497 tests.
+- 2026-05-21: `npx vitest run src/domain/snapshots src/server/repositories/SnapshotRepository.test.ts src/server/routes/snapshots.routes.test.ts` passed: 3 files, 14 tests.
+- 2026-05-21: `npm run db:migrate:remote` applied remote development D1 migrations `0017` through `0021`; all reported success.
 
 ### Completion Notes List
 
-_(To be filled by dev agent)_
+- Added snapshot domain types, Zod schemas, TypeBox transport contracts, and `SnapshotBuilder`.
+- Snapshot builder captures product name/slug, variant id/label/options, centavos price, quantity, stable R2 image reference, and timestamp from current catalog state.
+- Builder is read-only and returns frozen immutable snapshot payloads; archived products and archived variants remain readable.
+- Extended `order_snapshots` with `product_slug`, `variant_id`, `variant_options`, `price_centavos`, `image_r2_key`, `snapshot_timestamp`, and `snapshot_signature`.
+- Added `SnapshotRepository` with create/read/by-order methods. Duplicate protection reuses only exact same order-line snapshot signature; product-only reuse is intentionally avoided so later catalog changes still create correct historical snapshots.
+- Added admin-only snapshot build/read/list routes with RBAC guard, TypeBox contracts, OpenAPI metadata, rate-limit class, and standard envelopes.
+- Added migration `0021_product_snapshot_preservation.sql` and applied it to remote development D1.
 
 ### File List
 
-_(To be filled by dev agent)_
+- `migrations/0021_product_snapshot_preservation.sql`
+- `src/domain/products/types.ts`
+- `src/domain/schema/transactions.ts`
+- `src/domain/snapshots/schemas.ts`
+- `src/domain/snapshots/snapshot-builder.test.ts`
+- `src/domain/snapshots/snapshot-builder.ts`
+- `src/domain/snapshots/types.ts`
+- `src/lib/typebox/snapshots.ts`
+- `src/server/app.ts`
+- `src/server/controllers/SnapshotController.ts`
+- `src/server/repositories/SnapshotRepository.test.ts`
+- `src/server/repositories/SnapshotRepository.ts`
+- `src/server/repositories/VariantRepository.ts`
+- `src/server/routes/index.ts`
+- `src/server/routes/route-groups.ts`
+- `src/server/routes/snapshots.routes.test.ts`
+- `src/server/routes/snapshots.routes.ts`
+- `src/server/services/SnapshotService.ts`
 
 ## Change Log
 
+- 2026-05-21: Implemented Story 3.8 product snapshot preservation, exact duplicate snapshot reuse, admin snapshot APIs, schema migration, and tests.
 - 2026-05-21: Story 3.8 context engine created for product snapshot preservation, snapshot builder domain service, order snapshot schema extension, immutable snapshot guarantee, image reference stability, and targeted tests.

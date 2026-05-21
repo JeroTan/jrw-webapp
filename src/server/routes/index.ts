@@ -33,6 +33,10 @@ import {
   type ProductRoutesOptions,
 } from "./products.routes";
 import {
+  snapshotsRoutes,
+  type SnapshotRoutesOptions,
+} from "./snapshots.routes";
+import {
   variantsRoutes,
   type VariantRoutesOptions,
 } from "./variants.routes";
@@ -50,6 +54,7 @@ export type ServerRoutesOptions = {
   inventory?: InventoryRoutesOptions;
   ownerGovernance?: OwnerGovernanceRoutesOptions;
   products?: ProductRoutesOptions;
+  snapshots?: SnapshotRoutesOptions;
   variants?: VariantRoutesOptions;
 };
 
@@ -70,5 +75,6 @@ export function serverRoutes(
     .use((routes) => productsRoutes(routes, options.products))
     .use((routes) => imagesRoutes(routes, options.images))
     .use((routes) => variantsRoutes(routes, options.variants))
-    .use((routes) => inventoryRoutes(routes, options.inventory));
+    .use((routes) => inventoryRoutes(routes, options.inventory))
+    .use((routes) => snapshotsRoutes(routes, options.snapshots));
 }

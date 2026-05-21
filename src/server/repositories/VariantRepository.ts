@@ -33,6 +33,7 @@ type VariantRowLike = {
   stock_version: number;
   stock_lock_version: number;
   variation_chain: ProductVariantOption[];
+  image_reference_id: string | null;
   product_id: string;
 };
 
@@ -192,6 +193,7 @@ function toVariantRecord(row: VariantRowLike): ProductVariantRecord {
     inventoryState,
     stockVersion: Number(row.stock_version ?? 0),
     availability,
+    imageReferenceId: row.image_reference_id ?? null,
   };
 }
 

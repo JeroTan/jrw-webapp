@@ -151,6 +151,7 @@ export type ProductVariantRecord = {
   inventoryState: InventoryState;
   stockVersion: number;
   availability: AvailabilityLabel;
+  imageReferenceId?: string | null;
 };
 
 export type CreateProductVariantInput = {
