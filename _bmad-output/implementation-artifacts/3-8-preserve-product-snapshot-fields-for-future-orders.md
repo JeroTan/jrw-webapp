@@ -1,6 +1,6 @@
 # Story 3.8: Preserve Product Snapshot Fields for Future Orders
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -87,7 +87,8 @@ So that future orders preserve purchased product name, variant, price, quantity,
 
 ### Review Findings
 
-_(To be populated after code review)_
+- [x] [Review][Patch] Snapshot build endpoint bypassed brand membership guard [src/server/services/SnapshotService.ts:227]
+- [x] [Review][Patch] Legal long variant labels from allowed variant options could fail snapshot validation [src/domain/snapshots/schemas.ts:30]
 
 ## Dev Notes
 
@@ -404,6 +405,10 @@ GPT-5 Codex
 - 2026-05-21: `npx vitest run` passed: 76 files, 497 tests.
 - 2026-05-21: `npx vitest run src/domain/snapshots src/server/repositories/SnapshotRepository.test.ts src/server/routes/snapshots.routes.test.ts` passed: 3 files, 14 tests.
 - 2026-05-21: `npm run db:migrate:remote` applied remote development D1 migrations `0017` through `0021`; all reported success.
+- 2026-05-21: Code review patched snapshot build brand membership enforcement and legal long variant label validation.
+- 2026-05-21: `npx vitest run src/domain/snapshots/snapshot-builder.test.ts src/server/repositories/SnapshotRepository.test.ts src/server/services/SnapshotService.test.ts src/server/routes/snapshots.routes.test.ts` passed: 4 files, 17 tests.
+- 2026-05-21: `npx vitest run` passed: 77 files, 500 tests.
+- 2026-05-21: `npm run check` passed with existing unrelated hints only.
 
 ### Completion Notes List
 
@@ -414,6 +419,8 @@ GPT-5 Codex
 - Added `SnapshotRepository` with create/read/by-order methods. Duplicate protection reuses only exact same order-line snapshot signature; product-only reuse is intentionally avoided so later catalog changes still create correct historical snapshots.
 - Added admin-only snapshot build/read/list routes with RBAC guard, TypeBox contracts, OpenAPI metadata, rate-limit class, and standard envelopes.
 - Added migration `0021_product_snapshot_preservation.sql` and applied it to remote development D1.
+- Code review patch enforces active brand membership for Admin snapshot builds while preserving Super Admin and brandless product access.
+- Code review patch expands variant label validation for legal `variationChain` labels and adds regression coverage.
 
 ### File List
 
@@ -434,6 +441,7 @@ GPT-5 Codex
 - `src/server/routes/route-groups.ts`
 - `src/server/routes/snapshots.routes.test.ts`
 - `src/server/routes/snapshots.routes.ts`
+- `src/server/services/SnapshotService.test.ts`
 - `src/server/services/SnapshotService.ts`
 
 ## Change Log

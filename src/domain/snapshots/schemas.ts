@@ -5,20 +5,15 @@ export const SNAPSHOT_TEXT_MAX_LENGTH = 255;
 export const SNAPSHOT_QUANTITY_MAX = 10_000_000;
 export const SNAPSHOT_VARIANT_OPTION_MAX_ITEMS = 32;
 export const SNAPSHOT_VARIANT_OPTION_TEXT_MAX_LENGTH = 120;
+export const SNAPSHOT_VARIANT_LABEL_MAX_LENGTH =
+  SNAPSHOT_VARIANT_OPTION_MAX_ITEMS * SNAPSHOT_VARIANT_OPTION_TEXT_MAX_LENGTH +
+  (SNAPSHOT_VARIANT_OPTION_MAX_ITEMS - 1) * 3;
 
 const zodSnapshotId = z.string().trim().min(1).max(SNAPSHOT_ID_MAX_LENGTH);
 
 export const zodSnapshotVariantOption = z.object({
-  group: z
-    .string()
-    .trim()
-    .min(1)
-    .max(SNAPSHOT_VARIANT_OPTION_TEXT_MAX_LENGTH),
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(SNAPSHOT_VARIANT_OPTION_TEXT_MAX_LENGTH),
+  group: z.string().trim().min(1).max(SNAPSHOT_VARIANT_OPTION_TEXT_MAX_LENGTH),
+  name: z.string().trim().min(1).max(SNAPSHOT_VARIANT_OPTION_TEXT_MAX_LENGTH),
 });
 
 export const zodSnapshotBuildInput = z.object({
@@ -32,7 +27,7 @@ export const zodBuiltOrderSnapshot = z.object({
   productName: z.string().trim().min(1).max(SNAPSHOT_TEXT_MAX_LENGTH),
   productSlug: z.string().trim().min(1).max(SNAPSHOT_TEXT_MAX_LENGTH),
   variantId: zodSnapshotId,
-  variantLabel: z.string().trim().min(1).max(SNAPSHOT_TEXT_MAX_LENGTH),
+  variantLabel: z.string().trim().min(1).max(SNAPSHOT_VARIANT_LABEL_MAX_LENGTH),
   variantOptions: z
     .array(zodSnapshotVariantOption)
     .max(SNAPSHOT_VARIANT_OPTION_MAX_ITEMS),

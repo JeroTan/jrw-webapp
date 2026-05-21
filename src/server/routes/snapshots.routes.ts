@@ -61,6 +61,7 @@ function createRuntimeController(
   });
   const service = new SnapshotService({
     builder,
+    productRepository: productRepositories.repository,
     snapshotRepository: snapshotRepositories.snapshotRepository,
   });
 

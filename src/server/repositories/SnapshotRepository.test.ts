@@ -178,14 +178,50 @@ describe("SnapshotRepository", { timeout: 20_000 }, () => {
     }
   });
 
+  it("persists legal variant labels longer than generic snapshot text", async () => {
+    const { d1, mf } = await createSnapshotTestD1();
+
+    try {
+      const repository = new DrizzleSnapshotRepository(createDb(d1));
+      const variantOptions = Array.from({ length: 3 }, (_, index) => ({
+        group: `Group ${index + 1}`,
+        name: "X".repeat(120),
+      }));
+      const variantLabel = variantOptions
+        .map((option) => option.name)
+        .join(" / ");
+
+      expect(variantLabel.length).toBeGreaterThan(255);
+
+      const created = await repository.createSnapshot(
+        snapshotInput({
+          id: "snap_long_label",
+          variantLabel,
+          variantOptions,
+        })
+      );
+
+      expect(created.variantLabel).toBe(variantLabel);
+      expect(created.variantOptions).toEqual(variantOptions);
+    } finally {
+      await mf.dispose();
+    }
+  });
+
   it("lists snapshots by order id", async () => {
     const { d1, mf } = await createSnapshotTestD1();
 
     try {
       const repository = new DrizzleSnapshotRepository(createDb(d1));
-      const first = await repository.createSnapshot(snapshotInput({ id: "snap_1" }));
+      const first = await repository.createSnapshot(
+        snapshotInput({ id: "snap_1" })
+      );
       const second = await repository.createSnapshot(
-        snapshotInput({ id: "snap_2", variantId: "var_2", variantLabel: "Large" })
+        snapshotInput({
+          id: "snap_2",
+          variantId: "var_2",
+          variantLabel: "Large",
+        })
       );
 
       const items = await repository.getSnapshotsByOrderId("order_1");

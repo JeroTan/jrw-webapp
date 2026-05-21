@@ -10,6 +10,10 @@ import type {
   SnapshotListResult,
 } from "@/domain/snapshots/types";
 import type { RequestActorContext } from "@/server/context/request-context";
+import type {
+  ProductBrandMembershipRecord,
+  ProductRepository,
+} from "@/server/repositories/ProductRepository";
 import type { SnapshotRepository } from "@/server/repositories/SnapshotRepository";
 import { GeneralError } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
@@ -54,8 +58,26 @@ export type ListOrderSnapshotsServiceInput = {
 
 export type SnapshotServiceOptions = {
   builder: SnapshotBuilder;
+  productRepository: Pick<
+    ProductRepository,
+    "findById" | "findBrandMembership"
+  >;
   snapshotRepository: SnapshotRepository;
 };
+
+function isActiveMembership(
+  membership: ProductBrandMembershipRecord | null
+): membership is ProductBrandMembershipRecord {
+  if (!membership) {
+    return false;
+  }
+
+  if (membership.status !== "ACTIVE") {
+    return false;
+  }
+
+  return membership.role === "OWNER" || membership.role === "MEMBER";
+}
 
 function serviceError(
   code:
@@ -84,10 +106,14 @@ function providerFailure(error: unknown): boolean {
 function snapshotBuildError(error: SnapshotBuildError): GeneralError {
   switch (error.reason) {
     case "PRODUCT_NOT_FOUND":
-      return serviceError("RESOURCE_NOT_FOUND", { reason: "PRODUCT_NOT_FOUND" });
+      return serviceError("RESOURCE_NOT_FOUND", {
+        reason: "PRODUCT_NOT_FOUND",
+      });
     case "VARIANT_NOT_FOUND":
     case "VARIANT_PRODUCT_MISMATCH":
-      return serviceError("RESOURCE_NOT_FOUND", { reason: "VARIANT_NOT_FOUND" });
+      return serviceError("RESOURCE_NOT_FOUND", {
+        reason: "VARIANT_NOT_FOUND",
+      });
     case "INVALID_SNAPSHOT_INPUT":
     default:
       return serviceError("VALIDATION_FAILED", {
@@ -98,16 +124,19 @@ function snapshotBuildError(error: SnapshotBuildError): GeneralError {
 
 export class SnapshotService {
   private readonly builder: SnapshotBuilder;
+  private readonly productRepository: Pick<
+    ProductRepository,
+    "findById" | "findBrandMembership"
+  >;
   private readonly snapshotRepository: SnapshotRepository;
 
   constructor(options: SnapshotServiceOptions) {
     this.builder = options.builder;
+    this.productRepository = options.productRepository;
     this.snapshotRepository = options.snapshotRepository;
   }
 
-  private requireAdminActor(
-    actor: SnapshotActorInput | undefined
-  ): AppResult<{
+  private requireAdminActor(actor: SnapshotActorInput | undefined): AppResult<{
     actorId: string;
     safeActorId: string;
     role: "ADMIN" | "SUPER_ADMIN";
@@ -139,6 +168,39 @@ export class SnapshotService {
     });
   }
 
+  private async loadProductOrError(productId: string) {
+    const product = await this.productRepository.findById(productId);
+    if (!product) {
+      return Result.error(
+        serviceError("RESOURCE_NOT_FOUND", { reason: "PRODUCT_NOT_FOUND" })
+      );
+    }
+
+    return Result.okay(product);
+  }
+
+  private async requireBrandReadPermission(input: {
+    actorId: string;
+    role: "ADMIN" | "SUPER_ADMIN";
+    brandId: string | null;
+  }): Promise<AppResult<null>> {
+    if (!input.brandId || input.role === "SUPER_ADMIN") {
+      return Result.okay(null);
+    }
+
+    const membership = await this.productRepository.findBrandMembership(
+      input.brandId,
+      input.actorId
+    );
+    if (!isActiveMembership(membership)) {
+      return Result.error(
+        serviceError("AUTH_FORBIDDEN", { reason: "BRAND_MEMBERSHIP_REQUIRED" })
+      );
+    }
+
+    return Result.okay(null);
+  }
+
   async buildSnapshot(
     input: BuildSnapshotServiceInput
   ): Promise<AppResult<SnapshotBuildResult>> {
@@ -157,6 +219,20 @@ export class SnapshotService {
     }
 
     try {
+      const product = await this.loadProductOrError(parsed.data.productId);
+      if (product.error) {
+        return Result.error(product.error);
+      }
+
+      const permission = await this.requireBrandReadPermission({
+        actorId: actor.content.actorId,
+        role: actor.content.role,
+        brandId: product.content.brandId,
+      });
+      if (permission.error) {
+        return Result.error(permission.error);
+      }
+
       const snapshot = await this.builder.build(parsed.data);
       return Result.okay({ snapshot });
     } catch (error) {

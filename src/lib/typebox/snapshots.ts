@@ -3,6 +3,7 @@ import {
   SNAPSHOT_ID_MAX_LENGTH,
   SNAPSHOT_QUANTITY_MAX,
   SNAPSHOT_TEXT_MAX_LENGTH,
+  SNAPSHOT_VARIANT_LABEL_MAX_LENGTH,
   SNAPSHOT_VARIANT_OPTION_MAX_ITEMS,
   SNAPSHOT_VARIANT_OPTION_TEXT_MAX_LENGTH,
 } from "@/domain/snapshots/schemas";
@@ -23,7 +24,10 @@ export const tboxBuiltOrderSnapshot = t.Object({
   productName: t.String({ minLength: 1, maxLength: SNAPSHOT_TEXT_MAX_LENGTH }),
   productSlug: t.String({ minLength: 1, maxLength: SNAPSHOT_TEXT_MAX_LENGTH }),
   variantId: t.String({ minLength: 1, maxLength: SNAPSHOT_ID_MAX_LENGTH }),
-  variantLabel: t.String({ minLength: 1, maxLength: SNAPSHOT_TEXT_MAX_LENGTH }),
+  variantLabel: t.String({
+    minLength: 1,
+    maxLength: SNAPSHOT_VARIANT_LABEL_MAX_LENGTH,
+  }),
   variantOptions: t.Array(tboxSnapshotVariantOption, {
     maxItems: SNAPSHOT_VARIANT_OPTION_MAX_ITEMS,
   }),
@@ -44,7 +48,10 @@ export const tboxOrderSnapshot = t.Object({
   variantId: t.Nullable(
     t.String({ minLength: 1, maxLength: SNAPSHOT_ID_MAX_LENGTH })
   ),
-  variantLabel: t.String({ minLength: 1, maxLength: SNAPSHOT_TEXT_MAX_LENGTH }),
+  variantLabel: t.String({
+    minLength: 1,
+    maxLength: SNAPSHOT_VARIANT_LABEL_MAX_LENGTH,
+  }),
   variantOptions: t.Array(tboxSnapshotVariantOption, {
     maxItems: SNAPSHOT_VARIANT_OPTION_MAX_ITEMS,
   }),
