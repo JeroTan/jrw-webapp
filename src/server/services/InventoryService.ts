@@ -259,6 +259,24 @@ export class InventoryService {
     return Result.okay(variant);
   }
 
+  private async inventoryMutationFailureError(input: {
+    productId: string;
+    variantId: string;
+  }): Promise<GeneralError> {
+    const current = await this.variantRepository.findById(input.variantId);
+    if (!current || current.productId !== input.productId) {
+      return serviceError("RESOURCE_NOT_FOUND", { reason: "VARIANT_NOT_FOUND" });
+    }
+
+    if (current.status === "ARCHIVED") {
+      return serviceError("CONFLICT_STATE", { reason: "VARIANT_ARCHIVED" });
+    }
+
+    return serviceError("CONFLICT_STATE", {
+      reason: "INVENTORY_VERSION_CONFLICT",
+    });
+  }
+
   validateStateTransition(input: {
     quantity: number;
     state: InventoryState;
@@ -370,12 +388,11 @@ export class InventoryService {
         variantId: input.variantId,
         quantity: parsed.data.quantity,
         inventoryState: nextState,
+        expectedStockVersion: existing.content.stockVersion,
       });
 
       if (!updated) {
-        return Result.error(
-          serviceError("RESOURCE_NOT_FOUND", { reason: "VARIANT_NOT_FOUND" })
-        );
+        return Result.error(await this.inventoryMutationFailureError(input));
       }
 
       await this.publishAudit({
@@ -459,12 +476,11 @@ export class InventoryService {
       const updated = await this.variantRepository.updateInventoryState({
         variantId: input.variantId,
         inventoryState: parsed.data.state,
+        expectedStockVersion: existing.content.stockVersion,
       });
 
       if (!updated) {
-        return Result.error(
-          serviceError("RESOURCE_NOT_FOUND", { reason: "VARIANT_NOT_FOUND" })
-        );
+        return Result.error(await this.inventoryMutationFailureError(input));
       }
 
       await this.publishAudit({

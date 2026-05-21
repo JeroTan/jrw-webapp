@@ -1,6 +1,6 @@
 # Story 3.6: Manage Stock Quantity and Inventory State
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -96,11 +96,11 @@ so that storefront availability is accurate before checkout reservation exists.
 
 ### Review Findings
 
-- [ ] [Review][TBD] Stock quantity updates should be atomic — verify D1 write pattern prevents concurrent overwrite.
-- [ ] [Review][TBD] Inventory state consistency validation should run before persistence, not after.
-- [ ] [Review][TBD] Customer availability endpoint should not expose raw stock counts or internal state names.
-- [ ] [Review][TBD] Audit event for stock changes should include old and new quantities where safe.
-- [ ] [Review][TBD] Admin inventory UI should not overwrite user-edited variant data when availability data arrives.
+- [x] [Review][Patch] Inventory state update used stale stock/version check and could persist inconsistent state [src/server/services/InventoryService.ts] — fixed with `stock_version` compare-and-swap guards and version-conflict tests.
+- [x] [Review][Patch] Stock update could race with preorder/state changes and overwrite newer state [src/server/repositories/VariantRepository.ts] — fixed with expected `stockVersion` predicates on stock and state mutations.
+- [x] [Review][Patch] Admin variant create/edit UI performed multiple sequential writes and could leave hidden partial changes [src/features/admin-products/components/VariantList.tsx] — fixed by using single variant create/update requests for editor saves.
+- [x] [Review][Patch] Archived variants could show available/preorder labels after migration or DTO mapping [migrations/0020_inventory_state_baseline.sql] — fixed migration backfill and archived DTO availability mapping to `Unavailable`.
+- [x] [Review][Patch] Legacy variant PATCH could mutate inventory without inventory-specific audit event [src/server/services/VariantService.ts] — fixed with extra `inventory.stock_adjusted` audit when stock/state changes through variant PATCH.
 
 ## Dev Notes
 

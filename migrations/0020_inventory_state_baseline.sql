@@ -4,6 +4,7 @@ ALTER TABLE `product_variants` ADD `stock_version` integer DEFAULT 0 NOT NULL;
 UPDATE `product_variants`
 SET
   `inventory_state` = CASE
+    WHEN `stock_lock_version` < 0 THEN 'OUT_OF_STOCK'
     WHEN `is_preorder` = 1 THEN 'PREORDER'
     WHEN `stock` <= 0 THEN 'OUT_OF_STOCK'
     WHEN `stock` <= 10 THEN 'LOW_STOCK'

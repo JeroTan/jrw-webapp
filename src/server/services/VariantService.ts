@@ -437,6 +437,54 @@ export class VariantService {
     await this.auditPublisher.publish(event);
   }
 
+  private async publishInventoryAudit(input: {
+    requestId: string;
+    actorId: string;
+    safeActorId: string;
+    actorRole: "ADMIN" | "SUPER_ADMIN";
+    productId: string;
+    variantId: string;
+    oldVariant: ProductVariantRecord;
+    newVariant: ProductVariantRecord;
+  }): Promise<void> {
+    const stockChanged = input.oldVariant.stock !== input.newVariant.stock;
+    const stateChanged =
+      input.oldVariant.inventoryState !== input.newVariant.inventoryState;
+
+    if (!stockChanged && !stateChanged) {
+      return;
+    }
+
+    const event = createAuditEvent({
+      requestId: input.requestId,
+      action: "inventory.stock_adjusted",
+      actor: {
+        type: "user",
+        id: input.actorId,
+        role: input.actorRole,
+        safeIdentifier: input.safeActorId,
+      },
+      target: {
+        entity: "inventory",
+        entityId: input.variantId,
+      },
+      safeDetails: {
+        operation: stockChanged
+          ? "stock.quantity_updated"
+          : "inventory.state_changed",
+        productId: input.productId,
+        variantId: input.variantId,
+        oldQuantity: input.oldVariant.stock,
+        newQuantity: input.newVariant.stock,
+        oldState: input.oldVariant.inventoryState,
+        newState: input.newVariant.inventoryState,
+      },
+      occurredAt: this.now().toISOString(),
+    });
+
+    await this.auditPublisher.publish(event);
+  }
+
   async listProductVariants(
     input: ListProductVariantsServiceInput
   ): Promise<AppResult<VariantListResult>> {
@@ -698,6 +746,16 @@ export class VariantService {
         productId: input.productId,
         variantId: updated.id,
         operation: "update_variant",
+        oldVariant: existing.content,
+        newVariant: updated,
+      });
+      await this.publishInventoryAudit({
+        requestId: input.requestId,
+        actorId: actor.content.actorId,
+        safeActorId: actor.content.safeActorId,
+        actorRole: actor.content.role,
+        productId: input.productId,
+        variantId: updated.id,
         oldVariant: existing.content,
         newVariant: updated,
       });

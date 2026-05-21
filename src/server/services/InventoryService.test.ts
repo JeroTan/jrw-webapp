@@ -93,6 +93,8 @@ function variantRecord(
 
 class VariantRepositoryStub implements VariantRepository {
   variants: ProductVariantRecord[] = [];
+  bumpVersionBeforeStockUpdate = false;
+  bumpVersionBeforeStateUpdate = false;
   availability: InventoryAvailabilityRecord = {
     productId: "prod_1",
     variantId: "var_1",
@@ -158,9 +160,20 @@ class VariantRepositoryStub implements VariantRepository {
     variantId: string;
     quantity: number;
     inventoryState: InventoryState;
+    expectedStockVersion: number;
   }): Promise<ProductVariantRecord | null> {
     const index = this.variants.findIndex((variant) => variant.id === input.variantId);
     if (index < 0) {
+      return null;
+    }
+    if (this.bumpVersionBeforeStockUpdate) {
+      this.variants[index] = {
+        ...this.variants[index],
+        stockVersion: this.variants[index].stockVersion + 1,
+      };
+      this.bumpVersionBeforeStockUpdate = false;
+    }
+    if (this.variants[index].stockVersion !== input.expectedStockVersion) {
       return null;
     }
 
@@ -191,9 +204,20 @@ class VariantRepositoryStub implements VariantRepository {
   async updateInventoryState(input: {
     variantId: string;
     inventoryState: InventoryState;
+    expectedStockVersion: number;
   }): Promise<ProductVariantRecord | null> {
     const index = this.variants.findIndex((variant) => variant.id === input.variantId);
     if (index < 0) {
+      return null;
+    }
+    if (this.bumpVersionBeforeStateUpdate) {
+      this.variants[index] = {
+        ...this.variants[index],
+        stockVersion: this.variants[index].stockVersion + 1,
+      };
+      this.bumpVersionBeforeStateUpdate = false;
+    }
+    if (this.variants[index].stockVersion !== input.expectedStockVersion) {
       return null;
     }
 
@@ -389,6 +413,58 @@ describe("InventoryService", () => {
     expect(result.error?.code).toBe("CONFLICT_STATE");
     expect(result.error?.data).toMatchObject({
       reason: "INVENTORY_STATE_CONFLICT",
+    });
+  });
+
+  it("returns conflict when inventory state update sees stale stock version", async () => {
+    const variantRepository = new VariantRepositoryStub();
+    variantRepository.variants = [
+      variantRecord({ stock: 4, inventoryState: "LOW_STOCK", stockVersion: 7 }),
+    ];
+    variantRepository.bumpVersionBeforeStateUpdate = true;
+    const service = new InventoryService({
+      variantRepository,
+      productRepository: new ProductScopeRepositoryStub(),
+      now: () => new Date(now),
+    });
+
+    const result = await service.updateInventoryState({
+      actor: adminActor(),
+      requestId: "req_inventory_state_version_conflict",
+      productId: "prod_1",
+      variantId: "var_1",
+      body: { state: "LOW_STOCK" },
+    });
+
+    expect(result.error?.code).toBe("CONFLICT_STATE");
+    expect(result.error?.data).toMatchObject({
+      reason: "INVENTORY_VERSION_CONFLICT",
+    });
+  });
+
+  it("returns conflict when stock update sees stale stock version", async () => {
+    const variantRepository = new VariantRepositoryStub();
+    variantRepository.variants = [
+      variantRecord({ stock: 12, inventoryState: "IN_STOCK", stockVersion: 3 }),
+    ];
+    variantRepository.bumpVersionBeforeStockUpdate = true;
+    const service = new InventoryService({
+      variantRepository,
+      productRepository: new ProductScopeRepositoryStub(),
+      now: () => new Date(now),
+    });
+
+    const result = await service.updateStockQuantity({
+      actor: adminActor(),
+      requestId: "req_inventory_stock_version_conflict",
+      productId: "prod_1",
+      variantId: "var_1",
+      body: { quantity: 9 },
+    });
+
+    expect(result.error?.code).toBe("CONFLICT_STATE");
+    expect(result.error?.data).toMatchObject({
+      reason: "INVENTORY_VERSION_CONFLICT",
     });
   });
 

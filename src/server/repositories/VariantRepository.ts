@@ -79,10 +79,12 @@ export type VariantRepository = {
     variantId: string;
     quantity: number;
     inventoryState: InventoryState;
+    expectedStockVersion: number;
   }): Promise<ProductVariantRecord | null>;
   updateInventoryState(input: {
     variantId: string;
     inventoryState: InventoryState;
+    expectedStockVersion: number;
   }): Promise<ProductVariantRecord | null>;
   getStockAvailability(input: {
     productId: string;
@@ -166,7 +168,9 @@ function toInventoryState(row: VariantRowLike): InventoryState {
 function toVariantRecord(row: VariantRowLike): ProductVariantRecord {
   const archived = row.stock_lock_version === ARCHIVED_STOCK_LOCK_VERSION;
   const inventoryState = toInventoryState(row);
-  const availability = availabilityLabelFromState(inventoryState);
+  const availability = archived
+    ? "Unavailable"
+    : availabilityLabelFromState(inventoryState);
 
   return {
     id: row.id,
@@ -336,6 +340,7 @@ export class DrizzleVariantRepository implements VariantRepository {
     variantId: string;
     quantity: number;
     inventoryState: InventoryState;
+    expectedStockVersion: number;
   }): Promise<ProductVariantRecord | null> {
     const [row] = await this.db
       .update(product_variants)
@@ -348,6 +353,7 @@ export class DrizzleVariantRepository implements VariantRepository {
       .where(
         and(
           eq(product_variants.id, input.variantId),
+          eq(product_variants.stock_version, input.expectedStockVersion),
           ne(product_variants.stock_lock_version, ARCHIVED_STOCK_LOCK_VERSION)
         )
       )
@@ -359,6 +365,7 @@ export class DrizzleVariantRepository implements VariantRepository {
   async updateInventoryState(input: {
     variantId: string;
     inventoryState: InventoryState;
+    expectedStockVersion: number;
   }): Promise<ProductVariantRecord | null> {
     const [row] = await this.db
       .update(product_variants)
@@ -370,6 +377,7 @@ export class DrizzleVariantRepository implements VariantRepository {
       .where(
         and(
           eq(product_variants.id, input.variantId),
+          eq(product_variants.stock_version, input.expectedStockVersion),
           ne(product_variants.stock_lock_version, ARCHIVED_STOCK_LOCK_VERSION)
         )
       )

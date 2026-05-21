@@ -15,6 +15,7 @@ import type {
   ProductVariantSummary,
   VariantListResult,
 } from "@/domain/products/types";
+import type { AuditEvent } from "@/domain/audit/events";
 import { VariantService, type VariantActorInput } from "./VariantService";
 
 const now = "2026-05-21T04:00:00.000Z";
@@ -272,6 +273,7 @@ class VariantRepositoryStub implements VariantRepository {
     variantId: string;
     quantity: number;
     inventoryState: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "PREORDER";
+    expectedStockVersion: number;
   }): Promise<ProductVariantRecord | null> {
     return null;
   }
@@ -279,6 +281,7 @@ class VariantRepositoryStub implements VariantRepository {
   async updateInventoryState(_input: {
     variantId: string;
     inventoryState: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "PREORDER";
+    expectedStockVersion: number;
   }): Promise<ProductVariantRecord | null> {
     return null;
   }
@@ -323,6 +326,14 @@ class ProductScopeRepositoryStub {
     _adminId: string
   ): Promise<ProductBrandMembershipRecord | null> {
     return this.membership;
+  }
+}
+
+class AuditPublisherStub {
+  events: AuditEvent[] = [];
+
+  async publish(event: AuditEvent): Promise<void> {
+    this.events.push(event);
   }
 }
 
@@ -391,6 +402,59 @@ describe("VariantService", () => {
     }
     expect(result.content.variant.priceCentavos).toBe(1599);
     expect(variantRepository.updatedInputs[0]?.input.priceCentavos).toBe(1599);
+  });
+
+  it("emits inventory audit when variant patch changes stock state", async () => {
+    const variantRepository = new VariantRepositoryStub();
+    variantRepository.variants = [
+      variantRecord({
+        id: "var_1",
+        productId: "prod_1",
+        stock: 12,
+        inventoryState: "IN_STOCK",
+        availability: "Available",
+      }),
+    ];
+    const auditPublisher = new AuditPublisherStub();
+    const service = new VariantService({
+      variantRepository,
+      productRepository: new ProductScopeRepositoryStub(),
+      auditPublisher,
+      now: () => new Date(now),
+    });
+
+    const result = await service.updateVariant({
+      actor: adminActor(),
+      requestId: "req_variant_inventory_audit",
+      productId: "prod_1",
+      variantId: "var_1",
+      body: {
+        stock: 0,
+      },
+    });
+
+    expect(result.error).toBeNull();
+    if (result.error) {
+      throw result.error;
+    }
+    expect(auditPublisher.events).toHaveLength(2);
+    expect(auditPublisher.events[1]).toMatchObject({
+      action: "inventory.stock_adjusted",
+      requestId: "req_variant_inventory_audit",
+      target: {
+        entity: "inventory",
+        entityId: "var_1",
+      },
+      safeDetails: {
+        operation: "stock.quantity_updated",
+        productId: "prod_1",
+        variantId: "var_1",
+        oldQuantity: 12,
+        newQuantity: 0,
+        oldState: "IN_STOCK",
+        newState: "OUT_OF_STOCK",
+      },
+    });
   });
 
   it("archives variant with soft status update", async () => {

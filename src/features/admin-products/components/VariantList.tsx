@@ -9,8 +9,6 @@ import {
   createProductVariant,
   fetchProductVariants,
   type ApiFailure,
-  updateVariantInventoryState,
-  updateVariantStockQuantity,
   updateProductVariant,
 } from "../api";
 import type { ProductVariantRecord } from "../types";
@@ -290,25 +288,12 @@ export function VariantList({
           sku: input.sku,
           priceCentavos: input.priceCentavos,
           stock: input.stock,
-          isPreorder: input.inventoryState === "PREORDER",
+          isPreorder: input.isPreorder,
           expectedRelease: input.expectedRelease,
           variationChain: input.variationChain,
         });
-        const stockUpdated = await updateVariantStockQuantity(productId, created.id, {
-          quantity: input.stock,
-        });
-        const stateUpdated = await updateVariantInventoryState(
-          productId,
-          created.id,
-          { state: input.inventoryState }
-        );
 
-        const mergedCreated = {
-          ...stockUpdated,
-          ...stateUpdated,
-        };
-
-        setVariants((previous) => sortVariants([...previous, mergedCreated]));
+        setVariants((previous) => sortVariants([...previous, created]));
         setToast({
           tone: "success",
           title: "Variant created",
@@ -322,34 +307,17 @@ export function VariantList({
             name: input.name,
             sku: input.sku,
             priceCentavos: input.priceCentavos,
+            stock: input.stock,
             expectedRelease: input.expectedRelease,
             variationChain: input.variationChain,
-            isPreorder: input.inventoryState === "PREORDER",
+            isPreorder: input.isPreorder,
           }
         );
-        const stockUpdated = await updateVariantStockQuantity(
-          productId,
-          editorState.variant.id,
-          {
-            quantity: input.stock,
-          }
-        );
-        const stateUpdated = await updateVariantInventoryState(
-          productId,
-          editorState.variant.id,
-          { state: input.inventoryState }
-        );
-
-        const updated = {
-          ...baseUpdated,
-          ...stockUpdated,
-          ...stateUpdated,
-        };
 
         setVariants((previous) =>
           sortVariants(
             previous.map((variant) =>
-              variant.id === updated.id ? updated : variant
+              variant.id === baseUpdated.id ? baseUpdated : variant
             )
           )
         );
