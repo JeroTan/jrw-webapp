@@ -14,3 +14,25 @@ Using secrets defined in .env
 [2m┃[22m Local    [36mhttp://localhost:4321/[39m
 [2m┃[22m Network  [2muse --host to expose[22m
 [2m17:36:14[22m [32mwatching for file changes...[39m
+[2m17:37:06[22m [34m[vite][39m 17:37:06 [200] / 390ms
+[2m17:37:07[22m [34m[vite][39m 17:37:07 [200] HEAD / 10ms
+[2m19:26:02[22m [34m[vite][39m [vite] program reload
+[2m19:26:03[22m [34m[vite][39m [vite] program reload
+[2m19:26:14[22m [34m[vite][39m [vite] program reload
+[2m19:26:32[22m [34m[vite][39m [vite] program reload
+[2m19:26:39[22m [34m[vite][39m [vite] program reload
+[2m19:27:07[22m [34m[vite][39m [vite] program reload
+[2m19:27:38[22m [34m[vite][39m [vite] program reload
+[2m19:27:38[22m [34m[vite][39m [vite] program reload
+[2m19:27:39[22m [34m[vite][39m [vite] program reload
+[2m19:27:39[22m [34m[vite][39m [vite] program reload
+[2m19:28:43[22m [34m[vite][39m [vite] program reload
+[2m19:28:49[22m [34m[vite][39m [vite] program reload
+[2m19:29:35[22m [34m[vite][39m [vite] program reload
+[2m19:30:42[22m [34m[vite][39m [vite] program reload
+[2m19:31:02[22m [34m[vite][39m [vite] program reload
+[2m19:31:07[22m [34m[vite][39m [vite] program reload
+[2m19:31:23[22m [34m[vite][39m [vite] program reload
+[2m19:31:40[22m [34m[vite][39m [vite] program reload
+[2m19:31:47[22m [34m[vite][39m [vite] program reload
+[2m19:32:30[22m [34m[vite][39m [vite] program reload

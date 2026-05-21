@@ -494,6 +494,32 @@ export class ProductService {
     return Result.okay(parsed.data);
   }
 
+  private async statusMutationConflict(input: {
+    productId: string;
+    nextStatus: ProductRecord["status"];
+  }): Promise<GeneralError> {
+    const current = await this.repository.findById(input.productId);
+    if (!current) {
+      return serviceError("RESOURCE_NOT_FOUND", {
+        reason: "PRODUCT_NOT_FOUND",
+      });
+    }
+
+    const transition = validateProductStatusTransition({
+      currentStatus: current.status,
+      nextStatus: input.nextStatus,
+    });
+    if (transition.error) {
+      return transition.error;
+    }
+
+    return serviceError("CONFLICT_STATE", {
+      reason: "PRODUCT_STATUS_CHANGED",
+      currentStatus: current.status,
+      nextStatus: input.nextStatus,
+    });
+  }
+
   private async resolveUniqueSlug(
     requestedSlug: string,
     excludeProductId?: string
@@ -1142,6 +1168,14 @@ export class ProductService {
         input.productId,
         timestamp
       );
+      if (!product) {
+        return Result.error(
+          await this.statusMutationConflict({
+            productId: input.productId,
+            nextStatus: "PUBLISHED",
+          })
+        );
+      }
 
       await this.publishStatusAudit({
         requestId: input.requestId,
@@ -1201,6 +1235,14 @@ export class ProductService {
 
       const timestamp = this.now().toISOString();
       const product = await this.repository.draftProduct(input.productId, timestamp);
+      if (!product) {
+        return Result.error(
+          await this.statusMutationConflict({
+            productId: input.productId,
+            nextStatus: "DRAFT",
+          })
+        );
+      }
 
       await this.publishStatusAudit({
         requestId: input.requestId,
@@ -1263,6 +1305,14 @@ export class ProductService {
         input.productId,
         timestamp
       );
+      if (!product) {
+        return Result.error(
+          await this.statusMutationConflict({
+            productId: input.productId,
+            nextStatus: "ARCHIVED",
+          })
+        );
+      }
 
       await this.publishStatusAudit({
         requestId: input.requestId,

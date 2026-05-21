@@ -1,6 +1,6 @@
 # Story 3.7: Publish, Archive, and Validate Product Readiness
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -100,7 +100,9 @@ so that storefront shoppers see complete, purchasable product information.
 
 ### Review Findings
 
-_(To be filled during code review)_
+- [x] [Review][Patch] Status mutations accepted stale transitions [src/server/repositories/ProductRepository.ts:541] — repository writes now guard expected current statuses and service returns conflict without audit when status changes before write.
+- [x] [Review][Patch] Readiness counted archived or hidden categories as valid [src/server/repositories/ProductRepository.ts:364] — publish readiness now counts only active, visible category assignments.
+- [x] [Review][Patch] Archive confirmation rethrew handled API errors [src/features/admin-products/components/ProductEditor.tsx:884] — archive failure now stays in status feedback without an unhandled promise rejection.
 
 ## Dev Notes
 

@@ -152,7 +152,10 @@ class ProductRepositoryStub implements ProductRepository {
     return next;
   }
 
-  async publishProduct(productId: string, updatedAt: string): Promise<ProductRecord> {
+  async publishProduct(
+    productId: string,
+    updatedAt: string
+  ): Promise<ProductRecord | null> {
     const next = productRecord({
       ...(this.product ?? {}),
       id: productId,
@@ -163,7 +166,10 @@ class ProductRepositoryStub implements ProductRepository {
     return next;
   }
 
-  async draftProduct(productId: string, updatedAt: string): Promise<ProductRecord> {
+  async draftProduct(
+    productId: string,
+    updatedAt: string
+  ): Promise<ProductRecord | null> {
     const next = productRecord({
       ...(this.product ?? {}),
       id: productId,
@@ -174,7 +180,10 @@ class ProductRepositoryStub implements ProductRepository {
     return next;
   }
 
-  async archiveProduct(productId: string, updatedAt: string): Promise<ProductRecord> {
+  async archiveProduct(
+    productId: string,
+    updatedAt: string
+  ): Promise<ProductRecord | null> {
     const next = productRecord({
       ...(this.product ?? {}),
       id: productId,
@@ -303,6 +312,34 @@ describe("ProductService status flows", () => {
     });
   });
 
+  it("blocks publish when another request changes status before write", async () => {
+    const repository = new ProductRepositoryStub();
+    repository.product = productRecord({ status: "DRAFT" });
+    repository.publishProduct = async () => {
+      repository.product = productRecord({ status: "PUBLISHED" });
+      return null;
+    };
+    const auditPublisher = new AuditPublisherStub();
+    const service = new ProductService({
+      repository,
+      auditPublisher,
+      now: () => new Date(now),
+    });
+
+    const result = await service.publish({
+      actor: actor(),
+      requestId: "req_publish_race",
+      productId: "prod_1",
+    });
+
+    expect(result.error?.code).toBe("CONFLICT_STATE");
+    expect(result.error?.data).toMatchObject({
+      reason: "ALREADY_IN_STATE",
+      currentStatus: "PUBLISHED",
+    });
+    expect(auditPublisher.events).toHaveLength(0);
+  });
+
   it("moves published product back to draft", async () => {
     const repository = new ProductRepositoryStub();
     repository.product = productRecord({ status: "PUBLISHED" });
@@ -384,4 +421,3 @@ describe("ProductService status flows", () => {
     });
   });
 });
-

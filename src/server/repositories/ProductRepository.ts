@@ -110,9 +110,18 @@ export type ProductRepository = {
     productId: string,
     input: UpdateProductRecordInput
   ): Promise<ProductRecord>;
-  publishProduct(productId: string, updatedAt: string): Promise<ProductRecord>;
-  draftProduct(productId: string, updatedAt: string): Promise<ProductRecord>;
-  archiveProduct(productId: string, updatedAt: string): Promise<ProductRecord>;
+  publishProduct(
+    productId: string,
+    updatedAt: string
+  ): Promise<ProductRecord | null>;
+  draftProduct(
+    productId: string,
+    updatedAt: string
+  ): Promise<ProductRecord | null>;
+  archiveProduct(
+    productId: string,
+    updatedAt: string
+  ): Promise<ProductRecord | null>;
   assignBrand(
     productId: string,
     brandId: string,
@@ -353,7 +362,7 @@ export class DrizzleProductRepository implements ProductRepository {
         hasSlug:
           sql<number>`cast(case when length(trim(${products.slug})) > 0 then 1 else 0 end as integer)`,
         categoryCount:
-          sql<number>`cast((select count(*) from ${product_categories} where ${product_categories.product_id} = ${products.id}) as integer)`,
+          sql<number>`cast((select count(*) from ${product_categories} inner join ${categories} on ${categories.id} = ${product_categories.category_id} where ${product_categories.product_id} = ${products.id} and ${categories.status} = 'ACTIVE' and ${categories.is_visible} = 1) as integer)`,
         variantCount:
           sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
         imageCount:
@@ -532,19 +541,25 @@ export class DrizzleProductRepository implements ProductRepository {
   private async updateProductStatus(input: {
     productId: string;
     status: ProductStatusValue;
+    allowedCurrentStatuses: readonly ProductStatusValue[];
     updatedAt: string;
-  }): Promise<ProductRecord> {
+  }): Promise<ProductRecord | null> {
     const [updated] = await this.db
       .update(products)
       .set({
         status: input.status,
         updated_at: input.updatedAt,
       })
-      .where(eq(products.id, input.productId))
+      .where(
+        and(
+          eq(products.id, input.productId),
+          inArray(products.status, [...input.allowedCurrentStatuses])
+        )
+      )
       .returning({ id: products.id });
 
     if (!updated) {
-      throw new Error("D1_ERROR: product not found for status update");
+      return null;
     }
 
     const product = await this.findById(input.productId);
@@ -558,18 +573,23 @@ export class DrizzleProductRepository implements ProductRepository {
   async publishProduct(
     productId: string,
     updatedAt: string
-  ): Promise<ProductRecord> {
+  ): Promise<ProductRecord | null> {
     return this.updateProductStatus({
       productId,
       status: "PUBLISHED",
+      allowedCurrentStatuses: ["DRAFT"],
       updatedAt,
     });
   }
 
-  async draftProduct(productId: string, updatedAt: string): Promise<ProductRecord> {
+  async draftProduct(
+    productId: string,
+    updatedAt: string
+  ): Promise<ProductRecord | null> {
     return this.updateProductStatus({
       productId,
       status: "DRAFT",
+      allowedCurrentStatuses: ["PUBLISHED"],
       updatedAt,
     });
   }
@@ -577,10 +597,11 @@ export class DrizzleProductRepository implements ProductRepository {
   async archiveProduct(
     productId: string,
     updatedAt: string
-  ): Promise<ProductRecord> {
+  ): Promise<ProductRecord | null> {
     return this.updateProductStatus({
       productId,
       status: "ARCHIVED",
+      allowedCurrentStatuses: ["DRAFT", "PUBLISHED"],
       updatedAt,
     });
   }

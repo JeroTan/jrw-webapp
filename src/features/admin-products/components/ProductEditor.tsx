@@ -904,7 +904,6 @@ export function ProductEditor({
         tone: "error",
         message: statusActionErrorMessage(error, "Archive action failed."),
       });
-      throw error;
     } finally {
       setStatusBusy(false);
     }
