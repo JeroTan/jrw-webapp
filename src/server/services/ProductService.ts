@@ -5,6 +5,8 @@ import {
   updateProductDraft,
 } from "@/domain/products/product";
 import {
+  zodAssignProductBrandInput,
+  zodAssignProductCategoriesInput,
   PRODUCT_SLUG_MAX_LENGTH,
   zodCreateProductInput,
   zodUpdateProductInput,
@@ -12,12 +14,19 @@ import {
 import type {
   ProductListQueryInput,
   ProductListResult,
+  ProductOrganizationRecord,
   ProductRecord,
 } from "@/domain/products/types";
+import {
+  createAuditEvent,
+  NoopAuditEventPublisher,
+  type AuditEventPublisher,
+} from "@/domain/audit/events";
 import { evaluateRouteAccess } from "@/domain/auth/rbac";
 import type { RequestActorContext } from "@/server/context/request-context";
 import type {
   ProductBrandMembershipRecord,
+  ProductCategoryRecord,
   ProductRepository,
   UpdateProductRecordInput,
 } from "@/server/repositories/ProductRepository";
@@ -38,7 +47,12 @@ const MAX_SLUG_SUFFIX_ATTEMPTS = 10_000;
 
 export type ProductActorInput = Pick<
   RequestActorContext,
-  "authenticated" | "role" | "actorId" | "accountStatus" | "eligibility"
+  | "authenticated"
+  | "role"
+  | "actorId"
+  | "safeActorId"
+  | "accountStatus"
+  | "eligibility"
 >;
 
 export type CreateProductServiceInput = {
@@ -66,6 +80,39 @@ export type UpdateProductServiceInput = {
   body: Record<string, unknown>;
 };
 
+export type AssignProductBrandServiceInput = {
+  actor: ProductActorInput | undefined;
+  requestId: string;
+  productId: string;
+  body: Record<string, unknown>;
+};
+
+export type RemoveProductBrandServiceInput = {
+  actor: ProductActorInput | undefined;
+  requestId: string;
+  productId: string;
+};
+
+export type AssignProductCategoriesServiceInput = {
+  actor: ProductActorInput | undefined;
+  requestId: string;
+  productId: string;
+  body: Record<string, unknown>;
+};
+
+export type RemoveProductCategoryServiceInput = {
+  actor: ProductActorInput | undefined;
+  requestId: string;
+  productId: string;
+  categoryId: string;
+};
+
+export type ProductOrganizationServiceInput = {
+  actor: ProductActorInput | undefined;
+  requestId: string;
+  productId: string;
+};
+
 export type ProductCreateResult = {
   product: ProductRecord;
 };
@@ -73,9 +120,17 @@ export type ProductCreateResult = {
 export type ProductDetailResult = ProductCreateResult;
 export type ProductUpdateResult = ProductCreateResult;
 export type ProductListProductsResult = ProductListResult;
+export type ProductOrganizationMutationResult = {
+  product: ProductRecord;
+  organization: ProductOrganizationRecord;
+};
+export type ProductOrganizationResult = {
+  organization: ProductOrganizationRecord;
+};
 
 export type ProductServiceOptions = {
   repository: ProductRepository;
+  auditPublisher?: AuditEventPublisher;
   now?: () => Date;
 };
 
@@ -149,16 +204,23 @@ function isActiveMembership(
 
 export class ProductService {
   private readonly repository: ProductRepository;
+  private readonly auditPublisher: AuditEventPublisher;
   private readonly now: () => Date;
 
   constructor(options: ProductServiceOptions) {
     this.repository = options.repository;
+    this.auditPublisher =
+      options.auditPublisher ?? new NoopAuditEventPublisher();
     this.now = options.now ?? (() => new Date());
   }
 
   private requireAdminActor(
     actor: ProductActorInput | undefined
-  ): AppResult<{ actorId: string; role: "ADMIN" | "SUPER_ADMIN" }> {
+  ): AppResult<{
+    actorId: string;
+    safeActorId: string;
+    role: "ADMIN" | "SUPER_ADMIN";
+  }> {
     const decision = evaluateRouteAccess({
       auth: productAuth,
       actor,
@@ -181,6 +243,7 @@ export class ProductService {
 
     return Result.okay({
       actorId: actor.actorId,
+      safeActorId: actor.safeActorId ?? actor.actorId,
       role: decision.actorRole,
     });
   }
@@ -217,12 +280,141 @@ export class ProductService {
     return patch;
   }
 
+  private normalizeBrandAssignmentBody(body: Record<string, unknown>) {
+    return {
+      brandId: this.hasOwnField(body, "brandId") ? body.brandId : null,
+    };
+  }
+
+  private normalizeCategoryAssignmentBody(body: Record<string, unknown>) {
+    return {
+      categoryIds: this.hasOwnField(body, "categoryIds") ? body.categoryIds : [],
+    };
+  }
+
   private hasExplicitSlug(body: Record<string, unknown>): boolean {
     return (
       this.hasOwnField(body, "slug") &&
       typeof body.slug === "string" &&
       body.slug.trim().length > 0
     );
+  }
+
+  private async loadProductOrError(
+    productId: string
+  ): Promise<AppResult<ProductRecord>> {
+    const product = await this.repository.findById(productId);
+    if (!product) {
+      return Result.error(
+        serviceError("RESOURCE_NOT_FOUND", { reason: "PRODUCT_NOT_FOUND" })
+      );
+    }
+
+    return Result.okay(product);
+  }
+
+  private async loadOrganizationOrError(
+    productId: string
+  ): Promise<AppResult<ProductOrganizationRecord>> {
+    const organization = await this.repository.findOrganization(productId);
+    if (!organization) {
+      return Result.error(
+        serviceError("RESOURCE_NOT_FOUND", { reason: "PRODUCT_NOT_FOUND" })
+      );
+    }
+
+    return Result.okay(organization);
+  }
+
+  private async validateCategoryAssignment(
+    categoryIds: string[]
+  ): Promise<AppResult<{ categoryIds: string[]; categories: ProductCategoryRecord[] }>> {
+    const normalizedCategoryIds = Array.from(
+      new Set(
+        categoryIds
+          .map((categoryId) => categoryId.trim())
+          .filter((categoryId) => categoryId.length > 0)
+      )
+    );
+
+    if (normalizedCategoryIds.length === 0) {
+      return Result.okay({ categoryIds: [], categories: [] });
+    }
+
+    const categories = await this.repository.findCategoriesByIds(
+      normalizedCategoryIds
+    );
+    const foundCategoryIds = new Set(categories.map((category) => category.id));
+    const missingCategoryIds = normalizedCategoryIds.filter(
+      (categoryId) => !foundCategoryIds.has(categoryId)
+    );
+
+    if (missingCategoryIds.length > 0) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", {
+          reason: "INVALID_CATEGORY_IDS",
+          categoryIds: missingCategoryIds,
+        })
+      );
+    }
+
+    const inactiveCategoryIds = categories
+      .filter((category) => category.status !== "ACTIVE")
+      .map((category) => category.id);
+    if (inactiveCategoryIds.length > 0) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", {
+          reason: "CATEGORY_NOT_ACTIVE",
+          categoryIds: inactiveCategoryIds,
+        })
+      );
+    }
+
+    return Result.okay({
+      categoryIds: normalizedCategoryIds,
+      categories,
+    });
+  }
+
+  private async publishOrganizationAudit(input: {
+    requestId: string;
+    actorId: string;
+    safeActorId: string;
+    actorRole: "ADMIN" | "SUPER_ADMIN";
+    operation:
+      | "assign_product_brand"
+      | "remove_product_brand"
+      | "assign_product_categories"
+      | "remove_product_category";
+    productId: string;
+    oldOrganization: ProductOrganizationRecord;
+    newOrganization: ProductOrganizationRecord;
+    timestamp: string;
+  }): Promise<void> {
+    const event = createAuditEvent({
+      requestId: input.requestId,
+      action: "catalog.product_updated",
+      actor: {
+        type: "user",
+        id: input.actorId,
+        role: input.actorRole,
+        safeIdentifier: input.safeActorId,
+      },
+      target: {
+        entity: "catalog",
+        entityId: input.productId,
+      },
+      safeDetails: {
+        requestId: input.requestId,
+        operation: input.operation,
+        oldOrganization: input.oldOrganization,
+        newOrganization: input.newOrganization,
+        timestamp: input.timestamp,
+      },
+      occurredAt: input.timestamp,
+    });
+
+    await this.auditPublisher.publish(event);
   }
 
   private async resolveUniqueSlug(
@@ -512,6 +704,309 @@ export class ProductService {
         );
       }
 
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async assignProductBrand(
+    input: AssignProductBrandServiceInput
+  ): Promise<AppResult<ProductOrganizationMutationResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) {
+      return actor;
+    }
+
+    const parsed = zodAssignProductBrandInput.safeParse(
+      this.normalizeBrandAssignmentBody(input.body)
+    );
+    if (!parsed.success) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", { reasons: zodReasons(parsed.error) })
+      );
+    }
+
+    try {
+      const existing = await this.loadProductOrError(input.productId);
+      if (existing.error) {
+        return Result.error(existing.error);
+      }
+
+      const sourceMembership = await this.requireBrandMutationPermission({
+        actorId: actor.content.actorId,
+        role: actor.content.role,
+        brandId: existing.content.brandId,
+      });
+      if (sourceMembership.error) {
+        return Result.error(sourceMembership.error);
+      }
+
+      const targetBrandId = parsed.data.brandId;
+      if (targetBrandId) {
+        const targetMembership = await this.requireBrandMutationPermission({
+          actorId: actor.content.actorId,
+          role: actor.content.role,
+          brandId: targetBrandId,
+        });
+        if (targetMembership.error) {
+          return Result.error(targetMembership.error);
+        }
+      }
+
+      const oldOrganization = await this.loadOrganizationOrError(input.productId);
+      if (oldOrganization.error) {
+        return Result.error(oldOrganization.error);
+      }
+
+      const timestamp = this.now().toISOString();
+      const product = targetBrandId
+        ? await this.repository.assignBrand(
+            input.productId,
+            targetBrandId,
+            timestamp
+          )
+        : await this.repository.removeBrand(input.productId, timestamp);
+
+      const newOrganization = await this.loadOrganizationOrError(input.productId);
+      if (newOrganization.error) {
+        return Result.error(newOrganization.error);
+      }
+
+      await this.publishOrganizationAudit({
+        requestId: input.requestId,
+        actorId: actor.content.actorId,
+        safeActorId: actor.content.safeActorId,
+        actorRole: actor.content.role,
+        operation: targetBrandId
+          ? "assign_product_brand"
+          : "remove_product_brand",
+        productId: input.productId,
+        oldOrganization: oldOrganization.content,
+        newOrganization: newOrganization.content,
+        timestamp,
+      });
+
+      return Result.okay({
+        product,
+        organization: newOrganization.content,
+      });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async removeProductBrand(
+    input: RemoveProductBrandServiceInput
+  ): Promise<AppResult<ProductOrganizationMutationResult>> {
+    return this.assignProductBrand({
+      actor: input.actor,
+      requestId: input.requestId,
+      productId: input.productId,
+      body: {
+        brandId: null,
+      },
+    });
+  }
+
+  async assignProductCategories(
+    input: AssignProductCategoriesServiceInput
+  ): Promise<AppResult<ProductOrganizationMutationResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) {
+      return actor;
+    }
+
+    const parsed = zodAssignProductCategoriesInput.safeParse(
+      this.normalizeCategoryAssignmentBody(input.body)
+    );
+    if (!parsed.success) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", { reasons: zodReasons(parsed.error) })
+      );
+    }
+
+    try {
+      const existing = await this.loadProductOrError(input.productId);
+      if (existing.error) {
+        return Result.error(existing.error);
+      }
+
+      const membership = await this.requireBrandMutationPermission({
+        actorId: actor.content.actorId,
+        role: actor.content.role,
+        brandId: existing.content.brandId,
+      });
+      if (membership.error) {
+        return Result.error(membership.error);
+      }
+
+      const validatedCategories = await this.validateCategoryAssignment(
+        parsed.data.categoryIds
+      );
+      if (validatedCategories.error) {
+        return Result.error(validatedCategories.error);
+      }
+
+      const oldOrganization = await this.loadOrganizationOrError(input.productId);
+      if (oldOrganization.error) {
+        return Result.error(oldOrganization.error);
+      }
+
+      const timestamp = this.now().toISOString();
+      await this.repository.assignCategories(
+        input.productId,
+        validatedCategories.content.categoryIds,
+        timestamp
+      );
+
+      const product = await this.repository.findById(input.productId);
+      if (!product) {
+        return Result.error(
+          serviceError("RESOURCE_NOT_FOUND", { reason: "PRODUCT_NOT_FOUND" })
+        );
+      }
+
+      const newOrganization = await this.loadOrganizationOrError(input.productId);
+      if (newOrganization.error) {
+        return Result.error(newOrganization.error);
+      }
+
+      await this.publishOrganizationAudit({
+        requestId: input.requestId,
+        actorId: actor.content.actorId,
+        safeActorId: actor.content.safeActorId,
+        actorRole: actor.content.role,
+        operation: "assign_product_categories",
+        productId: input.productId,
+        oldOrganization: oldOrganization.content,
+        newOrganization: newOrganization.content,
+        timestamp,
+      });
+
+      return Result.okay({
+        product,
+        organization: newOrganization.content,
+      });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async removeProductCategory(
+    input: RemoveProductCategoryServiceInput
+  ): Promise<AppResult<ProductOrganizationMutationResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) {
+      return actor;
+    }
+
+    try {
+      const existing = await this.loadProductOrError(input.productId);
+      if (existing.error) {
+        return Result.error(existing.error);
+      }
+
+      const membership = await this.requireBrandMutationPermission({
+        actorId: actor.content.actorId,
+        role: actor.content.role,
+        brandId: existing.content.brandId,
+      });
+      if (membership.error) {
+        return Result.error(membership.error);
+      }
+
+      const oldOrganization = await this.loadOrganizationOrError(input.productId);
+      if (oldOrganization.error) {
+        return Result.error(oldOrganization.error);
+      }
+
+      const timestamp = this.now().toISOString();
+      await this.repository.removeCategory(
+        input.productId,
+        input.categoryId,
+        timestamp
+      );
+
+      const product = await this.repository.findById(input.productId);
+      if (!product) {
+        return Result.error(
+          serviceError("RESOURCE_NOT_FOUND", { reason: "PRODUCT_NOT_FOUND" })
+        );
+      }
+
+      const newOrganization = await this.loadOrganizationOrError(input.productId);
+      if (newOrganization.error) {
+        return Result.error(newOrganization.error);
+      }
+
+      await this.publishOrganizationAudit({
+        requestId: input.requestId,
+        actorId: actor.content.actorId,
+        safeActorId: actor.content.safeActorId,
+        actorRole: actor.content.role,
+        operation: "remove_product_category",
+        productId: input.productId,
+        oldOrganization: oldOrganization.content,
+        newOrganization: newOrganization.content,
+        timestamp,
+      });
+
+      return Result.okay({
+        product,
+        organization: newOrganization.content,
+      });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async getProductOrganization(
+    input: ProductOrganizationServiceInput
+  ): Promise<AppResult<ProductOrganizationResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) {
+      return actor;
+    }
+
+    try {
+      const product = await this.loadProductOrError(input.productId);
+      if (product.error) {
+        return Result.error(product.error);
+      }
+
+      const membership = await this.requireBrandMutationPermission({
+        actorId: actor.content.actorId,
+        role: actor.content.role,
+        brandId: product.content.brandId,
+      });
+      if (membership.error) {
+        return Result.error(membership.error);
+      }
+
+      const organization = await this.loadOrganizationOrError(input.productId);
+      if (organization.error) {
+        return Result.error(organization.error);
+      }
+
+      return Result.okay({
+        organization: organization.content,
+      });
+    } catch (error) {
       if (providerFailure(error)) {
         return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
       }

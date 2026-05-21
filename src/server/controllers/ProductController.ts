@@ -5,6 +5,8 @@ import {
   type ApiResponse,
 } from "@/lib/api/response";
 import type {
+  AssignProductBrandServiceInput,
+  AssignProductCategoriesServiceInput,
   CreateProductServiceInput,
   ListProductsServiceInput,
   ProductActorInput,
@@ -12,6 +14,9 @@ import type {
   ProductDetailResult,
   ProductDetailServiceInput,
   ProductListProductsResult,
+  ProductOrganizationResult,
+  ProductOrganizationServiceInput,
+  ProductOrganizationMutationResult,
   ProductUpdateResult,
   UpdateProductServiceInput,
 } from "@/server/services/ProductService";
@@ -30,6 +35,15 @@ export type ProductServiceLike = {
   updateProduct(
     input: UpdateProductServiceInput
   ): Promise<AppResult<ProductUpdateResult>>;
+  assignProductBrand(
+    input: AssignProductBrandServiceInput
+  ): Promise<AppResult<ProductOrganizationMutationResult>>;
+  assignProductCategories(
+    input: AssignProductCategoriesServiceInput
+  ): Promise<AppResult<ProductOrganizationMutationResult>>;
+  getProductOrganization(
+    input: ProductOrganizationServiceInput
+  ): Promise<AppResult<ProductOrganizationResult>>;
 };
 
 export type ProductControllerResult<T> = {
@@ -68,6 +82,26 @@ export type UpdateProductControllerInput = {
   requestId: string;
   productId: string;
   body: Record<string, unknown>;
+};
+
+export type AssignProductBrandControllerInput = {
+  actor: ProductActorInput | undefined;
+  requestId: string;
+  productId: string;
+  body: Record<string, unknown>;
+};
+
+export type AssignProductCategoriesControllerInput = {
+  actor: ProductActorInput | undefined;
+  requestId: string;
+  productId: string;
+  body: Record<string, unknown>;
+};
+
+export type ProductOrganizationControllerInput = {
+  actor: ProductActorInput | undefined;
+  requestId: string;
+  productId: string;
 };
 
 function errorResult<T>(
@@ -158,6 +192,57 @@ export class ProductController {
     input: UpdateProductControllerInput
   ): Promise<ProductControllerResult<ProductUpdateResult>> {
     const result = await this.service.updateProduct(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async assignProductBrand(
+    input: AssignProductBrandControllerInput
+  ): Promise<ProductControllerResult<ProductOrganizationMutationResult>> {
+    const result = await this.service.assignProductBrand(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async assignProductCategories(
+    input: AssignProductCategoriesControllerInput
+  ): Promise<ProductControllerResult<ProductOrganizationMutationResult>> {
+    const result = await this.service.assignProductCategories(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async getProductOrganization(
+    input: ProductOrganizationControllerInput
+  ): Promise<ProductControllerResult<ProductOrganizationResult>> {
+    const result = await this.service.getProductOrganization(input);
 
     if (result.error) {
       return errorResult(result, input.requestId);

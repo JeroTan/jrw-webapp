@@ -692,6 +692,10 @@ p {
   gap: var(--jrw-space-sm);
 }
 
+.jrw-products__category-select {
+  min-height: 8.5rem;
+}
+
 .jrw-products__error-summary {
   display: grid;
   gap: var(--jrw-space-xs);

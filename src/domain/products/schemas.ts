@@ -10,6 +10,7 @@ export const PRODUCT_SUMMARY_MAX_LENGTH = 280;
 export const PRODUCT_DESCRIPTION_MIN_LENGTH = 2;
 export const PRODUCT_DESCRIPTION_MAX_LENGTH = 8_000;
 export const PRODUCT_STATUS_VALUES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
+export const PRODUCT_ASSIGNMENT_MAX_CATEGORY_IDS = 100;
 
 export const zodProductSlug = z
   .string()
@@ -58,11 +59,24 @@ export const zodUpdateProductInput = z
     message: "At least one field is required.",
   });
 
+export const zodAssignProductBrandInput = z.object({
+  brandId: z.union([z.string().trim().min(1).max(128), z.null()]),
+});
+
+export const zodAssignProductCategoriesInput = z.object({
+  categoryIds: z
+    .array(z.string().trim().min(1).max(128))
+    .max(PRODUCT_ASSIGNMENT_MAX_CATEGORY_IDS),
+});
+
 const tboxProductStatus = t.Union([
   t.Literal("DRAFT"),
   t.Literal("PUBLISHED"),
   t.Literal("ARCHIVED"),
 ]);
+
+const tboxCategoryStatus = t.Union([t.Literal("ACTIVE"), t.Literal("ARCHIVED")]);
+const tboxBrandStatus = t.Union([t.Literal("ACTIVE"), t.Literal("ARCHIVED")]);
 
 export const tboxProduct = t.Object({
   id: t.String(),
@@ -90,6 +104,34 @@ export const tboxProduct = t.Object({
 
 export const tboxProductData = t.Object({
   product: tboxProduct,
+});
+
+const tboxProductOrganizationBrand = t.Object({
+  id: t.String(),
+  name: t.String(),
+  status: tboxBrandStatus,
+});
+
+const tboxProductOrganizationCategory = t.Object({
+  id: t.String(),
+  name: t.String(),
+  slug: t.String(),
+  status: tboxCategoryStatus,
+});
+
+export const tboxProductOrganization = t.Object({
+  productId: t.String(),
+  brand: t.Nullable(tboxProductOrganizationBrand),
+  categories: t.Array(tboxProductOrganizationCategory),
+});
+
+export const tboxProductOrganizationData = t.Object({
+  organization: tboxProductOrganization,
+});
+
+export const tboxProductOrganizationMutationData = t.Object({
+  product: tboxProduct,
+  organization: tboxProductOrganization,
 });
 
 export const tboxProductListData = t.Object({
@@ -152,6 +194,22 @@ export const tboxUpdateProductBody = t.Object(
   { additionalProperties: false, minProperties: 1 }
 );
 
+export const tboxAssignProductBrandBody = t.Object(
+  {
+    brandId: t.Nullable(t.String({ minLength: 1, maxLength: 128 })),
+  },
+  { additionalProperties: false }
+);
+
+export const tboxAssignProductCategoriesBody = t.Object(
+  {
+    categoryIds: t.Array(t.String({ minLength: 1, maxLength: 128 }), {
+      maxItems: PRODUCT_ASSIGNMENT_MAX_CATEGORY_IDS,
+    }),
+  },
+  { additionalProperties: false }
+);
+
 export const tboxProductIdParams = t.Object(
   {
     productId: t.String({ minLength: 1, maxLength: 128 }),
@@ -165,6 +223,7 @@ export const tboxProductListQuery = t.Object(
     pageSize: t.Optional(t.Numeric({ minimum: 1, maximum: 100, default: 20 })),
     status: t.Optional(tboxProductStatus),
     brandId: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
+    brandless: t.Optional(t.BooleanString()),
     categoryId: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
     search: t.Optional(t.String({ minLength: 1, maxLength: 180 })),
     includeArchived: t.Optional(t.BooleanString()),

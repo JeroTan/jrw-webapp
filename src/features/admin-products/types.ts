@@ -28,3 +28,59 @@ export type ProductMutationInput = {
   summary?: string | null;
   description: string;
 };
+
+export type ProductBrandAssignmentInput = {
+  brandId: string | null;
+};
+
+export type ProductCategoryAssignmentInput = {
+  categoryIds: string[];
+};
+
+export type ProductOrganizationBrand = {
+  id: string;
+  name: string;
+  status: "ACTIVE" | "ARCHIVED";
+};
+
+export type ProductOrganizationCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  status: "ACTIVE" | "ARCHIVED";
+};
+
+export type ProductOrganizationRecord = {
+  productId: string;
+  brand: ProductOrganizationBrand | null;
+  categories: ProductOrganizationCategory[];
+};
+
+export type ProductOrganizationMutationResult = {
+  product: ProductRecord;
+  organization: ProductOrganizationRecord;
+};
+
+export type ProductListQueryInput = {
+  page?: number;
+  pageSize?: number;
+  status?: ProductStatus;
+  search?: string;
+  brandId?: string;
+  brandless?: boolean;
+  categoryId?: string;
+  includeArchived?: boolean;
+};
+
+export type ProductAssignableBrand = {
+  id: string;
+  name: string;
+  status: "ACTIVE" | "ARCHIVED";
+};
+
+export type ProductAssignableCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  status: "ACTIVE" | "ARCHIVED";
+};

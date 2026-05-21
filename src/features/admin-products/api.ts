@@ -1,6 +1,13 @@
 import type {
+  ProductAssignableBrand,
+  ProductAssignableCategory,
+  ProductBrandAssignmentInput,
+  ProductCategoryAssignmentInput,
   ProductListResult,
+  ProductListQueryInput,
   ProductMutationInput,
+  ProductOrganizationMutationResult,
+  ProductOrganizationRecord,
   ProductRecord,
 } from "./types";
 
@@ -25,6 +32,23 @@ type ApiEnvelope<T> =
     };
 
 const DEFAULT_PAGE_SIZE = 100;
+
+type BrandListPayload = {
+  items: Array<{
+    id: string;
+    name: string;
+    status: "ACTIVE" | "ARCHIVED";
+  }>;
+};
+
+type CategoryListPayload = {
+  items: Array<{
+    id: string;
+    name: string;
+    slug: string;
+    status: "ACTIVE" | "ARCHIVED";
+  }>;
+};
 
 function toApiFailure(input: {
   code: string;
@@ -98,12 +122,45 @@ async function readApiEnvelope<T>(response: Response): Promise<T> {
 }
 
 export async function fetchProductList(): Promise<ProductListResult> {
-  const response = await fetch(
-    `/api/admin/products?page=1&pageSize=${DEFAULT_PAGE_SIZE}&includeArchived=true`,
-    {
-      headers: { accept: "application/json" },
-    }
-  );
+  const response = await fetch(buildProductListUrl(), {
+    headers: { accept: "application/json" },
+  });
+
+  return readApiEnvelope<ProductListResult>(response);
+}
+
+function buildProductListUrl(query: ProductListQueryInput = {}): string {
+  const params = new URLSearchParams();
+
+  params.set("page", String(query.page ?? 1));
+  params.set("pageSize", String(query.pageSize ?? DEFAULT_PAGE_SIZE));
+  params.set("includeArchived", String(query.includeArchived ?? true));
+
+  if (query.status) {
+    params.set("status", query.status);
+  }
+  if (query.search && query.search.trim().length > 0) {
+    params.set("search", query.search.trim());
+  }
+  if (query.brandId && query.brandId.trim().length > 0) {
+    params.set("brandId", query.brandId.trim());
+  }
+  if (query.brandless) {
+    params.set("brandless", "true");
+  }
+  if (query.categoryId && query.categoryId.trim().length > 0) {
+    params.set("categoryId", query.categoryId.trim());
+  }
+
+  return `/api/admin/products?${params.toString()}`;
+}
+
+export async function fetchProductListWithQuery(
+  query: ProductListQueryInput
+): Promise<ProductListResult> {
+  const response = await fetch(buildProductListUrl(query), {
+    headers: { accept: "application/json" },
+  });
 
   return readApiEnvelope<ProductListResult>(response);
 }
@@ -114,6 +171,18 @@ export async function fetchProductDetail(productId: string): Promise<ProductReco
   });
   const payload = await readApiEnvelope<{ product: ProductRecord }>(response);
   return payload.product;
+}
+
+export async function fetchProductOrganization(
+  productId: string
+): Promise<ProductOrganizationRecord> {
+  const response = await fetch(`/api/admin/products/${productId}/organization`, {
+    headers: { accept: "application/json" },
+  });
+  const payload = await readApiEnvelope<{ organization: ProductOrganizationRecord }>(
+    response
+  );
+  return payload.organization;
 }
 
 export async function createProduct(
@@ -145,4 +214,67 @@ export async function updateProduct(
   });
   const payload = await readApiEnvelope<{ product: ProductRecord }>(response);
   return payload.product;
+}
+
+export async function assignProductBrand(
+  productId: string,
+  input: ProductBrandAssignmentInput
+): Promise<ProductOrganizationMutationResult> {
+  const response = await fetch(`/api/admin/products/${productId}/brand`, {
+    method: "PATCH",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  return readApiEnvelope<ProductOrganizationMutationResult>(response);
+}
+
+export async function assignProductCategories(
+  productId: string,
+  input: ProductCategoryAssignmentInput
+): Promise<ProductOrganizationMutationResult> {
+  const response = await fetch(`/api/admin/products/${productId}/categories`, {
+    method: "PATCH",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  return readApiEnvelope<ProductOrganizationMutationResult>(response);
+}
+
+export async function fetchAssignableBrands(): Promise<ProductAssignableBrand[]> {
+  const response = await fetch(
+    `/api/brands/me?page=1&pageSize=${DEFAULT_PAGE_SIZE}`,
+    {
+      headers: { accept: "application/json" },
+    }
+  );
+  const payload = await readApiEnvelope<BrandListPayload>(response);
+  return payload.items.map((brand) => ({
+    id: brand.id,
+    name: brand.name,
+    status: brand.status,
+  }));
+}
+
+export async function fetchAssignableCategories(): Promise<
+  ProductAssignableCategory[]
+> {
+  const response = await fetch(
+    `/api/admin/categories?page=1&pageSize=${DEFAULT_PAGE_SIZE}&status=ACTIVE`,
+    {
+      headers: { accept: "application/json" },
+    }
+  );
+  const payload = await readApiEnvelope<CategoryListPayload>(response);
+  return payload.items.map((category) => ({
+    id: category.id,
+    name: category.name,
+    slug: category.slug,
+    status: category.status,
+  }));
 }

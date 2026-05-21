@@ -6,11 +6,12 @@ import {
 } from "./product";
 import { ProductService } from "@/server/services/ProductService";
 import type {
+  ProductCategoryRecord,
   ProductBrandMembershipRecord,
   ProductBrandRecord,
   ProductRepository,
 } from "@/server/repositories/ProductRepository";
-import type { ProductRecord } from "./types";
+import type { ProductOrganizationRecord, ProductRecord } from "./types";
 
 const now = "2026-05-20T10:00:00.000Z";
 
@@ -72,6 +73,29 @@ function activeMembership(
   };
 }
 
+function productCategory(
+  overrides: Partial<ProductCategoryRecord> = {}
+): ProductCategoryRecord {
+  return {
+    id: "cat_1",
+    name: "Lighting",
+    slug: "lighting",
+    status: "ACTIVE",
+    ...overrides,
+  };
+}
+
+function organizationRecord(
+  overrides: Partial<ProductOrganizationRecord> = {}
+): ProductOrganizationRecord {
+  return {
+    productId: "prod_1",
+    brand: null,
+    categories: [],
+    ...overrides,
+  };
+}
+
 function repositoryDouble(
   overrides: Partial<ProductRepository> = {}
 ): ProductRepository {
@@ -105,6 +129,31 @@ function repositoryDouble(
         status: "DRAFT",
         updatedAt: input.updatedAt,
       }),
+    assignBrand: async (productId, brandId, updatedAt) =>
+      productRecord({
+        id: productId,
+        brandId,
+        brandName: brandId === "brand_1" ? "Home" : "Brand",
+        updatedAt,
+      }),
+    removeBrand: async (productId, updatedAt) =>
+      productRecord({
+        id: productId,
+        brandId: null,
+        brandName: null,
+        updatedAt,
+      }),
+    assignCategories: async () => undefined,
+    removeCategory: async () => undefined,
+    findCategoriesByIds: async (categoryIds) =>
+      categoryIds.map((categoryId, index) =>
+        productCategory({
+          id: categoryId,
+          name: `Category ${index + 1}`,
+          slug: `category-${index + 1}`,
+        })
+      ),
+    findOrganization: async () => organizationRecord(),
     findBrandById: async () => activeBrand(),
     findBrandMembership: async () => activeMembership(),
     ...overrides,
@@ -163,9 +212,22 @@ describe("product domain helpers", () => {
       pageSize: 100,
       status: "DRAFT",
       brandId: "brand_1",
+      brandless: false,
       categoryId: "cat_1",
       search: "lamp",
       includeArchived: true,
+    });
+  });
+
+  it("rejects conflicting brandId and brandless list filters", () => {
+    const query = normalizeProductListQuery({
+      brandId: "brand_1",
+      brandless: "true",
+    });
+
+    expect(query.error?.code).toBe("VALIDATION_FAILED");
+    expect(query.error?.data).toMatchObject({
+      reasons: expect.arrayContaining(["brand_filter:conflict"]),
     });
   });
 });
@@ -355,5 +417,179 @@ describe("ProductService", () => {
       viewerAdminId: "admin_1",
       restrictToViewerMembership: false,
     });
+  });
+
+  it("assigns product brand when actor has brand membership", async () => {
+    const assignCalls: Array<{ productId: string; brandId: string }> = [];
+    const service = new ProductService({
+      now: () => new Date(now),
+      repository: repositoryDouble({
+        assignBrand: async (productId, brandId, updatedAt) => {
+          assignCalls.push({ productId, brandId });
+          return productRecord({
+            id: productId,
+            brandId,
+            brandName: "Home",
+            updatedAt,
+          });
+        },
+        findOrganization: async () =>
+          organizationRecord({
+            brand: {
+              id: "brand_1",
+              name: "Home",
+              status: "ACTIVE",
+            },
+          }),
+      }),
+    });
+
+    const updated = await service.assignProductBrand({
+      actor: adminActor,
+      requestId: "req_assign_brand",
+      productId: "prod_1",
+      body: {
+        brandId: "brand_1",
+      },
+    });
+
+    expect(updated.error).toBeNull();
+    expect(updated.content?.product.brandId).toBe("brand_1");
+    expect(assignCalls).toEqual([{ productId: "prod_1", brandId: "brand_1" }]);
+  });
+
+  it("denies product brand assignment for non-members", async () => {
+    const service = new ProductService({
+      repository: repositoryDouble({
+        findBrandMembership: async () => null,
+      }),
+    });
+
+    const updated = await service.assignProductBrand({
+      actor: adminActor,
+      requestId: "req_assign_brand_denied",
+      productId: "prod_1",
+      body: {
+        brandId: "brand_2",
+      },
+    });
+
+    expect(updated.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(updated.error?.data).toMatchObject({
+      reason: "BRAND_MEMBERSHIP_REQUIRED",
+    });
+  });
+
+  it("supports brandless product assignment", async () => {
+    const removeCalls: string[] = [];
+    const service = new ProductService({
+      repository: repositoryDouble({
+        findById: async () => productRecord({ brandId: "brand_1", brandName: "Home" }),
+        removeBrand: async (productId, updatedAt) => {
+          removeCalls.push(productId);
+          return productRecord({
+            id: productId,
+            brandId: null,
+            brandName: null,
+            updatedAt,
+          });
+        },
+      }),
+    });
+
+    const updated = await service.assignProductBrand({
+      actor: adminActor,
+      requestId: "req_remove_brand",
+      productId: "prod_1",
+      body: {
+        brandId: null,
+      },
+    });
+
+    expect(updated.error).toBeNull();
+    expect(updated.content?.product.brandId).toBeNull();
+    expect(removeCalls).toEqual(["prod_1"]);
+  });
+
+  it("assigns active categories to product", async () => {
+    let assignedCategoryIds: string[] = [];
+    const service = new ProductService({
+      repository: repositoryDouble({
+        assignCategories: async (_productId, categoryIds) => {
+          assignedCategoryIds = categoryIds;
+        },
+        findOrganization: async () =>
+          organizationRecord({
+            categories: [
+              {
+                id: "cat_1",
+                name: "Lighting",
+                slug: "lighting",
+                status: "ACTIVE",
+              },
+              {
+                id: "cat_2",
+                name: "Decor",
+                slug: "decor",
+                status: "ACTIVE",
+              },
+            ],
+          }),
+      }),
+    });
+
+    const updated = await service.assignProductCategories({
+      actor: adminActor,
+      requestId: "req_assign_categories",
+      productId: "prod_1",
+      body: {
+        categoryIds: ["cat_1", "cat_2"],
+      },
+    });
+
+    expect(updated.error).toBeNull();
+    expect(assignedCategoryIds).toEqual(["cat_1", "cat_2"]);
+    expect(updated.content?.product.linkedCategoryCount).toBe(0);
+  });
+
+  it("rejects archived categories for assignment", async () => {
+    const service = new ProductService({
+      repository: repositoryDouble({
+        findCategoriesByIds: async () =>
+          [productCategory({ id: "cat_archived", status: "ARCHIVED" })],
+      }),
+    });
+
+    const updated = await service.assignProductCategories({
+      actor: adminActor,
+      requestId: "req_assign_archived_category",
+      productId: "prod_1",
+      body: {
+        categoryIds: ["cat_archived"],
+      },
+    });
+
+    expect(updated.error?.code).toBe("VALIDATION_FAILED");
+    expect(updated.error?.data).toMatchObject({
+      reason: "CATEGORY_NOT_ACTIVE",
+      categoryIds: ["cat_archived"],
+    });
+  });
+
+  it("rejects multi-brand assignment payload", async () => {
+    const service = new ProductService({
+      repository: repositoryDouble(),
+    });
+
+    const updated = await service.assignProductBrand({
+      actor: adminActor,
+      requestId: "req_assign_multi_brand",
+      productId: "prod_1",
+      body: {
+        brandId: ["brand_1", "brand_2"],
+      },
+    });
+
+    expect(updated.error?.code).toBe("VALIDATION_FAILED");
   });
 });

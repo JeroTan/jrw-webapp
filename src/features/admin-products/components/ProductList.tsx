@@ -3,15 +3,25 @@ import { useEffect, useMemo, useState } from "react";
 import { DataTable, type DataTableColumn } from "@/components/data-display";
 import { EmptyState, Skeleton, StatusBadge, Toast } from "@/components/feedback";
 import { PageToolbar } from "@/components/layout";
-import { Button, SearchInput } from "@/components/ui";
+import { Button, SearchInput, Select } from "@/components/ui";
 import {
+  assignProductBrand,
+  assignProductCategories,
   createProduct,
-  fetchProductList,
+  fetchAssignableBrands,
+  fetchAssignableCategories,
+  fetchProductListWithQuery,
+  fetchProductOrganization,
   updateProduct,
   type ApiFailure,
 } from "../api";
-import { ProductEditor } from "./ProductEditor";
-import type { ProductMutationInput, ProductRecord } from "../types";
+import { ProductEditor, type ProductEditorSaveInput } from "./ProductEditor";
+import type {
+  ProductAssignableBrand,
+  ProductAssignableCategory,
+  ProductOrganizationRecord,
+  ProductRecord,
+} from "../types";
 
 type LoadState = "loading" | "ready" | "failed";
 
@@ -24,7 +34,12 @@ type ToastState = {
 type EditorState = {
   mode: "create" | "edit";
   product: ProductRecord | null;
+  organization: ProductOrganizationRecord | null;
+  organizationReady: boolean;
+  organizationUnavailable: boolean;
 };
+
+const BRANDLESS_FILTER_VALUE = "__brandless__";
 
 function statusTone(status: ProductRecord["status"]) {
   switch (status) {
@@ -73,22 +88,29 @@ function productActionErrorMessage(error: unknown, fallback: string): string {
     }
 
     if (reason === "BRAND_MEMBERSHIP_REQUIRED") {
-      return "You need active membership in this product brand.";
+      return "You need active membership in selected brand.";
     }
 
     return "Product state conflicts with current data.";
   }
 
   if (failure.code === "VALIDATION_FAILED") {
+    if (reason === "CATEGORY_NOT_ACTIVE") {
+      return "Archived categories cannot be assigned to this product.";
+    }
+    if (reason === "INVALID_CATEGORY_IDS") {
+      return "Selected categories are invalid. Refresh and try again.";
+    }
+
     return "Product data is invalid. Check required fields and try again.";
   }
 
   if (failure.code === "AUTH_FORBIDDEN") {
     if (reason === "BRAND_MEMBERSHIP_REQUIRED") {
-      return "You need active membership in this product brand.";
+      return "You need active membership in selected brand.";
     }
 
-    return "You do not have access to manage products.";
+    return "You do not have access to manage this product.";
   }
 
   return typeof failure.message === "string" && failure.message.trim().length > 0
@@ -141,6 +163,12 @@ export function ProductList(props: ProductListProps) {
     sortProducts(initialProducts)
   );
   const [searchQuery, setSearchQuery] = useState("");
+  const [brandFilter, setBrandFilter] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("");
+  const [availableBrands, setAvailableBrands] = useState<ProductAssignableBrand[]>([]);
+  const [availableCategories, setAvailableCategories] = useState<
+    ProductAssignableCategory[]
+  >([]);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
   const [saving, setSaving] = useState(false);
@@ -152,9 +180,49 @@ export function ProductList(props: ProductListProps) {
     }
 
     let active = true;
+    Promise.all([fetchAssignableBrands(), fetchAssignableCategories()])
+      .then(([brands, categories]) => {
+        if (!active) {
+          return;
+        }
+
+        setAvailableBrands(brands.filter((brand) => brand.status === "ACTIVE"));
+        setAvailableCategories(
+          categories.filter((category) => category.status === "ACTIVE")
+        );
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+
+        setAvailableBrands([]);
+        setAvailableCategories([]);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [autoLoad, refreshToken]);
+
+  useEffect(() => {
+    if (!autoLoad) {
+      return;
+    }
+
+    let active = true;
     setLoadState("loading");
 
-    fetchProductList()
+    fetchProductListWithQuery({
+      search: searchQuery.trim().length > 0 ? searchQuery : undefined,
+      brandId:
+        brandFilter && brandFilter !== BRANDLESS_FILTER_VALUE
+          ? brandFilter
+          : undefined,
+      brandless: brandFilter === BRANDLESS_FILTER_VALUE,
+      categoryId: categoryFilter || undefined,
+      includeArchived: true,
+    })
       .then((result) => {
         if (!active) {
           return;
@@ -174,13 +242,12 @@ export function ProductList(props: ProductListProps) {
     return () => {
       active = false;
     };
-  }, [autoLoad, refreshToken]);
+  }, [autoLoad, refreshToken, searchQuery, brandFilter, categoryFilter]);
 
-  const visibleProducts = useMemo(
-    () => filterProductsByQuery(products, searchQuery),
-    [products, searchQuery]
-  );
+  const visibleProducts = useMemo(() => products, [products]);
   const hasSearchQuery = searchQuery.trim().length > 0;
+  const hasActiveFilters =
+    hasSearchQuery || brandFilter.length > 0 || categoryFilter.length > 0;
   const draftCount = products.filter((row) => row.status === "DRAFT").length;
 
   const columns = useMemo<Array<DataTableColumn<ProductRecord>>>(
@@ -223,12 +290,53 @@ export function ProductList(props: ProductListProps) {
         cell: (product) => (
           <div className="jrw-products__table-actions">
             <Button
-              onClick={() =>
+              onClick={() => {
                 setEditorState({
                   mode: "edit",
                   product,
-                })
-              }
+                  organization: null,
+                  organizationReady: false,
+                  organizationUnavailable: false,
+                });
+
+                fetchProductOrganization(product.id)
+                  .then((organization) => {
+                    setEditorState((previous) => {
+                      if (
+                        !previous ||
+                        previous.mode !== "edit" ||
+                        previous.product?.id !== product.id
+                      ) {
+                        return previous;
+                      }
+
+                      return {
+                        ...previous,
+                        organization,
+                        organizationReady: true,
+                        organizationUnavailable: false,
+                      };
+                    });
+                  })
+                  .catch(() => {
+                    setEditorState((previous) => {
+                      if (
+                        !previous ||
+                        previous.mode !== "edit" ||
+                        previous.product?.id !== product.id
+                      ) {
+                        return previous;
+                      }
+
+                      return {
+                        ...previous,
+                        organization: null,
+                        organizationReady: false,
+                        organizationUnavailable: true,
+                      };
+                    });
+                  });
+              }}
               size="sm"
               variant="secondary"
             >
@@ -241,34 +349,66 @@ export function ProductList(props: ProductListProps) {
     []
   );
 
-  async function handleSaveProduct(input: ProductMutationInput) {
+  async function handleSaveProduct(input: ProductEditorSaveInput) {
     setSaving(true);
     try {
       if (editorState?.mode === "create") {
-        const created = await createProduct(input);
-        setProducts((previous) => sortProducts([...previous, created]));
+        let nextProduct = await createProduct(input.identity);
+
+        if (input.organization.brandId !== null) {
+          const brandMutation = await assignProductBrand(nextProduct.id, {
+            brandId: input.organization.brandId,
+          });
+          nextProduct = brandMutation.product;
+        }
+
+        if (input.organization.categoryIds.length > 0) {
+          const categoryMutation = await assignProductCategories(nextProduct.id, {
+            categoryIds: input.organization.categoryIds,
+          });
+          nextProduct = categoryMutation.product;
+        }
+
+        setProducts((previous) => sortProducts([...previous, nextProduct]));
         setToast({
           tone: "success",
           title: "Product created",
           message: "Product draft is ready for next catalog steps.",
         });
       } else if (editorState?.product) {
-        const updated = await updateProduct(editorState.product.id, input);
+        let nextProduct = await updateProduct(editorState.product.id, input.identity);
+
+        if (input.organization.persist) {
+          const brandMutation = await assignProductBrand(editorState.product.id, {
+            brandId: input.organization.brandId,
+          });
+          nextProduct = brandMutation.product;
+
+          const categoryMutation = await assignProductCategories(
+            editorState.product.id,
+            {
+              categoryIds: input.organization.categoryIds,
+            }
+          );
+          nextProduct = categoryMutation.product;
+        }
+
         setProducts((previous) =>
           sortProducts(
             previous.map((product) =>
-              product.id === updated.id ? updated : product
+              product.id === nextProduct.id ? nextProduct : product
             )
           )
         );
         setToast({
           tone: "success",
           title: "Product updated",
-          message: "Product identity changes are saved.",
+          message: "Product identity and organization changes are saved.",
         });
       }
 
       setEditorState(null);
+      setRefreshToken((value) => value + 1);
     } catch (error) {
       const message = productActionErrorMessage(
         error,
@@ -308,7 +448,15 @@ export function ProductList(props: ProductListProps) {
       <PageToolbar
         actions={
           <Button
-            onClick={() => setEditorState({ mode: "create", product: null })}
+            onClick={() =>
+              setEditorState({
+                mode: "create",
+                product: null,
+                organization: null,
+                organizationReady: false,
+                organizationUnavailable: false,
+              })
+            }
             variant="primary"
           >
             Create product
@@ -322,7 +470,36 @@ export function ProductList(props: ProductListProps) {
             value={searchQuery}
           />
         }
-      />
+      >
+        <div className="jrw-control-grid">
+          <Select
+            label="Brand filter"
+            onChange={(event) => setBrandFilter(event.currentTarget.value)}
+            value={brandFilter}
+          >
+            <option value="">All brands</option>
+            <option value={BRANDLESS_FILTER_VALUE}>No brand (brandless)</option>
+            {availableBrands.map((brand) => (
+              <option key={brand.id} value={brand.id}>
+                {brand.name}
+              </option>
+            ))}
+          </Select>
+
+          <Select
+            label="Category filter"
+            onChange={(event) => setCategoryFilter(event.currentTarget.value)}
+            value={categoryFilter}
+          >
+            <option value="">All categories</option>
+            {availableCategories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </Select>
+        </div>
+      </PageToolbar>
 
       <section className="jrw-products__section">
         {loadState === "loading" ? (
@@ -334,10 +511,7 @@ export function ProductList(props: ProductListProps) {
         {loadState === "failed" ? (
           <EmptyState
             action={
-              <Button
-                onClick={() => setRefreshToken((value) => value + 1)}
-                size="sm"
-              >
+              <Button onClick={() => setRefreshToken((value) => value + 1)} size="sm">
                 Retry
               </Button>
             }
@@ -350,34 +524,25 @@ export function ProductList(props: ProductListProps) {
           <EmptyState
             action={
               <Button
-                onClick={() => setEditorState({ mode: "create", product: null })}
+                onClick={() => {
+                  setSearchQuery("");
+                  setBrandFilter("");
+                  setCategoryFilter("");
+                }}
                 size="sm"
-                variant="primary"
               >
-                Create first product
-              </Button>
-            }
-            message="No products exist."
-            title="No products exist"
-          />
-        ) : null}
-
-        {loadState === "ready" &&
-        products.length > 0 &&
-        visibleProducts.length === 0 ? (
-          <EmptyState
-            action={
-              <Button onClick={() => setSearchQuery("")} size="sm">
-                Reset search
+                Reset filters
               </Button>
             }
             message={
-              hasSearchQuery
-                ? "Try another product name or slug."
+              hasActiveFilters
+                ? "No products match current filters."
                 : "No products exist."
             }
             title={
-              hasSearchQuery ? "No products match this search" : "No products exist"
+              hasActiveFilters
+                ? "No matching products"
+                : "No products exist"
             }
           />
         ) : null}
@@ -395,10 +560,15 @@ export function ProductList(props: ProductListProps) {
 
       {editorState ? (
         <ProductEditor
+          availableBrands={availableBrands}
+          availableCategories={availableCategories}
           mode={editorState.mode}
           onClose={() => setEditorState(null)}
           onSave={handleSaveProduct}
           open={true}
+          organization={editorState.organization}
+          organizationReady={editorState.organizationReady}
+          organizationUnavailable={editorState.organizationUnavailable}
           product={editorState.product}
           saving={saving}
         />

@@ -1,10 +1,14 @@
 import { tboxApiSuccess, openApiErrorResponses } from "@/lib/typebox/api";
 import {
+  tboxAssignProductBrandBody,
+  tboxAssignProductCategoriesBody,
   tboxCreateProductBody,
   tboxProductData,
   tboxProductIdParams,
   tboxProductListData,
   tboxProductListQuery,
+  tboxProductOrganizationData,
+  tboxProductOrganizationMutationData,
   tboxUpdateProductBody,
 } from "@/domain/products/schemas";
 import {
@@ -67,6 +71,7 @@ function adminActor(
         authenticated: actor.authenticated,
         role: actor.role,
         actorId: actor.actorId,
+        safeActorId: actor.safeActorId,
         accountStatus: actor.accountStatus,
         eligibility: actor.eligibility,
       }
@@ -110,6 +115,7 @@ export function productsRoutes(
                 pageSize?: number;
                 status?: string;
                 brandId?: string;
+                brandless?: boolean | string;
                 categoryId?: string;
                 search?: string;
                 includeArchived?: boolean | string;
@@ -221,6 +227,146 @@ export function productsRoutes(
         transform: rbacGuard(productAuth),
         response: {
           200: tboxApiSuccess(tboxProductData),
+          ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
+        },
+      }
+    )
+    .get(
+      "/admin/products/:productId/organization",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { productId: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.getProductOrganization({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          productId: params.productId,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxProductIdParams,
+        detail: routeDetail({
+          summary: "Get product organization",
+          description:
+            "Returns current product brand (zero or one) and assigned categories.",
+          tags: ["Products"],
+          auth: productAuth,
+          rateLimitClass: "admin-read",
+          errorCodes: [...productReadErrors],
+        }),
+        transform: rbacGuard(productAuth),
+        response: {
+          200: tboxApiSuccess(tboxProductOrganizationData),
+          ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
+        },
+      }
+    )
+    .patch(
+      "/admin/products/:productId/brand",
+      async (ctx) => {
+        const {
+          request,
+          set,
+          runtimeEnv,
+          requestContext,
+          requestId,
+          params,
+          body,
+        } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+            params: { productId: string };
+            body: Record<string, unknown>;
+          };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.assignProductBrand({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          productId: params.productId,
+          body,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxProductIdParams,
+        body: tboxAssignProductBrandBody,
+        detail: routeDetail({
+          summary: "Assign or remove product brand",
+          description:
+            "Assigns one brand or removes brand with `brandId: null`. Non-super-admin actors need active brand membership.",
+          tags: ["Products"],
+          auth: productAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...productWriteErrors],
+        }),
+        transform: rbacGuard(productAuth),
+        response: {
+          200: tboxApiSuccess(tboxProductOrganizationMutationData),
+          ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
+        },
+      }
+    )
+    .patch(
+      "/admin/products/:productId/categories",
+      async (ctx) => {
+        const {
+          request,
+          set,
+          runtimeEnv,
+          requestContext,
+          requestId,
+          params,
+          body,
+        } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+            params: { productId: string };
+            body: Record<string, unknown>;
+          };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.assignProductCategories({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          productId: params.productId,
+          body,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxProductIdParams,
+        body: tboxAssignProductCategoriesBody,
+        detail: routeDetail({
+          summary: "Assign product categories",
+          description:
+            "Replaces product category assignments using active category IDs only. Archived or invalid categories are rejected.",
+          tags: ["Products"],
+          auth: productAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...productWriteErrors],
+        }),
+        transform: rbacGuard(productAuth),
+        response: {
+          200: tboxApiSuccess(tboxProductOrganizationMutationData),
           ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
         },
       }

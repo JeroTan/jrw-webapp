@@ -35,6 +35,7 @@ export type ProductListQueryInput = {
   pageSize?: number;
   status?: string;
   brandId?: string;
+  brandless?: boolean | string;
   categoryId?: string;
   search?: string;
   includeArchived?: boolean | string;
@@ -45,6 +46,7 @@ export type ProductListQuery = {
   pageSize: number;
   status?: ProductStatus;
   brandId?: string;
+  brandless: boolean;
   categoryId?: string;
   search?: string;
   includeArchived: boolean;
@@ -56,4 +58,23 @@ export type ProductListResult = {
   pageSize: number;
   totalItems: number;
   totalPages: number;
+};
+
+export type ProductOrganizationBrand = {
+  id: string;
+  name: string;
+  status: "ACTIVE" | "ARCHIVED";
+};
+
+export type ProductOrganizationCategory = {
+  id: string;
+  name: string;
+  slug: string;
+  status: "ACTIVE" | "ARCHIVED";
+};
+
+export type ProductOrganizationRecord = {
+  productId: string;
+  brand: ProductOrganizationBrand | null;
+  categories: ProductOrganizationCategory[];
 };

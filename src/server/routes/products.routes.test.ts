@@ -4,7 +4,10 @@ import { Result } from "@/utils/general/result";
 import { createApp } from "@/server/app";
 import { ProductController } from "@/server/controllers/ProductController";
 import type { RequestActorContext } from "@/server/context/request-context";
-import type { ProductRecord } from "@/domain/products/types";
+import type {
+  ProductOrganizationRecord,
+  ProductRecord,
+} from "@/domain/products/types";
 import { ProductService } from "@/server/services/ProductService";
 
 const now = "2026-05-20T11:00:00.000Z";
@@ -64,6 +67,17 @@ function productRecord(overrides: Partial<ProductRecord> = {}): ProductRecord {
   };
 }
 
+function organizationRecord(
+  overrides: Partial<ProductOrganizationRecord> = {}
+): ProductOrganizationRecord {
+  return {
+    productId: "prod_1",
+    brand: null,
+    categories: [],
+    ...overrides,
+  };
+}
+
 describe("products routes", () => {
   it("documents product endpoints with auth metadata and error codes", async () => {
     const app = createApp();
@@ -90,6 +104,12 @@ describe("products routes", () => {
     const list = body.paths?.["/api/admin/products"]?.get;
     const create = body.paths?.["/api/admin/products"]?.post;
     const detail = body.paths?.["/api/admin/products/{productId}"]?.get;
+    const organization =
+      body.paths?.["/api/admin/products/{productId}/organization"]?.get;
+    const assignBrand =
+      body.paths?.["/api/admin/products/{productId}/brand"]?.patch;
+    const assignCategories =
+      body.paths?.["/api/admin/products/{productId}/categories"]?.patch;
     const update = body.paths?.["/api/admin/products/{productId}"]?.patch;
 
     expect(list?.summary).toBe("List products");
@@ -117,6 +137,15 @@ describe("products routes", () => {
 
     expect(detail?.summary).toBe("Get product detail");
     expect(detail?.responses).toHaveProperty("200");
+
+    expect(organization?.summary).toBe("Get product organization");
+    expect(organization?.responses).toHaveProperty("200");
+
+    expect(assignBrand?.summary).toBe("Assign or remove product brand");
+    expect(assignBrand?.responses).toHaveProperty("200");
+
+    expect(assignCategories?.summary).toBe("Assign product categories");
+    expect(assignCategories?.responses).toHaveProperty("200");
 
     expect(update?.summary).toBe("Update product identity");
     expect(update?.responses).toHaveProperty("200");
@@ -262,6 +291,384 @@ describe("products routes", () => {
         },
       },
       meta: { requestId: "req_product_update_success" },
+    });
+  });
+
+  it("loads product organization with brand and categories", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        products: {
+          controllerFactory: () =>
+            createController({
+              getProductOrganization: async () =>
+                Result.okay({
+                  organization: organizationRecord({
+                    brand: {
+                      id: "brand_1",
+                      name: "Home",
+                      status: "ACTIVE",
+                    },
+                    categories: [
+                      {
+                        id: "cat_1",
+                        name: "Lighting",
+                        slug: "lighting",
+                        status: "ACTIVE",
+                      },
+                    ],
+                  }),
+                }),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/admin/products/prod_1/organization", {
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_product_org_success",
+        },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        organization: {
+          productId: "prod_1",
+          brand: {
+            id: "brand_1",
+            name: "Home",
+          },
+          categories: [{ id: "cat_1", slug: "lighting" }],
+        },
+      },
+      meta: { requestId: "req_product_org_success" },
+    });
+  });
+
+  it("assigns and removes product brand with standard envelope", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        products: {
+          controllerFactory: () =>
+            createController({
+              assignProductBrand: async (input) => {
+                const payload = input.body as { brandId?: string | null };
+                const brandId = payload.brandId ?? null;
+
+                return Result.okay({
+                  product: productRecord({
+                    brandId,
+                    brandName: brandId ? "Home" : null,
+                  }),
+                  organization: organizationRecord({
+                    brand: brandId
+                      ? {
+                          id: brandId,
+                          name: "Home",
+                          status: "ACTIVE",
+                        }
+                      : null,
+                  }),
+                });
+              },
+            }),
+        },
+      },
+    });
+
+    const assigned = await app.handle(
+      new Request("https://jrw.test/api/admin/products/prod_1/brand", {
+        method: "PATCH",
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_product_brand_assign",
+        },
+        body: JSON.stringify({
+          brandId: "brand_1",
+        }),
+      })
+    );
+
+    expect(assigned.status).toBe(200);
+    await expect(assigned.json()).resolves.toMatchObject({
+      data: {
+        product: {
+          brandId: "brand_1",
+          brandName: "Home",
+        },
+        organization: {
+          brand: {
+            id: "brand_1",
+          },
+        },
+      },
+      meta: { requestId: "req_product_brand_assign" },
+    });
+
+    const removed = await app.handle(
+      new Request("https://jrw.test/api/admin/products/prod_1/brand", {
+        method: "PATCH",
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_product_brand_remove",
+        },
+        body: JSON.stringify({
+          brandId: null,
+        }),
+      })
+    );
+
+    expect(removed.status).toBe(200);
+    await expect(removed.json()).resolves.toMatchObject({
+      data: {
+        product: {
+          brandId: null,
+          brandName: null,
+        },
+        organization: {
+          brand: null,
+        },
+      },
+      meta: { requestId: "req_product_brand_remove" },
+    });
+  });
+
+  it("assigns and removes product categories with standard envelope", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        products: {
+          controllerFactory: () =>
+            createController({
+              assignProductCategories: async (input) => {
+                const payload = input.body as { categoryIds?: string[] };
+                const categoryIds = payload.categoryIds ?? [];
+
+                return Result.okay({
+                  product: productRecord({
+                    linkedCategoryCount: categoryIds.length,
+                  }),
+                  organization: organizationRecord({
+                    categories: categoryIds.map((categoryId, index) => ({
+                      id: categoryId,
+                      name: `Category ${index + 1}`,
+                      slug: `category-${index + 1}`,
+                      status: "ACTIVE",
+                    })),
+                  }),
+                });
+              },
+            }),
+        },
+      },
+    });
+
+    const assigned = await app.handle(
+      new Request("https://jrw.test/api/admin/products/prod_1/categories", {
+        method: "PATCH",
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_product_categories_assign",
+        },
+        body: JSON.stringify({
+          categoryIds: ["cat_1", "cat_2"],
+        }),
+      })
+    );
+
+    expect(assigned.status).toBe(200);
+    await expect(assigned.json()).resolves.toMatchObject({
+      data: {
+        product: {
+          linkedCategoryCount: 2,
+        },
+        organization: {
+          categories: [{ id: "cat_1" }, { id: "cat_2" }],
+        },
+      },
+      meta: { requestId: "req_product_categories_assign" },
+    });
+
+    const removed = await app.handle(
+      new Request("https://jrw.test/api/admin/products/prod_1/categories", {
+        method: "PATCH",
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_product_categories_remove",
+        },
+        body: JSON.stringify({
+          categoryIds: [],
+        }),
+      })
+    );
+
+    expect(removed.status).toBe(200);
+    await expect(removed.json()).resolves.toMatchObject({
+      data: {
+        product: {
+          linkedCategoryCount: 0,
+        },
+        organization: {
+          categories: [],
+        },
+      },
+      meta: { requestId: "req_product_categories_remove" },
+    });
+  });
+
+  it("returns forbidden when admin lacks selected brand membership", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        products: {
+          controllerFactory: () =>
+            createController({
+              assignProductBrand: async () =>
+                Result.error(
+                  new GeneralError(
+                    { reason: "BRAND_MEMBERSHIP_REQUIRED" },
+                    "AUTH_FORBIDDEN"
+                  )
+                ),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/admin/products/prod_1/brand", {
+        method: "PATCH",
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_product_brand_forbidden",
+        },
+        body: JSON.stringify({
+          brandId: "brand_2",
+        }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "AUTH_FORBIDDEN",
+        details: {
+          requestId: "req_product_brand_forbidden",
+          reason: "BRAND_MEMBERSHIP_REQUIRED",
+        },
+      },
+    });
+  });
+
+  it("returns validation error for archived category assignment", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        products: {
+          controllerFactory: () =>
+            createController({
+              assignProductCategories: async () =>
+                Result.error(
+                  new GeneralError(
+                    {
+                      reason: "CATEGORY_NOT_ACTIVE",
+                      categoryIds: ["cat_archived"],
+                    },
+                    "VALIDATION_FAILED"
+                  )
+                ),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/admin/products/prod_1/categories", {
+        method: "PATCH",
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_product_category_archived",
+        },
+        body: JSON.stringify({
+          categoryIds: ["cat_archived"],
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "VALIDATION_FAILED",
+        details: {
+          requestId: "req_product_category_archived",
+          reason: "CATEGORY_NOT_ACTIVE",
+        },
+      },
+    });
+  });
+
+  it("rejects multi-brand payload at route validation", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        products: {
+          controllerFactory: () =>
+            createController({
+              assignProductBrand: async () =>
+                Result.okay({
+                  product: productRecord(),
+                  organization: organizationRecord(),
+                }),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/admin/products/prod_1/brand", {
+        method: "PATCH",
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_product_brand_multi_reject",
+        },
+        body: JSON.stringify({
+          brandId: ["brand_1", "brand_2"],
+        }),
+      })
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "VALIDATION_FAILED",
+        details: {
+          requestId: "req_product_brand_multi_reject",
+        },
+      },
     });
   });
 

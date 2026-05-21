@@ -302,13 +302,28 @@ export function normalizeProductListQuery(
   }
 
   const brandId = normalizedId(query.brandId);
+  const brandless =
+    query.brandless === undefined ? false : parseBoolean(query.brandless);
   const categoryId = normalizedId(query.categoryId);
   const search = normalizedSearch(query.search);
+
+  if (brandless === null) {
+    reasons.push("brandless:invalid_value");
+  }
+
+  if (brandId && brandless === true) {
+    reasons.push("brand_filter:conflict");
+  }
+
+  if (reasons.length > 0) {
+    return validationError(reasons);
+  }
 
   return Result.okay({
     page,
     pageSize,
     includeArchived,
+    brandless: brandless === true,
     ...(status ? { status } : {}),
     ...(brandId ? { brandId } : {}),
     ...(categoryId ? { categoryId } : {}),

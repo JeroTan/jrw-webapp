@@ -1,6 +1,6 @@
 # Story 3.3: Assign Product Brand and Categories
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,69 +23,69 @@ so that JRW catalog organization stays clear and brand collaboration rules remai
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm scope and current baseline. (AC: 1-8)
-  - [ ] Verify Epic 2 is `done` and Stories 3.1, 3.2 are `done`; do not reopen.
-  - [ ] Confirm this story is the third Epic 3 backlog item after Story 3.2.
-  - [ ] Confirm existing `products` table in `src/domain/schema/catalog.ts` — current fields include `brand_id`, `slug`, `summary`, `status`.
-  - [ ] Confirm existing `product_categories` junction table and `categories` table exist.
-  - [ ] Confirm existing `ProductRepository`, `ProductService`, `ProductController`, and product routes from Story 3.2.
-  - [ ] Confirm existing brand membership guards from Story 2.6 and brand endpoints from Epic 2.
-  - [ ] Do NOT add variants, images, stock, pricing, publish/archive transitions, or product editor UI sections in this story.
+- [x] Task 1: Confirm scope and current baseline. (AC: 1-8)
+  - [x] Verify Epic 2 is `done` and Stories 3.1, 3.2 are `done`; do not reopen.
+  - [x] Confirm this story is the third Epic 3 backlog item after Story 3.2.
+  - [x] Confirm existing `products` table in `src/domain/schema/catalog.ts` — current fields include `brand_id`, `slug`, `summary`, `status`.
+  - [x] Confirm existing `product_categories` junction table and `categories` table exist.
+  - [x] Confirm existing `ProductRepository`, `ProductService`, `ProductController`, and product routes from Story 3.2.
+  - [x] Confirm existing brand membership guards from Story 2.6 and brand endpoints from Epic 2.
+  - [x] Do NOT add variants, images, stock, pricing, publish/archive transitions, or product editor UI sections in this story.
 
-- [ ] Task 2: Add brand assignment domain logic and repository methods. (AC: 1-5, 6)
-  - [ ] Extend `ProductRepository` with `assignBrand(productId, brandId)` and `removeBrand(productId)` methods.
-  - [ ] Extend `ProductService` with `assignProductBrand` and `removeProductBrand` use cases.
-  - [ ] Service enforces: zero-or-one brand invariant, brand membership guard (SUPER_ADMIN exempt, otherwise must be active brand member).
-  - [ ] Service returns `AppResult`/`GeneralError` with `BRAND_MEMBERSHIP_REQUIRED` for non-members.
-  - [ ] Brand assignment records audit event through existing audit interface.
+- [x] Task 2: Add brand assignment domain logic and repository methods. (AC: 1-5, 6)
+  - [x] Extend `ProductRepository` with `assignBrand(productId, brandId)` and `removeBrand(productId)` methods.
+  - [x] Extend `ProductService` with `assignProductBrand` and `removeProductBrand` use cases.
+  - [x] Service enforces: zero-or-one brand invariant, brand membership guard (SUPER_ADMIN exempt, otherwise must be active brand member).
+  - [x] Service returns `AppResult`/`GeneralError` with `BRAND_MEMBERSHIP_REQUIRED` for non-members.
+  - [x] Brand assignment records audit event through existing audit interface.
 
-- [ ] Task 3: Add category assignment domain logic and repository methods. (AC: 3, 6)
-  - [ ] Extend `ProductRepository` with `assignCategories(productId, categoryIds[])` and `removeCategory(productId, categoryId)` methods.
-  - [ ] Extend `ProductService` with `assignProductCategories` and `removeProductCategory` use cases.
-  - [ ] Service enforces: categories must exist, must be ACTIVE status, must not be archived.
-  - [ ] Service rejects archived/invalid categories with validation error.
-  - [ ] Category assignment records audit event through existing audit interface.
+- [x] Task 3: Add category assignment domain logic and repository methods. (AC: 3, 6)
+  - [x] Extend `ProductRepository` with `assignCategories(productId, categoryIds[])` and `removeCategory(productId, categoryId)` methods.
+  - [x] Extend `ProductService` with `assignProductCategories` and `removeProductCategory` use cases.
+  - [x] Service enforces: categories must exist, must be ACTIVE status, must not be archived.
+  - [x] Service rejects archived/invalid categories with validation error.
+  - [x] Category assignment records audit event through existing audit interface.
 
-- [ ] Task 4: Add product organization API routes and controllers. (AC: 2-7)
-  - [ ] Extend `ProductController` with brand/category assignment adaptation methods.
-  - [ ] Add product organization routes under `src/server/routes/products.routes.ts` with endpoints:
+- [x] Task 4: Add product organization API routes and controllers. (AC: 2-7)
+  - [x] Extend `ProductController` with brand/category assignment adaptation methods.
+  - [x] Add product organization routes under `src/server/routes/products.routes.ts` with endpoints:
     - `PATCH /api/admin/products/:productId/brand` — assign/remove brand
     - `PATCH /api/admin/products/:productId/categories` — assign/remove categories
     - `GET /api/admin/products/:productId/organization` — current brand + categories
-  - [ ] All routes require Admin authentication via existing RBAC guards.
-  - [ ] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
-  - [ ] API JSON uses camelCase; database uses snake_case; controller maps rows to DTOs.
+  - [x] All routes require Admin authentication via existing RBAC guards.
+  - [x] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
+  - [x] API JSON uses camelCase; database uses snake_case; controller maps rows to DTOs.
 
-- [ ] Task 5: Add admin product organization UI. (AC: 1-3, 5)
-  - [ ] Extend `src/features/admin-products/components/ProductEditor.tsx` with brand and category assignment sections.
-  - [ ] Brand section: dropdown/select to choose brand or "No brand"; shows current brand membership status; explains brand is optional catalog group.
-  - [ ] Category section: multi-select to assign one or more active categories; shows linked category count; rejects archived categories.
-  - [ ] Brand assignment shows permission denial message when Admin lacks brand membership.
-  - [ ] Form validation with Zod schema; inline errors for invalid brand/category selection.
-  - [ ] Success toast on save; error summary at form top on validation failure.
-  - [ ] Use existing `Select`, `Badge`, `Input` primitives from `src/components/**`.
+- [x] Task 5: Add admin product organization UI. (AC: 1-3, 5)
+  - [x] Extend `src/features/admin-products/components/ProductEditor.tsx` with brand and category assignment sections.
+  - [x] Brand section: dropdown/select to choose brand or "No brand"; shows current brand membership status; explains brand is optional catalog group.
+  - [x] Category section: multi-select to assign one or more active categories; shows linked category count; rejects archived categories.
+  - [x] Brand assignment shows permission denial message when Admin lacks brand membership.
+  - [x] Form validation with Zod schema; inline errors for invalid brand/category selection.
+  - [x] Success toast on save; error summary at form top on validation failure.
+  - [x] Use existing `Select`, `Badge`, `Input` primitives from `src/components/**`.
 
-- [ ] Task 6: Extend product list to show brand and category summary. (AC: 1-3)
-  - [ ] Update `src/features/admin-products/components/ProductList.tsx` to show brand name (or "No brand") and category count in table columns.
-  - [ ] Add brand filter to product list toolbar (filter by brand or brandless).
-  - [ ] Add category filter to product list toolbar (filter by category).
-  - [ ] Ensure list endpoint returns brand name and category count in response.
+- [x] Task 6: Extend product list to show brand and category summary. (AC: 1-3)
+  - [x] Update `src/features/admin-products/components/ProductList.tsx` to show brand name (or "No brand") and category count in table columns.
+  - [x] Add brand filter to product list toolbar (filter by brand or brandless).
+  - [x] Add category filter to product list toolbar (filter by category).
+  - [x] Ensure list endpoint returns brand name and category count in response.
 
-- [ ] Task 7: Styles and accessibility. (AC: 4-8)
-  - [ ] Product organization UI uses JRW tokens: 0px corners, 1px borders, no shadows, cobalt for focus/selected.
-  - [ ] Brand/category status uses text labels — not color alone.
-  - [ ] Form has visible labels, required markers, inline errors, and error summary.
-  - [ ] Dropdown/multi-select keyboard accessible.
-  - [ ] Respect `prefers-reduced-motion` for any transitions.
-  - [ ] Brand copy uses "brand", "catalog group", "brand members" — never seller/merchant/tenant/store owner.
+- [x] Task 7: Styles and accessibility. (AC: 4-8)
+  - [x] Product organization UI uses JRW tokens: 0px corners, 1px borders, no shadows, cobalt for focus/selected.
+  - [x] Brand/category status uses text labels — not color alone.
+  - [x] Form has visible labels, required markers, inline errors, and error summary.
+  - [x] Dropdown/multi-select keyboard accessible.
+  - [x] Respect `prefers-reduced-motion` for any transitions.
+  - [x] Brand copy uses "brand", "catalog group", "brand members" — never seller/merchant/tenant/store owner.
 
-- [ ] Task 8: Targeted tests and checks. (AC: 1-8)
-  - [ ] Extend domain/service tests in `src/domain/products/product.test.ts` covering: brand assignment success, brand membership denial, brandless assignment, category assignment success, archived category rejection, multiple-brand rejection.
-  - [ ] Extend route/controller tests in `src/server/routes/products.routes.test.ts` covering: brand assign/remove, category assign/remove, unauthorized brand assignment, archived category rejection, zero-or-one brand invariant.
-  - [ ] Extend UI tests in `src/features/admin-products/components/products-ui.test.ts` covering: brand dropdown, category multi-select, permission denial, empty states, validation errors.
-  - [ ] Run changed-target tests only: `npx vitest run src/domain/products src/server/routes/products.routes.test.ts src/features/admin-products`.
-  - [ ] Run `npm run check` after typed/component changes.
-  - [ ] Do not run full `npm run build-test` unless implementation touches broader surfaces or MR. JRW asks for final full verdict.
+- [x] Task 8: Targeted tests and checks. (AC: 1-8)
+  - [x] Extend domain/service tests in `src/domain/products/product.test.ts` covering: brand assignment success, brand membership denial, brandless assignment, category assignment success, archived category rejection, multiple-brand rejection.
+  - [x] Extend route/controller tests in `src/server/routes/products.routes.test.ts` covering: brand assign/remove, category assign/remove, unauthorized brand assignment, archived category rejection, zero-or-one brand invariant.
+  - [x] Extend UI tests in `src/features/admin-products/components/products-ui.test.ts` covering: brand dropdown, category multi-select, permission denial, empty states, validation errors.
+  - [x] Run changed-target tests only: `npx vitest run src/domain/products src/server/routes/products.routes.test.ts src/features/admin-products`.
+  - [x] Run `npm run check` after typed/component changes.
+  - [x] Do not run full `npm run build-test` unless implementation touches broader surfaces or MR. JRW asks for final full verdict.
 
 ### Review Findings
 
@@ -359,16 +359,52 @@ _(To be filled by dev agent)_
 
 ### Debug Log References
 
-_(To be filled by dev agent)_
+- 
+px vitest run src/domain/products/product.test.ts -> pass (16 tests).
+- 
+px vitest run src/server/routes/products.routes.test.ts -> pass (13 tests).
+- 
+px vitest run src/features/admin-products/components/products-ui.test.ts -> pass (5 tests).
+- 
+px vitest run src/domain/products src/server/routes/products.routes.test.ts src/features/admin-products -> pass (34 tests).
+- 
+pm run check -> pass (stro check), existing non-blocking hints only.
 
 ### Completion Notes List
 
-_(To be filled by dev agent)_
+- Added product organization domain contracts (brand/category assignment payloads, organization DTOs, brandless filter support).
+- Extended ProductRepository with brand assign/remove, category replace/remove, category lookup, and product organization read methods.
+- Extended ProductService with ssignProductBrand, emoveProductBrand, ssignProductCategories, emoveProductCategory, and getProductOrganization flows, including membership checks, active-category validation, and audit event publishing with safe old/new organization details.
+- Extended ProductController and products.routes.ts with product organization endpoints:
+  - GET /api/admin/products/:productId/organization`r
+  - PATCH /api/admin/products/:productId/brand`r
+  - PATCH /api/admin/products/:productId/categories`r
+- Extended admin products UI/API/types: editor brand dropdown + category multi-select with validation, membership/status guidance, and list filters wired to query contracts.
+- Added/updated targeted tests for domain, routes, and UI coverage of assignment success, denial, archived-category rejection, and multi-brand rejection.
+- Validation gates complete: targeted Vitest suites pass and 
+pm run check passes.
 
 ### File List
 
-_(To be filled by dev agent)_
+- src/domain/products/types.ts`r
+- src/domain/products/product.ts`r
+- src/domain/products/schemas.ts`r
+- src/domain/products/product.test.ts`r
+- src/server/repositories/ProductRepository.ts`r
+- src/server/services/ProductService.ts`r
+- src/server/controllers/ProductController.ts`r
+- src/server/routes/products.routes.ts`r
+- src/server/routes/products.routes.test.ts`r
+- src/features/admin-products/types.ts`r
+- src/features/admin-products/api.ts`r
+- src/features/admin-products/components/ProductEditor.tsx`r
+- src/features/admin-products/components/ProductList.tsx`r
+- src/features/admin-products/components/products-ui.test.ts`r
+- src/styles/global.css`r
 
 ## Change Log
 
 - 2026-05-20: Story 3.3 context engine created for product brand and category assignment API, admin product organization UI, brand/category filters, targeted tests, and brand membership enforcement.
+
+- 2026-05-21: Story 3.3 implementation complete. Added product organization brand/category assignment APIs, audit hooks, admin UI sections and filters, plus targeted domain/route/UI tests and check validation.
+

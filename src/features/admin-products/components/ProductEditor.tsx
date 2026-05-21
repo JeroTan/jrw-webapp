@@ -1,9 +1,15 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Button, Input, Modal, Textarea } from "@/components/ui";
+import { Button, Input, Modal, Select, Textarea } from "@/components/ui";
 import { slugifyProductText } from "@/domain/products/product";
 import { zodCreateProductInput } from "@/domain/products/schemas";
-import type { ProductMutationInput, ProductRecord } from "../types";
+import type {
+  ProductAssignableBrand,
+  ProductAssignableCategory,
+  ProductMutationInput,
+  ProductOrganizationRecord,
+  ProductRecord,
+} from "../types";
 
 type ProductEditorMode = "create" | "edit";
 
@@ -12,6 +18,8 @@ type ProductEditorFormState = {
   slug: string;
   summary: string;
   description: string;
+  brandId: string;
+  categoryIds: string[];
 };
 
 type ProductEditorValidationState = {
@@ -19,11 +27,25 @@ type ProductEditorValidationState = {
   fields: Partial<Record<keyof ProductEditorFormState, string>>;
 };
 
+export type ProductEditorSaveInput = {
+  identity: ProductMutationInput;
+  organization: {
+    persist: boolean;
+    brandId: string | null;
+    categoryIds: string[];
+  };
+};
+
 export type ProductEditorProps = {
+  availableBrands?: ProductAssignableBrand[];
+  availableCategories?: ProductAssignableCategory[];
+  organization?: ProductOrganizationRecord | null;
+  organizationReady?: boolean;
+  organizationUnavailable?: boolean;
   product?: ProductRecord | null;
   mode: ProductEditorMode;
   onClose: () => void;
-  onSave: (input: ProductMutationInput) => Promise<void>;
+  onSave: (input: ProductEditorSaveInput) => Promise<void>;
   open: boolean;
   saving?: boolean;
 };
@@ -32,13 +54,21 @@ function emptyValidationState(): ProductEditorValidationState {
   return { summary: [], fields: {} };
 }
 
-function toEditorFormState(product?: ProductRecord | null): ProductEditorFormState {
+function toEditorFormState(input: {
+  product?: ProductRecord | null;
+  mode: ProductEditorMode;
+  organization?: ProductOrganizationRecord | null;
+}): ProductEditorFormState {
+  const { product, mode, organization } = input;
+
   if (!product) {
     return {
       name: "",
       slug: "",
       summary: "",
       description: "",
+      brandId: "",
+      categoryIds: [],
     };
   }
 
@@ -47,6 +77,11 @@ function toEditorFormState(product?: ProductRecord | null): ProductEditorFormSta
     slug: product.slug,
     summary: product.summary ?? "",
     description: product.description,
+    brandId: mode === "edit" ? organization?.brand?.id ?? "" : "",
+    categoryIds:
+      mode === "edit"
+        ? (organization?.categories ?? []).map((category) => category.id)
+        : [],
   };
 }
 
@@ -60,6 +95,10 @@ function issueToField(path: string): keyof ProductEditorFormState | undefined {
       return "summary";
     case "description":
       return "description";
+    case "brandId":
+      return "brandId";
+    case "categoryIds":
+      return "categoryIds";
     default:
       return undefined;
   }
@@ -70,11 +109,16 @@ export function suggestedProductSlug(name: string): string {
 }
 
 function validateProductInput(
-  form: ProductEditorFormState
+  form: ProductEditorFormState,
+  options: {
+    allowOrganization: boolean;
+    availableBrandIds: Set<string>;
+    availableCategoryIds: Set<string>;
+  }
 ):
   | {
       okay: true;
-      value: ProductMutationInput;
+      value: ProductEditorSaveInput;
     }
   | {
       okay: false;
@@ -104,13 +148,55 @@ function validateProductInput(
     return { okay: false, validation: { summary, fields } };
   }
 
+  if (options.allowOrganization) {
+    if (form.brandId.length > 0 && !options.availableBrandIds.has(form.brandId)) {
+      return {
+        okay: false,
+        validation: {
+          summary: ["brandId: Selected brand is not available."],
+          fields: {
+            brandId: "Selected brand is not available.",
+          },
+        },
+      };
+    }
+
+    const unknownCategoryIds = form.categoryIds.filter(
+      (categoryId) => !options.availableCategoryIds.has(categoryId)
+    );
+    if (unknownCategoryIds.length > 0) {
+      return {
+        okay: false,
+        validation: {
+          summary: ["categoryIds: Selected category is not available."],
+          fields: {
+            categoryIds: "Selected category is not available.",
+          },
+        },
+      };
+    }
+  }
+
   return {
     okay: true,
     value: {
-      name: parsed.data.name,
-      slug: parsed.data.slug,
-      summary: parsed.data.summary ?? null,
-      description: parsed.data.description,
+      identity: {
+        name: parsed.data.name,
+        slug: parsed.data.slug,
+        summary: parsed.data.summary ?? null,
+        description: parsed.data.description,
+      },
+      organization: {
+        persist: options.allowOrganization,
+        brandId: form.brandId.trim().length > 0 ? form.brandId : null,
+        categoryIds: Array.from(
+          new Set(
+            form.categoryIds
+              .map((categoryId) => categoryId.trim())
+              .filter((categoryId) => categoryId.length > 0)
+          )
+        ),
+      },
     },
   };
 }
@@ -136,6 +222,11 @@ function actionErrorMessage(error: unknown): string {
 }
 
 export function ProductEditor({
+  availableBrands = [],
+  availableCategories = [],
+  organization = null,
+  organizationReady = false,
+  organizationUnavailable = false,
   product = null,
   mode,
   onClose,
@@ -144,10 +235,20 @@ export function ProductEditor({
   saving = false,
 }: ProductEditorProps) {
   const [form, setForm] = useState<ProductEditorFormState>(() =>
-    toEditorFormState(product)
+    toEditorFormState({
+      product,
+      mode,
+      organization,
+    })
   );
   const [baselineForm, setBaselineForm] = useState(() =>
-    serializeFormState(toEditorFormState(product))
+    serializeFormState(
+      toEditorFormState({
+        product,
+        mode,
+        organization,
+      })
+    )
   );
   const [validation, setValidation] = useState<ProductEditorValidationState>(
     () => emptyValidationState()
@@ -161,16 +262,29 @@ export function ProductEditor({
       return;
     }
 
-    const next = toEditorFormState(product);
+    const next = toEditorFormState({
+      product,
+      mode,
+      organization,
+    });
     setForm(next);
     setBaselineForm(serializeFormState(next));
     setValidation(emptyValidationState());
     setSlugManuallyEdited(mode === "edit");
-  }, [product, mode, open]);
+  }, [product, mode, open, organization]);
 
   const isDirty = useMemo(
     () => serializeFormState(form) !== baselineForm,
     [baselineForm, form]
+  );
+
+  const availableBrandIds = useMemo(
+    () => new Set(availableBrands.map((brand) => brand.id)),
+    [availableBrands]
+  );
+  const availableCategoryIds = useMemo(
+    () => new Set(availableCategories.map((category) => category.id)),
+    [availableCategories]
   );
 
   useEffect(() => {
@@ -235,7 +349,11 @@ export function ProductEditor({
     event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>
   ) {
     event.preventDefault();
-    const result = validateProductInput(form);
+    const result = validateProductInput(form, {
+      allowOrganization: mode === "edit" && organizationReady,
+      availableBrandIds,
+      availableCategoryIds,
+    });
 
     if (!result.okay) {
       setValidation(result.validation);
@@ -253,6 +371,19 @@ export function ProductEditor({
       });
     }
   }
+
+  const brandDescription =
+    mode === "create"
+      ? "Save product first, then assign brand and categories."
+      : !organizationReady
+        ? organizationUnavailable
+          ? "Product organization data unavailable. You can still update identity."
+          : "Loading product organization..."
+        : form.brandId.length === 0
+          ? "Brand optional. Product stays brandless when no brand selected."
+          : availableBrandIds.has(form.brandId)
+            ? "Membership status: You are active brand member for selected brand."
+            : "Membership status: Brand membership required for selected brand.";
 
   return (
     <Modal
@@ -323,13 +454,64 @@ export function ProductEditor({
         <Textarea
           error={validation.fields.description}
           label="Description"
-          onChange={(event) =>
-            updateField("description", event.currentTarget.value)
-          }
+          onChange={(event) => updateField("description", event.currentTarget.value)}
           required
           rows={6}
           value={form.description}
         />
+
+        <Select
+          description={brandDescription}
+          disabled={mode !== "edit" || !organizationReady || saving}
+          error={validation.fields.brandId}
+          label="Brand"
+          onChange={(event) => updateField("brandId", event.currentTarget.value)}
+          value={form.brandId}
+        >
+          <option value="">No brand (brandless)</option>
+          {availableBrands.map((brand) => (
+            <option key={brand.id} value={brand.id}>
+              {brand.name}
+            </option>
+          ))}
+        </Select>
+
+        <Select
+          description={
+            mode === "create"
+              ? "Save product first, then assign category links."
+              : "Assign one or more active categories. Archived categories are rejected."
+          }
+          disabled={mode !== "edit" || !organizationReady || saving}
+          error={validation.fields.categoryIds}
+          label="Categories"
+          multiple
+          onChange={(event) =>
+            updateField(
+              "categoryIds",
+              Array.from(event.currentTarget.selectedOptions, (option) => option.value)
+            )
+          }
+          selectClassName="jrw-products__category-select"
+          size={Math.min(Math.max(availableCategories.length, 2), 8)}
+          value={form.categoryIds}
+        >
+          {availableCategories.map((category) => (
+            <option key={category.id} value={category.id}>
+              {category.name}
+            </option>
+          ))}
+        </Select>
+
+        {mode === "edit" ? (
+          <p className="jrw-field__description">
+            {organizationReady
+              ? `Category links selected: ${form.categoryIds.length}`
+              : organizationUnavailable
+                ? "Product organization unavailable. Save updates for identity only."
+                : "Loading product organization..."}
+          </p>
+        ) : null}
       </form>
     </Modal>
   );
