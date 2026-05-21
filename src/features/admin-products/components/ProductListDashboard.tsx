@@ -746,35 +746,39 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
             value={searchQuery}
           />
         }
-      >
-        <div className="jrw-control-grid">
-          <Select
-            label="Brand filter"
-            onChange={(event) => setBrandFilter(event.currentTarget.value)}
-            value={brandFilter}
-          >
-            <option value="">All brands</option>
-            <option value={BRANDLESS_FILTER_VALUE}>No brand (brandless)</option>
-            {availableBrands.map((brand) => (
-              <option key={brand.id} value={brand.id}>
-                {brand.name}
-              </option>
-            ))}
-          </Select>
+      />
+      <PageToolbar
+        main={
+          <div className="jrw-control-grid">
+            <Select
+              label="Brand filter"
+              onChange={(event) => setBrandFilter(event.currentTarget.value)}
+              value={brandFilter}
+            >
+              <option value="">All brands</option>
+              <option value={BRANDLESS_FILTER_VALUE}>No brand (brandless)</option>
+              {availableBrands.map((brand) => (
+                <option key={brand.id} value={brand.id}>
+                  {brand.name}
+                </option>
+              ))}
+            </Select>
 
-          <Select
-            label="Category filter"
-            onChange={(event) => setCategoryFilter(event.currentTarget.value)}
-            value={categoryFilter}
-          >
-            <option value="">All categories</option>
-            {availableCategories.map((category) => (
-              <option key={category.id} value={category.id}>
-                {category.name}
-              </option>
-            ))}
-          </Select>
-
+            <Select
+              label="Category filter"
+              onChange={(event) => setCategoryFilter(event.currentTarget.value)}
+              value={categoryFilter}
+            >
+              <option value="">All categories</option>
+              {availableCategories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.name}
+                </option>
+              ))}
+            </Select>
+          </div>
+        }
+        actions={
           <ViewToggle
             label="Product dashboard view"
             onChange={(nextView) => setViewMode(nextView)}
@@ -784,8 +788,8 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
             ]}
             value={viewMode}
           />
-        </div>
-      </PageToolbar>
+        }
+      />
 
       <section className="jrw-products__section">
         {loadState === "loading" ? (
