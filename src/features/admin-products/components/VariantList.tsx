@@ -9,6 +9,8 @@ import {
   createProductVariant,
   fetchProductVariants,
   type ApiFailure,
+  updateVariantInventoryState,
+  updateVariantStockQuantity,
   updateProductVariant,
 } from "../api";
 import type { ProductVariantRecord } from "../types";
@@ -204,7 +206,7 @@ export function VariantList({
       {
         key: "availability",
         header: "Availability",
-        cell: (variant) => (variant.hasAvailableStock ? "Available" : "Unavailable"),
+        cell: (variant) => variant.availability,
       },
       {
         key: "actions",
@@ -283,19 +285,67 @@ export function VariantList({
     setSaving(true);
     try {
       if (editorState?.mode === "create") {
-        const created = await createProductVariant(productId, input);
-        setVariants((previous) => sortVariants([...previous, created]));
+        const created = await createProductVariant(productId, {
+          name: input.name,
+          sku: input.sku,
+          priceCentavos: input.priceCentavos,
+          stock: input.stock,
+          isPreorder: input.inventoryState === "PREORDER",
+          expectedRelease: input.expectedRelease,
+          variationChain: input.variationChain,
+        });
+        const stockUpdated = await updateVariantStockQuantity(productId, created.id, {
+          quantity: input.stock,
+        });
+        const stateUpdated = await updateVariantInventoryState(
+          productId,
+          created.id,
+          { state: input.inventoryState }
+        );
+
+        const mergedCreated = {
+          ...stockUpdated,
+          ...stateUpdated,
+        };
+
+        setVariants((previous) => sortVariants([...previous, mergedCreated]));
         setToast({
           tone: "success",
           title: "Variant created",
           message: "Variant is ready for pricing and stock updates.",
         });
       } else if (editorState?.variant) {
-        const updated = await updateProductVariant(
+        const baseUpdated = await updateProductVariant(
           productId,
           editorState.variant.id,
-          input
+          {
+            name: input.name,
+            sku: input.sku,
+            priceCentavos: input.priceCentavos,
+            expectedRelease: input.expectedRelease,
+            variationChain: input.variationChain,
+            isPreorder: input.inventoryState === "PREORDER",
+          }
         );
+        const stockUpdated = await updateVariantStockQuantity(
+          productId,
+          editorState.variant.id,
+          {
+            quantity: input.stock,
+          }
+        );
+        const stateUpdated = await updateVariantInventoryState(
+          productId,
+          editorState.variant.id,
+          { state: input.inventoryState }
+        );
+
+        const updated = {
+          ...baseUpdated,
+          ...stockUpdated,
+          ...stateUpdated,
+        };
+
         setVariants((previous) =>
           sortVariants(
             previous.map((variant) =>

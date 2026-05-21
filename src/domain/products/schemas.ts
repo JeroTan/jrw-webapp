@@ -1,6 +1,6 @@
 import { t } from "elysia";
 import { z } from "zod";
-import type { ProductStatus } from "./types";
+import type { AvailabilityLabel, InventoryState, ProductStatus } from "./types";
 
 export const PRODUCT_NAME_MIN_LENGTH = 2;
 export const PRODUCT_NAME_MAX_LENGTH = 160;
@@ -14,9 +14,22 @@ export const PRODUCT_ASSIGNMENT_MAX_CATEGORY_IDS = 100;
 export const PRODUCT_VARIANT_NAME_MAX_LENGTH = 255;
 export const PRODUCT_VARIANT_SKU_MAX_LENGTH = 64;
 export const PRODUCT_VARIANT_MAX_STOCK = 10_000_000;
+export const PRODUCT_VARIANT_LOW_STOCK_THRESHOLD = 10;
 export const PRODUCT_VARIANT_MAX_OPTION_ITEMS = 32;
 export const PRODUCT_VARIANT_OPTION_NAME_MAX_LENGTH = 120;
 export const PRODUCT_VARIANT_OPTION_GROUP_MAX_LENGTH = 120;
+export const INVENTORY_STATE_VALUES = [
+  "IN_STOCK",
+  "LOW_STOCK",
+  "OUT_OF_STOCK",
+  "PREORDER",
+] as const;
+export const AVAILABILITY_LABEL_VALUES = [
+  "Available",
+  "Low Stock",
+  "Unavailable",
+  "Preorder",
+] as const;
 export const PRODUCT_IMAGE_NAME_MAX_LENGTH = 255;
 export const PRODUCT_IMAGE_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
 export const PRODUCT_IMAGE_ALLOWED_CONTENT_TYPES = [
@@ -97,6 +110,70 @@ export const zodProductVariantOption = z.object({
     .max(PRODUCT_VARIANT_OPTION_GROUP_MAX_LENGTH),
 });
 
+const zodInventoryState = z.enum(INVENTORY_STATE_VALUES);
+
+export function isInventoryState(value: unknown): value is InventoryState {
+  return INVENTORY_STATE_VALUES.includes(value as InventoryState);
+}
+
+export function availabilityLabelFromState(
+  state: InventoryState
+): AvailabilityLabel {
+  switch (state) {
+    case "IN_STOCK":
+      return "Available";
+    case "LOW_STOCK":
+      return "Low Stock";
+    case "PREORDER":
+      return "Preorder";
+    default:
+      return "Unavailable";
+  }
+}
+
+export function isInventoryStateInStock(state: InventoryState): boolean {
+  return state === "IN_STOCK" || state === "LOW_STOCK" || state === "PREORDER";
+}
+
+export function deriveInventoryStateFromQuantity(input: {
+  quantity: number;
+  isPreorder?: boolean;
+  lowStockThreshold?: number;
+}): InventoryState {
+  if (input.isPreorder) {
+    return "PREORDER";
+  }
+
+  const threshold = Math.max(0, input.lowStockThreshold ?? PRODUCT_VARIANT_LOW_STOCK_THRESHOLD);
+
+  if (input.quantity <= 0) {
+    return "OUT_OF_STOCK";
+  }
+
+  if (input.quantity <= threshold) {
+    return "LOW_STOCK";
+  }
+
+  return "IN_STOCK";
+}
+
+export function inventoryStateConsistent(input: {
+  quantity: number;
+  state: InventoryState;
+  lowStockThreshold?: number;
+}): boolean {
+  if (input.state === "PREORDER") {
+    return true;
+  }
+
+  const derived = deriveInventoryStateFromQuantity({
+    quantity: input.quantity,
+    lowStockThreshold: input.lowStockThreshold,
+  });
+
+  return derived === input.state;
+}
+
 const zodProductVariantCommon = z.object({
   name: z
     .string()
@@ -136,6 +213,14 @@ export const zodUpdateProductVariantInput = z
 
 export const zodArchiveProductVariantInput = z.object({
   reason: z.string().trim().max(160).optional(),
+});
+
+export const zodUpdateStockInput = z.object({
+  quantity: z.number().int().min(0).max(PRODUCT_VARIANT_MAX_STOCK),
+});
+
+export const zodUpdateInventoryStateInput = z.object({
+  state: zodInventoryState,
 });
 
 const zodFileValue = z
@@ -327,6 +412,20 @@ export const tboxProductIdParams = t.Object(
   { additionalProperties: false }
 );
 
+export const tboxInventoryState = t.Union([
+  t.Literal("IN_STOCK"),
+  t.Literal("LOW_STOCK"),
+  t.Literal("OUT_OF_STOCK"),
+  t.Literal("PREORDER"),
+]);
+
+export const tboxAvailabilityLabel = t.Union([
+  t.Literal("Available"),
+  t.Literal("Low Stock"),
+  t.Literal("Unavailable"),
+  t.Literal("Preorder"),
+]);
+
 const tboxVariantStatus = t.Union([t.Literal("ACTIVE"), t.Literal("ARCHIVED")]);
 
 export const tboxProductVariantOption = t.Object({
@@ -357,6 +456,9 @@ export const tboxProductVariant = t.Object({
   }),
   status: tboxVariantStatus,
   hasAvailableStock: t.Boolean(),
+  inventoryState: tboxInventoryState,
+  stockVersion: t.Integer({ minimum: 0 }),
+  availability: tboxAvailabilityLabel,
 });
 
 export const tboxProductVariantData = t.Object({
@@ -378,6 +480,17 @@ export const tboxProductVariantRouteParams = t.Object(
   },
   { additionalProperties: false }
 );
+
+export const tboxInventoryAvailability = t.Object({
+  productId: t.String({ minLength: 1, maxLength: 128 }),
+  variantId: t.String({ minLength: 1, maxLength: 128 }),
+  label: tboxAvailabilityLabel,
+  inStock: t.Boolean(),
+});
+
+export const tboxInventoryAvailabilityData = t.Object({
+  availability: tboxInventoryAvailability,
+});
 
 export const tboxProductImage = t.Object({
   id: t.String(),
@@ -497,6 +610,23 @@ export const tboxUpdateProductVariantBody = t.Object(
 export const tboxArchiveProductVariantBody = t.Object(
   {
     reason: t.Optional(t.String({ maxLength: 160 })),
+  },
+  { additionalProperties: false }
+);
+
+export const tboxUpdateStockBody = t.Object(
+  {
+    quantity: t.Integer({
+      minimum: 0,
+      maximum: PRODUCT_VARIANT_MAX_STOCK,
+    }),
+  },
+  { additionalProperties: false }
+);
+
+export const tboxUpdateInventoryStateBody = t.Object(
+  {
+    state: tboxInventoryState,
   },
   { additionalProperties: false }
 );

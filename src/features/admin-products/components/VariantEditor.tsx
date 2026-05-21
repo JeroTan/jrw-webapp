@@ -1,8 +1,19 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Button, Input, Modal, Textarea, Toggle } from "@/components/ui";
-import { zodCreateProductVariantInput } from "@/domain/products/schemas";
-import type { ProductVariantOption, ProductVariantRecord } from "../types";
+import {
+  deriveInventoryStateFromQuantity,
+  inventoryStateConsistent,
+  zodCreateProductVariantInput,
+  zodUpdateInventoryStateInput,
+} from "@/domain/products/schemas";
+import type {
+  InventoryState,
+  ProductVariantOption,
+  ProductVariantRecord,
+} from "../types";
+import { InventoryAdjuster } from "./InventoryAdjuster";
+import { InventoryStateSelector } from "./InventoryStateSelector";
 
 type VariantEditorMode = "create" | "edit";
 
@@ -11,6 +22,7 @@ type VariantEditorFormState = {
   sku: string;
   priceCentavos: string;
   stock: string;
+  inventoryState: InventoryState;
   isPreorder: boolean;
   expectedRelease: string;
   variationChainText: string;
@@ -26,6 +38,7 @@ export type VariantEditorSaveInput = {
   sku: string;
   priceCentavos: number;
   stock: number;
+  inventoryState: InventoryState;
   isPreorder: boolean;
   expectedRelease: string | null;
   variationChain: ProductVariantOption[];
@@ -61,18 +74,27 @@ function toEditorFormState(
       sku: "",
       priceCentavos: "",
       stock: "0",
+      inventoryState: "OUT_OF_STOCK",
       isPreorder: false,
       expectedRelease: "",
       variationChainText: "",
     };
   }
 
+  const inventoryState =
+    variant.inventoryState ??
+    deriveInventoryStateFromQuantity({
+      quantity: variant.stock,
+      isPreorder: variant.isPreorder,
+    });
+
   return {
     name: variant.name,
     sku: variant.sku,
     priceCentavos: String(variant.priceCentavos),
     stock: String(variant.stock),
-    isPreorder: variant.isPreorder,
+    inventoryState,
+    isPreorder: inventoryState === "PREORDER",
     expectedRelease: variant.expectedRelease ?? "",
     variationChainText: formatVariationChainText(variant.variationChain),
   };
@@ -88,6 +110,9 @@ function issueToField(path: string): keyof VariantEditorFormState | undefined {
       return "priceCentavos";
     case "stock":
       return "stock";
+    case "inventoryState":
+    case "state":
+      return "inventoryState";
     case "isPreorder":
       return "isPreorder";
     case "expectedRelease":
@@ -174,13 +199,16 @@ function validateVariantInput(
   const priceCentavos = Number(form.priceCentavos);
   const stock = Number(form.stock);
   const variationChain = normalizeVariationChainText(form.variationChainText);
+  const stateParsed = zodUpdateInventoryStateInput.safeParse({
+    state: form.inventoryState,
+  });
 
   const parsed = zodCreateProductVariantInput.safeParse({
     name: form.name,
     sku: form.sku,
     priceCentavos,
     stock,
-    isPreorder: form.isPreorder,
+    isPreorder: form.inventoryState === "PREORDER",
     expectedRelease:
       form.expectedRelease.trim().length > 0 ? form.expectedRelease.trim() : null,
     variationChain,
@@ -217,6 +245,36 @@ function validateVariantInput(
     };
   }
 
+  if (!stateParsed.success) {
+    return {
+      okay: false,
+      validation: {
+        summary: ["inventoryState: Invalid inventory state."],
+        fields: {
+          inventoryState: "Choose valid inventory state.",
+        },
+      },
+    };
+  }
+
+  if (
+    !inventoryStateConsistent({
+      quantity: parsed.data.stock,
+      state: stateParsed.data.state,
+    })
+  ) {
+    return {
+      okay: false,
+      validation: {
+        summary: ["inventoryState: Inventory state conflicts with stock quantity."],
+        fields: {
+          inventoryState:
+            "Inventory state conflicts with quantity. Use Out of stock for 0, Low stock for threshold, In stock above threshold, or Preorder.",
+        },
+      },
+    };
+  }
+
   return {
     okay: true,
     value: {
@@ -224,7 +282,8 @@ function validateVariantInput(
       sku: parsed.data.sku,
       priceCentavos: parsed.data.priceCentavos,
       stock: parsed.data.stock,
-      isPreorder: parsed.data.isPreorder,
+      inventoryState: stateParsed.data.state,
+      isPreorder: stateParsed.data.state === "PREORDER",
       expectedRelease: parsed.data.expectedRelease ?? null,
       variationChain: parsed.data.variationChain,
     },
@@ -273,6 +332,60 @@ export function VariantEditor({
     if (validation.fields[key] || validation.summary.length > 0) {
       setValidation(emptyValidationState());
     }
+  }
+
+  function clearValidationFor(key: keyof VariantEditorFormState) {
+    if (validation.fields[key] || validation.summary.length > 0) {
+      setValidation(emptyValidationState());
+    }
+  }
+
+  function handleStockQuantityChange(value: string) {
+    setForm((previous) => {
+      if (previous.inventoryState === "PREORDER") {
+        return { ...previous, stock: value, isPreorder: true };
+      }
+
+      const numericValue = Number(value);
+      const nextState = deriveInventoryStateFromQuantity({
+        quantity:
+          Number.isFinite(numericValue) && Number.isInteger(numericValue)
+            ? numericValue
+            : 0,
+      });
+
+      return {
+        ...previous,
+        stock: value,
+        inventoryState: nextState,
+        isPreorder: false,
+      };
+    });
+
+    clearValidationFor("stock");
+  }
+
+  function handleInventoryStateChange(state: InventoryState) {
+    updateField("inventoryState", state);
+    updateField("isPreorder", state === "PREORDER");
+  }
+
+  function handlePreorderToggle(checked: boolean) {
+    if (checked) {
+      updateField("inventoryState", "PREORDER");
+      updateField("isPreorder", true);
+      return;
+    }
+
+    const numericValue = Number(form.stock);
+    const nextState = deriveInventoryStateFromQuantity({
+      quantity:
+        Number.isFinite(numericValue) && Number.isInteger(numericValue)
+          ? numericValue
+          : 0,
+    });
+    updateField("inventoryState", nextState);
+    updateField("isPreorder", false);
   }
 
   function handleClose() {
@@ -388,28 +501,36 @@ export function VariantEditor({
           value={form.priceCentavos}
         />
 
-        <Input
+        <InventoryAdjuster
+          conflictMessage={
+            validation.fields.inventoryState &&
+            validation.fields.inventoryState.includes("conflicts")
+              ? validation.fields.inventoryState
+              : undefined
+          }
+          disabled={saving}
           error={validation.fields.stock}
-          inputMode="numeric"
-          label="Stock quantity"
-          min={0}
-          onChange={(event) => updateField("stock", event.currentTarget.value)}
-          required
-          step={1}
-          type="number"
-          value={form.stock}
+          onChange={handleStockQuantityChange}
+          quantity={form.stock}
         />
 
         <Toggle
           checked={form.isPreorder}
           error={validation.fields.isPreorder}
           label="Preorder"
-          onChange={(event) => updateField("isPreorder", event.currentTarget.checked)}
+          onChange={(event) => handlePreorderToggle(event.currentTarget.checked)}
+        />
+
+        <InventoryStateSelector
+          disabled={saving}
+          error={validation.fields.inventoryState}
+          onChange={handleInventoryStateChange}
+          state={form.inventoryState}
         />
 
         <Input
           description="Optional release date when preorder is on."
-          disabled={!form.isPreorder}
+          disabled={form.inventoryState !== "PREORDER"}
           error={validation.fields.expectedRelease}
           label="Expected release"
           onChange={(event) =>

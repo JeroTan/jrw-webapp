@@ -81,6 +81,9 @@ function variantRecord(
     status: "ACTIVE",
     hasAvailableStock: true,
     stock: 10,
+    inventoryState: "IN_STOCK",
+    stockVersion: 0,
+    availability: "Available",
     ...overrides,
   };
 }
@@ -118,6 +121,21 @@ class VariantRepositoryStub implements VariantRepository {
       stock: input.stock,
       status: "ACTIVE",
       hasAvailableStock: input.stock > 0 || input.isPreorder,
+      inventoryState: input.isPreorder
+        ? "PREORDER"
+        : input.stock === 0
+          ? "OUT_OF_STOCK"
+          : input.stock <= 10
+            ? "LOW_STOCK"
+            : "IN_STOCK",
+      stockVersion: 0,
+      availability: input.isPreorder
+        ? "Preorder"
+        : input.stock === 0
+          ? "Unavailable"
+          : input.stock <= 10
+            ? "Low Stock"
+            : "Available",
     });
     this.variants.push(variant);
     return variant;
@@ -180,6 +198,22 @@ class VariantRepositoryStub implements VariantRepository {
       ...(input.stock !== undefined ? { stock: input.stock } : {}),
     };
     next.hasAvailableStock = next.stock > 0 || next.isPreorder;
+    next.inventoryState = next.isPreorder
+      ? "PREORDER"
+      : next.stock === 0
+        ? "OUT_OF_STOCK"
+        : next.stock <= 10
+          ? "LOW_STOCK"
+          : "IN_STOCK";
+    next.stockVersion += 1;
+    next.availability =
+      next.inventoryState === "IN_STOCK"
+        ? "Available"
+        : next.inventoryState === "LOW_STOCK"
+          ? "Low Stock"
+          : next.inventoryState === "PREORDER"
+            ? "Preorder"
+            : "Unavailable";
     this.variants[index] = next;
 
     return next;
@@ -196,6 +230,8 @@ class VariantRepositoryStub implements VariantRepository {
       ...this.variants[index],
       status: "ARCHIVED",
       hasAvailableStock: false,
+      inventoryState: "OUT_OF_STOCK",
+      availability: "Unavailable",
     };
     return this.variants[index];
   }
@@ -230,6 +266,28 @@ class VariantRepositoryStub implements VariantRepository {
         (variant) => variant.status === "ACTIVE" && variant.hasAvailableStock
       ),
     };
+  }
+
+  async updateStockQuantity(_input: {
+    variantId: string;
+    quantity: number;
+    inventoryState: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "PREORDER";
+  }): Promise<ProductVariantRecord | null> {
+    return null;
+  }
+
+  async updateInventoryState(_input: {
+    variantId: string;
+    inventoryState: "IN_STOCK" | "LOW_STOCK" | "OUT_OF_STOCK" | "PREORDER";
+  }): Promise<ProductVariantRecord | null> {
+    return null;
+  }
+
+  async getStockAvailability(_input: {
+    productId: string;
+    variantId: string;
+  }) {
+    return null;
   }
 }
 

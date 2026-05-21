@@ -93,6 +93,16 @@ export type ProductAssignableCategory = {
 };
 
 export type ProductVariantStatus = "ACTIVE" | "ARCHIVED";
+export type InventoryState =
+  | "IN_STOCK"
+  | "LOW_STOCK"
+  | "OUT_OF_STOCK"
+  | "PREORDER";
+export type AvailabilityLabel =
+  | "Available"
+  | "Low Stock"
+  | "Unavailable"
+  | "Preorder";
 
 export type ProductVariantOption = {
   name: string;
@@ -111,6 +121,9 @@ export type ProductVariantRecord = {
   variationChain: ProductVariantOption[];
   status: ProductVariantStatus;
   hasAvailableStock: boolean;
+  inventoryState: InventoryState;
+  stockVersion: number;
+  availability: AvailabilityLabel;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -129,6 +142,21 @@ export type UpdateVariantInput = Partial<CreateVariantInput>;
 
 export type ArchiveVariantInput = {
   reason?: string;
+};
+
+export type UpdateStockInput = {
+  quantity: number;
+};
+
+export type UpdateInventoryStateInput = {
+  state: InventoryState;
+};
+
+export type AvailabilityRecord = {
+  productId: string;
+  variantId: string;
+  label: AvailabilityLabel;
+  inStock: boolean;
 };
 
 export type VariantListResult = {

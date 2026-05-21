@@ -974,6 +974,12 @@ p {
   gap: var(--jrw-space-sm);
 }
 
+.jrw-inventory-adjuster,
+.jrw-inventory-state-selector {
+  display: grid;
+  gap: var(--jrw-space-xs);
+}
+
 .jrw-variants__error-summary {
   display: grid;
   gap: var(--jrw-space-xs);

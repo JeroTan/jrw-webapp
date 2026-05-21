@@ -15,9 +15,12 @@ import type {
   ProductRecord,
   ProductPhotoRecord,
   ProductImageListResult,
+  AvailabilityRecord,
   VariantListResult,
   UploadProductImageInput,
   UpdateProductImageOrderInput,
+  UpdateInventoryStateInput,
+  UpdateStockInput,
 } from "./types";
 
 export type ApiFailure = {
@@ -373,6 +376,65 @@ export async function archiveProductVariant(
   );
   const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
   return payload.variant;
+}
+
+export async function updateVariantStockQuantity(
+  productId: string,
+  variantId: string,
+  input: UpdateStockInput
+): Promise<ProductVariantRecord> {
+  const response = await fetch(
+    `/api/admin/products/${productId}/variants/${variantId}/stock`,
+    {
+      method: "PATCH",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(input),
+    }
+  );
+
+  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
+  return payload.variant;
+}
+
+export async function updateVariantInventoryState(
+  productId: string,
+  variantId: string,
+  input: UpdateInventoryStateInput
+): Promise<ProductVariantRecord> {
+  const response = await fetch(
+    `/api/admin/products/${productId}/variants/${variantId}/inventory-state`,
+    {
+      method: "PATCH",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(input),
+    }
+  );
+
+  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
+  return payload.variant;
+}
+
+export async function fetchVariantAvailability(
+  productId: string,
+  variantId: string
+): Promise<AvailabilityRecord> {
+  const response = await fetch(
+    `/api/products/${productId}/variants/${variantId}/availability`,
+    {
+      headers: { accept: "application/json" },
+    }
+  );
+
+  const payload = await readApiEnvelope<{ availability: AvailabilityRecord }>(
+    response
+  );
+  return payload.availability;
 }
 
 export async function fetchProductImages(

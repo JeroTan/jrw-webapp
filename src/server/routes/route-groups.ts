@@ -7,6 +7,7 @@ export const serverRouteGroups = [
   "categories",
   "products",
   "variants",
+  "inventory",
   "checkout",
   "payments",
   "webhooks",

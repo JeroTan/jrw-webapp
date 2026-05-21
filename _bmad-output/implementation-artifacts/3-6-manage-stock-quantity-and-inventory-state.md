@@ -1,6 +1,6 @@
 # Story 3.6: Manage Stock Quantity and Inventory State
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,76 +23,76 @@ so that storefront availability is accurate before checkout reservation exists.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm scope and current baseline. (AC: 1-8)
-  - [ ] Verify Epic 3 is `in-progress` and Stories 3.0-3.5 are `done`; do not reopen.
-  - [ ] Confirm this story is the sixth Epic 3 backlog item after Story 3.5.
-  - [ ] Confirm existing `product_variants` table in `src/domain/schema/catalog.ts` — current fields include `id`, `product_id`, `sku`, `options`, `price_centavos`, `status`.
-  - [ ] Confirm existing `VariantRepository`, `VariantService`, `VariantController`, and variant routes from Story 3.4.
-  - [ ] Confirm existing `product_photos` table extensions from Story 3.5.
-  - [ ] Confirm existing brand membership guards from Story 2.6.
-  - [ ] Confirm existing `InventoryDurableObject` scaffold in `src/adapter/infrastructure/` — do NOT claim inventory safety until locking/reservation logic exists.
-  - [ ] Do NOT add checkout reservation, payment flows, or storefront inventory UI beyond availability output.
+- [x] Task 1: Confirm scope and current baseline. (AC: 1-8)
+  - [x] Verify Epic 3 is `in-progress` and Stories 3.0-3.5 are `done`; do not reopen.
+  - [x] Confirm this story is the sixth Epic 3 backlog item after Story 3.5.
+  - [x] Confirm existing `product_variants` table in `src/domain/schema/catalog.ts` — current fields include `id`, `product_id`, `sku`, `options`, `price_centavos`, `status`.
+  - [x] Confirm existing `VariantRepository`, `VariantService`, `VariantController`, and variant routes from Story 3.4.
+  - [x] Confirm existing `product_photos` table extensions from Story 3.5.
+  - [x] Confirm existing brand membership guards from Story 2.6.
+  - [x] Confirm existing `InventoryDurableObject` scaffold in `src/adapter/infrastructure/` — do NOT claim inventory safety until locking/reservation logic exists.
+  - [x] Do NOT add checkout reservation, payment flows, or storefront inventory UI beyond availability output.
 
-- [ ] Task 2: Add inventory domain types, schemas, and validation. (AC: 1-3, 6)
-  - [ ] Add `InventoryState` enum/type (`IN_STOCK`, `LOW_STOCK`, `OUT_OF_STOCK`, `PREORDER`) to `src/domain/products/types.ts`.
-  - [ ] Add `InventoryRecord`, `UpdateStockInput`, `UpdateInventoryStateInput` types.
-  - [ ] Add Zod schemas for stock quantity validation (non-negative integer, max reasonable limit) in `src/domain/products/schemas.ts`.
-  - [ ] Add TypeBox schemas for inventory API contracts.
-  - [ ] Define consistency rules: quantity=0 → `OUT_OF_STOCK`, quantity>0 and below threshold → `LOW_STOCK`, quantity>=threshold → `IN_STOCK`. Threshold configurable or documented default.
+- [x] Task 2: Add inventory domain types, schemas, and validation. (AC: 1-3, 6)
+  - [x] Add `InventoryState` enum/type (`IN_STOCK`, `LOW_STOCK`, `OUT_OF_STOCK`, `PREORDER`) to `src/domain/products/types.ts`.
+  - [x] Add `InventoryRecord`, `UpdateStockInput`, `UpdateInventoryStateInput` types.
+  - [x] Add Zod schemas for stock quantity validation (non-negative integer, max reasonable limit) in `src/domain/products/schemas.ts`.
+  - [x] Add TypeBox schemas for inventory API contracts.
+  - [x] Define consistency rules: quantity=0 → `OUT_OF_STOCK`, quantity>0 and below threshold → `LOW_STOCK`, quantity>=threshold → `IN_STOCK`. Threshold configurable or documented default.
 
-- [ ] Task 3: Add stock/inventory repository methods. (AC: 1-4)
-  - [ ] Extend `VariantRepository` with `updateStockQuantity`, `updateInventoryState`, `getStockAvailability` methods.
-  - [ ] Use D1/Drizzle patterns consistent with existing variant methods.
-  - [ ] Stock updates use atomic D1 operations to prevent race conditions at basic level.
-  - [ ] `getStockAvailability` returns customer-safe availability labels, not raw quantities for storefront.
+- [x] Task 3: Add stock/inventory repository methods. (AC: 1-4)
+  - [x] Extend `VariantRepository` with `updateStockQuantity`, `updateInventoryState`, `getStockAvailability` methods.
+  - [x] Use D1/Drizzle patterns consistent with existing variant methods.
+  - [x] Stock updates use atomic D1 operations to prevent race conditions at basic level.
+  - [x] `getStockAvailability` returns customer-safe availability labels, not raw quantities for storefront.
 
-- [ ] Task 4: Add inventory service use cases. (AC: 1-5, 7)
-  - [ ] Create or extend `InventoryService` in `src/server/services/InventoryService.ts`.
-  - [ ] Use cases: `updateStockQuantity`, `updateInventoryState`, `getAvailability`, `validateStateTransition`.
-  - [ ] Service enforces: brand membership guard (reuse `requireBrandMutationPermission` pattern).
-  - [ ] Service validates: stock quantity non-negative, inventory state valid, consistency between quantity and state.
-  - [ ] Service returns `AppResult`/`GeneralError` with appropriate error codes.
-  - [ ] Inventory mutations record audit event through existing audit interface.
-  - [ ] Structure supports future Durable Object reservation/release — add `stock_version` field or document extension path.
+- [x] Task 4: Add inventory service use cases. (AC: 1-5, 7)
+  - [x] Create or extend `InventoryService` in `src/server/services/InventoryService.ts`.
+  - [x] Use cases: `updateStockQuantity`, `updateInventoryState`, `getAvailability`, `validateStateTransition`.
+  - [x] Service enforces: brand membership guard (reuse `requireBrandMutationPermission` pattern).
+  - [x] Service validates: stock quantity non-negative, inventory state valid, consistency between quantity and state.
+  - [x] Service returns `AppResult`/`GeneralError` with appropriate error codes.
+  - [x] Inventory mutations record audit event through existing audit interface.
+  - [x] Structure supports future Durable Object reservation/release — add `stock_version` field or document extension path.
 
-- [ ] Task 5: Add inventory API routes and controllers. (AC: 1-6, 8)
-  - [ ] Create `InventoryController` in `src/server/controllers/InventoryController.ts`.
-  - [ ] Create inventory routes under `src/server/routes/inventory.routes.ts` with endpoints:
+- [x] Task 5: Add inventory API routes and controllers. (AC: 1-6, 8)
+  - [x] Create `InventoryController` in `src/server/controllers/InventoryController.ts`.
+  - [x] Create inventory routes under `src/server/routes/inventory.routes.ts` with endpoints:
     - `PATCH /api/admin/products/:productId/variants/:variantId/stock` — update stock quantity.
     - `PATCH /api/admin/products/:productId/variants/:variantId/inventory-state` — update inventory state.
     - `GET /api/products/:productId/variants/:variantId/availability` — customer-safe availability (public).
-  - [ ] Admin routes require Admin authentication via existing RBAC guards.
-  - [ ] Public availability route is accessible without auth but returns customer-safe labels only.
-  - [ ] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
-  - [ ] Register inventory routes in `src/server/app.ts`.
+  - [x] Admin routes require Admin authentication via existing RBAC guards.
+  - [x] Public availability route is accessible without auth but returns customer-safe labels only.
+  - [x] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
+  - [x] Register inventory routes in `src/server/app.ts`.
 
-- [ ] Task 6: Extend variant detail/list to include availability. (AC: 6)
-  - [ ] Extend variant responses to include `availability` field with customer-safe label.
-  - [ ] Map internal state to public labels: `IN_STOCK` → "Available", `LOW_STOCK` → "Low Stock", `OUT_OF_STOCK` → "Unavailable", `PREORDER` → "Preorder".
-  - [ ] No raw stock quantities exposed in customer-facing responses unless explicitly required later.
+- [x] Task 6: Extend variant detail/list to include availability. (AC: 6)
+  - [x] Extend variant responses to include `availability` field with customer-safe label.
+  - [x] Map internal state to public labels: `IN_STOCK` → "Available", `LOW_STOCK` → "Low Stock", `OUT_OF_STOCK` → "Unavailable", `PREORDER` → "Preorder".
+  - [x] No raw stock quantities exposed in customer-facing responses unless explicitly required later.
 
-- [ ] Task 7: Add admin inventory UI (basic stock adjuster). (AC: 1-4, 8)
-  - [ ] Create `src/features/admin-products/components/InventoryAdjuster.tsx` — stock quantity input with validation.
-  - [ ] Create `src/features/admin-products/components/InventoryStateSelector.tsx` — inventory state dropdown/status selector.
-  - [ ] Integrate into existing `VariantEditor.tsx` or `VariantList.tsx` as appropriate.
-  - [ ] Use existing `Input`, `Select`, `Badge`, `StatusBadge`, `EmptyState`, `Skeleton` primitives.
-  - [ ] Validation feedback: negative quantity rejected, invalid state rejected, consistency conflict shown.
-  - [ ] Success toast on save; error summary on failure.
+- [x] Task 7: Add admin inventory UI (basic stock adjuster). (AC: 1-4, 8)
+  - [x] Create `src/features/admin-products/components/InventoryAdjuster.tsx` — stock quantity input with validation.
+  - [x] Create `src/features/admin-products/components/InventoryStateSelector.tsx` — inventory state dropdown/status selector.
+  - [x] Integrate into existing `VariantEditor.tsx` or `VariantList.tsx` as appropriate.
+  - [x] Use existing `Input`, `Select`, `Badge`, `StatusBadge`, `EmptyState`, `Skeleton` primitives.
+  - [x] Validation feedback: negative quantity rejected, invalid state rejected, consistency conflict shown.
+  - [x] Success toast on save; error summary on failure.
 
-- [ ] Task 8: Styles and accessibility. (AC: 4-8)
-  - [ ] Inventory UI uses JRW tokens: 0px corners, 1px borders, no shadows, cobalt for focus/selected.
-  - [ ] Inventory status badges include text labels — not color alone.
-  - [ ] Stock input has visible label and keyboard-accessible controls.
-  - [ ] Respect `prefers-reduced-motion` for any transitions.
-  - [ ] Error states have clear text descriptions.
+- [x] Task 8: Styles and accessibility. (AC: 4-8)
+  - [x] Inventory UI uses JRW tokens: 0px corners, 1px borders, no shadows, cobalt for focus/selected.
+  - [x] Inventory status badges include text labels — not color alone.
+  - [x] Stock input has visible label and keyboard-accessible controls.
+  - [x] Respect `prefers-reduced-motion` for any transitions.
+  - [x] Error states have clear text descriptions.
 
-- [ ] Task 9: Targeted tests and checks. (AC: 1-8)
-  - [ ] Add domain/service tests in `src/server/services/InventoryService.test.ts` covering: stock update success, invalid quantity (negative), valid state transitions, invalid state rejection, consistency conflict, brand membership denial, audit event emission.
-  - [ ] Add route/controller tests in `src/server/routes/inventory.routes.test.ts` covering: stock update, state update, availability read, unauthorized access, invalid data, permission denial.
-  - [ ] Add UI tests in `src/features/admin-products/components/inventory-ui.test.ts` covering: adjuster rendering, state selector rendering, validation errors, status badge text labels, empty states.
-  - [ ] Run changed-target tests only: `npx vitest run src/server/services/InventoryService.test.ts src/server/routes/inventory.routes.test.ts src/features/admin-products`.
-  - [ ] Run `npm run check` after typed/component changes.
-  - [ ] Do not run full `npm run build-test` unless implementation touches broader surfaces or MR. JRW asks for final full verdict.
+- [x] Task 9: Targeted tests and checks. (AC: 1-8)
+  - [x] Add domain/service tests in `src/server/services/InventoryService.test.ts` covering: stock update success, invalid quantity (negative), valid state transitions, invalid state rejection, consistency conflict, brand membership denial, audit event emission.
+  - [x] Add route/controller tests in `src/server/routes/inventory.routes.test.ts` covering: stock update, state update, availability read, unauthorized access, invalid data, permission denial.
+  - [x] Add UI tests in `src/features/admin-products/components/inventory-ui.test.ts` covering: adjuster rendering, state selector rendering, validation errors, status badge text labels, empty states.
+  - [x] Run changed-target tests only: `npx vitest run src/server/services/InventoryService.test.ts src/server/routes/inventory.routes.test.ts src/features/admin-products`.
+  - [x] Run `npm run check` after typed/component changes.
+  - [x] Do not run full `npm run build-test` unless implementation touches broader surfaces or MR. JRW asks for final full verdict.
 
 ### Review Findings
 
@@ -450,7 +450,7 @@ npm run check
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+gpt-5.5 (Codex)
 
 ### Implementation Plan
 
@@ -470,17 +470,53 @@ npm run check
 
 ### Debug Log References
 
-- `npx vitest run`
+- `npx vitest run src/server/services/InventoryService.test.ts src/server/routes/inventory.routes.test.ts src/features/admin-products/components/inventory-ui.test.ts src/server/services/VariantService.test.ts src/server/routes/variants.routes.test.ts src/features/admin-products/components/variants-ui.test.ts`
+- `npx vitest run src/server/services/InventoryService.test.ts src/server/routes/inventory.routes.test.ts src/features/admin-products`
 - `npm run check`
 
 ### Completion Notes List
 
-- [To be filled by dev agent]
+- Added inventory domain contracts (`InventoryState`, update payload types, customer-safe availability types) and shared validation/derivation rules in domain schemas.
+- Extended `product_variants` schema with `inventory_state` and `stock_version`, plus migration `0020_inventory_state_baseline.sql` to backfill state from current stock/preorder values.
+- Extended `VariantRepository` with atomic inventory mutation methods and customer-safe availability reader; variant DTOs now include `inventoryState`, `stockVersion`, and `availability`.
+- Implemented `InventoryService` with admin auth, brand membership guard reuse, consistency validation, audit event publishing, and public availability read.
+- Implemented `InventoryController` and `inventory.routes.ts` for stock update, inventory-state update, and public availability endpoints with TypeBox/OpenAPI metadata.
+- Registered inventory routes in server route composition and app route options.
+- Added frontend inventory types/api helpers; created `InventoryAdjuster` and `InventoryStateSelector`; integrated inventory controls into `VariantEditor` and inventory save flow in `VariantList`.
+- Added and passed targeted tests for service, routes, and UI (`InventoryService.test.ts`, `inventory.routes.test.ts`, `inventory-ui.test.ts`), plus regression checks for existing variant tests.
+- `npm run check` passes (existing project hints only; no new errors/warnings introduced by this story).
 
 ### File List
 
-- [To be filled by dev agent]
+- `_bmad-output/implementation-artifacts/3-6-manage-stock-quantity-and-inventory-state.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `migrations/0020_inventory_state_baseline.sql`
+- `src/domain/products/schemas.ts`
+- `src/domain/products/types.ts`
+- `src/domain/schema/catalog.ts`
+- `src/features/admin-products/api.ts`
+- `src/features/admin-products/components/InventoryAdjuster.tsx`
+- `src/features/admin-products/components/InventoryStateSelector.tsx`
+- `src/features/admin-products/components/VariantEditor.tsx`
+- `src/features/admin-products/components/VariantList.tsx`
+- `src/features/admin-products/components/inventory-ui.test.ts`
+- `src/features/admin-products/components/variants-ui.test.ts`
+- `src/features/admin-products/types.ts`
+- `src/server/app.ts`
+- `src/server/controllers/InventoryController.ts`
+- `src/server/repositories/VariantRepository.ts`
+- `src/server/routes/index.ts`
+- `src/server/routes/inventory.routes.test.ts`
+- `src/server/routes/inventory.routes.ts`
+- `src/server/routes/route-groups.ts`
+- `src/server/routes/variants.routes.test.ts`
+- `src/server/services/InventoryService.test.ts`
+- `src/server/services/InventoryService.ts`
+- `src/server/services/VariantService.test.ts`
+- `src/styles/global.css`
 
 ## Change Log
 
 - 2026-05-21: Story 3.6 context engine created for stock quantity and inventory state management API, brand membership enforcement, customer-safe availability output, audit event recording, and targeted tests.
+- 2026-05-21: Implemented Story 3.6 inventory domain types/schemas, DB schema + migration, repository/service/controller/routes, frontend inventory UI integration, targeted tests, and route registration; story moved to review.
+

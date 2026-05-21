@@ -63,6 +63,9 @@ function variantRecord(
     status: "ACTIVE",
     hasAvailableStock: true,
     stock: 10,
+    inventoryState: "IN_STOCK",
+    stockVersion: 0,
+    availability: "Available",
     ...overrides,
   };
 }

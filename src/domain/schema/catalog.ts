@@ -25,6 +25,12 @@ export const brandMembershipStatusValues = [
 ] as const;
 export const categoryStatusValues = ["ACTIVE", "ARCHIVED"] as const;
 export const productStatusValues = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
+export const inventoryStateValues = [
+  "IN_STOCK",
+  "LOW_STOCK",
+  "OUT_OF_STOCK",
+  "PREORDER",
+] as const;
 
 export const brands = sqliteTable(
   "brands",
@@ -223,12 +229,16 @@ export const product_variants = sqliteTable("product_variants", {
     .$defaultFn(() => createId()),
   name: text("name").notNull(),
   stock: integer("stock").notNull().default(0),
+  inventory_state: text("inventory_state", { enum: inventoryStateValues })
+    .notNull()
+    .default("OUT_OF_STOCK"),
   price: real("price").notNull(),
   sku: text("sku").notNull().unique(),
   is_preorder: integer("is_preorder", { mode: "boolean" })
     .notNull()
     .default(false),
   expected_release: text("expected_release"),
+  stock_version: integer("stock_version").notNull().default(0),
   stock_lock_version: integer("stock_lock_version").notNull().default(0),
   variation_chain: text("variation_chain", { mode: "json" })
     .$type<VariationChain[]>()

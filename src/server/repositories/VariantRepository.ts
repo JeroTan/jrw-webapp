@@ -1,5 +1,13 @@
 import { createDb, type AppDb } from "@/adapter/infrastructure/db/client";
+import {
+  availabilityLabelFromState,
+  deriveInventoryStateFromQuantity,
+  isInventoryState,
+  isInventoryStateInStock,
+} from "@/domain/products/schemas";
 import type {
+  InventoryAvailabilityRecord,
+  InventoryState,
   ProductVariantOption,
   ProductVariantRecord,
   ProductVariantSummary,
@@ -17,10 +25,12 @@ type VariantRowLike = {
   id: string;
   name: string;
   stock: number;
+  inventory_state: string;
   price: number;
   sku: string;
   is_preorder: boolean;
   expected_release: string | null;
+  stock_version: number;
   stock_lock_version: number;
   variation_chain: ProductVariantOption[];
   product_id: string;
@@ -65,6 +75,19 @@ export type VariantRepository = {
     variationChain: ProductVariantOption[];
     excludeVariantId?: string;
   }): Promise<ProductVariantRecord | null>;
+  updateStockQuantity(input: {
+    variantId: string;
+    quantity: number;
+    inventoryState: InventoryState;
+  }): Promise<ProductVariantRecord | null>;
+  updateInventoryState(input: {
+    variantId: string;
+    inventoryState: InventoryState;
+  }): Promise<ProductVariantRecord | null>;
+  getStockAvailability(input: {
+    productId: string;
+    variantId: string;
+  }): Promise<InventoryAvailabilityRecord | null>;
   getProductSummary(productId: string): Promise<ProductVariantSummary>;
 };
 
@@ -129,8 +152,21 @@ function normalizePageSize(value: number | undefined): number {
   return Math.min(pageSize, MAX_PAGE_SIZE);
 }
 
+function toInventoryState(row: VariantRowLike): InventoryState {
+  if (isInventoryState(row.inventory_state)) {
+    return row.inventory_state;
+  }
+
+  return deriveInventoryStateFromQuantity({
+    quantity: Number(row.stock),
+    isPreorder: Boolean(row.is_preorder),
+  });
+}
+
 function toVariantRecord(row: VariantRowLike): ProductVariantRecord {
   const archived = row.stock_lock_version === ARCHIVED_STOCK_LOCK_VERSION;
+  const inventoryState = toInventoryState(row);
+  const availability = availabilityLabelFromState(inventoryState);
 
   return {
     id: row.id,
@@ -148,7 +184,10 @@ function toVariantRecord(row: VariantRowLike): ProductVariantRecord {
         }))
       : [],
     status: archived ? "ARCHIVED" : "ACTIVE",
-    hasAvailableStock: !archived && (row.stock > 0 || row.is_preorder),
+    hasAvailableStock: !archived && isInventoryStateInStock(inventoryState),
+    inventoryState,
+    stockVersion: Number(row.stock_version ?? 0),
+    availability,
   };
 }
 
@@ -156,6 +195,11 @@ export class DrizzleVariantRepository implements VariantRepository {
   constructor(private readonly db: AppDb) {}
 
   async create(input: CreateVariantRecordInput): Promise<ProductVariantRecord> {
+    const inventoryState = deriveInventoryStateFromQuantity({
+      quantity: input.stock,
+      isPreorder: input.isPreorder,
+    });
+
     const [row] = await this.db
       .insert(product_variants)
       .values({
@@ -164,8 +208,10 @@ export class DrizzleVariantRepository implements VariantRepository {
         sku: input.sku,
         price: input.priceCentavos,
         stock: input.stock,
+        inventory_state: inventoryState,
         is_preorder: input.isPreorder,
         expected_release: input.expectedRelease,
+        stock_version: 0,
         variation_chain: normalizeVariationChain(input.variationChain),
       })
       .returning();
@@ -232,6 +278,18 @@ export class DrizzleVariantRepository implements VariantRepository {
     variantId: string,
     input: UpdateVariantRecordInput
   ): Promise<ProductVariantRecord | null> {
+    const current = await this.findById(variantId);
+    if (!current) {
+      return null;
+    }
+
+    const nextStock = input.stock ?? current.stock;
+    const nextIsPreorder = input.isPreorder ?? current.isPreorder;
+    const nextInventoryState = deriveInventoryStateFromQuantity({
+      quantity: nextStock,
+      isPreorder: nextIsPreorder,
+    });
+
     const patch = {
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.sku !== undefined ? { sku: input.sku } : {}),
@@ -244,6 +302,8 @@ export class DrizzleVariantRepository implements VariantRepository {
       ...(input.variationChain !== undefined
         ? { variation_chain: normalizeVariationChain(input.variationChain) }
         : {}),
+      inventory_state: nextInventoryState,
+      stock_version: sql`${product_variants.stock_version} + 1`,
     };
 
     const [row] = await this.db
@@ -261,13 +321,90 @@ export class DrizzleVariantRepository implements VariantRepository {
       .set({
         stock_lock_version: ARCHIVED_STOCK_LOCK_VERSION,
         stock: 0,
+        inventory_state: "OUT_OF_STOCK",
         is_preorder: false,
         expected_release: null,
+        stock_version: sql`${product_variants.stock_version} + 1`,
       })
       .where(eq(product_variants.id, variantId))
       .returning();
 
     return row ? toVariantRecord(row) : null;
+  }
+
+  async updateStockQuantity(input: {
+    variantId: string;
+    quantity: number;
+    inventoryState: InventoryState;
+  }): Promise<ProductVariantRecord | null> {
+    const [row] = await this.db
+      .update(product_variants)
+      .set({
+        stock: input.quantity,
+        inventory_state: input.inventoryState,
+        is_preorder: input.inventoryState === "PREORDER",
+        stock_version: sql`${product_variants.stock_version} + 1`,
+      })
+      .where(
+        and(
+          eq(product_variants.id, input.variantId),
+          ne(product_variants.stock_lock_version, ARCHIVED_STOCK_LOCK_VERSION)
+        )
+      )
+      .returning();
+
+    return row ? toVariantRecord(row) : null;
+  }
+
+  async updateInventoryState(input: {
+    variantId: string;
+    inventoryState: InventoryState;
+  }): Promise<ProductVariantRecord | null> {
+    const [row] = await this.db
+      .update(product_variants)
+      .set({
+        inventory_state: input.inventoryState,
+        is_preorder: input.inventoryState === "PREORDER",
+        stock_version: sql`${product_variants.stock_version} + 1`,
+      })
+      .where(
+        and(
+          eq(product_variants.id, input.variantId),
+          ne(product_variants.stock_lock_version, ARCHIVED_STOCK_LOCK_VERSION)
+        )
+      )
+      .returning();
+
+    return row ? toVariantRecord(row) : null;
+  }
+
+  async getStockAvailability(input: {
+    productId: string;
+    variantId: string;
+  }): Promise<InventoryAvailabilityRecord | null> {
+    const [row] = await this.db
+      .select()
+      .from(product_variants)
+      .where(
+        and(
+          eq(product_variants.id, input.variantId),
+          eq(product_variants.product_id, input.productId),
+          ne(product_variants.stock_lock_version, ARCHIVED_STOCK_LOCK_VERSION)
+        )
+      )
+      .limit(1);
+
+    if (!row) {
+      return null;
+    }
+
+    const record = toVariantRecord(row);
+    return {
+      productId: record.productId,
+      variantId: record.id,
+      label: record.availability,
+      inStock: record.hasAvailableStock,
+    };
   }
 
   async findDuplicateOptionCombination(input: {

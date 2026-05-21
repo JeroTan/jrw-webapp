@@ -21,6 +21,10 @@ import {
 } from "./google-oauth.routes";
 import { imagesRoutes, type ImageRoutesOptions } from "./images.routes";
 import {
+  inventoryRoutes,
+  type InventoryRoutesOptions,
+} from "./inventory.routes";
+import {
   ownerGovernanceRoutes,
   type OwnerGovernanceRoutesOptions,
 } from "./owner-governance.routes";
@@ -43,6 +47,7 @@ export type ServerRoutesOptions = {
   customers?: CustomerRoutesOptions;
   googleOAuth?: GoogleOAuthRoutesOptions;
   images?: ImageRoutesOptions;
+  inventory?: InventoryRoutesOptions;
   ownerGovernance?: OwnerGovernanceRoutesOptions;
   products?: ProductRoutesOptions;
   variants?: VariantRoutesOptions;
@@ -64,5 +69,6 @@ export function serverRoutes(
     .use((routes) => categoriesRoutes(routes, options.categories))
     .use((routes) => productsRoutes(routes, options.products))
     .use((routes) => imagesRoutes(routes, options.images))
-    .use((routes) => variantsRoutes(routes, options.variants));
+    .use((routes) => variantsRoutes(routes, options.variants))
+    .use((routes) => inventoryRoutes(routes, options.inventory));
 }

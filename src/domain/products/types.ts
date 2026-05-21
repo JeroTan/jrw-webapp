@@ -79,6 +79,40 @@ export type ProductVariantOption = {
   group: string;
 };
 
+export type InventoryState =
+  | "IN_STOCK"
+  | "LOW_STOCK"
+  | "OUT_OF_STOCK"
+  | "PREORDER";
+
+export type AvailabilityLabel =
+  | "Available"
+  | "Low Stock"
+  | "Unavailable"
+  | "Preorder";
+
+export type InventoryRecord = {
+  variantId: string;
+  quantity: number;
+  state: InventoryState;
+  stockVersion: number;
+};
+
+export type UpdateStockInput = {
+  quantity: number;
+};
+
+export type UpdateInventoryStateInput = {
+  state: InventoryState;
+};
+
+export type InventoryAvailabilityRecord = {
+  productId: string;
+  variantId: string;
+  label: AvailabilityLabel;
+  inStock: boolean;
+};
+
 export type ProductVariantRecord = {
   id: string;
   productId: string;
@@ -91,6 +125,9 @@ export type ProductVariantRecord = {
   variationChain: ProductVariantOption[];
   status: ProductVariantStatus;
   hasAvailableStock: boolean;
+  inventoryState: InventoryState;
+  stockVersion: number;
+  availability: AvailabilityLabel;
 };
 
 export type CreateProductVariantInput = {

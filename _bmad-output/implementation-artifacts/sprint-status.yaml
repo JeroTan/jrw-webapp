@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-12T08:38:32+08:00"
-last_updated: "2026-05-21T14:30:00+08:00"
+last_updated: "2026-05-21T15:02:25+08:00"
 project: jrw-webapp
 project_key: NOKEY
 tracking_system: file-system
@@ -73,7 +73,7 @@ development_status:
   3-3-assign-product-brand-and-categories: done
   3-4-manage-product-variants-and-prices: done
   3-5-upload-and-manage-product-images: done
-  3-6-manage-stock-quantity-and-inventory-state: ready-for-dev
+  3-6-manage-stock-quantity-and-inventory-state: review
   3-7-publish-archive-and-validate-product-readiness: backlog
   3-8-preserve-product-snapshot-fields-for-future-orders: backlog
   3-9-admin-product-editor-variant-matrix-and-inventory-ui: backlog
