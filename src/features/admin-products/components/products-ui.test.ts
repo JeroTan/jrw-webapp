@@ -1,7 +1,11 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { ProductEditor, suggestedProductSlug } from "./ProductEditor";
+import {
+  ProductEditor,
+  suggestedProductSlug,
+  validateInventoryAdjustmentInput,
+} from "./ProductEditor";
 import { ProductList, filterProductsByQuery } from "./ProductList";
 import type {
   ProductAssignableBrand,
@@ -175,5 +179,31 @@ describe("products UI surfaces", () => {
   it("suggests editable slugs from product names", () => {
     expect(suggestedProductSlug(" Desk Lamp / Metal ")).toBe("desk-lamp-metal");
     expect(suggestedProductSlug("")).toBe("");
+  });
+
+  it("validates inventory quantity and state before submit", () => {
+    expect(
+      validateInventoryAdjustmentInput({
+        quantity: "12",
+        state: "IN_STOCK",
+        reason: "",
+      }).summary
+    ).toBeUndefined();
+
+    expect(
+      validateInventoryAdjustmentInput({
+        quantity: "0",
+        state: "IN_STOCK",
+        reason: "",
+      }).state
+    ).toContain("Inventory state conflicts");
+
+    expect(
+      validateInventoryAdjustmentInput({
+        quantity: "",
+        state: "OUT_OF_STOCK",
+        reason: "",
+      }).quantity
+    ).toContain("non-negative integer");
   });
 });

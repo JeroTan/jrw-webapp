@@ -62,6 +62,7 @@ describe("product list dashboard", () => {
     expect(markup).toContain("Rows per page");
     expect(markup).toContain("Page 1 of 1");
     expect(markup).toContain("Available variants");
+    expect(markup).toContain("Archive");
   });
 
   it("renders empty state action", () => {
@@ -77,4 +78,3 @@ describe("product list dashboard", () => {
     expect(markup).toContain("Create first product");
   });
 });
-

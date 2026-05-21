@@ -58,7 +58,7 @@ export function Pagination({
       className="jrw-pagination"
     >
       <p className="jrw-pagination__summary" role="status">
-        Page {currentPage} of {safeTotalPages} · {totalItems} items
+        Page {currentPage} of {safeTotalPages} - {totalItems} items
       </p>
 
       <div className="jrw-pagination__controls">
@@ -113,4 +113,3 @@ export function Pagination({
     </nav>
   );
 }
-

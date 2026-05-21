@@ -2,7 +2,10 @@ import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Button, Input, Modal, Select, Textarea } from "@/components/ui";
 import { slugifyProductText } from "@/domain/products/product";
-import { zodCreateProductInput } from "@/domain/products/schemas";
+import {
+  inventoryStateConsistent,
+  zodCreateProductInput,
+} from "@/domain/products/schemas";
 import {
   archiveProduct,
   fetchProductVariants,
@@ -409,7 +412,7 @@ function statusActionErrorMessage(error: unknown, fallback: string): string {
     : fallback;
 }
 
-type InventoryValidationState = {
+export type InventoryValidationState = {
   quantity?: string;
   state?: string;
   reason?: string;
@@ -425,6 +428,53 @@ const inventoryStates: InventoryState[] = [
 
 function isInventoryStateValue(value: string): value is InventoryState {
   return inventoryStates.includes(value as InventoryState);
+}
+
+export function validateInventoryAdjustmentInput(input: {
+  quantity: string;
+  state: InventoryState;
+  reason: string;
+}): InventoryValidationState {
+  const nextValidation: InventoryValidationState = {};
+  const quantity = Number(input.quantity);
+
+  if (
+    input.quantity.trim().length === 0 ||
+    !Number.isInteger(quantity) ||
+    quantity < 0
+  ) {
+    nextValidation.quantity = "Quantity must be non-negative integer.";
+  }
+
+  if (!isInventoryStateValue(input.state)) {
+    nextValidation.state = "Choose valid inventory state.";
+  }
+
+  if (
+    !nextValidation.quantity &&
+    !nextValidation.state &&
+    !inventoryStateConsistent({
+      quantity,
+      state: input.state,
+    })
+  ) {
+    nextValidation.state =
+      "Inventory state conflicts with quantity. Use Out of stock for 0, Low stock for 1-10, In stock above 10, or Preorder.";
+  }
+
+  if (input.reason.trim().length > 280) {
+    nextValidation.reason = "Reason must be 280 characters or less.";
+  }
+
+  if (
+    nextValidation.quantity ||
+    nextValidation.state ||
+    nextValidation.reason
+  ) {
+    nextValidation.summary = "Inventory form has validation errors.";
+  }
+
+  return nextValidation;
 }
 
 function inventoryActionErrorMessage(error: unknown, fallback: string): string {
@@ -1121,30 +1171,11 @@ export function ProductEditor({
   }
 
   function validateInventoryInput(): InventoryValidationState {
-    const nextValidation: InventoryValidationState = {};
-    const quantity = Number(inventoryQuantity);
-
-    if (!Number.isInteger(quantity) || quantity < 0) {
-      nextValidation.quantity = "Quantity must be non-negative integer.";
-    }
-
-    if (!isInventoryStateValue(inventoryState)) {
-      nextValidation.state = "Choose valid inventory state.";
-    }
-
-    if (inventoryReason.trim().length > 280) {
-      nextValidation.reason = "Reason must be 280 characters or less.";
-    }
-
-    if (
-      nextValidation.quantity ||
-      nextValidation.state ||
-      nextValidation.reason
-    ) {
-      nextValidation.summary = "Inventory form has validation errors.";
-    }
-
-    return nextValidation;
+    return validateInventoryAdjustmentInput({
+      quantity: inventoryQuantity,
+      state: inventoryState,
+      reason: inventoryReason,
+    });
   }
 
   async function handleApplyInventory() {
@@ -1536,7 +1567,7 @@ export function ProductEditor({
                 >
                   {variants.map((variant) => (
                     <option key={variant.id} value={variant.id}>
-                      {variant.name} · {variant.sku}
+                      {variant.name} - {variant.sku}
                     </option>
                   ))}
                 </Select>

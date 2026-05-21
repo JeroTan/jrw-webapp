@@ -150,6 +150,10 @@ function variationKey(options: ProductVariantOption[]): string {
 function duplicateSummary(variants: ProductVariantRecord[]): string[] {
   const byKey = new Map<string, ProductVariantRecord[]>();
   variants.forEach((variant) => {
+    if (variant.status === "ARCHIVED") {
+      return;
+    }
+
     const key = variationKey(variant.variationChain);
     if (!key) {
       return;
@@ -188,6 +192,7 @@ function hasDuplicateVariation(
 
   return variants.some(
     (variant) =>
+      variant.status !== "ARCHIVED" &&
       variant.id !== editingVariantId &&
       variationKey(variant.variationChain) === key
   );
@@ -273,10 +278,10 @@ export function VariantList({
             <span className="jrw-variants__cell-meta">
               {variant.variationChain
                 .map((option) => `${option.group}: ${option.name}`)
-                .join(" · ")}
+                .join(" - ")}
             </span>
           ) : (
-            "—"
+            "-"
           ),
       },
       {
@@ -322,8 +327,12 @@ export function VariantList({
               : undefined;
           return (
             <div
+              aria-label={`Actions for ${variant.name}`}
               className="jrw-variants__table-actions"
               onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) {
+                  return;
+                }
                 if (event.key === "Enter" && !blocked) {
                   event.preventDefault();
                   setEditorState({
@@ -336,6 +345,8 @@ export function VariantList({
                   setEditorState(null);
                 }
               }}
+              role="group"
+              tabIndex={blocked ? undefined : 0}
             >
               <Button
                 disabled={blocked}

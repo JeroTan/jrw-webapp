@@ -44,7 +44,8 @@ type ApiEnvelope<T> =
       };
     };
 
-const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PRODUCT_PAGE_SIZE = 20;
+const DEFAULT_ASSIGNABLE_PAGE_SIZE = 100;
 
 type BrandListPayload = {
   items: Array<{
@@ -146,7 +147,7 @@ function buildProductListUrl(query: ProductListQueryInput = {}): string {
   const params = new URLSearchParams();
 
   params.set("page", String(query.page ?? 1));
-  params.set("pageSize", String(query.pageSize ?? DEFAULT_PAGE_SIZE));
+  params.set("pageSize", String(query.pageSize ?? DEFAULT_PRODUCT_PAGE_SIZE));
   params.set("includeArchived", String(query.includeArchived ?? true));
 
   if (query.status) {
@@ -302,7 +303,7 @@ export async function assignProductCategories(
 
 export async function fetchAssignableBrands(): Promise<ProductAssignableBrand[]> {
   const response = await fetch(
-    `/api/brands/me?page=1&pageSize=${DEFAULT_PAGE_SIZE}`,
+    `/api/brands/me?page=1&pageSize=${DEFAULT_ASSIGNABLE_PAGE_SIZE}`,
     {
       headers: { accept: "application/json" },
     }
@@ -319,7 +320,7 @@ export async function fetchAssignableCategories(): Promise<
   ProductAssignableCategory[]
 > {
   const response = await fetch(
-    `/api/admin/categories?page=1&pageSize=${DEFAULT_PAGE_SIZE}&status=ACTIVE`,
+    `/api/admin/categories?page=1&pageSize=${DEFAULT_ASSIGNABLE_PAGE_SIZE}&status=ACTIVE`,
     {
       headers: { accept: "application/json" },
     }
@@ -339,7 +340,7 @@ export async function fetchProductVariants(
 ): Promise<VariantListResult> {
   const params = new URLSearchParams();
   params.set("page", String(query.page ?? 1));
-  params.set("pageSize", String(query.pageSize ?? DEFAULT_PAGE_SIZE));
+  params.set("pageSize", String(query.pageSize ?? DEFAULT_PRODUCT_PAGE_SIZE));
 
   const response = await fetch(
     `/api/admin/products/${productId}/variants?${params.toString()}`,

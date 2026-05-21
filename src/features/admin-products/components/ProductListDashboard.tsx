@@ -8,8 +8,16 @@ import {
 } from "@/components/data-display";
 import { EmptyState, Skeleton, StatusBadge, Toast } from "@/components/feedback";
 import { PageToolbar } from "@/components/layout";
-import { Button, Pagination, SearchInput, Select, ViewToggle } from "@/components/ui";
 import {
+  Button,
+  ConfirmDialog,
+  Pagination,
+  SearchInput,
+  Select,
+  ViewToggle,
+} from "@/components/ui";
+import {
+  archiveProduct,
   assignProductBrand,
   assignProductCategories,
   createProduct,
@@ -257,6 +265,9 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
   const [brandScopeKnown, setBrandScopeKnown] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
+  const [archiveCandidate, setArchiveCandidate] = useState<ProductRecord | null>(
+    null
+  );
   const [saving, setSaving] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
   const [page, setPage] = useState(1);
@@ -523,15 +534,27 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
             availableBrandIds,
             brandScopeKnown
           );
+          const archiveBlocked = product.status === "ARCHIVED";
+          const archiveTitle = !canMutate.allowed
+            ? canMutate.reason ?? undefined
+            : archiveBlocked
+              ? "Archived products are read-only."
+              : undefined;
           return (
             <div
+              aria-label={`Actions for ${product.name}`}
               className="jrw-products__table-actions"
               onKeyDown={(event) => {
+                if (event.target !== event.currentTarget) {
+                  return;
+                }
                 if (event.key === "Enter") {
                   event.preventDefault();
                   openEditor({ mode: "edit", product });
                 }
               }}
+              role="group"
+              tabIndex={canMutate.allowed ? 0 : undefined}
             >
               <Button
                 aria-label={`Edit ${product.name}`}
@@ -543,12 +566,22 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
               >
                 Edit
               </Button>
+              <Button
+                aria-label={`Archive ${product.name}`}
+                disabled={!canMutate.allowed || archiveBlocked || saving}
+                onClick={() => setArchiveCandidate(product)}
+                size="sm"
+                title={archiveTitle}
+                variant="danger"
+              >
+                Archive
+              </Button>
             </div>
           );
         },
       },
     ],
-    [availableBrandIds, brandScopeKnown]
+    [availableBrandIds, brandScopeKnown, saving]
   );
 
   async function handleSaveProduct(input: ProductEditorSaveInput) {
@@ -624,6 +657,56 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
       throw new Error(message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function handleArchiveProduct() {
+    if (!archiveCandidate) {
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const archived = await archiveProduct(archiveCandidate.id);
+      setProducts((previous) =>
+        sortProducts(
+          previous.map((product) =>
+            product.id === archived.id ? archived : product
+          )
+        )
+      );
+      setEditorState((previous) => {
+        if (
+          !previous ||
+          previous.mode !== "edit" ||
+          previous.product?.id !== archived.id
+        ) {
+          return previous;
+        }
+
+        return {
+          ...previous,
+          product: archived,
+        };
+      });
+      setRefreshToken((value) => value + 1);
+      setToast({
+        tone: "success",
+        title: "Product archived",
+        message: "Product remains available for historical order references.",
+      });
+    } catch (error) {
+      setToast({
+        tone: "error",
+        title: "Archive failed",
+        message: productActionErrorMessage(
+          error,
+          "Product archive failed. Try again."
+        ),
+      });
+    } finally {
+      setSaving(false);
+      setArchiveCandidate(null);
     }
   }
 
@@ -770,21 +853,38 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
                 availableBrandIds,
                 brandScopeKnown
               );
+              const archiveBlocked = product.status === "ARCHIVED";
+              const archiveTitle = !canMutate.allowed
+                ? canMutate.reason ?? undefined
+                : archiveBlocked
+                  ? "Archived products are read-only."
+                  : undefined;
               return (
                 <ResourceCard
                   action={
-                    <Button
-                      disabled={!canMutate.allowed}
-                      onClick={() => openEditor({ mode: "edit", product })}
-                      size="sm"
-                      title={canMutate.reason ?? undefined}
-                      variant="secondary"
-                    >
-                      Edit
-                    </Button>
+                    <div className="jrw-products__table-actions">
+                      <Button
+                        disabled={!canMutate.allowed}
+                        onClick={() => openEditor({ mode: "edit", product })}
+                        size="sm"
+                        title={canMutate.reason ?? undefined}
+                        variant="secondary"
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        disabled={!canMutate.allowed || archiveBlocked || saving}
+                        onClick={() => setArchiveCandidate(product)}
+                        size="sm"
+                        title={archiveTitle}
+                        variant="danger"
+                      >
+                        Archive
+                      </Button>
+                    </div>
                   }
                   key={product.id}
-                  meta={`${product.slug} · ${brandLabel(product)} · ${categoryLabel(product)}`}
+                  meta={`${product.slug} - ${brandLabel(product)} - ${categoryLabel(product)}`}
                   stats={[
                     { label: "Price", value: priceSummaryLabel(product) },
                     {
@@ -880,6 +980,21 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
         />
       ) : null}
 
+      <ConfirmDialog
+        confirmLabel="Archive product"
+        message="Archive keeps historical references and removes this product from active catalog management."
+        onCancel={() => {
+          if (saving) {
+            return;
+          }
+          setArchiveCandidate(null);
+        }}
+        onConfirm={handleArchiveProduct}
+        open={archiveCandidate !== null}
+        title="Archive product"
+        tone="danger"
+      />
+
       {toast ? (
         <aside className="jrw-products__toast">
           <Toast
@@ -893,4 +1008,3 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
     </main>
   );
 }
-

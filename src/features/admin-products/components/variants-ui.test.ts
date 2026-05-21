@@ -133,6 +133,31 @@ describe("variants UI surfaces", () => {
     expect(markup).toContain("Duplicate option combinations detected:");
   });
 
+  it("ignores archived variants when checking option duplicates", () => {
+    const markup = renderToStaticMarkup(
+      createElement(VariantList, {
+        productId: "prod_1",
+        autoLoad: false,
+        initialLoadState: "ready",
+        initialVariants: [
+          variant({
+            id: "var_1",
+            sku: "SKU-S-BLK",
+            variationChain: [{ group: "Size", name: "Small" }],
+          }),
+          variant({
+            id: "var_2",
+            sku: "SKU-S-BLK-OLD",
+            status: "ARCHIVED",
+            variationChain: [{ group: "Size", name: "Small" }],
+          }),
+        ],
+      })
+    );
+
+    expect(markup).not.toContain("Duplicate option combinations detected:");
+  });
+
   it("renders variant editor create and edit flows", () => {
     const createMarkup = renderToStaticMarkup(
       createElement(VariantEditor, {
