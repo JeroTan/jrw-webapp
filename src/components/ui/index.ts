@@ -4,6 +4,7 @@ export * from "./ConfirmDialog";
 export * from "./IconButton";
 export * from "./Input";
 export * from "./Modal";
+export * from "./Pagination";
 export * from "./Select";
 export * from "./SearchInput";
 export * from "./Tabs";

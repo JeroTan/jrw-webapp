@@ -62,6 +62,9 @@ describe("publish UI surfaces", () => {
     expect(draftMarkup).toContain("Move to draft");
     expect(draftMarkup).toContain("Archive");
     expect(draftMarkup).toContain("disabled");
+    expect(draftMarkup).toContain(
+      "Complete missing readiness items before publishing."
+    );
 
     const publishedMarkup = renderToStaticMarkup(
       createElement(PublishControl, {
@@ -77,6 +80,26 @@ describe("publish UI surfaces", () => {
     );
 
     expect(publishedMarkup).toContain("Published");
+  });
+
+  it("renders mutation guard reason when publish controls blocked", () => {
+    const markup = renderToStaticMarkup(
+      createElement(PublishControl, {
+        status: "DRAFT",
+        readiness: {
+          isReady: true,
+          missingItems: [],
+        },
+        mutationsBlocked: true,
+        publishBlockedReason: "You need active membership in this product brand.",
+        onPublish: async () => undefined,
+        onUnpublish: async () => undefined,
+        onArchive: async () => undefined,
+      })
+    );
+
+    expect(markup).toContain("You need active membership in this product brand.");
+    expect(markup).toContain("disabled");
   });
 
   it("renders archive confirmation dialog when armed", () => {
@@ -100,4 +123,3 @@ describe("publish UI surfaces", () => {
     );
   });
 });
-

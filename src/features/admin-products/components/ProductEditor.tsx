@@ -5,17 +5,21 @@ import { slugifyProductText } from "@/domain/products/product";
 import { zodCreateProductInput } from "@/domain/products/schemas";
 import {
   archiveProduct,
+  fetchProductVariants,
   fetchProductReadiness,
   fetchProductImages,
   publishProduct,
   removeProductImage,
   setPrimaryProductImage,
   unpublishProduct,
+  updateVariantInventoryState,
+  updateVariantStockQuantity,
   updateProductImageOrder,
   uploadProductImage,
   type ApiFailure,
 } from "../api";
 import type {
+  InventoryState,
   ProductAssignableBrand,
   ProductAssignableCategory,
   ProductPhotoRecord,
@@ -24,11 +28,14 @@ import type {
   ProductMutationInput,
   ProductOrganizationRecord,
   ProductRecord,
+  ProductVariantRecord,
 } from "../types";
 import { ImageList } from "./ImageList";
 import { ImageUpload } from "./ImageUpload";
+import { InventoryAdjuster } from "./InventoryAdjuster";
 import { PublishControl } from "./PublishControl";
 import { ReadinessPanel } from "./ReadinessPanel";
+import { VariantList } from "./VariantList";
 
 type ProductEditorMode = "create" | "edit";
 
@@ -63,6 +70,8 @@ export type ProductEditorProps = {
   organization?: ProductOrganizationRecord | null;
   organizationReady?: boolean;
   organizationUnavailable?: boolean;
+  mutationsBlocked?: boolean;
+  mutationBlockReason?: string | null;
   product?: ProductRecord | null;
   mode: ProductEditorMode;
   onClose: () => void;
@@ -400,12 +409,96 @@ function statusActionErrorMessage(error: unknown, fallback: string): string {
     : fallback;
 }
 
+type InventoryValidationState = {
+  quantity?: string;
+  state?: string;
+  reason?: string;
+  summary?: string;
+};
+
+const inventoryStates: InventoryState[] = [
+  "IN_STOCK",
+  "LOW_STOCK",
+  "OUT_OF_STOCK",
+  "PREORDER",
+];
+
+function isInventoryStateValue(value: string): value is InventoryState {
+  return inventoryStates.includes(value as InventoryState);
+}
+
+function inventoryActionErrorMessage(error: unknown, fallback: string): string {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !(("code" in error) && typeof (error as ApiFailure).code === "string")
+  ) {
+    return fallback;
+  }
+
+  const failure = error as ApiFailure;
+  const reason =
+    typeof failure.details === "object" &&
+    failure.details !== null &&
+    "reason" in failure.details &&
+    typeof (failure.details as { reason?: unknown }).reason === "string"
+      ? String((failure.details as { reason: string }).reason)
+      : null;
+
+  if (failure.code === "CONFLICT_STATE") {
+    if (reason === "INVENTORY_STATE_MISMATCH") {
+      return "Inventory state conflicts with stock quantity.";
+    }
+    if (reason === "VARIANT_ARCHIVED") {
+      return "Archived variant cannot receive inventory changes.";
+    }
+
+    return "Inventory state conflicts with latest server data.";
+  }
+
+  if (failure.code === "VALIDATION_FAILED") {
+    return "Inventory update payload is invalid.";
+  }
+
+  if (failure.code === "AUTH_FORBIDDEN") {
+    if (reason === "BRAND_MEMBERSHIP_REQUIRED") {
+      return "You need active membership in this product brand.";
+    }
+    return "You do not have permission to update inventory.";
+  }
+
+  return typeof failure.message === "string" && failure.message.trim().length > 0
+    ? failure.message
+    : fallback;
+}
+
+function allowedNextActionFromError(error: unknown): string | null {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("details" in error) ||
+    typeof (error as ApiFailure).details !== "object" ||
+    (error as ApiFailure).details === null
+  ) {
+    return null;
+  }
+
+  const details = (error as ApiFailure).details as Record<string, unknown>;
+  if (typeof details.allowedNextAction === "string") {
+    return details.allowedNextAction;
+  }
+
+  return null;
+}
+
 export function ProductEditor({
   availableBrands = [],
   availableCategories = [],
   organization = null,
   organizationReady = false,
   organizationUnavailable = false,
+  mutationsBlocked = false,
+  mutationBlockReason = null,
   product = null,
   mode,
   onClose,
@@ -455,6 +548,23 @@ export function ProductEditor({
   const [readinessLoadState, setReadinessLoadState] = useState<
     "idle" | "loading" | "ready" | "failed"
   >("idle");
+  const [variants, setVariants] = useState<ProductVariantRecord[]>([]);
+  const [variantLoadState, setVariantLoadState] = useState<
+    "idle" | "loading" | "ready" | "failed"
+  >("idle");
+  const [selectedVariantId, setSelectedVariantId] = useState("");
+  const [inventoryQuantity, setInventoryQuantity] = useState("0");
+  const [inventoryState, setInventoryState] =
+    useState<InventoryState>("OUT_OF_STOCK");
+  const [inventoryReason, setInventoryReason] = useState("");
+  const [inventoryValidation, setInventoryValidation] =
+    useState<InventoryValidationState>({});
+  const [inventoryBusy, setInventoryBusy] = useState(false);
+  const [inventoryFeedback, setInventoryFeedback] = useState<{
+    tone: "success" | "error";
+    message: string;
+    allowedNextAction?: string | null;
+  } | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -475,6 +585,15 @@ export function ProductEditor({
     setStatusFeedback(null);
     setReadiness(null);
     setReadinessLoadState("idle");
+    setVariants([]);
+    setVariantLoadState("idle");
+    setSelectedVariantId("");
+    setInventoryQuantity("0");
+    setInventoryState("OUT_OF_STOCK");
+    setInventoryReason("");
+    setInventoryValidation({});
+    setInventoryBusy(false);
+    setInventoryFeedback(null);
   }, [product, mode, open]);
 
   useEffect(() => {
@@ -521,6 +640,23 @@ export function ProductEditor({
     const result = await fetchProductReadiness(productId);
     setReadiness(result);
     setReadinessLoadState("ready");
+  }
+
+  async function reloadVariants(productId: string): Promise<void> {
+    const result = await fetchProductVariants(productId, {
+      page: 1,
+      pageSize: 100,
+    });
+    setVariants(result.items);
+    setVariantLoadState("ready");
+    if (result.items.length > 0) {
+      setSelectedVariantId((previous) => {
+        const stillExists = result.items.some((variant) => variant.id === previous);
+        return stillExists ? previous : result.items[0].id;
+      });
+    } else {
+      setSelectedVariantId("");
+    }
   }
 
   useEffect(() => {
@@ -595,6 +731,69 @@ export function ProductEditor({
       active = false;
     };
   }, [editingProductId, mode, open]);
+
+  useEffect(() => {
+    if (!open || mode !== "edit" || !editingProductId) {
+      setVariants([]);
+      setVariantLoadState("idle");
+      setSelectedVariantId("");
+      return;
+    }
+
+    let active = true;
+    setVariantLoadState("loading");
+
+    fetchProductVariants(editingProductId, {
+      page: 1,
+      pageSize: 100,
+    })
+      .then((result) => {
+        if (!active) {
+          return;
+        }
+        setVariants(result.items);
+        setVariantLoadState("ready");
+        if (result.items.length > 0) {
+          setSelectedVariantId(result.items[0].id);
+        } else {
+          setSelectedVariantId("");
+        }
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+        setVariants([]);
+        setVariantLoadState("failed");
+        setSelectedVariantId("");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [editingProductId, mode, open]);
+
+  const selectedVariant = useMemo(
+    () => variants.find((variant) => variant.id === selectedVariantId) ?? null,
+    [selectedVariantId, variants]
+  );
+
+  useEffect(() => {
+    if (!selectedVariant) {
+      setInventoryQuantity("0");
+      setInventoryState("OUT_OF_STOCK");
+      setInventoryReason("");
+      setInventoryValidation({});
+      setInventoryFeedback(null);
+      return;
+    }
+
+    setInventoryQuantity(String(selectedVariant.stock));
+    setInventoryState(selectedVariant.inventoryState);
+    setInventoryReason("");
+    setInventoryValidation({});
+    setInventoryFeedback(null);
+  }, [selectedVariantId, selectedVariant?.id, selectedVariant?.stock, selectedVariant?.inventoryState]);
 
   const isDirty = useMemo(
     () => serializeFormState(form) !== baselineForm,
@@ -672,6 +871,18 @@ export function ProductEditor({
     event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>
   ) {
     event.preventDefault();
+
+    if (mode === "edit" && mutationsBlocked) {
+      setValidation({
+        summary: [
+          mutationBlockReason ??
+            "You need active membership in this product brand.",
+        ],
+        fields: {},
+      });
+      return;
+    }
+
     const result = validateProductInput(form, {
       allowOrganization: mode === "edit" && organizationReady,
       availableBrandIds,
@@ -696,7 +907,7 @@ export function ProductEditor({
   }
 
   async function handleUploadImage(file: File) {
-    if (!editingProductId) {
+    if (!editingProductId || mutationsBlocked) {
       return;
     }
 
@@ -725,7 +936,7 @@ export function ProductEditor({
   }
 
   async function handleSetPrimaryImage(photoId: string) {
-    if (!editingProductId) {
+    if (!editingProductId || mutationsBlocked) {
       return;
     }
 
@@ -750,7 +961,7 @@ export function ProductEditor({
   }
 
   async function handleReorderImage(photoId: string, sortOrder: number) {
-    if (!editingProductId) {
+    if (!editingProductId || mutationsBlocked) {
       return;
     }
 
@@ -775,7 +986,7 @@ export function ProductEditor({
   }
 
   async function handleRemoveImage(photoId: string) {
-    if (!editingProductId) {
+    if (!editingProductId || mutationsBlocked) {
       return;
     }
 
@@ -801,7 +1012,7 @@ export function ProductEditor({
   }
 
   async function handlePublish() {
-    if (!editingProductId) {
+    if (!editingProductId || mutationsBlocked) {
       return;
     }
 
@@ -854,7 +1065,7 @@ export function ProductEditor({
   }
 
   async function handleUnpublish() {
-    if (!editingProductId) {
+    if (!editingProductId || mutationsBlocked) {
       return;
     }
 
@@ -882,7 +1093,7 @@ export function ProductEditor({
   }
 
   async function handleArchive() {
-    if (!editingProductId) {
+    if (!editingProductId || mutationsBlocked) {
       return;
     }
 
@@ -909,9 +1120,163 @@ export function ProductEditor({
     }
   }
 
+  function validateInventoryInput(): InventoryValidationState {
+    const nextValidation: InventoryValidationState = {};
+    const quantity = Number(inventoryQuantity);
+
+    if (!Number.isInteger(quantity) || quantity < 0) {
+      nextValidation.quantity = "Quantity must be non-negative integer.";
+    }
+
+    if (!isInventoryStateValue(inventoryState)) {
+      nextValidation.state = "Choose valid inventory state.";
+    }
+
+    if (inventoryReason.trim().length > 280) {
+      nextValidation.reason = "Reason must be 280 characters or less.";
+    }
+
+    if (
+      nextValidation.quantity ||
+      nextValidation.state ||
+      nextValidation.reason
+    ) {
+      nextValidation.summary = "Inventory form has validation errors.";
+    }
+
+    return nextValidation;
+  }
+
+  async function handleApplyInventory() {
+    if (!editingProductId || !selectedVariant) {
+      return;
+    }
+
+    if (mutationsBlocked) {
+      setInventoryFeedback({
+        tone: "error",
+        message:
+          mutationBlockReason ??
+          "You need active membership in this product brand.",
+      });
+      return;
+    }
+
+    const nextValidation = validateInventoryInput();
+    if (nextValidation.summary) {
+      setInventoryValidation(nextValidation);
+      return;
+    }
+
+    const nextQuantity = Number(inventoryQuantity);
+    const previousVariant = selectedVariant;
+
+    setInventoryBusy(true);
+    setInventoryFeedback(null);
+    setInventoryValidation({});
+
+    setVariants((previous) =>
+      previous.map((variant) =>
+        variant.id === previousVariant.id
+          ? {
+              ...variant,
+              stock: nextQuantity,
+              inventoryState,
+            }
+          : variant
+      )
+    );
+
+    try {
+      let updatedVariant = previousVariant;
+
+      if (updatedVariant.stock !== nextQuantity) {
+        updatedVariant = await updateVariantStockQuantity(
+          editingProductId,
+          previousVariant.id,
+          {
+            quantity: nextQuantity,
+          }
+        );
+      }
+
+      if (updatedVariant.inventoryState !== inventoryState) {
+        updatedVariant = await updateVariantInventoryState(
+          editingProductId,
+          previousVariant.id,
+          {
+            state: inventoryState,
+          }
+        );
+      }
+
+      setVariants((previous) =>
+        previous.map((variant) =>
+          variant.id === updatedVariant.id ? updatedVariant : variant
+        )
+      );
+      setInventoryQuantity(String(updatedVariant.stock));
+      setInventoryState(updatedVariant.inventoryState);
+      setInventoryReason("");
+      setInventoryFeedback({
+        tone: "success",
+        message: "Inventory updated.",
+      });
+      await reloadReadiness(editingProductId);
+      await reloadVariants(editingProductId);
+    } catch (error) {
+      setVariants((previous) =>
+        previous.map((variant) =>
+          variant.id === previousVariant.id ? previousVariant : variant
+        )
+      );
+      setInventoryQuantity(String(previousVariant.stock));
+      setInventoryState(previousVariant.inventoryState);
+
+      const isConflict =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        typeof (error as ApiFailure).code === "string" &&
+        (error as ApiFailure).code === "CONFLICT_STATE";
+
+      setInventoryFeedback({
+        tone: "error",
+        message: isConflict
+          ? `${inventoryActionErrorMessage(
+              error,
+              "Inventory update failed."
+            )} Values rolled back.`
+          : inventoryActionErrorMessage(error, "Inventory update failed."),
+        allowedNextAction:
+          allowedNextActionFromError(error) ??
+          (isConflict
+            ? "Refresh variant matrix, confirm latest stock and state, then apply."
+            : null),
+      });
+
+      if (isConflict) {
+        await reloadVariants(editingProductId);
+      }
+    } finally {
+      setInventoryBusy(false);
+    }
+  }
+
+  const inventoryMutationDisabled =
+    saving ||
+    statusBusy ||
+    imageBusy ||
+    inventoryBusy ||
+    !organizationReady ||
+    mutationsBlocked;
+
   const brandDescription =
     mode === "create"
       ? "Save product first, then assign brand and categories."
+      : mutationsBlocked
+        ? mutationBlockReason ??
+          "You need active membership in this product brand."
       : !organizationReady
         ? organizationUnavailable
           ? "Product organization data unavailable. You can still update identity."
@@ -934,8 +1299,10 @@ export function ProductEditor({
             Cancel
           </Button>
           <Button
+            disabled={mode === "edit" && mutationsBlocked}
             form="product-editor-form"
             loading={saving}
+            title={mode === "edit" && mutationsBlocked ? mutationBlockReason ?? undefined : undefined}
             type="submit"
             variant="primary"
           >
@@ -964,7 +1331,17 @@ export function ProductEditor({
           </section>
         ) : null}
 
+        {mode === "edit" && mutationsBlocked ? (
+          <section className="jrw-products__publish-feedback jrw-products__publish-feedback--error" role="alert">
+            <p>
+              {mutationBlockReason ??
+                "You need active membership in this product brand."}
+            </p>
+          </section>
+        ) : null}
+
         <Input
+          disabled={saving || (mode === "edit" && mutationsBlocked)}
           error={validation.fields.name}
           label="Product name"
           onChange={(event) => updateName(event.currentTarget.value)}
@@ -973,6 +1350,7 @@ export function ProductEditor({
         />
 
         <Input
+          disabled={saving || (mode === "edit" && mutationsBlocked)}
           error={validation.fields.slug}
           label="Slug"
           onChange={(event) => updateSlug(event.currentTarget.value)}
@@ -981,6 +1359,7 @@ export function ProductEditor({
         />
 
         <Textarea
+          disabled={saving || (mode === "edit" && mutationsBlocked)}
           error={validation.fields.summary}
           label="Summary"
           onChange={(event) => updateField("summary", event.currentTarget.value)}
@@ -989,6 +1368,7 @@ export function ProductEditor({
         />
 
         <Textarea
+          disabled={saving || (mode === "edit" && mutationsBlocked)}
           error={validation.fields.description}
           label="Description"
           onChange={(event) => updateField("description", event.currentTarget.value)}
@@ -999,7 +1379,7 @@ export function ProductEditor({
 
         <Select
           description={brandDescription}
-          disabled={mode !== "edit" || !organizationReady || saving}
+          disabled={mode !== "edit" || !organizationReady || saving || mutationsBlocked}
           error={validation.fields.brandId}
           label="Brand"
           onChange={(event) => updateField("brandId", event.currentTarget.value)}
@@ -1019,7 +1399,7 @@ export function ProductEditor({
               ? "Save product first, then assign category links."
               : "Assign one or more active categories. Archived categories are rejected."
           }
-          disabled={mode !== "edit" || !organizationReady || saving}
+          disabled={mode !== "edit" || !organizationReady || saving || mutationsBlocked}
           error={validation.fields.categoryIds}
           label="Categories"
           multiple
@@ -1063,7 +1443,7 @@ export function ProductEditor({
             ) : null}
 
             <ImageUpload
-              disabled={!organizationReady || saving || imageBusy}
+              disabled={!organizationReady || saving || imageBusy || mutationsBlocked}
               onUpload={async (input) => {
                 await handleUploadImage(input.image);
               }}
@@ -1071,7 +1451,7 @@ export function ProductEditor({
             />
 
             <ImageList
-              busy={saving || imageBusy || !organizationReady}
+              busy={saving || imageBusy || !organizationReady || mutationsBlocked}
               images={images}
               loading={imageLoadState === "loading"}
               onRemove={handleRemoveImage}
@@ -1079,6 +1459,128 @@ export function ProductEditor({
               onSetPrimary={handleSetPrimaryImage}
               productName={product?.name}
             />
+          </section>
+        ) : null}
+
+        {mode === "edit" && editingProductId ? (
+          <section className="jrw-products__variants-section">
+            <VariantList
+              allowMutations={!mutationsBlocked && organizationReady}
+              embedded
+              mutationDisabledReason={
+                mutationBlockReason ??
+                "You need active membership in this product brand."
+              }
+              productId={editingProductId}
+            />
+          </section>
+        ) : null}
+
+        {mode === "edit" && editingProductId ? (
+          <section className="jrw-products__inventory-section">
+            <header className="jrw-products__inventory-head">
+              <div>
+                <p className="jrw-products__publish-title">Inventory adjuster</p>
+                <p className="jrw-field__description">
+                  Apply stock and state updates for one variant at a time.
+                </p>
+              </div>
+              <Button
+                disabled={inventoryBusy || variantLoadState !== "ready"}
+                onClick={async () => {
+                  await reloadVariants(editingProductId);
+                }}
+                size="sm"
+                variant="secondary"
+              >
+                Refresh variants
+              </Button>
+            </header>
+
+            {inventoryFeedback ? (
+              <section
+                className={`jrw-products__publish-feedback jrw-products__publish-feedback--${inventoryFeedback.tone}`}
+                role={inventoryFeedback.tone === "error" ? "alert" : "status"}
+              >
+                <p>{inventoryFeedback.message}</p>
+                {inventoryFeedback.allowedNextAction ? (
+                  <p>Next action: {inventoryFeedback.allowedNextAction}</p>
+                ) : null}
+              </section>
+            ) : null}
+
+            {variantLoadState === "loading" ? (
+              <p className="jrw-field__description">Loading variants for inventory update...</p>
+            ) : null}
+
+            {variantLoadState === "failed" ? (
+              <section className="jrw-products__publish-feedback jrw-products__publish-feedback--error" role="alert">
+                <p>Could not load variants for inventory updates.</p>
+              </section>
+            ) : null}
+
+            {variantLoadState === "ready" && variants.length === 0 ? (
+              <p className="jrw-field__description">
+                Create variant first before inventory updates.
+              </p>
+            ) : null}
+
+            {variantLoadState === "ready" && variants.length > 0 ? (
+              <>
+                <Select
+                  description="Select variant row for stock and state changes."
+                  disabled={inventoryMutationDisabled}
+                  label="Variant"
+                  onChange={(event) => setSelectedVariantId(event.currentTarget.value)}
+                  value={selectedVariantId}
+                >
+                  {variants.map((variant) => (
+                    <option key={variant.id} value={variant.id}>
+                      {variant.name} · {variant.sku}
+                    </option>
+                  ))}
+                </Select>
+
+                <InventoryAdjuster
+                  allowedNextAction={inventoryFeedback?.allowedNextAction ?? null}
+                  conflictMessage={
+                    inventoryFeedback?.tone === "error" &&
+                    inventoryFeedback.allowedNextAction
+                      ? inventoryFeedback.message
+                      : undefined
+                  }
+                  disabled={inventoryMutationDisabled || !selectedVariant}
+                  error={inventoryValidation.quantity}
+                  onChange={setInventoryQuantity}
+                  onReasonChange={setInventoryReason}
+                  onStateChange={setInventoryState}
+                  quantity={inventoryQuantity}
+                  reason={inventoryReason}
+                  reasonError={inventoryValidation.reason}
+                  showReasonField
+                  state={inventoryState}
+                  stateError={inventoryValidation.state}
+                />
+
+                {inventoryValidation.summary ? (
+                  <p className="jrw-field__error" role="alert">
+                    {inventoryValidation.summary}
+                  </p>
+                ) : null}
+
+                <Button
+                  disabled={inventoryMutationDisabled || !selectedVariant}
+                  loading={inventoryBusy}
+                  onClick={async () => {
+                    await handleApplyInventory();
+                  }}
+                  title={mutationsBlocked ? mutationBlockReason ?? undefined : undefined}
+                  variant="primary"
+                >
+                  Apply inventory update
+                </Button>
+              </>
+            ) : null}
           </section>
         ) : null}
 
@@ -1109,9 +1611,11 @@ export function ProductEditor({
 
             <PublishControl
               busy={saving || statusBusy}
+              mutationsBlocked={mutationsBlocked}
               onArchive={handleArchive}
               onPublish={handlePublish}
               onUnpublish={handleUnpublish}
+              publishBlockedReason={mutationBlockReason}
               readiness={readiness}
               status={currentStatus}
             />

@@ -44,7 +44,7 @@ type ApiEnvelope<T> =
       };
     };
 
-const DEFAULT_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 20;
 
 type BrandListPayload = {
   items: Array<{

@@ -78,7 +78,9 @@ describe("products UI surfaces", () => {
     );
 
     expect(markup).toContain("Products");
-    expect(markup).toContain("You can manage your list of products here.");
+    expect(markup).toContain(
+      "Manage product identity, variants, pricing, inventory, and publish status."
+    );
     expect(markup).toContain("Search products");
     expect(markup).toContain("Brand filter");
     expect(markup).toContain("Category filter");
@@ -165,6 +167,8 @@ describe("products UI surfaces", () => {
     expect(editMarkup).toContain("kitchen-scale");
     expect(editMarkup).toContain("Membership status");
     expect(editMarkup).toContain("Category links selected");
+    expect(editMarkup).toContain("Variant matrix");
+    expect(editMarkup).toContain("Inventory adjuster");
     expect(editMarkup).toContain("Save changes");
   });
 

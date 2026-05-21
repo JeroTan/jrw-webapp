@@ -1,6 +1,6 @@
 # Story 3.9: Admin Product Editor, Variant Matrix, and Inventory UI
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -24,97 +24,97 @@ So that I can manage product identity, variants, images, prices, stock, brand, c
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm scope and current baseline. (AC: 1-9)
-  - [ ] Verify Epic 3 is `in-progress` and Stories 3.0-3.8 are `done`; do not reopen.
-  - [ ] Confirm this story is the ninth Epic 3 backlog item after Story 3.8.
-  - [ ] Confirm existing `src/features/admin-products/` components: ProductEditor, VariantList, VariantEditor, InventoryAdjuster, ImageList, ImageUpload, PublishControl, ReadinessPanel, ProductList.
-  - [ ] Confirm existing `src/components/ui/` primitives: Button, IconButton, Input, Textarea, Select, Checkbox, Toggle, Badge, StatusBadge, Tabs, Modal, ConfirmDialog.
-  - [ ] Confirm existing `src/components/data-display/` primitives: DataTable, ResourceCard, ResourceList.
-  - [ ] Confirm existing `src/components/feedback/` primitives: Skeleton, Toast, EmptyState, Badge, StatusBadge.
-  - [ ] Confirm existing `src/components/layout/` primitives: PageToolbar.
-  - [ ] Confirm existing product API routes from Stories 3.2-3.7: products, variants, images, inventory, publish.
-  - [ ] Do NOT create new backend API endpoints — this story is UI integration and enhancement only.
+- [x] Task 1: Confirm scope and current baseline. (AC: 1-9)
+  - [x] Verify Epic 3 is `in-progress` and Stories 3.0-3.8 are `done`; do not reopen.
+  - [x] Confirm this story is the ninth Epic 3 backlog item after Story 3.8.
+  - [x] Confirm existing `src/features/admin-products/` components: ProductEditor, VariantList, VariantEditor, InventoryAdjuster, ImageList, ImageUpload, PublishControl, ReadinessPanel, ProductList.
+  - [x] Confirm existing `src/components/ui/` primitives: Button, IconButton, Input, Textarea, Select, Checkbox, Toggle, Badge, StatusBadge, Tabs, Modal, ConfirmDialog.
+  - [x] Confirm existing `src/components/data-display/` primitives: DataTable, ResourceCard, ResourceList.
+  - [x] Confirm existing `src/components/feedback/` primitives: Skeleton, Toast, EmptyState, Badge, StatusBadge.
+  - [x] Confirm existing `src/components/layout/` primitives: PageToolbar.
+  - [x] Confirm existing product API routes from Stories 3.2-3.7: products, variants, images, inventory, publish.
+  - [x] Do NOT create new backend API endpoints — this story is UI integration and enhancement only.
 
-- [ ] Task 2: Build table-first Products dashboard page. (AC: 1, 7-9)
-  - [ ] Create `src/pages/admin/products/index.astro` as Astro shell page.
-  - [ ] Create `src/features/admin-products/components/ProductListDashboard.tsx` as React island.
-  - [ ] Product list table shows: product name, brand/category, status, stock/availability, price summary, updated timestamp.
-  - [ ] Integrate search filter using existing `SearchInput` primitive.
-  - [ ] Integrate pagination using existing or new `Pagination` primitive.
-  - [ ] Integrate view toggle (table/list) using existing `ViewToggle` primitive.
-  - [ ] Use existing `DataTable` component with columns mapped to `ProductRecord` type.
-  - [ ] Loading state uses `Skeleton` with stable dimensions.
-  - [ ] Empty state uses `EmptyState` with "Create first product" action.
-  - [ ] Error state uses `EmptyState` with retry action.
-  - [ ] Follow JRW Technical Brutalist tokens: 0px radius, 1px borders, no shadows/blur.
-  - [ ] Keyboard navigation works for table rows, search, pagination, and actions.
+- [x] Task 2: Build table-first Products dashboard page. (AC: 1, 7-9)
+  - [x] Create `src/pages/admin/products/index.astro` as Astro shell page.
+  - [x] Create `src/features/admin-products/components/ProductListDashboard.tsx` as React island.
+  - [x] Product list table shows: product name, brand/category, status, stock/availability, price summary, updated timestamp.
+  - [x] Integrate search filter using existing `SearchInput` primitive.
+  - [x] Integrate pagination using existing or new `Pagination` primitive.
+  - [x] Integrate view toggle (table/list) using existing `ViewToggle` primitive.
+  - [x] Use existing `DataTable` component with columns mapped to `ProductRecord` type.
+  - [x] Loading state uses `Skeleton` with stable dimensions.
+  - [x] Empty state uses `EmptyState` with "Create first product" action.
+  - [x] Error state uses `EmptyState` with retry action.
+  - [x] Follow JRW Technical Brutalist tokens: 0px radius, 1px borders, no shadows/blur.
+  - [x] Keyboard navigation works for table rows, search, pagination, and actions.
 
-- [ ] Task 3: Extend Product Editor with variant matrix and inventory sections. (AC: 2-4, 7-9)
-  - [ ] Review existing `ProductEditor.tsx` — currently has identity, media, brand, categories, publish sections.
-  - [ ] Add Variant Matrix section to Product Editor (or integrate existing `VariantList` as embedded section).
-  - [ ] Add Inventory Adjuster section to Product Editor (or integrate existing `InventoryAdjuster` as embedded section).
-  - [ ] Ensure all sections show required fields, inline errors, form summary, dirty state, and saving state.
-  - [ ] Dirty state protection: warn before leaving editor with unsaved changes.
-  - [ ] Form summary shows all validation errors at top of form.
-  - [ ] Inline errors appear below each invalid field.
-  - [ ] Saving state shows button pending state and disables form during save.
+- [x] Task 3: Extend Product Editor with variant matrix and inventory sections. (AC: 2-4, 7-9)
+  - [x] Review existing `ProductEditor.tsx` — currently has identity, media, brand, categories, publish sections.
+  - [x] Add Variant Matrix section to Product Editor (or integrate existing `VariantList` as embedded section).
+  - [x] Add Inventory Adjuster section to Product Editor (or integrate existing `InventoryAdjuster` as embedded section).
+  - [x] Ensure all sections show required fields, inline errors, form summary, dirty state, and saving state.
+  - [x] Dirty state protection: warn before leaving editor with unsaved changes.
+  - [x] Form summary shows all validation errors at top of form.
+  - [x] Inline errors appear below each invalid field.
+  - [x] Saving state shows button pending state and disables form during save.
 
-- [ ] Task 4: Implement Variant Matrix with full CRUD operations. (AC: 3, 7-9)
-  - [ ] Review existing `VariantList.tsx` and `VariantEditor.tsx` — already have base CRUD.
-  - [ ] Enhance variant matrix to support: SKU/options display, price in centavos, stock quantity, status badges.
-  - [ ] Add duplicate option combination warnings when creating/editing variants.
-  - [ ] Add low-stock visual indicator when `inventoryState` is `LOW_STOCK` or `OUT_OF_STOCK`.
-  - [ ] Add archived state visual indicator with disabled actions.
-  - [ ] Keyboard row actions: Tab through rows, Enter to edit, Escape to cancel.
-  - [ ] Use existing `DataTable` for variant matrix rendering.
-  - [ ] Variant editor uses existing `VariantEditor` modal component.
-  - [ ] Archive action requires confirmation via `ConfirmDialog`.
+- [x] Task 4: Implement Variant Matrix with full CRUD operations. (AC: 3, 7-9)
+  - [x] Review existing `VariantList.tsx` and `VariantEditor.tsx` — already have base CRUD.
+  - [x] Enhance variant matrix to support: SKU/options display, price in centavos, stock quantity, status badges.
+  - [x] Add duplicate option combination warnings when creating/editing variants.
+  - [x] Add low-stock visual indicator when `inventoryState` is `LOW_STOCK` or `OUT_OF_STOCK`.
+  - [x] Add archived state visual indicator with disabled actions.
+  - [x] Keyboard row actions: Tab through rows, Enter to edit, Escape to cancel.
+  - [x] Use existing `DataTable` for variant matrix rendering.
+  - [x] Variant editor uses existing `VariantEditor` modal component.
+  - [x] Archive action requires confirmation via `ConfirmDialog`.
 
-- [ ] Task 5: Implement Inventory Adjuster with validation and conflict handling. (AC: 4, 7-9)
-  - [ ] Review existing `InventoryAdjuster.tsx` — already has base adjuster.
-  - [ ] Ensure quantity/state changes validate before submit (non-negative quantity, valid inventory state).
-  - [ ] Stale/conflict responses rollback UI and show allowed next action.
-  - [ ] Use `CONFLICT_STATE` error code for stale inventory updates.
-  - [ ] Show rollback messaging with allowed next action on conflict.
-  - [ ] Inventory state selector uses existing `InventoryStateSelector` component.
-  - [ ] Audit-ready reason field for stock changes (optional but recommended).
+- [x] Task 5: Implement Inventory Adjuster with validation and conflict handling. (AC: 4, 7-9)
+  - [x] Review existing `InventoryAdjuster.tsx` — already has base adjuster.
+  - [x] Ensure quantity/state changes validate before submit (non-negative quantity, valid inventory state).
+  - [x] Stale/conflict responses rollback UI and show allowed next action.
+  - [x] Use `CONFLICT_STATE` error code for stale inventory updates.
+  - [x] Show rollback messaging with allowed next action on conflict.
+  - [x] Inventory state selector uses existing `InventoryStateSelector` component.
+  - [x] Audit-ready reason field for stock changes (optional but recommended).
 
-- [ ] Task 6: Integrate publish readiness UI. (AC: 5, 7-9)
-  - [ ] Review existing `PublishControl.tsx` and `ReadinessPanel.tsx` — already have publish UI.
-  - [ ] Ensure publish action is blocked when product is not publish-ready.
-  - [ ] Show missing readiness items from server response in `ReadinessPanel`.
-  - [ ] Draft save remains available even when publish is blocked.
-  - [ ] Publish button shows disabled state with tooltip explaining why blocked.
-  - [ ] Status badges use text labels, not color alone.
+- [x] Task 6: Integrate publish readiness UI. (AC: 5, 7-9)
+  - [x] Review existing `PublishControl.tsx` and `ReadinessPanel.tsx` — already have publish UI.
+  - [x] Ensure publish action is blocked when product is not publish-ready.
+  - [x] Show missing readiness items from server response in `ReadinessPanel`.
+  - [x] Draft save remains available even when publish is blocked.
+  - [x] Publish button shows disabled state with tooltip explaining why blocked.
+  - [x] Status badges use text labels, not color alone.
 
-- [ ] Task 7: Implement brand permission UI guards. (AC: 6, 7-9)
-  - [ ] Review existing brand membership guard patterns from Stories 2.6 and 3.6.
-  - [ ] UI hides/disables mutations when Admin lacks brand permission.
-  - [ ] Show safe reason for disabled actions (e.g., "You need active membership in this product brand.").
-  - [ ] Server denial remains source of truth — UI guards are convenience only.
-  - [ ] Forbidden state uses `EmptyState` or inline message with safe explanation.
+- [x] Task 7: Implement brand permission UI guards. (AC: 6, 7-9)
+  - [x] Review existing brand membership guard patterns from Stories 2.6 and 3.6.
+  - [x] UI hides/disables mutations when Admin lacks brand permission.
+  - [x] Show safe reason for disabled actions (e.g., "You need active membership in this product brand.").
+  - [x] Server denial remains source of truth — UI guards are convenience only.
+  - [x] Forbidden state uses `EmptyState` or inline message with safe explanation.
 
-- [ ] Task 8: Responsive and accessibility QA. (AC: 7-9)
-  - [ ] Tablet (768px+) and desktop (1024px+) layouts work for product list and editor.
-  - [ ] Narrow viewports: side panels become full-screen panels.
-  - [ ] Keyboard navigation works for all interactive elements.
-  - [ ] Labels are associated with inputs via `htmlFor`/`id`.
-  - [ ] Errors are associated with inputs via `aria-describedby`.
-  - [ ] Text does not overflow buttons, badges, table cells.
-  - [ ] Focus is visible on all interactive elements.
-  - [ ] Reduced motion respects `prefers-reduced-motion`.
-  - [ ] Status badges include text labels (not color-only).
+- [x] Task 8: Responsive and accessibility QA. (AC: 7-9)
+  - [x] Tablet (768px+) and desktop (1024px+) layouts work for product list and editor.
+  - [x] Narrow viewports: side panels become full-screen panels.
+  - [x] Keyboard navigation works for all interactive elements.
+  - [x] Labels are associated with inputs via `htmlFor`/`id`.
+  - [x] Errors are associated with inputs via `aria-describedby`.
+  - [x] Text does not overflow buttons, badges, table cells.
+  - [x] Focus is visible on all interactive elements.
+  - [x] Reduced motion respects `prefers-reduced-motion`.
+  - [x] Status badges include text labels (not color-only).
 
-- [ ] Task 9: Add UI tests and run validation. (AC: 9)
-  - [ ] Add component tests for ProductListDashboard, ProductEditor, VariantMatrix, InventoryAdjuster.
-  - [ ] Test product list rendering, search, pagination, empty/error states.
-  - [ ] Test product editor form validation, dirty state, save flow.
-  - [ ] Test variant matrix CRUD, duplicate warnings, low-stock states.
-  - [ ] Test inventory adjuster validation, conflict rollback.
-  - [ ] Test publish readiness blocking, disabled states.
-  - [ ] Test brand permission guards, forbidden states.
-  - [ ] Run targeted tests: `npx vitest run src/features/admin-products`.
-  - [ ] Run `npm run check` after typed changes.
+- [x] Task 9: Add UI tests and run validation. (AC: 9)
+  - [x] Add component tests for ProductListDashboard, ProductEditor, VariantMatrix, InventoryAdjuster.
+  - [x] Test product list rendering, search, pagination, empty/error states.
+  - [x] Test product editor form validation, dirty state, save flow.
+  - [x] Test variant matrix CRUD, duplicate warnings, low-stock states.
+  - [x] Test inventory adjuster validation, conflict rollback.
+  - [x] Test publish readiness blocking, disabled states.
+  - [x] Test brand permission guards, forbidden states.
+  - [x] Run targeted tests: `npx vitest run src/features/admin-products`.
+  - [x] Run `npm run check` after typed changes.
 
 ### Dev Notes
 
@@ -428,7 +428,7 @@ npm run check
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Implementation Plan
 
@@ -445,16 +445,40 @@ npm run check
 
 ### Debug Log References
 
-- (To be filled during implementation)
+- `npx vitest run src/features/admin-products/components` (pass)
+- `npm run check` (pass; 0 errors, 0 warnings, existing hints only)
 
 ### Completion Notes List
 
-- (To be filled during implementation)
+- Built new table-first `ProductListDashboard` with search, brand/category filters, table/list toggle, and pagination primitive.
+- Routed `/admin/products` Astro page to dashboard island and preserved create/edit modal flow.
+- Extended `ProductEditor` with embedded variant matrix and dedicated inventory adjuster section, including validation, rollback-on-conflict messaging, and optional audit reason input.
+- Enhanced `VariantList` with option-combination duplicate warnings, inventory-state badges, archived read-only behavior, confirm-dialog archive, and keyboard row actions.
+- Added publish guard messaging and mutation lock behavior for brand-scope permission limits while preserving server as source of truth.
+- Added/updated component tests for dashboard, variant matrix, inventory adjuster, publish guard, and editor coverage.
 
 ### File List
 
-- (To be filled during implementation)
+- `src/pages/admin/products/index.astro`
+- `src/components/ui/Pagination.tsx`
+- `src/components/ui/index.ts`
+- `src/styles/global.css`
+- `src/features/admin-products/api.ts`
+- `src/features/admin-products/components/ProductListDashboard.tsx`
+- `src/features/admin-products/components/ProductList.tsx`
+- `src/features/admin-products/components/ProductEditor.tsx`
+- `src/features/admin-products/components/VariantList.tsx`
+- `src/features/admin-products/components/InventoryAdjuster.tsx`
+- `src/features/admin-products/components/PublishControl.tsx`
+- `src/features/admin-products/components/ProductListDashboard.test.tsx`
+- `src/features/admin-products/components/products-ui.test.ts`
+- `src/features/admin-products/components/variants-ui.test.ts`
+- `src/features/admin-products/components/inventory-ui.test.ts`
+- `src/features/admin-products/components/publish-ui.test.ts`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/implementation-artifacts/3-9-admin-product-editor-variant-matrix-and-inventory-ui.md`
 
 ## Change Log
 
 - 2026-05-21: Story 3.9 context engine created for admin product editor, variant matrix, inventory UI, table-first product list, brand permission guards, responsive/accessibility QA, and targeted tests.
+- 2026-05-21: Implemented Story 3.9 UI surfaces (dashboard, editor variant/inventory integration, permission guards), added pagination primitive, and completed targeted/admin checks.

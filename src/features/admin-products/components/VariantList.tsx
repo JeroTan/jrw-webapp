@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { DataTable, type DataTableColumn } from "@/components/data-display";
 import { EmptyState, Skeleton, StatusBadge, Toast } from "@/components/feedback";
 import { PageToolbar } from "@/components/layout";
-import { Button, SearchInput } from "@/components/ui";
+import { Button, ConfirmDialog, SearchInput } from "@/components/ui";
 import {
   archiveProductVariant,
   createProductVariant,
@@ -11,7 +11,7 @@ import {
   type ApiFailure,
   updateProductVariant,
 } from "../api";
-import type { ProductVariantRecord } from "../types";
+import type { ProductVariantOption, ProductVariantRecord } from "../types";
 import {
   formatPriceCentavos,
   VariantEditor,
@@ -36,6 +36,9 @@ export type VariantListProps = {
   autoLoad?: boolean;
   initialVariants?: ProductVariantRecord[];
   initialLoadState?: LoadState;
+  embedded?: boolean;
+  allowMutations?: boolean;
+  mutationDisabledReason?: string | null;
 };
 
 function sortVariants(rows: ProductVariantRecord[]): ProductVariantRecord[] {
@@ -54,6 +57,19 @@ function statusTone(status: ProductVariantRecord["status"]) {
 
 function statusLabel(status: ProductVariantRecord["status"]) {
   return status === "ARCHIVED" ? "Archived" : "Active";
+}
+
+function inventoryTone(variant: ProductVariantRecord) {
+  switch (variant.inventoryState) {
+    case "LOW_STOCK":
+      return "warning" as const;
+    case "OUT_OF_STOCK":
+      return "error" as const;
+    case "PREORDER":
+      return "info" as const;
+    default:
+      return "success" as const;
+  }
 }
 
 function productActionErrorMessage(error: unknown, fallback: string): string {
@@ -120,11 +136,71 @@ function filterVariants(
   );
 }
 
+function variationKey(options: ProductVariantOption[]): string {
+  if (options.length === 0) {
+    return "";
+  }
+
+  return [...options]
+    .map((option) => `${option.group.trim().toLowerCase()}::${option.name.trim().toLowerCase()}`)
+    .sort((left, right) => left.localeCompare(right))
+    .join("|");
+}
+
+function duplicateSummary(variants: ProductVariantRecord[]): string[] {
+  const byKey = new Map<string, ProductVariantRecord[]>();
+  variants.forEach((variant) => {
+    const key = variationKey(variant.variationChain);
+    if (!key) {
+      return;
+    }
+    const existing = byKey.get(key);
+    if (existing) {
+      existing.push(variant);
+      return;
+    }
+    byKey.set(key, [variant]);
+  });
+
+  const duplicates: string[] = [];
+  byKey.forEach((sameKeyVariants) => {
+    if (sameKeyVariants.length <= 1) {
+      return;
+    }
+
+    duplicates.push(
+      sameKeyVariants.map((variant) => `${variant.name} (${variant.sku})`).join(", ")
+    );
+  });
+
+  return duplicates;
+}
+
+function hasDuplicateVariation(
+  variants: ProductVariantRecord[],
+  input: VariantEditorSaveInput,
+  editingVariantId: string | null
+): boolean {
+  const key = variationKey(input.variationChain);
+  if (!key) {
+    return false;
+  }
+
+  return variants.some(
+    (variant) =>
+      variant.id !== editingVariantId &&
+      variationKey(variant.variationChain) === key
+  );
+}
+
 export function VariantList({
   productId,
   autoLoad = true,
   initialVariants = [],
   initialLoadState = "loading",
+  embedded = false,
+  allowMutations = true,
+  mutationDisabledReason = null,
 }: VariantListProps) {
   const [loadState, setLoadState] = useState<LoadState>(initialLoadState);
   const [variants, setVariants] = useState<ProductVariantRecord[]>(
@@ -135,6 +211,9 @@ export function VariantList({
   const [editorState, setEditorState] = useState<EditorState | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
+  const [archiveCandidate, setArchiveCandidate] = useState<ProductVariantRecord | null>(
+    null
+  );
 
   useEffect(() => {
     if (!autoLoad) {
@@ -172,12 +251,13 @@ export function VariantList({
   );
 
   const activeCount = variants.filter((variant) => variant.status === "ACTIVE").length;
+  const duplicateWarnings = useMemo(() => duplicateSummary(variants), [variants]);
 
   const columns = useMemo<Array<DataTableColumn<ProductVariantRecord>>>(
     () => [
       {
         key: "name",
-        header: "Name",
+        header: "Variant",
         cell: (variant) => (
           <div className="jrw-variants__cell-stack">
             <strong>{variant.name}</strong>
@@ -186,10 +266,37 @@ export function VariantList({
         ),
       },
       {
+        key: "options",
+        header: "Options",
+        cell: (variant) =>
+          variant.variationChain.length > 0 ? (
+            <span className="jrw-variants__cell-meta">
+              {variant.variationChain
+                .map((option) => `${option.group}: ${option.name}`)
+                .join(" · ")}
+            </span>
+          ) : (
+            "—"
+          ),
+      },
+      {
         key: "price",
         header: "Price",
         align: "right",
         cell: (variant) => formatPriceCentavos(variant.priceCentavos),
+      },
+      {
+        key: "inventory",
+        header: "Stock / State",
+        cell: (variant) => (
+          <div className="jrw-variants__cell-stack">
+            <span>{variant.stock}</span>
+            <StatusBadge
+              label={variant.inventoryState.replaceAll("_", " ")}
+              tone={inventoryTone(variant)}
+            />
+          </div>
+        ),
       },
       {
         key: "status",
@@ -202,84 +309,105 @@ export function VariantList({
         ),
       },
       {
-        key: "availability",
-        header: "Availability",
-        cell: (variant) => variant.availability,
-      },
-      {
         key: "actions",
         header: "Actions",
         align: "right",
         cell: (variant) => {
           const isArchived = variant.status === "ARCHIVED";
+          const blocked = !allowMutations || isArchived;
+          const title = !allowMutations
+            ? mutationDisabledReason ?? undefined
+            : isArchived
+              ? "Archived variants are read-only."
+              : undefined;
           return (
-            <div className="jrw-variants__table-actions">
-            <Button
-              disabled={isArchived}
-              onClick={() =>
-                setEditorState({
-                  mode: "edit",
-                  variant,
-                })
-              }
-              size="sm"
-              variant="secondary"
-            >
-              Edit
-            </Button>
-            <Button
-              disabled={isArchived}
-              onClick={async () => {
-                if (
-                  typeof window !== "undefined" &&
-                  !window.confirm("Archive this variant?")
-                ) {
-                  return;
+            <div
+              className="jrw-variants__table-actions"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !blocked) {
+                  event.preventDefault();
+                  setEditorState({
+                    mode: "edit",
+                    variant,
+                  });
                 }
-
-                try {
-                  const archived = await archiveProductVariant(
-                    productId,
-                    variant.id,
-                    {}
-                  );
-                  setVariants((previous) =>
-                    sortVariants(
-                      previous.map((row) =>
-                        row.id === archived.id ? archived : row
-                      )
-                    )
-                  );
-                  setToast({
-                    tone: "success",
-                    title: "Variant archived",
-                    message: "Variant remains readable for historical records.",
-                  });
-                } catch (error) {
-                  setToast({
-                    tone: "error",
-                    title: "Archive failed",
-                    message: productActionErrorMessage(
-                      error,
-                      "Variant archive failed. Try again."
-                    ),
-                  });
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  setEditorState(null);
                 }
               }}
-              size="sm"
-              variant="danger"
             >
-              Archive
-            </Button>
+              <Button
+                disabled={blocked}
+                onClick={() =>
+                  setEditorState({
+                    mode: "edit",
+                    variant,
+                  })
+                }
+                size="sm"
+                title={title}
+                variant="secondary"
+              >
+                Edit
+              </Button>
+              <Button
+                disabled={blocked}
+                onClick={() => setArchiveCandidate(variant)}
+                size="sm"
+                title={title}
+                variant="danger"
+              >
+                Archive
+              </Button>
             </div>
           );
         },
       },
     ],
-    [productId]
+    [allowMutations, mutationDisabledReason]
   );
 
+  async function handleArchiveVariant() {
+    if (!archiveCandidate) {
+      return;
+    }
+
+    try {
+      const archived = await archiveProductVariant(productId, archiveCandidate.id, {});
+      setVariants((previous) =>
+        sortVariants(
+          previous.map((row) => (row.id === archived.id ? archived : row))
+        )
+      );
+      setToast({
+        tone: "success",
+        title: "Variant archived",
+        message: "Variant remains readable for historical records.",
+      });
+    } catch (error) {
+      setToast({
+        tone: "error",
+        title: "Archive failed",
+        message: productActionErrorMessage(error, "Variant archive failed. Try again."),
+      });
+    } finally {
+      setArchiveCandidate(null);
+    }
+  }
+
   async function handleSaveVariant(input: VariantEditorSaveInput) {
+    const editingId = editorState?.mode === "edit" ? editorState.variant?.id ?? null : null;
+    if (hasDuplicateVariation(variants, input, editingId)) {
+      const message = "Variant option combination already exists.";
+      setToast({
+        tone: "warning",
+        title: "Duplicate option combination",
+        message,
+      });
+      throw new Error(message);
+    }
+
     setSaving(true);
     try {
       if (editorState?.mode === "create") {
@@ -347,36 +475,59 @@ export function VariantList({
   }
 
   return (
-    <main className="jrw-variants">
-      <header className="jrw-variants__header">
-        <div>
-          <p className="jrw-page-kicker">Product variants</p>
-          <h1 className="jrw-variants__title">Variants</h1>
-          <p className="jrw-page-copy">
-            You can manage variant options, SKU, and centavos pricing here.
-          </p>
-        </div>
-        <dl className="jrw-variants__metrics" aria-label="Variant summary">
+    <section className={embedded ? "jrw-variants jrw-variants--embedded" : "jrw-variants"}>
+      {!embedded ? (
+        <header className="jrw-variants__header">
           <div>
-            <dt>Total variants</dt>
-            <dd>{loadState === "ready" ? variants.length : "-"}</dd>
+            <p className="jrw-page-kicker">Product variants</p>
+            <h1 className="jrw-variants__title">Variants</h1>
+            <p className="jrw-page-copy">
+              You can manage variant options, SKU, and centavos pricing here.
+            </p>
           </div>
+          <dl className="jrw-variants__metrics" aria-label="Variant summary">
+            <div>
+              <dt>Total variants</dt>
+              <dd>{loadState === "ready" ? variants.length : "-"}</dd>
+            </div>
+            <div>
+              <dt>Active variants</dt>
+              <dd>{loadState === "ready" ? activeCount : "-"}</dd>
+            </div>
+          </dl>
+        </header>
+      ) : (
+        <header className="jrw-variants__embedded-header">
           <div>
-            <dt>Active variants</dt>
-            <dd>{loadState === "ready" ? activeCount : "-"}</dd>
+            <p className="jrw-products__publish-title">Variant matrix</p>
+            <p className="jrw-field__description">
+              SKU, options, centavos price, and stock states per variant.
+            </p>
           </div>
-        </dl>
-      </header>
+          <dl className="jrw-variants__metrics jrw-variants__metrics--embedded">
+            <div>
+              <dt>Total</dt>
+              <dd>{loadState === "ready" ? variants.length : "-"}</dd>
+            </div>
+            <div>
+              <dt>Active</dt>
+              <dd>{loadState === "ready" ? activeCount : "-"}</dd>
+            </div>
+          </dl>
+        </header>
+      )}
 
       <PageToolbar
         actions={
           <Button
+            disabled={!allowMutations}
             onClick={() =>
               setEditorState({
                 mode: "create",
                 variant: null,
               })
             }
+            title={!allowMutations ? mutationDisabledReason ?? undefined : undefined}
             variant="primary"
           >
             Create variant
@@ -386,11 +537,31 @@ export function VariantList({
           <SearchInput
             label="Search variants"
             onChange={(event) => setSearchQuery(event.currentTarget.value)}
+            onKeyDown={(event) => {
+              if (embedded && event.key === "Enter") {
+                event.preventDefault();
+              }
+            }}
             placeholder="Search by name or SKU"
             value={searchQuery}
           />
         }
       />
+
+      {!allowMutations && mutationDisabledReason ? (
+        <p className="jrw-field__description">{mutationDisabledReason}</p>
+      ) : null}
+
+      {duplicateWarnings.length > 0 ? (
+        <section className="jrw-variants__duplicate-warning" role="status">
+          <p>Duplicate option combinations detected:</p>
+          <ul>
+            {duplicateWarnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
 
       <section className="jrw-variants__section">
         {loadState === "loading" ? (
@@ -415,6 +586,7 @@ export function VariantList({
           <EmptyState
             action={
               <Button
+                disabled={!allowMutations}
                 onClick={() =>
                   setEditorState({
                     mode: "create",
@@ -422,6 +594,7 @@ export function VariantList({
                   })
                 }
                 size="sm"
+                title={!allowMutations ? mutationDisabledReason ?? undefined : undefined}
                 variant="primary"
               >
                 Create first variant
@@ -434,7 +607,7 @@ export function VariantList({
 
         {loadState === "ready" && variants.length > 0 ? (
           <DataTable
-            caption="Variant list"
+            caption="Variant matrix"
             columns={columns}
             emptyMessage={
               searchQuery.trim().length > 0
@@ -458,6 +631,21 @@ export function VariantList({
         />
       ) : null}
 
+      <ConfirmDialog
+        confirmLabel="Archive variant"
+        message="Archive keeps this variant for historical records and blocks future edits."
+        onCancel={() => {
+          if (saving) {
+            return;
+          }
+          setArchiveCandidate(null);
+        }}
+        onConfirm={handleArchiveVariant}
+        open={archiveCandidate !== null}
+        title="Archive variant"
+        tone="danger"
+      />
+
       {toast ? (
         <aside className="jrw-variants__toast">
           <Toast
@@ -468,6 +656,6 @@ export function VariantList({
           />
         </aside>
       ) : null}
-    </main>
+    </section>
   );
 }

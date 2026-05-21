@@ -27,12 +27,21 @@ describe("inventory UI surfaces", () => {
         disabled: false,
         error: "Quantity cannot be negative.",
         conflictMessage: "Inventory state conflicts with stock quantity.",
+        allowedNextAction: "Refresh variant matrix and retry.",
+        showReasonField: true,
+        reason: "Cycle count mismatch",
+        onReasonChange: () => undefined,
+        state: "LOW_STOCK",
+        onStateChange: () => undefined,
         onChange: () => undefined,
       })
     );
 
     expect(markup).toContain("Quantity cannot be negative.");
     expect(markup).toContain("Inventory state conflicts with stock quantity.");
+    expect(markup).toContain("Next action: Refresh variant matrix and retry.");
+    expect(markup).toContain("Adjustment reason");
+    expect(markup).toContain("Inventory state");
   });
 
   it("renders inventory state selector with text labels", () => {

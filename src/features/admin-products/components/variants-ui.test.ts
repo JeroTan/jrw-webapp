@@ -65,6 +65,7 @@ describe("variants UI surfaces", () => {
     expect(readyMarkup).toContain("SKU-S-BLK");
     expect(readyMarkup).toContain("PHP");
     expect(readyMarkup).toContain("Active");
+    expect(readyMarkup).toContain("IN STOCK");
     expect(readyMarkup).toContain("Archive");
   });
 
@@ -100,6 +101,36 @@ describe("variants UI surfaces", () => {
 
     expect(markup).toContain("Archived");
     expect((markup.match(/disabled=\"\"/g) ?? []).length).toBe(2);
+  });
+
+  it("shows duplicate option warning in matrix", () => {
+    const markup = renderToStaticMarkup(
+      createElement(VariantList, {
+        productId: "prod_1",
+        autoLoad: false,
+        initialLoadState: "ready",
+        initialVariants: [
+          variant({
+            id: "var_1",
+            sku: "SKU-S-BLK",
+            variationChain: [
+              { group: "Size", name: "Small" },
+              { group: "Color", name: "Black" },
+            ],
+          }),
+          variant({
+            id: "var_2",
+            sku: "SKU-S-BLK-2",
+            variationChain: [
+              { group: "Color", name: "Black" },
+              { group: "Size", name: "Small" },
+            ],
+          }),
+        ],
+      })
+    );
+
+    expect(markup).toContain("Duplicate option combinations detected:");
   });
 
   it("renders variant editor create and edit flows", () => {

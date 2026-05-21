@@ -8,6 +8,8 @@ type PublishControlProps = {
   status: ProductStatus;
   readiness: ProductReadinessResult | null;
   busy?: boolean;
+  mutationsBlocked?: boolean;
+  publishBlockedReason?: string | null;
   initialArchiveConfirmOpen?: boolean;
   onPublish: () => Promise<void> | void;
   onUnpublish: () => Promise<void> | void;
@@ -40,6 +42,8 @@ export function PublishControl({
   status,
   readiness,
   busy = false,
+  mutationsBlocked = false,
+  publishBlockedReason = null,
   initialArchiveConfirmOpen = false,
   onPublish,
   onUnpublish,
@@ -52,6 +56,11 @@ export function PublishControl({
   const canUnpublish = status === "PUBLISHED";
   const canArchive = status !== "ARCHIVED";
   const publishReady = readiness?.isReady ?? false;
+  const blockedReason =
+    publishBlockedReason ??
+    (!publishReady && canPublish
+      ? "Complete missing readiness items before publishing."
+      : null);
 
   return (
     <section className="jrw-products__publish-control">
@@ -67,35 +76,42 @@ export function PublishControl({
       <div className="jrw-products__publish-actions">
         <Button
           aria-label="Publish product"
-          disabled={busy || !canPublish || !publishReady}
+          disabled={busy || mutationsBlocked || !canPublish || !publishReady}
           onClick={async () => {
             await onPublish();
           }}
+          title={blockedReason ?? undefined}
           variant="primary"
         >
           Publish
         </Button>
         <Button
           aria-label="Move product to draft"
-          disabled={busy || !canUnpublish}
+          disabled={busy || mutationsBlocked || !canUnpublish}
           onClick={async () => {
             await onUnpublish();
           }}
+          title={publishBlockedReason ?? undefined}
           variant="secondary"
         >
           Move to draft
         </Button>
         <Button
           aria-label="Archive product"
-          disabled={busy || !canArchive}
+          disabled={busy || mutationsBlocked || !canArchive}
           onClick={() => {
             setConfirmArchiveOpen(true);
           }}
+          title={publishBlockedReason ?? undefined}
           variant="danger"
         >
           Archive
         </Button>
       </div>
+
+      {blockedReason ? (
+        <p className="jrw-field__description">{blockedReason}</p>
+      ) : null}
 
       <ConfirmDialog
         confirmLabel="Archive product"
