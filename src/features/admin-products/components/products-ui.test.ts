@@ -27,6 +27,8 @@ function product(overrides: Partial<ProductRecord> = {}): ProductRecord {
     priceRangeMin: null,
     priceRangeMax: null,
     hasAvailableVariants: false,
+    imageCount: 0,
+    primaryImageUrl: null,
     createdAt: now,
     updatedAt: now,
     ...overrides,

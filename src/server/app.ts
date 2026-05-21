@@ -163,6 +163,9 @@ export function createApp(options: CreateAppOptions = {}) {
     products: {
       ...options.routes?.products,
     },
+    images: {
+      ...options.routes?.images,
+    },
     variants: {
       ...options.routes?.variants,
     },

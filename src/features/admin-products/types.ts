@@ -15,6 +15,8 @@ export type ProductRecord = {
   priceRangeMin: number | null;
   priceRangeMax: number | null;
   hasAvailableVariants: boolean;
+  imageCount: number;
+  primaryImageUrl: string | null;
   createdAt: string;
   updatedAt: string;
 };
@@ -135,4 +137,39 @@ export type VariantListResult = {
   pageSize: number;
   totalItems: number;
   totalPages: number;
+};
+
+export type ProductPhotoRecord = {
+  id: string;
+  productId: string | null;
+  imageId: string;
+  name: string | null;
+  sortOrder: number;
+  isPrimary: boolean;
+  r2Key: string;
+  fileSize: number | null;
+  contentType: string | null;
+  width: number | null;
+  height: number | null;
+  createdAt: string;
+  updatedAt: string;
+  uploadedAt: string;
+  url: string;
+};
+
+export type UploadProductImageInput = {
+  image: File;
+  name?: string | null;
+};
+
+export type UpdateProductImageOrderInput = {
+  sortOrder: number;
+};
+
+export type ProductImageListResult = {
+  items: ProductPhotoRecord[];
+  performanceTargets: {
+    listMaxBytes: number;
+    detailMaxBytes: number;
+  };
 };

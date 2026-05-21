@@ -132,16 +132,41 @@ export const products = sqliteTable(
   ]
 );
 
-export const product_photos = sqliteTable("product_photos", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => createId()),
-  name: text("name"),
-  image_id: text("image_id").notNull(),
-  product_id: text("product_id")
-    .notNull()
-    .references(() => products.id, { onDelete: "cascade" }),
-});
+export const product_photos = sqliteTable(
+  "product_photos",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    name: text("name"),
+    image_id: text("image_id").notNull(),
+    r2_key: text("r2_key").notNull(),
+    sort_order: integer("sort_order").notNull().default(0),
+    is_primary: integer("is_primary", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    file_size: integer("file_size"),
+    content_type: text("content_type"),
+    width: integer("width"),
+    height: integer("height"),
+    product_id: text("product_id").references(() => products.id, {
+      onDelete: "set null",
+    }),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("idx_product_photos_product_sort").on(table.product_id, table.sort_order),
+    index("idx_product_photos_product_primary").on(
+      table.product_id,
+      table.is_primary
+    ),
+  ]
+);
 
 export const categories = sqliteTable(
   "categories",

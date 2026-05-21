@@ -1,6 +1,6 @@
 # Story 3.5: Upload and Manage Product Images
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -24,85 +24,85 @@ so that storefront products have stable current media and future order snapshots
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm scope and current baseline. (AC: 1-9)
-  - [ ] Verify Epic 3 is `in-progress` and Stories 3.0-3.4 are `done`; do not reopen.
-  - [ ] Confirm this story is the fifth Epic 3 backlog item after Story 3.4.
-  - [ ] Confirm existing `product_photos` table in `src/domain/schema/catalog.ts` — current fields include `id`, `name`, `image_id`, `product_id`.
-  - [ ] Confirm existing `ProductRepository`, `ProductService`, `ProductController`, and product routes from Stories 3.2-3.4.
-  - [ ] Confirm existing `VariantRepository`, `VariantService`, `VariantController`, and variant routes from Story 3.4.
-  - [ ] Confirm existing brand membership guards from Story 2.6.
-  - [ ] Confirm R2 binding `STORAGE` is configured in `wrangler.jsonc` under `env.development` and `env.production`.
-  - [ ] Do NOT add stock management, publish/archive transitions, or product editor UI image sections beyond basic upload/list/reorder/remove.
+- [x] Task 1: Confirm scope and current baseline. (AC: 1-9)
+  - [x] Verify Epic 3 is `in-progress` and Stories 3.0-3.4 are `done`; do not reopen.
+  - [x] Confirm this story is the fifth Epic 3 backlog item after Story 3.4.
+  - [x] Confirm existing `product_photos` table in `src/domain/schema/catalog.ts` — current fields include `id`, `name`, `image_id`, `product_id`.
+  - [x] Confirm existing `ProductRepository`, `ProductService`, `ProductController`, and product routes from Stories 3.2-3.4.
+  - [x] Confirm existing `VariantRepository`, `VariantService`, `VariantController`, and variant routes from Story 3.4.
+  - [x] Confirm existing brand membership guards from Story 2.6.
+  - [x] Confirm R2 binding `STORAGE` is configured in `wrangler.jsonc` under `env.development` and `env.production`.
+  - [x] Do NOT add stock management, publish/archive transitions, or product editor UI image sections beyond basic upload/list/reorder/remove.
 
-- [ ] Task 2: Add image domain types, schemas, and validation. (AC: 1-2, 8)
-  - [ ] Add `ProductPhotoRecord`, `CreateProductPhotoInput`, `UpdatePhotoOrderInput`, `RemoveProductPhotoInput` types to `src/domain/products/types.ts`.
-  - [ ] Add Zod schemas for image upload validation (file type, size limits) in `src/domain/products/schemas.ts`.
-  - [ ] Add TypeBox schemas for image API contracts in `src/domain/products/schemas.ts`.
-  - [ ] Enforce: allowed file types (image/jpeg, image/png, image/webp), max file size (5MB), image dimensions metadata.
+- [x] Task 2: Add image domain types, schemas, and validation. (AC: 1-2, 8)
+  - [x] Add `ProductPhotoRecord`, `CreateProductPhotoInput`, `UpdatePhotoOrderInput`, `RemoveProductPhotoInput` types to `src/domain/products/types.ts`.
+  - [x] Add Zod schemas for image upload validation (file type, size limits) in `src/domain/products/schemas.ts`.
+  - [x] Add TypeBox schemas for image API contracts in `src/domain/products/schemas.ts`.
+  - [x] Enforce: allowed file types (image/jpeg, image/png, image/webp), max file size (5MB), image dimensions metadata.
 
-- [ ] Task 3: Add R2 image repository. (AC: 1-3, 6-7)
-  - [ ] Create `ImageRepository` interface and `R2ImageRepository` in `src/server/repositories/ImageRepository.ts`.
-  - [ ] Methods: `upload(file: File, key: string)`, `get(key: string)`, `delete(key: string)`, `getPublicUrl(key: string)`.
-  - [ ] Use `env.STORAGE` R2 binding via `import { env } from "cloudflare:workers"`.
-  - [ ] Generate stable R2 keys using cuid2: `products/{productId}/{photoId}.{ext}`.
-  - [ ] Return metadata: size, contentType, uploadedAt, R2 key.
+- [x] Task 3: Add R2 image repository. (AC: 1-3, 6-7)
+  - [x] Create `ImageRepository` interface and `R2ImageRepository` in `src/server/repositories/ImageRepository.ts`.
+  - [x] Methods: `upload(file: File, key: string)`, `get(key: string)`, `delete(key: string)`, `getPublicUrl(key: string)`.
+  - [x] Use `env.STORAGE` R2 binding via `import { env } from "cloudflare:workers"`.
+  - [x] Generate stable R2 keys using cuid2: `products/{productId}/{photoId}.{ext}`.
+  - [x] Return metadata: size, contentType, uploadedAt, R2 key.
 
-- [ ] Task 4: Add photo repository methods. (AC: 1-4, 6)
-  - [ ] Create `PhotoRepository` interface and `DrizzlePhotoRepository` in `src/server/repositories/PhotoRepository.ts`.
-  - [ ] Methods: `create`, `findById`, `listByProductId`, `updateOrder`, `removeFromProduct`, `findByIds`.
-  - [ ] Use D1/Drizzle patterns consistent with `ProductRepository` and `VariantRepository`.
-  - [ ] `removeFromProduct` soft-removes by clearing `product_id` association (not hard delete) to preserve historical references.
+- [x] Task 4: Add photo repository methods. (AC: 1-4, 6)
+  - [x] Create `PhotoRepository` interface and `DrizzlePhotoRepository` in `src/server/repositories/PhotoRepository.ts`.
+  - [x] Methods: `create`, `findById`, `listByProductId`, `updateOrder`, `removeFromProduct`, `findByIds`.
+  - [x] Use D1/Drizzle patterns consistent with `ProductRepository` and `VariantRepository`.
+  - [x] `removeFromProduct` soft-removes by clearing `product_id` association (not hard delete) to preserve historical references.
 
-- [ ] Task 5: Add image service use cases. (AC: 1-5, 7)
-  - [ ] Create `ImageService` in `src/server/services/ImageService.ts`.
-  - [ ] Use cases: `uploadImage`, `listProductImages`, `updateImageOrder`, `setPrimaryImage`, `removeImage`, `getImage`.
-  - [ ] Service enforces: brand membership guard (reuse `requireBrandMutationPermission` pattern from `ProductService`).
-  - [ ] Service validates: file type, file size, image integrity.
-  - [ ] Service returns `AppResult`/`GeneralError` with appropriate error codes.
-  - [ ] Image mutations record audit event through existing audit interface.
-  - [ ] Storage failures map to `PROVIDER_UNAVAILABLE` safe error.
+- [x] Task 5: Add image service use cases. (AC: 1-5, 7)
+  - [x] Create `ImageService` in `src/server/services/ImageService.ts`.
+  - [x] Use cases: `uploadImage`, `listProductImages`, `updateImageOrder`, `setPrimaryImage`, `removeImage`, `getImage`.
+  - [x] Service enforces: brand membership guard (reuse `requireBrandMutationPermission` pattern from `ProductService`).
+  - [x] Service validates: file type, file size, image integrity.
+  - [x] Service returns `AppResult`/`GeneralError` with appropriate error codes.
+  - [x] Image mutations record audit event through existing audit interface.
+  - [x] Storage failures map to `PROVIDER_UNAVAILABLE` safe error.
 
-- [ ] Task 6: Add image API routes and controllers. (AC: 1-8)
-  - [ ] Create `ImageController` in `src/server/controllers/ImageController.ts`.
-  - [ ] Create image routes under `src/server/routes/images.routes.ts` with endpoints:
+- [x] Task 6: Add image API routes and controllers. (AC: 1-8)
+  - [x] Create `ImageController` in `src/server/controllers/ImageController.ts`.
+  - [x] Create image routes under `src/server/routes/images.routes.ts` with endpoints:
     - `GET /api/admin/products/:productId/images` — list images for product
     - `POST /api/admin/products/:productId/images` — upload image (multipart/form-data)
     - `PATCH /api/admin/products/:productId/images/:photoId/order` — update image order
     - `PATCH /api/admin/products/:productId/images/:photoId/primary` — set primary image
     - `DELETE /api/admin/products/:productId/images/:photoId` — remove image from product
-  - [ ] All routes require Admin authentication via existing RBAC guards.
-  - [ ] Upload route uses multipart/form-data with file validation.
-  - [ ] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
-  - [ ] Register image routes in `src/server/app.ts`.
+  - [x] All routes require Admin authentication via existing RBAC guards.
+  - [x] Upload route uses multipart/form-data with file validation.
+  - [x] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
+  - [x] Register image routes in `src/server/app.ts`.
 
-- [ ] Task 7: Extend product detail to include image summary. (AC: 6)
-  - [ ] Extend product detail response to include `imageCount` and `primaryImageUrl` (customer-safe).
-  - [ ] Image URLs use R2 public URL pattern.
-  - [ ] No internal R2 keys or metadata exposed in customer-facing responses.
+- [x] Task 7: Extend product detail to include image summary. (AC: 6)
+  - [x] Extend product detail response to include `imageCount` and `primaryImageUrl` (customer-safe).
+  - [x] Image URLs use R2 public URL pattern.
+  - [x] No internal R2 keys or metadata exposed in customer-facing responses.
 
-- [ ] Task 8: Add admin image UI (basic upload and list). (AC: 1-4, 8)
-  - [ ] Create `src/features/admin-products/components/ImageUpload.tsx` — drag-and-drop or file picker upload.
-  - [ ] Create `src/features/admin-products/components/ImageList.tsx` — grid showing product images with reorder controls.
-  - [ ] Image list: shows thumbnails, primary indicator, order number, actions (set primary, remove).
-  - [ ] Use existing `Button`, `Input`, `Badge`, `EmptyState`, `Skeleton` primitives from `src/components/**`.
-  - [ ] Upload progress indicator; error summary on failure.
-  - [ ] Success toast on upload; confirmation dialog before remove.
+- [x] Task 8: Add admin image UI (basic upload and list). (AC: 1-4, 8)
+  - [x] Create `src/features/admin-products/components/ImageUpload.tsx` — drag-and-drop or file picker upload.
+  - [x] Create `src/features/admin-products/components/ImageList.tsx` — grid showing product images with reorder controls.
+  - [x] Image list: shows thumbnails, primary indicator, order number, actions (set primary, remove).
+  - [x] Use existing `Button`, `Input`, `Badge`, `EmptyState`, `Skeleton` primitives from `src/components/**`.
+  - [x] Upload progress indicator; error summary on failure.
+  - [x] Success toast on upload; confirmation dialog before remove.
 
-- [ ] Task 9: Styles and accessibility. (AC: 4-9)
-  - [ ] Image UI uses JRW tokens: 0px corners, 1px borders, no shadows, cobalt for focus/selected.
-  - [ ] Primary image indicator uses text label — not color alone.
-  - [ ] Upload area has visible label and keyboard-accessible file picker.
-  - [ ] Image grid keyboard accessible (arrow keys for navigation).
-  - [ ] Respect `prefers-reduced-motion` for any transitions.
-  - [ ] Image thumbnails use `alt` text from image name or product name.
+- [x] Task 9: Styles and accessibility. (AC: 4-9)
+  - [x] Image UI uses JRW tokens: 0px corners, 1px borders, no shadows, cobalt for focus/selected.
+  - [x] Primary image indicator uses text label — not color alone.
+  - [x] Upload area has visible label and keyboard-accessible file picker.
+  - [x] Image grid keyboard accessible (arrow keys for navigation).
+  - [x] Respect `prefers-reduced-motion` for any transitions.
+  - [x] Image thumbnails use `alt` text from image name or product name.
 
-- [ ] Task 10: Targeted tests and checks. (AC: 1-9)
-  - [ ] Add domain/service tests in `src/server/services/ImageService.test.ts` covering: upload success, invalid file type, file too large, reorder, set primary, remove, brand membership denial, storage failure mapping.
-  - [ ] Add route/controller tests in `src/server/routes/images.routes.test.ts` covering: upload, list, reorder, set primary, remove, unauthorized access, invalid file.
-  - [ ] Add UI tests in `src/features/admin-products/components/image-ui.test.ts` covering: upload area rendering, image list rendering, primary indicator, remove confirmation, empty states.
-  - [ ] Run changed-target tests only: `npx vitest run src/server/services/ImageService.test.ts src/server/routes/images.routes.test.ts src/features/admin-products`.
-  - [ ] Run `npm run check` after typed/component changes.
-  - [ ] Do not run full `npm run build-test` unless implementation touches broader surfaces or MR. JRW asks for final full verdict.
+- [x] Task 10: Targeted tests and checks. (AC: 1-9)
+  - [x] Add domain/service tests in `src/server/services/ImageService.test.ts` covering: upload success, invalid file type, file too large, reorder, set primary, remove, brand membership denial, storage failure mapping.
+  - [x] Add route/controller tests in `src/server/routes/images.routes.test.ts` covering: upload, list, reorder, set primary, remove, unauthorized access, invalid file.
+  - [x] Add UI tests in `src/features/admin-products/components/image-ui.test.ts` covering: upload area rendering, image list rendering, primary indicator, remove confirmation, empty states.
+  - [x] Run changed-target tests only: `npx vitest run src/server/services/ImageService.test.ts src/server/routes/images.routes.test.ts src/features/admin-products`.
+  - [x] Run `npm run check` after typed/component changes.
+  - [x] Do not run full `npm run build-test` unless implementation touches broader surfaces or MR. JRW asks for final full verdict.
 
 ### Review Findings
 
@@ -471,7 +471,7 @@ npm run check
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+gpt-5 (Codex)
 
 ### Implementation Plan
 
@@ -492,16 +492,51 @@ npm run check
 
 ### Debug Log References
 
-_(To be populated during implementation)_
+- `npx vitest run`
+- `npm run check`
 
 ### Completion Notes List
 
-_(To be populated during implementation)_
+- Added product image domain + schema support (validation limits, API contracts, product image summary fields).
+- Extended `product_photos` schema and added migration `0019_product_photo_assets.sql` for metadata, ordering, primary flag, and stable R2 key.
+- Added `ImageRepository` (R2) + `PhotoRepository` (D1) and implemented `ImageService` use-cases with RBAC, brand membership guard, audit hooks, and provider failure mapping.
+- Added image admin API endpoints (list/upload/reorder/set primary/remove) with OpenAPI metadata and typed envelopes.
+- Extended product repository responses with `imageCount` and `primaryImageUrl`.
+- Added admin product editor image management UI (`ImageUpload`, `ImageList`) with keyboard navigation, confirmation dialog, progress/error feedback, and JRW token-based styles.
+- Added/updated tests for image service, image routes, image UI, and impacted product/variant/domain contracts.
+- Validation gates passed: `npx vitest run` (68 files, 446 tests) and `npm run check` (0 errors).
 
 ### File List
 
-_(To be populated during implementation)_
+- _bmad-output/implementation-artifacts/3-5-upload-and-manage-product-images.md
+- _bmad-output/implementation-artifacts/sprint-status.yaml
+- migrations/0019_product_photo_assets.sql
+- src/domain/products/product.test.ts
+- src/domain/products/schemas.ts
+- src/domain/products/types.ts
+- src/domain/schema/catalog.ts
+- src/features/admin-products/api.ts
+- src/features/admin-products/components/ImageList.tsx
+- src/features/admin-products/components/ImageUpload.tsx
+- src/features/admin-products/components/ProductEditor.tsx
+- src/features/admin-products/components/image-ui.test.ts
+- src/features/admin-products/components/products-ui.test.ts
+- src/features/admin-products/types.ts
+- src/server/app.ts
+- src/server/controllers/ImageController.ts
+- src/server/repositories/ImageRepository.ts
+- src/server/repositories/PhotoRepository.ts
+- src/server/repositories/ProductRepository.ts
+- src/server/routes/images.routes.test.ts
+- src/server/routes/images.routes.ts
+- src/server/routes/index.ts
+- src/server/routes/products.routes.test.ts
+- src/server/services/ImageService.test.ts
+- src/server/services/ImageService.ts
+- src/server/services/VariantService.test.ts
+- src/styles/global.css
 
 ## Change Log
 
 - 2026-05-21: Story 3.5 context engine created for product image upload and management API, R2 storage integration, admin image UI, brand membership enforcement, historical reference preservation, and targeted tests.
+- 2026-05-21: Story 3.5 implementation complete; image storage/repository/service/routes/UI delivered with tests and validation gates passing.

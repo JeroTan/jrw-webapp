@@ -3,13 +3,24 @@ import { useEffect, useMemo, useState } from "react";
 import { Button, Input, Modal, Select, Textarea } from "@/components/ui";
 import { slugifyProductText } from "@/domain/products/product";
 import { zodCreateProductInput } from "@/domain/products/schemas";
+import {
+  fetchProductImages,
+  removeProductImage,
+  setPrimaryProductImage,
+  updateProductImageOrder,
+  uploadProductImage,
+  type ApiFailure,
+} from "../api";
 import type {
   ProductAssignableBrand,
   ProductAssignableCategory,
+  ProductPhotoRecord,
   ProductMutationInput,
   ProductOrganizationRecord,
   ProductRecord,
 } from "../types";
+import { ImageList } from "./ImageList";
+import { ImageUpload } from "./ImageUpload";
 
 type ProductEditorMode = "create" | "edit";
 
@@ -26,6 +37,8 @@ type ProductEditorValidationState = {
   summary: string[];
   fields: Partial<Record<keyof ProductEditorFormState, string>>;
 };
+
+type ImageLoadState = "idle" | "loading" | "ready" | "failed";
 
 export type ProductEditorSaveInput = {
   identity: ProductMutationInput;
@@ -280,6 +293,53 @@ function actionErrorMessage(error: unknown): string {
   return "We could not save this product right now.";
 }
 
+function imageActionErrorMessage(error: unknown, fallback: string): string {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !(("code" in error) && typeof (error as ApiFailure).code === "string")
+  ) {
+    return fallback;
+  }
+
+  const failure = error as ApiFailure;
+  const reason =
+    typeof failure.details === "object" &&
+    failure.details !== null &&
+    "reason" in failure.details &&
+    typeof (failure.details as { reason?: unknown }).reason === "string"
+      ? String((failure.details as { reason: string }).reason)
+      : null;
+
+  if (failure.code === "VALIDATION_FAILED") {
+    if (reason === "UNSUPPORTED_IMAGE_TYPE") {
+      return "Only JPEG, PNG, and WEBP files are allowed.";
+    }
+    if (reason === "IMAGE_TOO_LARGE") {
+      return "Image exceeds 5MB limit.";
+    }
+    if (reason === "IMAGE_CORRUPT") {
+      return "Image file is corrupt or unreadable.";
+    }
+    return "Image data is invalid. Check file and try again.";
+  }
+
+  if (failure.code === "AUTH_FORBIDDEN") {
+    if (reason === "BRAND_MEMBERSHIP_REQUIRED") {
+      return "You need active membership in this product brand.";
+    }
+    return "You do not have permission to manage product images.";
+  }
+
+  if (failure.code === "PROVIDER_UNAVAILABLE") {
+    return "Image storage is unavailable right now. Try again.";
+  }
+
+  return typeof failure.message === "string" && failure.message.trim().length > 0
+    ? failure.message
+    : fallback;
+}
+
 export function ProductEditor({
   availableBrands = [],
   availableCategories = [],
@@ -315,6 +375,13 @@ export function ProductEditor({
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(
     () => mode === "edit"
   );
+  const [images, setImages] = useState<ProductPhotoRecord[]>([]);
+  const [imageLoadState, setImageLoadState] = useState<ImageLoadState>("idle");
+  const [imageBusy, setImageBusy] = useState(false);
+  const [imageFeedback, setImageFeedback] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -362,6 +429,56 @@ export function ProductEditor({
       )
     );
   }, [mode, open, organization, organizationReady, product]);
+
+  const editingProductId = mode === "edit" ? product?.id ?? null : null;
+
+  async function reloadImages(productId: string): Promise<void> {
+    const result = await fetchProductImages(productId);
+    setImages(result.items);
+    setImageLoadState("ready");
+  }
+
+  useEffect(() => {
+    if (!open || mode !== "edit" || !editingProductId) {
+      setImages([]);
+      setImageLoadState("idle");
+      setImageFeedback(null);
+      return;
+    }
+
+    let active = true;
+    setImageLoadState("loading");
+    setImageFeedback(null);
+
+    fetchProductImages(editingProductId)
+      .then((result) => {
+        if (!active) {
+          return;
+        }
+
+        setImages(result.items);
+        setImageLoadState("ready");
+      })
+      .catch((error) => {
+        if (!active) {
+          return;
+        }
+
+        setImageLoadState("failed");
+        setImages([]);
+        setImageFeedback({
+          tone: "error",
+          message: imageActionErrorMessage(
+            error,
+            "Could not load product images."
+          ),
+        });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [editingProductId, mode, open]);
 
   const isDirty = useMemo(
     () => serializeFormState(form) !== baselineForm,
@@ -459,6 +576,109 @@ export function ProductEditor({
         summary: [actionErrorMessage(error)],
         fields: {},
       });
+    }
+  }
+
+  async function handleUploadImage(file: File) {
+    if (!editingProductId) {
+      return;
+    }
+
+    setImageBusy(true);
+    setImageFeedback(null);
+    try {
+      await uploadProductImage(editingProductId, {
+        image: file,
+        name: file.name,
+      });
+      await reloadImages(editingProductId);
+      setImageFeedback({
+        tone: "success",
+        message: "Image uploaded.",
+      });
+    } catch (error) {
+      setImageFeedback({
+        tone: "error",
+        message: imageActionErrorMessage(error, "Image upload failed."),
+      });
+      throw error;
+    } finally {
+      setImageBusy(false);
+    }
+  }
+
+  async function handleSetPrimaryImage(photoId: string) {
+    if (!editingProductId) {
+      return;
+    }
+
+    setImageBusy(true);
+    setImageFeedback(null);
+    try {
+      await setPrimaryProductImage(editingProductId, photoId);
+      await reloadImages(editingProductId);
+      setImageFeedback({
+        tone: "success",
+        message: "Primary image updated.",
+      });
+    } catch (error) {
+      setImageFeedback({
+        tone: "error",
+        message: imageActionErrorMessage(error, "Could not set primary image."),
+      });
+      throw error;
+    } finally {
+      setImageBusy(false);
+    }
+  }
+
+  async function handleReorderImage(photoId: string, sortOrder: number) {
+    if (!editingProductId) {
+      return;
+    }
+
+    setImageBusy(true);
+    setImageFeedback(null);
+    try {
+      await updateProductImageOrder(editingProductId, photoId, { sortOrder });
+      await reloadImages(editingProductId);
+      setImageFeedback({
+        tone: "success",
+        message: "Image order updated.",
+      });
+    } catch (error) {
+      setImageFeedback({
+        tone: "error",
+        message: imageActionErrorMessage(error, "Could not reorder image."),
+      });
+      throw error;
+    } finally {
+      setImageBusy(false);
+    }
+  }
+
+  async function handleRemoveImage(photoId: string) {
+    if (!editingProductId) {
+      return;
+    }
+
+    setImageBusy(true);
+    setImageFeedback(null);
+    try {
+      await removeProductImage(editingProductId, photoId);
+      await reloadImages(editingProductId);
+      setImageFeedback({
+        tone: "success",
+        message: "Image removed from current catalog list.",
+      });
+    } catch (error) {
+      setImageFeedback({
+        tone: "error",
+        message: imageActionErrorMessage(error, "Could not remove image."),
+      });
+      throw error;
+    } finally {
+      setImageBusy(false);
     }
   }
 
@@ -601,6 +821,38 @@ export function ProductEditor({
                 ? "Product organization unavailable. Save updates for identity only."
                 : "Loading product organization..."}
           </p>
+        ) : null}
+
+        {mode === "edit" && editingProductId ? (
+          <section className="jrw-products__images-section">
+            {imageFeedback ? (
+              <section
+                aria-live="assertive"
+                className={`jrw-products__image-feedback jrw-products__image-feedback--${imageFeedback.tone}`}
+                role={imageFeedback.tone === "error" ? "alert" : "status"}
+              >
+                <p>{imageFeedback.message}</p>
+              </section>
+            ) : null}
+
+            <ImageUpload
+              disabled={!organizationReady || saving || imageBusy}
+              onUpload={async (input) => {
+                await handleUploadImage(input.image);
+              }}
+              uploading={imageBusy}
+            />
+
+            <ImageList
+              busy={saving || imageBusy || !organizationReady}
+              images={images}
+              loading={imageLoadState === "loading"}
+              onRemove={handleRemoveImage}
+              onReorder={handleReorderImage}
+              onSetPrimary={handleSetPrimaryImage}
+              productName={product?.name}
+            />
+          </section>
         ) : null}
       </form>
     </Modal>

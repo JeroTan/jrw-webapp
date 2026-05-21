@@ -17,6 +17,15 @@ export const PRODUCT_VARIANT_MAX_STOCK = 10_000_000;
 export const PRODUCT_VARIANT_MAX_OPTION_ITEMS = 32;
 export const PRODUCT_VARIANT_OPTION_NAME_MAX_LENGTH = 120;
 export const PRODUCT_VARIANT_OPTION_GROUP_MAX_LENGTH = 120;
+export const PRODUCT_IMAGE_NAME_MAX_LENGTH = 255;
+export const PRODUCT_IMAGE_MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024;
+export const PRODUCT_IMAGE_ALLOWED_CONTENT_TYPES = [
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+] as const;
+export const PRODUCT_IMAGE_LIST_TARGET_MAX_BYTES = 250 * 1024;
+export const PRODUCT_IMAGE_DETAIL_TARGET_MAX_BYTES = 1024 * 1024;
 
 export const zodProductSlug = z
   .string()
@@ -129,6 +138,40 @@ export const zodArchiveProductVariantInput = z.object({
   reason: z.string().trim().max(160).optional(),
 });
 
+const zodFileValue = z
+  .custom<File>(
+    (value) => typeof File !== "undefined" && value instanceof File,
+    {
+      message: "Image file is required.",
+    }
+  )
+  .refine((file) => file.size > 0, {
+    message: "Image file is required.",
+  });
+
+export const zodProductImageUploadInput = z.object({
+  image: zodFileValue
+    .refine(
+      (file) =>
+        PRODUCT_IMAGE_ALLOWED_CONTENT_TYPES.includes(
+          file.type as (typeof PRODUCT_IMAGE_ALLOWED_CONTENT_TYPES)[number]
+        ),
+      { message: "Unsupported image file type." }
+    )
+    .refine((file) => file.size <= PRODUCT_IMAGE_MAX_FILE_SIZE_BYTES, {
+      message: "Image file exceeds maximum size.",
+    }),
+  name: z.union([z.string().trim().min(1).max(PRODUCT_IMAGE_NAME_MAX_LENGTH), z.null()]).optional(),
+});
+
+export const zodUpdateImageOrderInput = z.object({
+  sortOrder: z.number().int().min(0),
+});
+
+export const zodRemoveProductPhotoInput = z.object({
+  photoId: z.string().trim().min(1).max(128),
+});
+
 const tboxProductStatus = t.Union([
   t.Literal("DRAFT"),
   t.Literal("PUBLISHED"),
@@ -163,6 +206,8 @@ export const tboxProduct = t.Object({
   priceRangeMin: t.Nullable(t.Integer({ minimum: 0 })),
   priceRangeMax: t.Nullable(t.Integer({ minimum: 0 })),
   hasAvailableVariants: t.Boolean(),
+  imageCount: t.Integer({ minimum: 0 }),
+  primaryImageUrl: t.Nullable(t.String()),
   createdAt: t.String({ format: "date-time" }),
   updatedAt: t.String({ format: "date-time" }),
 });
@@ -330,6 +375,65 @@ export const tboxProductVariantRouteParams = t.Object(
   {
     productId: t.String({ minLength: 1, maxLength: 128 }),
     variantId: t.String({ minLength: 1, maxLength: 128 }),
+  },
+  { additionalProperties: false }
+);
+
+export const tboxProductImage = t.Object({
+  id: t.String(),
+  productId: t.Nullable(t.String()),
+  imageId: t.String(),
+  name: t.Nullable(t.String({ maxLength: PRODUCT_IMAGE_NAME_MAX_LENGTH })),
+  sortOrder: t.Integer({ minimum: 0 }),
+  isPrimary: t.Boolean(),
+  r2Key: t.String(),
+  fileSize: t.Nullable(t.Integer({ minimum: 0 })),
+  contentType: t.Nullable(t.String()),
+  width: t.Nullable(t.Integer({ minimum: 1 })),
+  height: t.Nullable(t.Integer({ minimum: 1 })),
+  createdAt: t.String({ format: "date-time" }),
+  updatedAt: t.String({ format: "date-time" }),
+  uploadedAt: t.String({ format: "date-time" }),
+  url: t.String(),
+});
+
+export const tboxProductImageData = t.Object({
+  image: tboxProductImage,
+});
+
+export const tboxProductImageListData = t.Object({
+  items: t.Array(tboxProductImage),
+  performanceTargets: t.Object({
+    listMaxBytes: t.Integer({ minimum: 1 }),
+    detailMaxBytes: t.Integer({ minimum: 1 }),
+  }),
+});
+
+export const tboxProductImageRouteParams = t.Object(
+  {
+    productId: t.String({ minLength: 1, maxLength: 128 }),
+    photoId: t.String({ minLength: 1, maxLength: 128 }),
+  },
+  { additionalProperties: false }
+);
+
+export const tboxUploadProductImageBody = t.Object(
+  {
+    image: t.File({
+      type: [...PRODUCT_IMAGE_ALLOWED_CONTENT_TYPES],
+      maxSize: PRODUCT_IMAGE_MAX_FILE_SIZE_BYTES,
+      minSize: 1,
+    }),
+    name: t.Optional(
+      t.Nullable(t.String({ minLength: 1, maxLength: PRODUCT_IMAGE_NAME_MAX_LENGTH }))
+    ),
+  },
+  { additionalProperties: false }
+);
+
+export const tboxUpdateImageOrderBody = t.Object(
+  {
+    sortOrder: t.Integer({ minimum: 0 }),
   },
   { additionalProperties: false }
 );

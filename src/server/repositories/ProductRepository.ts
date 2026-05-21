@@ -8,6 +8,7 @@ import {
   brands,
   categories,
   categoryStatusValues,
+  product_photos,
   productStatusValues,
   product_categories,
   product_variants,
@@ -161,6 +162,8 @@ function toProductRecord(input: {
   priceRangeMin?: number | null;
   priceRangeMax?: number | null;
   hasAvailableVariants?: boolean | number | null;
+  imageCount?: number | null;
+  primaryImageUrl?: string | null;
 }): ProductRecord {
   const fallbackBrandName =
     typeof input.row.brand === "string" && input.row.brand.trim().length > 0
@@ -194,6 +197,12 @@ function toProductRecord(input: {
         ? null
         : Number(input.priceRangeMax),
     hasAvailableVariants: Number(input.hasAvailableVariants ?? 0) > 0,
+    imageCount: Number(input.imageCount ?? 0),
+    primaryImageUrl:
+      typeof input.primaryImageUrl === "string" &&
+      input.primaryImageUrl.trim().length > 0
+        ? input.primaryImageUrl
+        : null,
     createdAt: toApiDateTime(input.row.created_at),
     updatedAt: toApiDateTime(input.row.updated_at),
   };
@@ -253,6 +262,8 @@ export class DrizzleProductRepository implements ProductRepository {
       priceRangeMin: null,
       priceRangeMax: null,
       hasAvailableVariants: false,
+      imageCount: 0,
+      primaryImageUrl: null,
     });
   }
 
@@ -273,6 +284,10 @@ export class DrizzleProductRepository implements ProductRepository {
           sql<number | null>`cast((select max(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
         hasAvailableVariants:
           sql<number>`cast((select case when exists(select 1 from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and (${product_variants.stock} > 0 or ${product_variants.is_preorder} = 1)) then 1 else 0 end) as integer)`,
+        imageCount:
+          sql<number>`cast((select count(*) from ${product_photos} where ${product_photos.product_id} = ${products.id}) as integer)`,
+        primaryImageUrl:
+          sql<string | null>`(select ${product_photos.image_id} from ${product_photos} where ${product_photos.product_id} = ${products.id} order by ${product_photos.is_primary} desc, ${product_photos.sort_order} asc, ${product_photos.id} asc limit 1)`,
       })
       .from(products)
       .leftJoin(brands, eq(brands.id, products.brand_id))
@@ -291,6 +306,8 @@ export class DrizzleProductRepository implements ProductRepository {
           priceRangeMin: row.priceRangeMin,
           priceRangeMax: row.priceRangeMax,
           hasAvailableVariants: row.hasAvailableVariants,
+          imageCount: row.imageCount,
+          primaryImageUrl: row.primaryImageUrl,
         })
       : null;
   }
@@ -311,6 +328,8 @@ export class DrizzleProductRepository implements ProductRepository {
           priceRangeMin: null,
           priceRangeMax: null,
           hasAvailableVariants: false,
+          imageCount: 0,
+          primaryImageUrl: null,
         })
       : null;
   }
@@ -391,6 +410,10 @@ export class DrizzleProductRepository implements ProductRepository {
           sql<number | null>`cast((select max(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
         hasAvailableVariants:
           sql<number>`cast((select case when exists(select 1 from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and (${product_variants.stock} > 0 or ${product_variants.is_preorder} = 1)) then 1 else 0 end) as integer)`,
+        imageCount:
+          sql<number>`cast((select count(*) from ${product_photos} where ${product_photos.product_id} = ${products.id}) as integer)`,
+        primaryImageUrl:
+          sql<string | null>`(select ${product_photos.image_id} from ${product_photos} where ${product_photos.product_id} = ${products.id} order by ${product_photos.is_primary} desc, ${product_photos.sort_order} asc, ${product_photos.id} asc limit 1)`,
       })
       .from(products)
       .leftJoin(brands, eq(brands.id, products.brand_id))
@@ -412,6 +435,8 @@ export class DrizzleProductRepository implements ProductRepository {
           priceRangeMin: row.priceRangeMin,
           priceRangeMax: row.priceRangeMax,
           hasAvailableVariants: row.hasAvailableVariants,
+          imageCount: row.imageCount,
+          primaryImageUrl: row.primaryImageUrl,
         })
       ),
       page,

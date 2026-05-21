@@ -19,6 +19,7 @@ import {
   googleOAuthRoutes,
   type GoogleOAuthRoutesOptions,
 } from "./google-oauth.routes";
+import { imagesRoutes, type ImageRoutesOptions } from "./images.routes";
 import {
   ownerGovernanceRoutes,
   type OwnerGovernanceRoutesOptions,
@@ -41,6 +42,7 @@ export type ServerRoutesOptions = {
   categories?: CategoryRoutesOptions;
   customers?: CustomerRoutesOptions;
   googleOAuth?: GoogleOAuthRoutesOptions;
+  images?: ImageRoutesOptions;
   ownerGovernance?: OwnerGovernanceRoutesOptions;
   products?: ProductRoutesOptions;
   variants?: VariantRoutesOptions;
@@ -61,5 +63,6 @@ export function serverRoutes(
     .use((routes) => brandsRoutes(routes, options.brands))
     .use((routes) => categoriesRoutes(routes, options.categories))
     .use((routes) => productsRoutes(routes, options.products))
+    .use((routes) => imagesRoutes(routes, options.images))
     .use((routes) => variantsRoutes(routes, options.variants));
 }

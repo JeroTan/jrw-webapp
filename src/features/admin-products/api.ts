@@ -13,7 +13,11 @@ import type {
   ProductOrganizationMutationResult,
   ProductOrganizationRecord,
   ProductRecord,
+  ProductPhotoRecord,
+  ProductImageListResult,
   VariantListResult,
+  UploadProductImageInput,
+  UpdateProductImageOrderInput,
 } from "./types";
 
 export type ApiFailure = {
@@ -369,4 +373,93 @@ export async function archiveProductVariant(
   );
   const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
   return payload.variant;
+}
+
+export async function fetchProductImages(
+  productId: string
+): Promise<ProductImageListResult> {
+  const response = await fetch(`/api/admin/products/${productId}/images`, {
+    headers: { accept: "application/json" },
+  });
+
+  return readApiEnvelope<ProductImageListResult>(response);
+}
+
+export async function uploadProductImage(
+  productId: string,
+  input: UploadProductImageInput
+): Promise<ProductPhotoRecord> {
+  const formData = new FormData();
+  formData.set("image", input.image);
+  if (input.name !== undefined) {
+    formData.set("name", input.name ?? "");
+  }
+
+  const response = await fetch(`/api/admin/products/${productId}/images`, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+    },
+    body: formData,
+  });
+
+  const payload = await readApiEnvelope<{ image: ProductPhotoRecord }>(response);
+  return payload.image;
+}
+
+export async function updateProductImageOrder(
+  productId: string,
+  photoId: string,
+  input: UpdateProductImageOrderInput
+): Promise<ProductPhotoRecord> {
+  const response = await fetch(
+    `/api/admin/products/${productId}/images/${photoId}/order`,
+    {
+      method: "PATCH",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(input),
+    }
+  );
+
+  const payload = await readApiEnvelope<{ image: ProductPhotoRecord }>(response);
+  return payload.image;
+}
+
+export async function setPrimaryProductImage(
+  productId: string,
+  photoId: string
+): Promise<ProductPhotoRecord> {
+  const response = await fetch(
+    `/api/admin/products/${productId}/images/${photoId}/primary`,
+    {
+      method: "PATCH",
+      headers: {
+        accept: "application/json",
+      },
+    }
+  );
+
+  const payload = await readApiEnvelope<{ image: ProductPhotoRecord }>(response);
+  return payload.image;
+}
+
+export async function removeProductImage(
+  productId: string,
+  photoId: string
+): Promise<ProductPhotoRecord> {
+  const response = await fetch(
+    `/api/admin/products/${productId}/images/${photoId}`,
+    {
+      method: "DELETE",
+      headers: {
+        accept: "application/json",
+      },
+    }
+  );
+
+  const payload = await readApiEnvelope<{ image: ProductPhotoRecord }>(response);
+  return payload.image;
 }
