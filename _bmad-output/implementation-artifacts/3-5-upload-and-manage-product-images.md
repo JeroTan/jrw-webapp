@@ -1,6 +1,6 @@
 # Story 3.5: Upload and Manage Product Images
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -106,7 +106,12 @@ so that storefront products have stable current media and future order snapshots
 
 ### Review Findings
 
-_(To be populated during code review)_
+- [x] [Review][Patch] R2 fallback URLs had no serving route [src/server/repositories/ImageRepository.ts:53] -- added `/assets/products/*` route backed by R2.
+- [x] [Review][Patch] Photo timestamps could violate API date-time contract for migrated rows [src/server/repositories/PhotoRepository.ts:63] -- normalized SQLite timestamps before API output.
+- [x] [Review][Patch] Storage failure logs exposed raw provider error messages [src/server/services/ImageService.ts:604] -- log safe error type only.
+- [x] [Review][Patch] Upload could leave orphaned R2 object when photo persistence failed [src/server/services/ImageService.ts:656] -- rollback uploaded object on DB attach failure.
+- [x] [Review][Patch] Removing current primary image could leave catalog without primary marker [src/server/services/ImageService.ts:944] -- promote next remaining image.
+- [x] [Review][Patch] Nested remove confirmation could let Escape close parent editor modal [src/components/ui/Modal.tsx:25] -- only topmost dialog handles modal keyboard shortcuts.
 
 ## Dev Notes
 
@@ -505,6 +510,7 @@ gpt-5 (Codex)
 - Added admin product editor image management UI (`ImageUpload`, `ImageList`) with keyboard navigation, confirmation dialog, progress/error feedback, and JRW token-based styles.
 - Added/updated tests for image service, image routes, image UI, and impacted product/variant/domain contracts.
 - Validation gates passed: `npx vitest run` (68 files, 446 tests) and `npm run check` (0 errors).
+- Code review patches applied: R2 asset serving fallback, API timestamp normalization, safe provider logs, upload rollback cleanup, primary image promotion after removal, and nested modal keyboard guard.
 
 ### File List
 
@@ -522,6 +528,8 @@ gpt-5 (Codex)
 - src/features/admin-products/components/image-ui.test.ts
 - src/features/admin-products/components/products-ui.test.ts
 - src/features/admin-products/types.ts
+- src/components/ui/Modal.tsx
+- src/pages/assets/products/[...key].ts
 - src/server/app.ts
 - src/server/controllers/ImageController.ts
 - src/server/repositories/ImageRepository.ts
@@ -540,3 +548,4 @@ gpt-5 (Codex)
 
 - 2026-05-21: Story 3.5 context engine created for product image upload and management API, R2 storage integration, admin image UI, brand membership enforcement, historical reference preservation, and targeted tests.
 - 2026-05-21: Story 3.5 implementation complete; image storage/repository/service/routes/UI delivered with tests and validation gates passing.
+- 2026-05-21: Code review patches complete; story status moved to done after targeted tests and `npm run check`.

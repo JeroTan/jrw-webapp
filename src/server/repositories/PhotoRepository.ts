@@ -6,6 +6,7 @@ import type {
   UpdatePhotoOrderInput,
 } from "@/domain/products/types";
 import { product_photos } from "@/domain/schema/catalog";
+import { toApiDateTime } from "@/lib/api/date-time";
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 
 type PhotoRowLike = {
@@ -62,6 +63,9 @@ function toPhotoRecord(input: {
   row: PhotoRowLike;
   resolvePublicUrl: (key: string) => string;
 }): ProductPhotoRecord {
+  const createdAt = toApiDateTime(input.row.created_at);
+  const updatedAt = toApiDateTime(input.row.updated_at);
+
   return {
     id: input.row.id,
     productId: input.row.product_id,
@@ -83,9 +87,9 @@ function toPhotoRecord(input: {
       input.row.height === null || input.row.height === undefined
         ? null
         : Number(input.row.height),
-    createdAt: input.row.created_at,
-    updatedAt: input.row.updated_at,
-    uploadedAt: input.row.created_at,
+    createdAt,
+    updatedAt,
+    uploadedAt: createdAt,
     url: input.resolvePublicUrl(input.row.r2_key),
   };
 }
@@ -100,8 +104,7 @@ export class DrizzlePhotoRepository implements PhotoRepository {
   }) {
     this.db = options.db;
     this.resolvePublicUrl =
-      options.resolvePublicUrl ??
-      ((key) => `/assets/${encodeObjectKey(key)}`);
+      options.resolvePublicUrl ?? ((key) => `/assets/${encodeObjectKey(key)}`);
   }
 
   async create(input: CreatePhotoRecordInput): Promise<ProductPhotoRecord> {
@@ -321,8 +324,9 @@ export class DrizzlePhotoRepository implements PhotoRepository {
   async nextSortOrder(productId: string): Promise<number> {
     const [row] = await this.db
       .select({
-        maxSort:
-          sql<number | null>`cast(max(${product_photos.sort_order}) as integer)`,
+        maxSort: sql<
+          number | null
+        >`cast(max(${product_photos.sort_order}) as integer)`,
       })
       .from(product_photos)
       .where(eq(product_photos.product_id, productId));

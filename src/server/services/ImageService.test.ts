@@ -32,10 +32,10 @@ function adminActor(overrides: Partial<ImageActorInput> = {}): ImageActorInput {
 
 function createPngFile(name = "lamp.png"): File {
   const bytes = new Uint8Array([
-    137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0,
-    1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 1, 73, 68,
-    65, 84, 120, 218, 99, 0, 0, 0, 2, 0, 1, 229, 39, 212, 162, 0, 0, 0, 0,
-    73, 69, 78, 68, 174, 66, 96, 130,
+    137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 1, 0,
+    0, 0, 1, 8, 6, 0, 0, 0, 31, 21, 196, 137, 0, 0, 0, 1, 73, 68, 65, 84, 120,
+    218, 99, 0, 0, 0, 2, 0, 1, 229, 39, 212, 162, 0, 0, 0, 0, 73, 69, 78, 68,
+    174, 66, 96, 130,
   ]);
 
   return new File([bytes], name, {
@@ -110,6 +110,7 @@ class ProductScopeRepositoryStub {
 
 class PhotoRepositoryStub implements PhotoRepository {
   items: ProductPhotoRecord[] = [];
+  shouldFailCreate = false;
 
   async create(input: {
     id: string;
@@ -126,6 +127,10 @@ class PhotoRepositoryStub implements PhotoRepository {
     createdAt: string;
     updatedAt: string;
   }): Promise<ProductPhotoRecord> {
+    if (this.shouldFailCreate) {
+      throw new Error("D1_ERROR: photo insert failed");
+    }
+
     const row = createPhotoRecord({
       id: input.id,
       productId: input.productId,
@@ -191,7 +196,10 @@ class PhotoRepositoryStub implements PhotoRepository {
     }
 
     this.items = this.items.map((row) => {
-      if (row.productId !== input.productId || row.sortOrder === input.fromSortOrder) {
+      if (
+        row.productId !== input.productId ||
+        row.sortOrder === input.fromSortOrder
+      ) {
         return row;
       }
 
@@ -291,6 +299,8 @@ class PhotoRepositoryStub implements PhotoRepository {
 class ImageRepositoryStub implements ImageRepository {
   shouldFailUpload = false;
 
+  deleteCalls: string[] = [];
+
   uploadCalls: Array<{ file: File; key: string }> = [];
 
   async upload(file: File, key: string) {
@@ -314,7 +324,8 @@ class ImageRepositoryStub implements ImageRepository {
     return null;
   }
 
-  async delete(_key: string): Promise<void> {
+  async delete(key: string): Promise<void> {
+    this.deleteCalls.push(key);
     return undefined;
   }
 
@@ -382,9 +393,13 @@ describe("ImageService", () => {
       now: () => new Date(now),
     });
 
-    const largeFile = new File([new Uint8Array(5 * 1024 * 1024 + 1)], "large.png", {
-      type: "image/png",
-    });
+    const largeFile = new File(
+      [new Uint8Array(5 * 1024 * 1024 + 1)],
+      "large.png",
+      {
+        type: "image/png",
+      }
+    );
 
     const result = await service.uploadImage({
       actor: adminActor(),
@@ -477,7 +492,9 @@ describe("ImageService", () => {
 
   it("removes image from product without deleting record", async () => {
     const photoRepository = new PhotoRepositoryStub();
-    photoRepository.items = [createPhotoRecord({ id: "photo_1", isPrimary: true })];
+    photoRepository.items = [
+      createPhotoRecord({ id: "photo_1", isPrimary: true }),
+    ];
 
     const service = new ImageService({
       productRepository: new ProductScopeRepositoryStub(),
@@ -502,6 +519,37 @@ describe("ImageService", () => {
     expect(result.content.image.isPrimary).toBe(false);
   });
 
+  it("promotes next image when primary image is removed", async () => {
+    const photoRepository = new PhotoRepositoryStub();
+    photoRepository.items = [
+      createPhotoRecord({ id: "photo_1", isPrimary: true, sortOrder: 0 }),
+      createPhotoRecord({
+        id: "photo_2",
+        imageId: "https://pub.r2.dev/products/prod_1/photo_2.png",
+        isPrimary: false,
+        sortOrder: 1,
+      }),
+    ];
+
+    const service = new ImageService({
+      productRepository: new ProductScopeRepositoryStub(),
+      photoRepository,
+      imageRepository: new ImageRepositoryStub(),
+      now: () => new Date(now),
+    });
+
+    const result = await service.removeImage({
+      actor: adminActor(),
+      requestId: "req_image_remove_primary",
+      productId: "prod_1",
+      photoId: "photo_1",
+    });
+
+    expect(result.error).toBeNull();
+    const listed = await photoRepository.listByProductId("prod_1");
+    expect(listed.find((row) => row.id === "photo_2")?.isPrimary).toBe(true);
+  });
+
   it("denies upload when admin lacks brand membership", async () => {
     const scope = new ProductScopeRepositoryStub();
     scope.product = {
@@ -510,10 +558,11 @@ describe("ImageService", () => {
     };
     scope.membership = null;
 
+    const imageRepository = new ImageRepositoryStub();
     const service = new ImageService({
       productRepository: scope,
       photoRepository: new PhotoRepositoryStub(),
-      imageRepository: new ImageRepositoryStub(),
+      imageRepository,
       now: () => new Date(now),
     });
 
@@ -529,17 +578,20 @@ describe("ImageService", () => {
     expect(result.error?.data).toMatchObject({
       reason: "BRAND_MEMBERSHIP_REQUIRED",
     });
+    expect(imageRepository.uploadCalls).toHaveLength(0);
   });
 
   it("maps storage failures to provider unavailable", async () => {
     const imageRepository = new ImageRepositoryStub();
     imageRepository.shouldFailUpload = true;
+    const logEntries: Array<Record<string, unknown>> = [];
 
     const service = new ImageService({
       productRepository: new ProductScopeRepositoryStub(),
       photoRepository: new PhotoRepositoryStub(),
       imageRepository,
       now: () => new Date(now),
+      log: (entry) => logEntries.push(entry),
     });
 
     const result = await service.uploadImage({
@@ -551,5 +603,41 @@ describe("ImageService", () => {
     });
 
     expect(result.error?.code).toBe("PROVIDER_UNAVAILABLE");
+    expect(logEntries[0]).toMatchObject({
+      requestId: "req_image_storage_failure",
+      operation: "upload_image",
+      errorCode: "PROVIDER_UNAVAILABLE",
+      reason: "IMAGE_STORAGE_FAILURE",
+      errorType: "Error",
+    });
+    expect(logEntries[0]).not.toHaveProperty("message");
+  });
+
+  it("deletes uploaded object when photo persistence fails", async () => {
+    const photoRepository = new PhotoRepositoryStub();
+    photoRepository.shouldFailCreate = true;
+    const imageRepository = new ImageRepositoryStub();
+
+    const service = new ImageService({
+      productRepository: new ProductScopeRepositoryStub(),
+      photoRepository,
+      imageRepository,
+      now: () => new Date(now),
+    });
+
+    const result = await service.uploadImage({
+      actor: adminActor(),
+      requestId: "req_image_photo_create_failure",
+      productId: "prod_1",
+      file: createPngFile(),
+      name: "Rollback",
+    });
+
+    expect(result.error?.code).toBe("PROVIDER_UNAVAILABLE");
+    expect(imageRepository.uploadCalls).toHaveLength(1);
+    expect(imageRepository.deleteCalls).toEqual([
+      imageRepository.uploadCalls[0].key,
+    ]);
+    expect(photoRepository.items).toHaveLength(0);
   });
 });

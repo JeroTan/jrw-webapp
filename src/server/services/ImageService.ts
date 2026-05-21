@@ -127,8 +127,7 @@ type ParsedImageDimensions = {
 };
 
 const jpegSofMarkers = new Set([
-  0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce,
-  0xcf,
+  0xc0, 0xc1, 0xc2, 0xc3, 0xc5, 0xc6, 0xc7, 0xc9, 0xca, 0xcb, 0xcd, 0xce, 0xcf,
 ]);
 
 function serviceError(
@@ -154,6 +153,10 @@ function providerFailure(error: unknown): boolean {
       error.message
     )
   );
+}
+
+function safeErrorType(error: unknown): string {
+  return error instanceof Error ? error.name : typeof error;
 }
 
 function isActiveMembership(
@@ -217,7 +220,11 @@ function parseJpegDimensions(bytes: Uint8Array): ParsedImageDimensions | null {
     const marker = bytes[offset + 1];
     offset += 2;
 
-    if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7)) {
+    if (
+      marker === 0xd8 ||
+      marker === 0xd9 ||
+      (marker >= 0xd0 && marker <= 0xd7)
+    ) {
       continue;
     }
 
@@ -376,9 +383,7 @@ export class ImageService {
     this.log = options.log ?? ((entry) => console.error(entry));
   }
 
-  private requireAdminActor(
-    actor: ImageActorInput | undefined
-  ): AppResult<{
+  private requireAdminActor(actor: ImageActorInput | undefined): AppResult<{
     actorId: string;
     safeActorId: string;
     role: "ADMIN" | "SUPER_ADMIN";
@@ -467,7 +472,9 @@ export class ImageService {
 
   private async validateFile(
     file: File
-  ): Promise<AppResult<{ contentType: string; dimensions: ParsedImageDimensions }>> {
+  ): Promise<
+    AppResult<{ contentType: string; dimensions: ParsedImageDimensions }>
+  > {
     const contentType = file.type;
 
     if (
@@ -597,9 +604,26 @@ export class ImageService {
       operation: input.operation,
       errorCode: "PROVIDER_UNAVAILABLE",
       reason: "IMAGE_STORAGE_FAILURE",
-      message:
-        input.error instanceof Error ? input.error.message : "Unknown storage error",
+      errorType: safeErrorType(input.error),
     });
+  }
+
+  private async rollbackUploadedObject(input: {
+    requestId: string;
+    operation: string;
+    key: string;
+  }): Promise<void> {
+    try {
+      await this.imageRepository.delete(input.key);
+    } catch (error) {
+      this.log({
+        requestId: input.requestId,
+        operation: input.operation,
+        errorCode: "PROVIDER_UNAVAILABLE",
+        reason: "IMAGE_ROLLBACK_FAILURE",
+        errorType: safeErrorType(error),
+      });
+    }
   }
 
   async uploadImage(
@@ -632,29 +656,43 @@ export class ImageService {
         contentType: validation.content.contentType,
       });
 
-      const uploaded = await this.imageRepository.upload(input.file, key);
-      const sortOrder = await this.photoRepository.nextSortOrder(input.productId);
-      const existing = await this.photoRepository.listByProductId(input.productId);
+      const sortOrder = await this.photoRepository.nextSortOrder(
+        input.productId
+      );
+      const existing = await this.photoRepository.listByProductId(
+        input.productId
+      );
       const timestamp = this.now().toISOString();
+      const uploaded = await this.imageRepository.upload(input.file, key);
 
-      const image = await this.photoRepository.create({
-        id: photoId,
-        productId: input.productId,
-        imageId: uploaded.url,
-        name:
-          input.name && input.name.trim().length > 0
-            ? input.name.trim()
-            : input.file.name.trim().slice(0, 255) || null,
-        sortOrder,
-        isPrimary: existing.length === 0,
-        r2Key: uploaded.key,
-        fileSize: uploaded.size,
-        contentType: uploaded.contentType,
-        width: validation.content.dimensions.width,
-        height: validation.content.dimensions.height,
-        createdAt: timestamp,
-        updatedAt: timestamp,
-      });
+      let image: ProductPhotoRecord;
+      try {
+        image = await this.photoRepository.create({
+          id: photoId,
+          productId: input.productId,
+          imageId: uploaded.url,
+          name:
+            input.name && input.name.trim().length > 0
+              ? input.name.trim()
+              : input.file.name.trim().slice(0, 255) || null,
+          sortOrder,
+          isPrimary: existing.length === 0,
+          r2Key: uploaded.key,
+          fileSize: uploaded.size,
+          contentType: uploaded.contentType,
+          width: validation.content.dimensions.width,
+          height: validation.content.dimensions.height,
+          createdAt: timestamp,
+          updatedAt: timestamp,
+        });
+      } catch (error) {
+        await this.rollbackUploadedObject({
+          requestId: input.requestId,
+          operation: "upload_image",
+          key: uploaded.key,
+        });
+        throw error;
+      }
 
       await this.publishAudit({
         requestId: input.requestId,
@@ -757,7 +795,9 @@ export class ImageService {
         return Result.error(photo.error);
       }
 
-      const currentItems = await this.photoRepository.listByProductId(input.productId);
+      const currentItems = await this.photoRepository.listByProductId(
+        input.productId
+      );
       const maxSortOrder = Math.max(currentItems.length - 1, 0);
       const targetSortOrder = Math.min(
         Math.max(parsed.data.sortOrder, 0),
@@ -902,6 +942,20 @@ export class ImageService {
         return Result.error(
           serviceError("RESOURCE_NOT_FOUND", { reason: "PHOTO_NOT_FOUND" })
         );
+      }
+
+      if (photo.content.isPrimary) {
+        const remainingImages = await this.photoRepository.listByProductId(
+          input.productId
+        );
+        const nextPrimary = remainingImages[0];
+        if (nextPrimary) {
+          await this.photoRepository.setPrimary(
+            input.productId,
+            nextPrimary.id,
+            this.now().toISOString()
+          );
+        }
       }
 
       await this.publishAudit({

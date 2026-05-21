@@ -25,6 +25,14 @@ function getFocusableElements(container: HTMLElement) {
     .filter((element) => element.getAttribute("aria-hidden") !== "true");
 }
 
+function isTopmostDialog(dialog: HTMLElement): boolean {
+  const dialogs = Array.from(
+    document.querySelectorAll<HTMLElement>("[role='dialog'][aria-modal='true']")
+  );
+
+  return dialogs[dialogs.length - 1] === dialog;
+}
+
 export type ModalProps = HTMLAttributes<HTMLDivElement> & {
   children?: ReactNode;
   closeLabel?: string;
@@ -69,6 +77,10 @@ export function Modal({
     (focusable[0] ?? dialog).focus();
 
     function handleKeyDown(event: KeyboardEvent) {
+      if (event.defaultPrevented || !isTopmostDialog(dialog)) {
+        return;
+      }
+
       if (event.key === "Escape") {
         event.preventDefault();
         onCloseRef.current();
@@ -145,7 +157,9 @@ export function Modal({
           </IconButton>
         </header>
         <div className="jrw-modal__body">{children}</div>
-        {footer ? <footer className="jrw-modal__footer">{footer}</footer> : null}
+        {footer ? (
+          <footer className="jrw-modal__footer">{footer}</footer>
+        ) : null}
       </section>
     </div>
   );
