@@ -10,6 +10,7 @@ import {
   categoryStatusValues,
   productStatusValues,
   product_categories,
+  product_variants,
   products,
 } from "@/domain/schema/catalog";
 import type {
@@ -155,6 +156,11 @@ function toProductRecord(input: {
   row: ProductRowLike;
   brandName?: string | null;
   linkedCategoryCount?: number | null;
+  variantCount?: number | null;
+  lowestPrice?: number | null;
+  priceRangeMin?: number | null;
+  priceRangeMax?: number | null;
+  hasAvailableVariants?: boolean | number | null;
 }): ProductRecord {
   const fallbackBrandName =
     typeof input.row.brand === "string" && input.row.brand.trim().length > 0
@@ -174,6 +180,20 @@ function toProductRecord(input: {
         ? input.brandName
         : fallbackBrandName,
     linkedCategoryCount: Number(input.linkedCategoryCount ?? 0),
+    variantCount: Number(input.variantCount ?? 0),
+    lowestPrice:
+      input.lowestPrice === null || input.lowestPrice === undefined
+        ? null
+        : Number(input.lowestPrice),
+    priceRangeMin:
+      input.priceRangeMin === null || input.priceRangeMin === undefined
+        ? null
+        : Number(input.priceRangeMin),
+    priceRangeMax:
+      input.priceRangeMax === null || input.priceRangeMax === undefined
+        ? null
+        : Number(input.priceRangeMax),
+    hasAvailableVariants: Number(input.hasAvailableVariants ?? 0) > 0,
     createdAt: toApiDateTime(input.row.created_at),
     updatedAt: toApiDateTime(input.row.updated_at),
   };
@@ -228,6 +248,11 @@ export class DrizzleProductRepository implements ProductRepository {
     return toProductRecord({
       row: product,
       linkedCategoryCount: 0,
+      variantCount: 0,
+      lowestPrice: null,
+      priceRangeMin: null,
+      priceRangeMax: null,
+      hasAvailableVariants: false,
     });
   }
 
@@ -238,6 +263,16 @@ export class DrizzleProductRepository implements ProductRepository {
         brandName: brands.name,
         linkedCategoryCount:
           sql<number>`cast(count(${product_categories.category_id}) as integer)`,
+        variantCount:
+          sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        lowestPrice:
+          sql<number | null>`cast((select min(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        priceRangeMin:
+          sql<number | null>`cast((select min(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        priceRangeMax:
+          sql<number | null>`cast((select max(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        hasAvailableVariants:
+          sql<number>`cast((select case when exists(select 1 from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and (${product_variants.stock} > 0 or ${product_variants.is_preorder} = 1)) then 1 else 0 end) as integer)`,
       })
       .from(products)
       .leftJoin(brands, eq(brands.id, products.brand_id))
@@ -251,6 +286,11 @@ export class DrizzleProductRepository implements ProductRepository {
           row: row.product,
           brandName: row.brandName,
           linkedCategoryCount: row.linkedCategoryCount,
+          variantCount: row.variantCount,
+          lowestPrice: row.lowestPrice,
+          priceRangeMin: row.priceRangeMin,
+          priceRangeMax: row.priceRangeMax,
+          hasAvailableVariants: row.hasAvailableVariants,
         })
       : null;
   }
@@ -266,6 +306,11 @@ export class DrizzleProductRepository implements ProductRepository {
       ? toProductRecord({
           row: product,
           linkedCategoryCount: 0,
+          variantCount: 0,
+          lowestPrice: null,
+          priceRangeMin: null,
+          priceRangeMax: null,
+          hasAvailableVariants: false,
         })
       : null;
   }
@@ -336,6 +381,16 @@ export class DrizzleProductRepository implements ProductRepository {
         brandName: brands.name,
         linkedCategoryCount:
           sql<number>`cast(count(${product_categories.category_id}) as integer)`,
+        variantCount:
+          sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        lowestPrice:
+          sql<number | null>`cast((select min(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        priceRangeMin:
+          sql<number | null>`cast((select min(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        priceRangeMax:
+          sql<number | null>`cast((select max(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        hasAvailableVariants:
+          sql<number>`cast((select case when exists(select 1 from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and (${product_variants.stock} > 0 or ${product_variants.is_preorder} = 1)) then 1 else 0 end) as integer)`,
       })
       .from(products)
       .leftJoin(brands, eq(brands.id, products.brand_id))
@@ -352,6 +407,11 @@ export class DrizzleProductRepository implements ProductRepository {
           row: row.product,
           brandName: row.brandName,
           linkedCategoryCount: row.linkedCategoryCount,
+          variantCount: row.variantCount,
+          lowestPrice: row.lowestPrice,
+          priceRangeMin: row.priceRangeMin,
+          priceRangeMax: row.priceRangeMax,
+          hasAvailableVariants: row.hasAvailableVariants,
         })
       ),
       page,
@@ -383,24 +443,12 @@ export class DrizzleProductRepository implements ProductRepository {
       throw new Error("D1_ERROR: product not found for update");
     }
 
-    const [row] = await this.db
-      .select({
-        brandName: brands.name,
-        linkedCategoryCount:
-          sql<number>`cast(count(${product_categories.category_id}) as integer)`,
-      })
-      .from(products)
-      .leftJoin(brands, eq(brands.id, products.brand_id))
-      .leftJoin(product_categories, eq(product_categories.product_id, products.id))
-      .where(eq(products.id, productId))
-      .groupBy(products.id, brands.name)
-      .limit(1);
+    const product = await this.findById(productId);
+    if (!product) {
+      throw new Error("D1_ERROR: product not found after update");
+    }
 
-    return toProductRecord({
-      row: updated,
-      brandName: row?.brandName,
-      linkedCategoryCount: row?.linkedCategoryCount ?? 0,
-    });
+    return product;
   }
 
   async assignBrand(
@@ -431,24 +479,12 @@ export class DrizzleProductRepository implements ProductRepository {
       throw new Error("D1_ERROR: product not found for brand assign");
     }
 
-    const [row] = await this.db
-      .select({
-        brandName: brands.name,
-        linkedCategoryCount:
-          sql<number>`cast(count(${product_categories.category_id}) as integer)`,
-      })
-      .from(products)
-      .leftJoin(brands, eq(brands.id, products.brand_id))
-      .leftJoin(product_categories, eq(product_categories.product_id, products.id))
-      .where(eq(products.id, productId))
-      .groupBy(products.id, brands.name)
-      .limit(1);
+    const product = await this.findById(productId);
+    if (!product) {
+      throw new Error("D1_ERROR: product not found after brand assign");
+    }
 
-    return toProductRecord({
-      row: updated,
-      brandName: row?.brandName,
-      linkedCategoryCount: row?.linkedCategoryCount ?? 0,
-    });
+    return product;
   }
 
   async removeBrand(productId: string, updatedAt: string): Promise<ProductRecord> {
@@ -466,24 +502,12 @@ export class DrizzleProductRepository implements ProductRepository {
       throw new Error("D1_ERROR: product not found for brand removal");
     }
 
-    const [row] = await this.db
-      .select({
-        brandName: brands.name,
-        linkedCategoryCount:
-          sql<number>`cast(count(${product_categories.category_id}) as integer)`,
-      })
-      .from(products)
-      .leftJoin(brands, eq(brands.id, products.brand_id))
-      .leftJoin(product_categories, eq(product_categories.product_id, products.id))
-      .where(eq(products.id, productId))
-      .groupBy(products.id, brands.name)
-      .limit(1);
+    const product = await this.findById(productId);
+    if (!product) {
+      throw new Error("D1_ERROR: product not found after brand removal");
+    }
 
-    return toProductRecord({
-      row: updated,
-      brandName: row?.brandName,
-      linkedCategoryCount: row?.linkedCategoryCount ?? 0,
-    });
+    return product;
   }
 
   async assignCategories(

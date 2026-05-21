@@ -1,14 +1,19 @@
 import type {
   ProductAssignableBrand,
   ProductAssignableCategory,
+  ProductVariantRecord,
   ProductBrandAssignmentInput,
   ProductCategoryAssignmentInput,
+  CreateVariantInput,
+  UpdateVariantInput,
+  ArchiveVariantInput,
   ProductListResult,
   ProductListQueryInput,
   ProductMutationInput,
   ProductOrganizationMutationResult,
   ProductOrganizationRecord,
   ProductRecord,
+  VariantListResult,
 } from "./types";
 
 export type ApiFailure = {
@@ -277,4 +282,91 @@ export async function fetchAssignableCategories(): Promise<
     slug: category.slug,
     status: category.status,
   }));
+}
+
+export async function fetchProductVariants(
+  productId: string,
+  query: { page?: number; pageSize?: number } = {}
+): Promise<VariantListResult> {
+  const params = new URLSearchParams();
+  params.set("page", String(query.page ?? 1));
+  params.set("pageSize", String(query.pageSize ?? DEFAULT_PAGE_SIZE));
+
+  const response = await fetch(
+    `/api/admin/products/${productId}/variants?${params.toString()}`,
+    {
+      headers: { accept: "application/json" },
+    }
+  );
+  return readApiEnvelope<VariantListResult>(response);
+}
+
+export async function fetchProductVariantDetail(
+  productId: string,
+  variantId: string
+): Promise<ProductVariantRecord> {
+  const response = await fetch(
+    `/api/admin/products/${productId}/variants/${variantId}`,
+    {
+      headers: { accept: "application/json" },
+    }
+  );
+  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
+  return payload.variant;
+}
+
+export async function createProductVariant(
+  productId: string,
+  input: CreateVariantInput
+): Promise<ProductVariantRecord> {
+  const response = await fetch(`/api/admin/products/${productId}/variants`, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
+  return payload.variant;
+}
+
+export async function updateProductVariant(
+  productId: string,
+  variantId: string,
+  input: UpdateVariantInput
+): Promise<ProductVariantRecord> {
+  const response = await fetch(
+    `/api/admin/products/${productId}/variants/${variantId}`,
+    {
+      method: "PATCH",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(input),
+    }
+  );
+  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
+  return payload.variant;
+}
+
+export async function archiveProductVariant(
+  productId: string,
+  variantId: string,
+  input: ArchiveVariantInput = {}
+): Promise<ProductVariantRecord> {
+  const response = await fetch(
+    `/api/admin/products/${productId}/variants/${variantId}/archive`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(input),
+    }
+  );
+  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
+  return payload.variant;
 }

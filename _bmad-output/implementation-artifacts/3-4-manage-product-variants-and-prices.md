@@ -1,6 +1,6 @@
 # Story 3.4: Manage Product Variants and Prices
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,78 +23,78 @@ so that customers can choose purchasable options with accurate JRW pricing.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm scope and current baseline. (AC: 1-8)
-  - [ ] Verify Epic 2 is `done` and Stories 3.1, 3.2, 3.3 are `done`; do not reopen.
-  - [ ] Confirm this story is the fourth Epic 3 backlog item after Story 3.3.
-  - [ ] Confirm existing `product_variants` table in `src/domain/schema/catalog.ts` — current fields include `id`, `name`, `stock`, `price` (real), `sku`, `is_preorder`, `expected_release`, `stock_lock_version`, `variation_chain` (JSON), `image_reference_id`, `product_id`.
-  - [ ] Confirm existing `ProductRepository`, `ProductService`, `ProductController`, and product routes from Stories 3.2 and 3.3.
-  - [ ] Confirm existing brand membership guards from Story 2.6 and brand endpoints from Epic 2.
-  - [ ] Do NOT add images, stock management, publish/archive transitions, or product editor UI variant matrix sections in this story.
+- [x] Task 1: Confirm scope and current baseline. (AC: 1-8)
+  - [x] Verify Epic 2 is `done` and Stories 3.1, 3.2, 3.3 are `done`; do not reopen.
+  - [x] Confirm this story is the fourth Epic 3 backlog item after Story 3.3.
+  - [x] Confirm existing `product_variants` table in `src/domain/schema/catalog.ts` — current fields include `id`, `name`, `stock`, `price` (real), `sku`, `is_preorder`, `expected_release`, `stock_lock_version`, `variation_chain` (JSON), `image_reference_id`, `product_id`.
+  - [x] Confirm existing `ProductRepository`, `ProductService`, `ProductController`, and product routes from Stories 3.2 and 3.3.
+  - [x] Confirm existing brand membership guards from Story 2.6 and brand endpoints from Epic 2.
+  - [x] Do NOT add images, stock management, publish/archive transitions, or product editor UI variant matrix sections in this story.
 
-- [ ] Task 2: Add variant domain types, schemas, and validation. (AC: 1-4, 7)
-  - [ ] Add `ProductVariantRecord` type to `src/domain/products/types.ts`.
-  - [ ] Add `CreateProductVariantInput`, `UpdateProductVariantInput`, `ArchiveProductVariantInput` types.
-  - [ ] Add Zod schemas for variant create/update/archive in `src/domain/products/schemas.ts`.
-  - [ ] Add TypeBox schemas for variant API contracts in `src/domain/products/schemas.ts`.
-  - [ ] Enforce: price as integer centavos (not float), SKU uniqueness, valid variation_chain structure.
-  - [ ] Add domain validation: duplicate option combination detection per product.
+- [x] Task 2: Add variant domain types, schemas, and validation. (AC: 1-4, 7)
+  - [x] Add `ProductVariantRecord` type to `src/domain/products/types.ts`.
+  - [x] Add `CreateProductVariantInput`, `UpdateProductVariantInput`, `ArchiveProductVariantInput` types.
+  - [x] Add Zod schemas for variant create/update/archive in `src/domain/products/schemas.ts`.
+  - [x] Add TypeBox schemas for variant API contracts in `src/domain/products/schemas.ts`.
+  - [x] Enforce: price as integer centavos (not float), SKU uniqueness, valid variation_chain structure.
+  - [x] Add domain validation: duplicate option combination detection per product.
 
-- [ ] Task 3: Add variant repository methods. (AC: 1-4, 6)
-  - [ ] Create `VariantRepository` interface and `DrizzleVariantRepository` in `src/server/repositories/VariantRepository.ts`.
-  - [ ] Methods: `create`, `findById`, `findBySku`, `listByProductId`, `update`, `archive`, `findDuplicateOptionCombination`.
-  - [ ] Use D1/Drizzle patterns consistent with `ProductRepository`.
-  - [ ] Price stored as integer centavos in DB (migrate `price` column from `real` to `integer` if needed, or map float→centavos at repository boundary).
+- [x] Task 3: Add variant repository methods. (AC: 1-4, 6)
+  - [x] Create `VariantRepository` interface and `DrizzleVariantRepository` in `src/server/repositories/VariantRepository.ts`.
+  - [x] Methods: `create`, `findById`, `findBySku`, `listByProductId`, `update`, `archive`, `findDuplicateOptionCombination`.
+  - [x] Use D1/Drizzle patterns consistent with `ProductRepository`.
+  - [x] Price stored as integer centavos in DB (migrate `price` column from `real` to `integer` if needed, or map float→centavos at repository boundary).
 
-- [ ] Task 4: Add variant service use cases. (AC: 1-5)
-  - [ ] Create `VariantService` in `src/server/services/VariantService.ts`.
-  - [ ] Use cases: `createVariant`, `updateVariant`, `archiveVariant`, `listProductVariants`, `getVariant`.
-  - [ ] Service enforces: brand membership guard (reuse `requireBrandMutationPermission` pattern from `ProductService`).
-  - [ ] Service validates: price centavos format, SKU uniqueness, no duplicate option combinations per product.
-  - [ ] Service returns `AppResult`/`GeneralError` with appropriate error codes.
-  - [ ] Variant mutations record audit event through existing audit interface.
+- [x] Task 4: Add variant service use cases. (AC: 1-5)
+  - [x] Create `VariantService` in `src/server/services/VariantService.ts`.
+  - [x] Use cases: `createVariant`, `updateVariant`, `archiveVariant`, `listProductVariants`, `getVariant`.
+  - [x] Service enforces: brand membership guard (reuse `requireBrandMutationPermission` pattern from `ProductService`).
+  - [x] Service validates: price centavos format, SKU uniqueness, no duplicate option combinations per product.
+  - [x] Service returns `AppResult`/`GeneralError` with appropriate error codes.
+  - [x] Variant mutations record audit event through existing audit interface.
 
-- [ ] Task 5: Add variant API routes and controllers. (AC: 1-7)
-  - [ ] Create `VariantController` in `src/server/controllers/VariantController.ts`.
-  - [ ] Create variant routes under `src/server/routes/variants.routes.ts` with endpoints:
+- [x] Task 5: Add variant API routes and controllers. (AC: 1-7)
+  - [x] Create `VariantController` in `src/server/controllers/VariantController.ts`.
+  - [x] Create variant routes under `src/server/routes/variants.routes.ts` with endpoints:
     - `GET /api/admin/products/:productId/variants` — list variants for product
     - `POST /api/admin/products/:productId/variants` — create variant
     - `GET /api/admin/products/:productId/variants/:variantId` — get variant detail
     - `PATCH /api/admin/products/:productId/variants/:variantId` — update variant
     - `POST /api/admin/products/:productId/variants/:variantId/archive` — archive variant
-  - [ ] All routes require Admin authentication via existing RBAC guards.
-  - [ ] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
-  - [ ] API JSON uses camelCase; database uses snake_case; controller maps rows to DTOs.
-  - [ ] Register variant routes in `src/server/app.ts`.
+  - [x] All routes require Admin authentication via existing RBAC guards.
+  - [x] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
+  - [x] API JSON uses camelCase; database uses snake_case; controller maps rows to DTOs.
+  - [x] Register variant routes in `src/server/app.ts`.
 
-- [ ] Task 6: Extend product detail/list to include variant summary. (AC: 6)
-  - [ ] Extend product detail response to include variant count and price range (min/max centavos).
-  - [ ] Extend product list response to include variant count and lowest price.
-  - [ ] Variant summary exposes customer-safe data only: count, price range, availability flag.
-  - [ ] No internal inventory/provider details in variant summary.
+- [x] Task 6: Extend product detail/list to include variant summary. (AC: 6)
+  - [x] Extend product detail response to include variant count and price range (min/max centavos).
+  - [x] Extend product list response to include variant count and lowest price.
+  - [x] Variant summary exposes customer-safe data only: count, price range, availability flag.
+  - [x] No internal inventory/provider details in variant summary.
 
-- [ ] Task 7: Add admin variant UI (basic list and create/edit form). (AC: 1-4, 7)
-  - [ ] Create `src/features/admin-products/components/VariantList.tsx` — table showing variants for a product.
-  - [ ] Create `src/features/admin-products/components/VariantEditor.tsx` — form for create/edit variant.
-  - [ ] Variant fields: name, SKU, price (centavos input with currency display), variation_chain (option combinations), preorder toggle.
-  - [ ] Variant list: shows name, SKU, price, status, actions (edit, archive).
-  - [ ] Use existing `Select`, `Input`, `Button`, `Badge`, `DataTable`, `EmptyState` primitives from `src/components/**`.
-  - [ ] Form validation with Zod schema; inline errors for invalid variant data.
-  - [ ] Success toast on save; error summary at form top on validation failure.
+- [x] Task 7: Add admin variant UI (basic list and create/edit form). (AC: 1-4, 7)
+  - [x] Create `src/features/admin-products/components/VariantList.tsx` — table showing variants for a product.
+  - [x] Create `src/features/admin-products/components/VariantEditor.tsx` — form for create/edit variant.
+  - [x] Variant fields: name, SKU, price (centavos input with currency display), variation_chain (option combinations), preorder toggle.
+  - [x] Variant list: shows name, SKU, price, status, actions (edit, archive).
+  - [x] Use existing `Select`, `Input`, `Button`, `Badge`, `DataTable`, `EmptyState` primitives from `src/components/**`.
+  - [x] Form validation with Zod schema; inline errors for invalid variant data.
+  - [x] Success toast on save; error summary at form top on validation failure.
 
-- [ ] Task 8: Styles and accessibility. (AC: 4-8)
-  - [ ] Variant UI uses JRW tokens: 0px corners, 1px borders, no shadows, cobalt for focus/selected.
-  - [ ] Variant status uses text labels — not color alone.
-  - [ ] Form has visible labels, required markers, inline errors, and error summary.
-  - [ ] Variant list keyboard accessible.
-  - [ ] Respect `prefers-reduced-motion` for any transitions.
+- [x] Task 8: Styles and accessibility. (AC: 4-8)
+  - [x] Variant UI uses JRW tokens: 0px corners, 1px borders, no shadows, cobalt for focus/selected.
+  - [x] Variant status uses text labels — not color alone.
+  - [x] Form has visible labels, required markers, inline errors, and error summary.
+  - [x] Variant list keyboard accessible.
+  - [x] Respect `prefers-reduced-motion` for any transitions.
 
-- [ ] Task 9: Targeted tests and checks. (AC: 1-8)
-  - [ ] Add domain/service tests in `src/server/services/VariantService.test.ts` covering: create success, update price, archive, duplicate option conflict, invalid price, SKU uniqueness, brand membership denial.
-  - [ ] Add route/controller tests in `src/server/routes/variants.routes.test.ts` covering: create, update, archive, list, unauthorized access, duplicate conflict.
-  - [ ] Add UI tests in `src/features/admin-products/components/variants-ui.test.ts` covering: variant list rendering, create/edit form, validation errors, empty states.
-  - [ ] Run changed-target tests only: `npx vitest run src/server/services/VariantService.test.ts src/server/routes/variants.routes.test.ts src/features/admin-products`.
-  - [ ] Run `npm run check` after typed/component changes.
-  - [ ] Do not run full `npm run build-test` unless implementation touches broader surfaces or MR. JRW asks for final full verdict.
+- [x] Task 9: Targeted tests and checks. (AC: 1-8)
+  - [x] Add domain/service tests in `src/server/services/VariantService.test.ts` covering: create success, update price, archive, duplicate option conflict, invalid price, SKU uniqueness, brand membership denial.
+  - [x] Add route/controller tests in `src/server/routes/variants.routes.test.ts` covering: create, update, archive, list, unauthorized access, duplicate conflict.
+  - [x] Add UI tests in `src/features/admin-products/components/variants-ui.test.ts` covering: variant list rendering, create/edit form, validation errors, empty states.
+  - [x] Run changed-target tests only: `npx vitest run src/server/services/VariantService.test.ts src/server/routes/variants.routes.test.ts src/features/admin-products`.
+  - [x] Run `npm run check` after typed/component changes.
+  - [x] Do not run full `npm run build-test` unless implementation touches broader surfaces or MR. JRW asks for final full verdict.
 
 ### Review Findings
 
@@ -409,7 +409,7 @@ npm run check
 
 ### Agent Model Used
 
-_(To be filled by dev agent)_
+GPT-5 Codex
 
 ### Implementation Plan
 
@@ -427,16 +427,52 @@ _(To be filled by dev agent)_
 
 ### Debug Log References
 
-_(To be filled by dev agent)_
+- `npx vitest run src/server/services/VariantService.test.ts src/server/routes/variants.routes.test.ts src/features/admin-products/components/variants-ui.test.ts` (pass: 16 tests)
+- `npx vitest run src/server/services/VariantService.test.ts src/server/routes/variants.routes.test.ts src/features/admin-products` (pass: 21 tests)
+- `npx vitest run src/server/routes/products.routes.test.ts` (pass: 13 tests)
+- `npx vitest run src/domain/products/product.test.ts` (pass: 16 tests)
+- `npm run check` (pass: `astro check`, existing non-blocking hints only)
 
 ### Completion Notes List
 
-_(To be filled by dev agent)_
+- Added variant domain contracts: backend/frontend variant record types, centavos money fields, option-chain schemas, and TypeBox route contracts.
+- Implemented `VariantRepository` + `VariantService` + `VariantController` with create/update/archive/list/detail use cases, SKU uniqueness, duplicate option-combination conflict, and brand-membership guard enforcement.
+- Added admin variant routes:
+  - `GET /api/admin/products/:productId/variants`
+  - `POST /api/admin/products/:productId/variants`
+  - `GET /api/admin/products/:productId/variants/:variantId`
+  - `PATCH /api/admin/products/:productId/variants/:variantId`
+  - `POST /api/admin/products/:productId/variants/:variantId/archive`
+- Registered variant route module in server route composition and app options wiring.
+- Extended product list/detail summary fields with customer-safe variant metrics: `variantCount`, `lowestPrice`, `priceRangeMin`, `priceRangeMax`, `hasAvailableVariants`.
+- Added admin variant UI components (`VariantList`, `VariantEditor`), variant API client helpers, styling, validation summary UX, status labels, and archive/edit actions.
+- Added targeted tests for variant service, variant routes, and variant UI, then validated with `npm run check`.
 
 ### File List
 
-_(To be filled by dev agent)_
+- `src/domain/products/types.ts`
+- `src/domain/products/schemas.ts`
+- `src/domain/products/product.test.ts`
+- `src/server/repositories/ProductRepository.ts`
+- `src/server/repositories/VariantRepository.ts`
+- `src/server/services/VariantService.ts`
+- `src/server/services/VariantService.test.ts`
+- `src/server/controllers/VariantController.ts`
+- `src/server/routes/variants.routes.ts`
+- `src/server/routes/variants.routes.test.ts`
+- `src/server/routes/index.ts`
+- `src/server/routes/route-groups.ts`
+- `src/server/app.ts`
+- `src/server/routes/products.routes.test.ts`
+- `src/features/admin-products/types.ts`
+- `src/features/admin-products/api.ts`
+- `src/features/admin-products/components/VariantEditor.tsx`
+- `src/features/admin-products/components/VariantList.tsx`
+- `src/features/admin-products/components/variants-ui.test.ts`
+- `src/features/admin-products/components/products-ui.test.ts`
+- `src/styles/global.css`
 
 ## Change Log
 
 - 2026-05-21: Story 3.4 context engine created for product variant and price management API, admin variant UI, brand membership enforcement, centavos price storage, and targeted tests.
+- 2026-05-21: Story 3.4 implementation complete. Added variant repository/service/controller/routes, product variant summary fields, admin variant UI, targeted tests, and check validation.

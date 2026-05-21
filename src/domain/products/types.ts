@@ -12,8 +12,74 @@ export type ProductRecord = {
   brandId: string | null;
   brandName: string | null;
   linkedCategoryCount: number;
+  variantCount: number;
+  lowestPrice: number | null;
+  priceRangeMin: number | null;
+  priceRangeMax: number | null;
+  hasAvailableVariants: boolean;
   createdAt: string;
   updatedAt: string;
+};
+
+export type ProductVariantStatus = "ACTIVE" | "ARCHIVED";
+
+export type ProductVariantOption = {
+  name: string;
+  group: string;
+};
+
+export type ProductVariantRecord = {
+  id: string;
+  productId: string;
+  name: string;
+  sku: string;
+  priceCentavos: number;
+  stock: number;
+  isPreorder: boolean;
+  expectedRelease: string | null;
+  variationChain: ProductVariantOption[];
+  status: ProductVariantStatus;
+  hasAvailableStock: boolean;
+};
+
+export type CreateProductVariantInput = {
+  name: string;
+  sku: string;
+  priceCentavos: number;
+  stock?: number;
+  isPreorder?: boolean;
+  expectedRelease?: string | null;
+  variationChain?: ProductVariantOption[];
+};
+
+export type UpdateProductVariantInput = {
+  name?: string;
+  sku?: string;
+  priceCentavos?: number;
+  stock?: number;
+  isPreorder?: boolean;
+  expectedRelease?: string | null;
+  variationChain?: ProductVariantOption[];
+};
+
+export type ArchiveProductVariantInput = {
+  reason?: string;
+};
+
+export type VariantListResult = {
+  items: ProductVariantRecord[];
+  page: number;
+  pageSize: number;
+  totalItems: number;
+  totalPages: number;
+};
+
+export type ProductVariantSummary = {
+  variantCount: number;
+  lowestPrice: number | null;
+  priceRangeMin: number | null;
+  priceRangeMax: number | null;
+  hasAvailableVariants: boolean;
 };
 
 export type CreateProductInput = {

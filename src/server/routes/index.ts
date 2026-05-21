@@ -27,6 +27,10 @@ import {
   productsRoutes,
   type ProductRoutesOptions,
 } from "./products.routes";
+import {
+  variantsRoutes,
+  type VariantRoutesOptions,
+} from "./variants.routes";
 export { serverRouteGroups } from "./route-groups";
 
 export type ServerRoutesOptions = {
@@ -39,6 +43,7 @@ export type ServerRoutesOptions = {
   googleOAuth?: GoogleOAuthRoutesOptions;
   ownerGovernance?: OwnerGovernanceRoutesOptions;
   products?: ProductRoutesOptions;
+  variants?: VariantRoutesOptions;
 };
 
 export function serverRoutes(
@@ -55,5 +60,6 @@ export function serverRoutes(
     .use((routes) => ownerGovernanceRoutes(routes, options.ownerGovernance))
     .use((routes) => brandsRoutes(routes, options.brands))
     .use((routes) => categoriesRoutes(routes, options.categories))
-    .use((routes) => productsRoutes(routes, options.products));
+    .use((routes) => productsRoutes(routes, options.products))
+    .use((routes) => variantsRoutes(routes, options.variants));
 }
