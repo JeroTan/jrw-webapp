@@ -1,5 +1,10 @@
 export type ProductStatus = "DRAFT" | "PUBLISHED" | "ARCHIVED";
 
+export type ProductReadinessResult = {
+  isReady: boolean;
+  missingItems: string[];
+};
+
 export type ProductRecord = {
   id: string;
   name: string;

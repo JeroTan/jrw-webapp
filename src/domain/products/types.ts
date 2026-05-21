@@ -2,6 +2,29 @@ import { productStatusValues } from "@/domain/schema/catalog";
 
 export type ProductStatus = (typeof productStatusValues)[number];
 
+export type ProductReadinessResult = {
+  isReady: boolean;
+  missingItems: string[];
+};
+
+export type ProductPublishReadinessSnapshot = {
+  productId: string;
+  status: ProductStatus;
+  hasName: boolean;
+  hasSlug: boolean;
+  categoryCount: number;
+  variantCount: number;
+  imageCount: number;
+  availableVariantCount: number;
+  variantsMissingSkuCount: number;
+  variantsMissingPriceCount: number;
+};
+
+export type ProductStatusTransitionInput = {
+  currentStatus: ProductStatus;
+  nextStatus: ProductStatus;
+};
+
 export type ProductRecord = {
   id: string;
   name: string;

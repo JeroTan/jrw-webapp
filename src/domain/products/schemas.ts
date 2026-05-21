@@ -11,6 +11,7 @@ export const PRODUCT_DESCRIPTION_MIN_LENGTH = 2;
 export const PRODUCT_DESCRIPTION_MAX_LENGTH = 8_000;
 export const PRODUCT_STATUS_VALUES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
 export const PRODUCT_ASSIGNMENT_MAX_CATEGORY_IDS = 100;
+export const PRODUCT_READINESS_MAX_ITEMS = 32;
 export const PRODUCT_VARIANT_NAME_MAX_LENGTH = 255;
 export const PRODUCT_VARIANT_SKU_MAX_LENGTH = 64;
 export const PRODUCT_VARIANT_MAX_STOCK = 10_000_000;
@@ -95,6 +96,11 @@ export const zodAssignProductCategoriesInput = z.object({
   categoryIds: z
     .array(z.string().trim().min(1).max(128))
     .max(PRODUCT_ASSIGNMENT_MAX_CATEGORY_IDS),
+});
+
+export const zodProductReadinessResult = z.object({
+  isReady: z.boolean(),
+  missingItems: z.array(z.string().trim().min(1)).max(PRODUCT_READINESS_MAX_ITEMS),
 });
 
 export const zodProductVariantOption = z.object({
@@ -299,6 +305,17 @@ export const tboxProduct = t.Object({
 
 export const tboxProductData = t.Object({
   product: tboxProduct,
+});
+
+export const tboxProductReadiness = t.Object({
+  isReady: t.Boolean(),
+  missingItems: t.Array(t.String({ minLength: 1 }), {
+    maxItems: PRODUCT_READINESS_MAX_ITEMS,
+  }),
+});
+
+export const tboxProductReadinessData = t.Object({
+  readiness: tboxProductReadiness,
 });
 
 const tboxProductOrganizationBrand = t.Object({

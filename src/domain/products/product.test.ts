@@ -119,6 +119,18 @@ function repositoryDouble(
       }),
     findById: async () => productRecord(),
     findBySlug: async () => null,
+    getPublishReadiness: async () => ({
+      productId: "prod_1",
+      status: "DRAFT",
+      hasName: true,
+      hasSlug: true,
+      categoryCount: 1,
+      variantCount: 1,
+      imageCount: 1,
+      availableVariantCount: 1,
+      variantsMissingSkuCount: 0,
+      variantsMissingPriceCount: 0,
+    }),
     list: async () => ({
       items: [productRecord()],
       page: 1,
@@ -135,6 +147,24 @@ function repositoryDouble(
         description: input.description ?? "Compact lamp with matte finish.",
         status: "DRAFT",
         updatedAt: input.updatedAt,
+      }),
+    publishProduct: async (productId, updatedAt) =>
+      productRecord({
+        id: productId,
+        status: "PUBLISHED",
+        updatedAt,
+      }),
+    draftProduct: async (productId, updatedAt) =>
+      productRecord({
+        id: productId,
+        status: "DRAFT",
+        updatedAt,
+      }),
+    archiveProduct: async (productId, updatedAt) =>
+      productRecord({
+        id: productId,
+        status: "ARCHIVED",
+        updatedAt,
       }),
     assignBrand: async (productId, brandId, updatedAt) =>
       productRecord({

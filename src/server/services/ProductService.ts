@@ -5,16 +5,22 @@ import {
   updateProductDraft,
 } from "@/domain/products/product";
 import {
+  evaluateProductPublishReadiness,
+  validateProductStatusTransition,
+} from "@/domain/products/readiness";
+import {
   zodAssignProductBrandInput,
   zodAssignProductCategoriesInput,
   PRODUCT_SLUG_MAX_LENGTH,
   zodCreateProductInput,
+  zodProductReadinessResult,
   zodUpdateProductInput,
 } from "@/domain/products/schemas";
 import type {
   ProductListQueryInput,
   ProductListResult,
   ProductOrganizationRecord,
+  ProductReadinessResult,
   ProductRecord,
 } from "@/domain/products/types";
 import {
@@ -113,6 +119,12 @@ export type ProductOrganizationServiceInput = {
   productId: string;
 };
 
+export type ProductStatusMutationServiceInput = {
+  actor: ProductActorInput | undefined;
+  requestId: string;
+  productId: string;
+};
+
 export type ProductCreateResult = {
   product: ProductRecord;
 };
@@ -126,6 +138,14 @@ export type ProductOrganizationMutationResult = {
 };
 export type ProductOrganizationResult = {
   organization: ProductOrganizationRecord;
+};
+
+export type ProductStatusMutationResult = {
+  product: ProductRecord;
+};
+
+export type ProductReadinessServiceResult = {
+  readiness: ProductReadinessResult;
 };
 
 export type ProductServiceOptions = {
@@ -415,6 +435,63 @@ export class ProductService {
     });
 
     await this.auditPublisher.publish(event);
+  }
+
+  private async publishStatusAudit(input: {
+    requestId: string;
+    actorId: string;
+    safeActorId: string;
+    actorRole: "ADMIN" | "SUPER_ADMIN";
+    productId: string;
+    oldStatus: ProductRecord["status"];
+    newStatus: ProductRecord["status"];
+    action: "catalog.product_published" | "catalog.product_updated" | "catalog.product_archived";
+    operation: "publish_product" | "unpublish_product" | "archive_product";
+    timestamp: string;
+  }): Promise<void> {
+    const event = createAuditEvent({
+      requestId: input.requestId,
+      action: input.action,
+      actor: {
+        type: "user",
+        id: input.actorId,
+        role: input.actorRole,
+        safeIdentifier: input.safeActorId,
+      },
+      target: {
+        entity: "catalog",
+        entityId: input.productId,
+      },
+      safeDetails: {
+        requestId: input.requestId,
+        operation: input.operation,
+        oldStatus: input.oldStatus,
+        newStatus: input.newStatus,
+        timestamp: input.timestamp,
+      },
+      occurredAt: input.timestamp,
+    });
+
+    await this.auditPublisher.publish(event);
+  }
+
+  private async resolveReadiness(
+    productId: string
+  ): Promise<AppResult<ProductReadinessResult>> {
+    const snapshot = await this.repository.getPublishReadiness(productId);
+    if (!snapshot) {
+      return Result.error(
+        serviceError("RESOURCE_NOT_FOUND", { reason: "PRODUCT_NOT_FOUND" })
+      );
+    }
+
+    const readiness = evaluateProductPublishReadiness(snapshot);
+    const parsed = zodProductReadinessResult.safeParse(readiness);
+    if (!parsed.success) {
+      return Result.error(serviceError("VALIDATION_FAILED"));
+    }
+
+    return Result.okay(parsed.data);
   }
 
   private async resolveUniqueSlug(
@@ -965,6 +1042,243 @@ export class ProductService {
       return Result.okay({
         product,
         organization: newOrganization.content,
+      });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async getPublishReadiness(
+    input: ProductStatusMutationServiceInput
+  ): Promise<AppResult<ProductReadinessServiceResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) {
+      return actor;
+    }
+
+    try {
+      const existing = await this.loadProductOrError(input.productId);
+      if (existing.error) {
+        return Result.error(existing.error);
+      }
+
+      const membership = await this.requireBrandMutationPermission({
+        actorId: actor.content.actorId,
+        role: actor.content.role,
+        brandId: existing.content.brandId,
+      });
+      if (membership.error) {
+        return Result.error(membership.error);
+      }
+
+      const readiness = await this.resolveReadiness(input.productId);
+      if (readiness.error) {
+        return Result.error(readiness.error);
+      }
+
+      return Result.okay({
+        readiness: readiness.content,
+      });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async publish(
+    input: ProductStatusMutationServiceInput
+  ): Promise<AppResult<ProductStatusMutationResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) {
+      return actor;
+    }
+
+    try {
+      const existing = await this.loadProductOrError(input.productId);
+      if (existing.error) {
+        return Result.error(existing.error);
+      }
+
+      const membership = await this.requireBrandMutationPermission({
+        actorId: actor.content.actorId,
+        role: actor.content.role,
+        brandId: existing.content.brandId,
+      });
+      if (membership.error) {
+        return Result.error(membership.error);
+      }
+
+      const transition = validateProductStatusTransition({
+        currentStatus: existing.content.status,
+        nextStatus: "PUBLISHED",
+      });
+      if (transition.error) {
+        return Result.error(transition.error);
+      }
+
+      const readiness = await this.resolveReadiness(input.productId);
+      if (readiness.error) {
+        return Result.error(readiness.error);
+      }
+
+      if (!readiness.content.isReady) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", {
+            reason: "PRODUCT_NOT_READY_FOR_PUBLISH",
+            missingItems: readiness.content.missingItems,
+          })
+        );
+      }
+
+      const timestamp = this.now().toISOString();
+      const product = await this.repository.publishProduct(
+        input.productId,
+        timestamp
+      );
+
+      await this.publishStatusAudit({
+        requestId: input.requestId,
+        actorId: actor.content.actorId,
+        safeActorId: actor.content.safeActorId,
+        actorRole: actor.content.role,
+        productId: input.productId,
+        oldStatus: existing.content.status,
+        newStatus: product.status,
+        action: "catalog.product_published",
+        operation: "publish_product",
+        timestamp,
+      });
+
+      return Result.okay({
+        product,
+      });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async unpublish(
+    input: ProductStatusMutationServiceInput
+  ): Promise<AppResult<ProductStatusMutationResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) {
+      return actor;
+    }
+
+    try {
+      const existing = await this.loadProductOrError(input.productId);
+      if (existing.error) {
+        return Result.error(existing.error);
+      }
+
+      const membership = await this.requireBrandMutationPermission({
+        actorId: actor.content.actorId,
+        role: actor.content.role,
+        brandId: existing.content.brandId,
+      });
+      if (membership.error) {
+        return Result.error(membership.error);
+      }
+
+      const transition = validateProductStatusTransition({
+        currentStatus: existing.content.status,
+        nextStatus: "DRAFT",
+      });
+      if (transition.error) {
+        return Result.error(transition.error);
+      }
+
+      const timestamp = this.now().toISOString();
+      const product = await this.repository.draftProduct(input.productId, timestamp);
+
+      await this.publishStatusAudit({
+        requestId: input.requestId,
+        actorId: actor.content.actorId,
+        safeActorId: actor.content.safeActorId,
+        actorRole: actor.content.role,
+        productId: input.productId,
+        oldStatus: existing.content.status,
+        newStatus: product.status,
+        action: "catalog.product_updated",
+        operation: "unpublish_product",
+        timestamp,
+      });
+
+      return Result.okay({
+        product,
+      });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async archive(
+    input: ProductStatusMutationServiceInput
+  ): Promise<AppResult<ProductStatusMutationResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) {
+      return actor;
+    }
+
+    try {
+      const existing = await this.loadProductOrError(input.productId);
+      if (existing.error) {
+        return Result.error(existing.error);
+      }
+
+      const membership = await this.requireBrandMutationPermission({
+        actorId: actor.content.actorId,
+        role: actor.content.role,
+        brandId: existing.content.brandId,
+      });
+      if (membership.error) {
+        return Result.error(membership.error);
+      }
+
+      const transition = validateProductStatusTransition({
+        currentStatus: existing.content.status,
+        nextStatus: "ARCHIVED",
+      });
+      if (transition.error) {
+        return Result.error(transition.error);
+      }
+
+      const timestamp = this.now().toISOString();
+      const product = await this.repository.archiveProduct(
+        input.productId,
+        timestamp
+      );
+
+      await this.publishStatusAudit({
+        requestId: input.requestId,
+        actorId: actor.content.actorId,
+        safeActorId: actor.content.safeActorId,
+        actorRole: actor.content.role,
+        productId: input.productId,
+        oldStatus: existing.content.status,
+        newStatus: product.status,
+        action: "catalog.product_archived",
+        operation: "archive_product",
+        timestamp,
+      });
+
+      return Result.okay({
+        product,
       });
     } catch (error) {
       if (providerFailure(error)) {

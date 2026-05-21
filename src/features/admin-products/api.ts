@@ -10,6 +10,7 @@ import type {
   ProductListResult,
   ProductListQueryInput,
   ProductMutationInput,
+  ProductReadinessResult,
   ProductOrganizationMutationResult,
   ProductOrganizationRecord,
   ProductRecord,
@@ -195,6 +196,47 @@ export async function fetchProductOrganization(
     response
   );
   return payload.organization;
+}
+
+export async function fetchProductReadiness(
+  productId: string
+): Promise<ProductReadinessResult> {
+  const response = await fetch(`/api/admin/products/${productId}/readiness`, {
+    headers: { accept: "application/json" },
+  });
+  const payload = await readApiEnvelope<{ readiness: ProductReadinessResult }>(
+    response
+  );
+  return payload.readiness;
+}
+
+export async function publishProduct(productId: string): Promise<ProductRecord> {
+  const response = await fetch(`/api/admin/products/${productId}/publish`, {
+    method: "POST",
+    headers: { accept: "application/json" },
+  });
+  const payload = await readApiEnvelope<{ product: ProductRecord }>(response);
+  return payload.product;
+}
+
+export async function unpublishProduct(
+  productId: string
+): Promise<ProductRecord> {
+  const response = await fetch(`/api/admin/products/${productId}/unpublish`, {
+    method: "POST",
+    headers: { accept: "application/json" },
+  });
+  const payload = await readApiEnvelope<{ product: ProductRecord }>(response);
+  return payload.product;
+}
+
+export async function archiveProduct(productId: string): Promise<ProductRecord> {
+  const response = await fetch(`/api/admin/products/${productId}/archive`, {
+    method: "POST",
+    headers: { accept: "application/json" },
+  });
+  const payload = await readApiEnvelope<{ product: ProductRecord }>(response);
+  return payload.product;
 }
 
 export async function createProduct(

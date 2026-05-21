@@ -13,7 +13,7 @@ import type {
   ProductVariantSummary,
   VariantListResult,
 } from "@/domain/products/types";
-import { product_variants } from "@/domain/schema/catalog";
+import { product_variants, products } from "@/domain/schema/catalog";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
 
 const DEFAULT_PAGE = 1;
@@ -391,12 +391,14 @@ export class DrizzleVariantRepository implements VariantRepository {
     variantId: string;
   }): Promise<InventoryAvailabilityRecord | null> {
     const [row] = await this.db
-      .select()
+      .select({ variant: product_variants })
       .from(product_variants)
+      .innerJoin(products, eq(products.id, product_variants.product_id))
       .where(
         and(
           eq(product_variants.id, input.variantId),
           eq(product_variants.product_id, input.productId),
+          eq(products.status, "PUBLISHED"),
           ne(product_variants.stock_lock_version, ARCHIVED_STOCK_LOCK_VERSION)
         )
       )
@@ -406,7 +408,7 @@ export class DrizzleVariantRepository implements VariantRepository {
       return null;
     }
 
-    const record = toVariantRecord(row);
+    const record = toVariantRecord(row.variant);
     return {
       productId: record.productId,
       variantId: record.id,

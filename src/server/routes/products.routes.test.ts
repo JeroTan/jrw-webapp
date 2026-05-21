@@ -117,6 +117,12 @@ describe("products routes", () => {
       body.paths?.["/api/admin/products/{productId}/brand"]?.patch;
     const assignCategories =
       body.paths?.["/api/admin/products/{productId}/categories"]?.patch;
+    const readiness =
+      body.paths?.["/api/admin/products/{productId}/readiness"]?.get;
+    const publish = body.paths?.["/api/admin/products/{productId}/publish"]?.post;
+    const unpublish =
+      body.paths?.["/api/admin/products/{productId}/unpublish"]?.post;
+    const archive = body.paths?.["/api/admin/products/{productId}/archive"]?.post;
     const update = body.paths?.["/api/admin/products/{productId}"]?.patch;
 
     expect(list?.summary).toBe("List products");
@@ -153,6 +159,18 @@ describe("products routes", () => {
 
     expect(assignCategories?.summary).toBe("Assign product categories");
     expect(assignCategories?.responses).toHaveProperty("200");
+
+    expect(readiness?.summary).toBe("Get product publish readiness");
+    expect(readiness?.responses).toHaveProperty("200");
+
+    expect(publish?.summary).toBe("Publish product");
+    expect(publish?.responses).toHaveProperty("200");
+
+    expect(unpublish?.summary).toBe("Unpublish product");
+    expect(unpublish?.responses).toHaveProperty("200");
+
+    expect(archive?.summary).toBe("Archive product");
+    expect(archive?.responses).toHaveProperty("200");
 
     expect(update?.summary).toBe("Update product identity");
     expect(update?.responses).toHaveProperty("200");
@@ -535,6 +553,153 @@ describe("products routes", () => {
         },
       },
       meta: { requestId: "req_product_categories_remove" },
+    });
+  });
+
+  it("returns readiness and applies publish lifecycle endpoints", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        products: {
+          controllerFactory: () =>
+            createController({
+              getPublishReadiness: async () =>
+                Result.okay({
+                  readiness: {
+                    isReady: false,
+                    missingItems: ["At least one product image is required."],
+                  },
+                }),
+              publish: async () =>
+                Result.okay({
+                  product: productRecord({
+                    status: "PUBLISHED",
+                  }),
+                }),
+              unpublish: async () =>
+                Result.okay({
+                  product: productRecord({
+                    status: "DRAFT",
+                  }),
+                }),
+              archive: async () =>
+                Result.okay({
+                  product: productRecord({
+                    status: "ARCHIVED",
+                  }),
+                }),
+            }),
+        },
+      },
+    });
+
+    const readiness = await app.handle(
+      new Request("https://jrw.test/api/admin/products/prod_1/readiness", {
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_product_readiness",
+        },
+      })
+    );
+    expect(readiness.status).toBe(200);
+    await expect(readiness.json()).resolves.toMatchObject({
+      data: {
+        readiness: {
+          isReady: false,
+          missingItems: ["At least one product image is required."],
+        },
+      },
+      meta: { requestId: "req_product_readiness" },
+    });
+
+    const publish = await app.handle(
+      new Request("https://jrw.test/api/admin/products/prod_1/publish", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_product_publish",
+        },
+      })
+    );
+    expect(publish.status).toBe(200);
+    await expect(publish.json()).resolves.toMatchObject({
+      data: { product: { status: "PUBLISHED" } },
+      meta: { requestId: "req_product_publish" },
+    });
+
+    const unpublish = await app.handle(
+      new Request("https://jrw.test/api/admin/products/prod_1/unpublish", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_product_unpublish",
+        },
+      })
+    );
+    expect(unpublish.status).toBe(200);
+    await expect(unpublish.json()).resolves.toMatchObject({
+      data: { product: { status: "DRAFT" } },
+      meta: { requestId: "req_product_unpublish" },
+    });
+
+    const archive = await app.handle(
+      new Request("https://jrw.test/api/admin/products/prod_1/archive", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_product_archive",
+        },
+      })
+    );
+    expect(archive.status).toBe(200);
+    await expect(archive.json()).resolves.toMatchObject({
+      data: { product: { status: "ARCHIVED" } },
+      meta: { requestId: "req_product_archive" },
+    });
+  });
+
+  it("returns forbidden envelope when publish denied by brand scope", async () => {
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        products: {
+          controllerFactory: () =>
+            createController({
+              publish: async () =>
+                Result.error(
+                  new GeneralError(
+                    { reason: "BRAND_MEMBERSHIP_REQUIRED" },
+                    "AUTH_FORBIDDEN"
+                  )
+                ),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/admin/products/prod_1/publish", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_product_publish_forbidden",
+        },
+      })
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "AUTH_FORBIDDEN",
+        details: {
+          requestId: "req_product_publish_forbidden",
+          reason: "BRAND_MEMBERSHIP_REQUIRED",
+        },
+      },
     });
   });
 

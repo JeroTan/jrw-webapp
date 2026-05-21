@@ -747,6 +747,88 @@ p {
   background: color-mix(in srgb, var(--jrw-color-error) 6%, transparent);
 }
 
+.jrw-products__publish-section {
+  display: grid;
+  gap: var(--jrw-space-sm);
+  border-top: var(--jrw-border-width) solid var(--jrw-color-border);
+  padding-top: var(--jrw-space-sm);
+}
+
+.jrw-products__readiness-panel {
+  display: grid;
+  gap: var(--jrw-space-sm);
+  border: var(--jrw-border-width) solid var(--jrw-color-strong-border);
+  padding: var(--jrw-space-sm);
+  background: var(--jrw-color-surface);
+}
+
+.jrw-products__readiness-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: var(--jrw-space-sm);
+}
+
+.jrw-products__publish-title {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.jrw-products__publish-feedback {
+  display: grid;
+  gap: var(--jrw-space-xs);
+  border: var(--jrw-border-width) solid var(--jrw-color-strong-border);
+  padding: var(--jrw-space-sm);
+  font-family: var(--jrw-font-system);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.jrw-products__publish-feedback p {
+  margin: 0;
+}
+
+.jrw-products__publish-feedback ul {
+  margin: 0;
+  padding-left: var(--jrw-space-sm);
+}
+
+.jrw-products__publish-feedback--success {
+  border-color: var(--jrw-color-success);
+  color: var(--jrw-color-success);
+  background: color-mix(in srgb, var(--jrw-color-success) 6%, transparent);
+}
+
+.jrw-products__publish-feedback--error {
+  border-color: var(--jrw-color-error);
+  color: var(--jrw-color-error);
+  background: color-mix(in srgb, var(--jrw-color-error) 6%, transparent);
+}
+
+.jrw-products__publish-control {
+  display: grid;
+  gap: var(--jrw-space-sm);
+  border: var(--jrw-border-width) solid var(--jrw-color-strong-border);
+  padding: var(--jrw-space-sm);
+  background: var(--jrw-color-surface);
+}
+
+.jrw-products__publish-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--jrw-space-sm);
+}
+
+.jrw-products__publish-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--jrw-space-xs);
+}
+
 .jrw-images__upload {
   display: grid;
   gap: var(--jrw-space-xs);

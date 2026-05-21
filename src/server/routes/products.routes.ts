@@ -7,6 +7,7 @@ import {
   tboxProductIdParams,
   tboxProductListData,
   tboxProductListQuery,
+  tboxProductReadinessData,
   tboxProductOrganizationData,
   tboxProductOrganizationMutationData,
   tboxUpdateProductBody,
@@ -367,6 +368,166 @@ export function productsRoutes(
         transform: rbacGuard(productAuth),
         response: {
           200: tboxApiSuccess(tboxProductOrganizationMutationData),
+          ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
+        },
+      }
+    )
+    .get(
+      "/admin/products/:productId/readiness",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { productId: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.getPublishReadiness({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          productId: params.productId,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxProductIdParams,
+        detail: routeDetail({
+          summary: "Get product publish readiness",
+          description:
+            "Checks publish readiness and returns missing catalog requirements for this product.",
+          tags: ["Products"],
+          auth: productAuth,
+          rateLimitClass: "admin-read",
+          errorCodes: [...productReadErrors],
+        }),
+        transform: rbacGuard(productAuth),
+        response: {
+          200: tboxApiSuccess(tboxProductReadinessData),
+          ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/admin/products/:productId/publish",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { productId: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.publish({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          productId: params.productId,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxProductIdParams,
+        detail: routeDetail({
+          summary: "Publish product",
+          description:
+            "Publishes product from DRAFT to PUBLISHED after readiness validation succeeds.",
+          tags: ["Products"],
+          auth: productAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...productWriteErrors],
+        }),
+        transform: rbacGuard(productAuth),
+        response: {
+          200: tboxApiSuccess(tboxProductData),
+          ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/admin/products/:productId/unpublish",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { productId: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.unpublish({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          productId: params.productId,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxProductIdParams,
+        detail: routeDetail({
+          summary: "Unpublish product",
+          description:
+            "Moves product from PUBLISHED back to DRAFT and removes it from public visibility.",
+          tags: ["Products"],
+          auth: productAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...productWriteErrors],
+        }),
+        transform: rbacGuard(productAuth),
+        response: {
+          200: tboxApiSuccess(tboxProductData),
+          ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/admin/products/:productId/archive",
+      async (ctx) => {
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { productId: string };
+            };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.archive({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          productId: params.productId,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxProductIdParams,
+        detail: routeDetail({
+          summary: "Archive product",
+          description:
+            "Archives product with soft status transition while preserving historical references.",
+          tags: ["Products"],
+          auth: productAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...productWriteErrors],
+        }),
+        transform: rbacGuard(productAuth),
+        response: {
+          200: tboxApiSuccess(tboxProductData),
           ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
         },
       }

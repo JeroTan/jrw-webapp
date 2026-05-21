@@ -4,9 +4,13 @@ import { Button, Input, Modal, Select, Textarea } from "@/components/ui";
 import { slugifyProductText } from "@/domain/products/product";
 import { zodCreateProductInput } from "@/domain/products/schemas";
 import {
+  archiveProduct,
+  fetchProductReadiness,
   fetchProductImages,
+  publishProduct,
   removeProductImage,
   setPrimaryProductImage,
+  unpublishProduct,
   updateProductImageOrder,
   uploadProductImage,
   type ApiFailure,
@@ -15,12 +19,16 @@ import type {
   ProductAssignableBrand,
   ProductAssignableCategory,
   ProductPhotoRecord,
+  ProductReadinessResult,
+  ProductStatus,
   ProductMutationInput,
   ProductOrganizationRecord,
   ProductRecord,
 } from "../types";
 import { ImageList } from "./ImageList";
 import { ImageUpload } from "./ImageUpload";
+import { PublishControl } from "./PublishControl";
+import { ReadinessPanel } from "./ReadinessPanel";
 
 type ProductEditorMode = "create" | "edit";
 
@@ -58,6 +66,10 @@ export type ProductEditorProps = {
   product?: ProductRecord | null;
   mode: ProductEditorMode;
   onClose: () => void;
+  onProductStatusChange?: (
+    product: ProductRecord,
+    operation: "publish" | "unpublish" | "archive"
+  ) => void;
   onSave: (input: ProductEditorSaveInput) => Promise<void>;
   open: boolean;
   saving?: boolean;
@@ -340,6 +352,54 @@ function imageActionErrorMessage(error: unknown, fallback: string): string {
     : fallback;
 }
 
+function statusActionErrorMessage(error: unknown, fallback: string): string {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !(("code" in error) && typeof (error as ApiFailure).code === "string")
+  ) {
+    return fallback;
+  }
+
+  const failure = error as ApiFailure;
+  const reason =
+    typeof failure.details === "object" &&
+    failure.details !== null &&
+    "reason" in failure.details &&
+    typeof (failure.details as { reason?: unknown }).reason === "string"
+      ? String((failure.details as { reason: string }).reason)
+      : null;
+
+  if (failure.code === "CONFLICT_STATE") {
+    if (reason === "PRODUCT_NOT_READY_FOR_PUBLISH") {
+      return "Product is missing publish requirements.";
+    }
+    if (reason === "INVALID_STATUS_TRANSITION" || reason === "STATUS_TERMINAL") {
+      return "Status transition is not allowed.";
+    }
+    if (reason === "BRAND_ARCHIVED") {
+      return "Assigned brand is archived.";
+    }
+
+    return "Product status conflicts with current state.";
+  }
+
+  if (failure.code === "AUTH_FORBIDDEN") {
+    if (reason === "BRAND_MEMBERSHIP_REQUIRED") {
+      return "You need active membership in this product brand.";
+    }
+    return "You do not have permission to change product status.";
+  }
+
+  if (failure.code === "RESOURCE_NOT_FOUND") {
+    return "Product was not found.";
+  }
+
+  return typeof failure.message === "string" && failure.message.trim().length > 0
+    ? failure.message
+    : fallback;
+}
+
 export function ProductEditor({
   availableBrands = [],
   availableCategories = [],
@@ -349,6 +409,7 @@ export function ProductEditor({
   product = null,
   mode,
   onClose,
+  onProductStatusChange,
   onSave,
   open,
   saving = false,
@@ -382,6 +443,18 @@ export function ProductEditor({
     tone: "success" | "error";
     message: string;
   } | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<ProductStatus>(
+    () => product?.status ?? "DRAFT"
+  );
+  const [statusBusy, setStatusBusy] = useState(false);
+  const [statusFeedback, setStatusFeedback] = useState<{
+    tone: "success" | "error";
+    message: string;
+  } | null>(null);
+  const [readiness, setReadiness] = useState<ProductReadinessResult | null>(null);
+  const [readinessLoadState, setReadinessLoadState] = useState<
+    "idle" | "loading" | "ready" | "failed"
+  >("idle");
 
   useEffect(() => {
     if (!open) {
@@ -397,6 +470,11 @@ export function ProductEditor({
     setBaselineForm(serializeFormState(next));
     setValidation(emptyValidationState());
     setSlugManuallyEdited(mode === "edit");
+    setCurrentStatus(product?.status ?? "DRAFT");
+    setStatusBusy(false);
+    setStatusFeedback(null);
+    setReadiness(null);
+    setReadinessLoadState("idle");
   }, [product, mode, open]);
 
   useEffect(() => {
@@ -438,6 +516,13 @@ export function ProductEditor({
     setImageLoadState("ready");
   }
 
+  async function reloadReadiness(productId: string): Promise<void> {
+    setReadinessLoadState("loading");
+    const result = await fetchProductReadiness(productId);
+    setReadiness(result);
+    setReadinessLoadState("ready");
+  }
+
   useEffect(() => {
     if (!open || mode !== "edit" || !editingProductId) {
       setImages([]);
@@ -473,6 +558,37 @@ export function ProductEditor({
             "Could not load product images."
           ),
         });
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [editingProductId, mode, open]);
+
+  useEffect(() => {
+    if (!open || mode !== "edit" || !editingProductId) {
+      setReadiness(null);
+      setReadinessLoadState("idle");
+      return;
+    }
+
+    let active = true;
+    setReadinessLoadState("loading");
+
+    fetchProductReadiness(editingProductId)
+      .then((result) => {
+        if (!active) {
+          return;
+        }
+        setReadiness(result);
+        setReadinessLoadState("ready");
+      })
+      .catch(() => {
+        if (!active) {
+          return;
+        }
+        setReadiness(null);
+        setReadinessLoadState("failed");
       });
 
     return () => {
@@ -592,6 +708,7 @@ export function ProductEditor({
         name: file.name,
       });
       await reloadImages(editingProductId);
+      await reloadReadiness(editingProductId);
       setImageFeedback({
         tone: "success",
         message: "Image uploaded.",
@@ -667,6 +784,7 @@ export function ProductEditor({
     try {
       await removeProductImage(editingProductId, photoId);
       await reloadImages(editingProductId);
+      await reloadReadiness(editingProductId);
       setImageFeedback({
         tone: "success",
         message: "Image removed from current catalog list.",
@@ -679,6 +797,116 @@ export function ProductEditor({
       throw error;
     } finally {
       setImageBusy(false);
+    }
+  }
+
+  async function handlePublish() {
+    if (!editingProductId) {
+      return;
+    }
+
+    setStatusBusy(true);
+    setStatusFeedback(null);
+    try {
+      const nextProduct = await publishProduct(editingProductId);
+      setCurrentStatus(nextProduct.status);
+      await reloadReadiness(editingProductId);
+      if (onProductStatusChange) {
+        onProductStatusChange(nextProduct, "publish");
+      }
+      setStatusFeedback({
+        tone: "success",
+        message: "Product published.",
+      });
+    } catch (error) {
+      const missingItems =
+        typeof error === "object" &&
+        error !== null &&
+        "details" in error &&
+        typeof (error as ApiFailure).details === "object" &&
+        (error as ApiFailure).details !== null &&
+        "missingItems" in ((error as ApiFailure).details as Record<string, unknown>) &&
+        Array.isArray(
+          ((error as ApiFailure).details as { missingItems?: unknown }).missingItems
+        )
+          ? (
+              ((error as ApiFailure).details as {
+                missingItems: Array<unknown>;
+              }).missingItems
+            ).filter((item): item is string => typeof item === "string")
+          : null;
+
+      if (missingItems && missingItems.length > 0) {
+        setReadiness({
+          isReady: false,
+          missingItems,
+        });
+        setReadinessLoadState("ready");
+      }
+
+      setStatusFeedback({
+        tone: "error",
+        message: statusActionErrorMessage(error, "Publish action failed."),
+      });
+    } finally {
+      setStatusBusy(false);
+    }
+  }
+
+  async function handleUnpublish() {
+    if (!editingProductId) {
+      return;
+    }
+
+    setStatusBusy(true);
+    setStatusFeedback(null);
+    try {
+      const nextProduct = await unpublishProduct(editingProductId);
+      setCurrentStatus(nextProduct.status);
+      await reloadReadiness(editingProductId);
+      if (onProductStatusChange) {
+        onProductStatusChange(nextProduct, "unpublish");
+      }
+      setStatusFeedback({
+        tone: "success",
+        message: "Product moved to draft.",
+      });
+    } catch (error) {
+      setStatusFeedback({
+        tone: "error",
+        message: statusActionErrorMessage(error, "Unpublish action failed."),
+      });
+    } finally {
+      setStatusBusy(false);
+    }
+  }
+
+  async function handleArchive() {
+    if (!editingProductId) {
+      return;
+    }
+
+    setStatusBusy(true);
+    setStatusFeedback(null);
+    try {
+      const nextProduct = await archiveProduct(editingProductId);
+      setCurrentStatus(nextProduct.status);
+      await reloadReadiness(editingProductId);
+      if (onProductStatusChange) {
+        onProductStatusChange(nextProduct, "archive");
+      }
+      setStatusFeedback({
+        tone: "success",
+        message: "Product archived.",
+      });
+    } catch (error) {
+      setStatusFeedback({
+        tone: "error",
+        message: statusActionErrorMessage(error, "Archive action failed."),
+      });
+      throw error;
+    } finally {
+      setStatusBusy(false);
     }
   }
 
@@ -851,6 +1079,42 @@ export function ProductEditor({
               onReorder={handleReorderImage}
               onSetPrimary={handleSetPrimaryImage}
               productName={product?.name}
+            />
+          </section>
+        ) : null}
+
+        {mode === "edit" && editingProductId ? (
+          <section className="jrw-products__publish-section">
+            {statusFeedback ? (
+              <section
+                className={`jrw-products__publish-feedback jrw-products__publish-feedback--${statusFeedback.tone}`}
+                role={statusFeedback.tone === "error" ? "alert" : "status"}
+              >
+                <p>{statusFeedback.message}</p>
+              </section>
+            ) : null}
+
+            <ReadinessPanel
+              busy={saving || statusBusy}
+              errorMessage={
+                readinessLoadState === "failed"
+                  ? "Could not load publish readiness."
+                  : null
+              }
+              loading={readinessLoadState === "loading"}
+              onRefresh={async () => {
+                await reloadReadiness(editingProductId);
+              }}
+              readiness={readiness}
+            />
+
+            <PublishControl
+              busy={saving || statusBusy}
+              onArchive={handleArchive}
+              onPublish={handlePublish}
+              onUnpublish={handleUnpublish}
+              readiness={readiness}
+              status={currentStatus}
             />
           </section>
         ) : null}

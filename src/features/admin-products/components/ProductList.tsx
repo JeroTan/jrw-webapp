@@ -576,6 +576,40 @@ export function ProductList(props: ProductListProps) {
           availableCategories={availableCategories}
           mode={editorState.mode}
           onClose={() => setEditorState(null)}
+          onProductStatusChange={(nextProduct, operation) => {
+            setProducts((previous) =>
+              sortProducts(
+                previous.map((row) =>
+                  row.id === nextProduct.id ? nextProduct : row
+                )
+              )
+            );
+            setEditorState((previous) => {
+              if (
+                !previous ||
+                previous.mode !== "edit" ||
+                previous.product?.id !== nextProduct.id
+              ) {
+                return previous;
+              }
+
+              return {
+                ...previous,
+                product: nextProduct,
+              };
+            });
+            setRefreshToken((value) => value + 1);
+            setToast({
+              tone: "success",
+              title: "Status updated",
+              message:
+                operation === "publish"
+                  ? "Product published and visible to storefront queries."
+                  : operation === "unpublish"
+                    ? "Product moved to draft and hidden from storefront queries."
+                    : "Product archived with historical references preserved.",
+            });
+          }}
           onSave={handleSaveProduct}
           open={true}
           organization={editorState.organization}

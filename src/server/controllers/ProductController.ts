@@ -17,6 +17,9 @@ import type {
   ProductOrganizationResult,
   ProductOrganizationServiceInput,
   ProductOrganizationMutationResult,
+  ProductReadinessServiceResult,
+  ProductStatusMutationResult,
+  ProductStatusMutationServiceInput,
   ProductUpdateResult,
   UpdateProductServiceInput,
 } from "@/server/services/ProductService";
@@ -44,6 +47,18 @@ export type ProductServiceLike = {
   getProductOrganization(
     input: ProductOrganizationServiceInput
   ): Promise<AppResult<ProductOrganizationResult>>;
+  publish(
+    input: ProductStatusMutationServiceInput
+  ): Promise<AppResult<ProductStatusMutationResult>>;
+  unpublish(
+    input: ProductStatusMutationServiceInput
+  ): Promise<AppResult<ProductStatusMutationResult>>;
+  archive(
+    input: ProductStatusMutationServiceInput
+  ): Promise<AppResult<ProductStatusMutationResult>>;
+  getPublishReadiness(
+    input: ProductStatusMutationServiceInput
+  ): Promise<AppResult<ProductReadinessServiceResult>>;
 };
 
 export type ProductControllerResult<T> = {
@@ -99,6 +114,12 @@ export type AssignProductCategoriesControllerInput = {
 };
 
 export type ProductOrganizationControllerInput = {
+  actor: ProductActorInput | undefined;
+  requestId: string;
+  productId: string;
+};
+
+export type ProductStatusMutationControllerInput = {
   actor: ProductActorInput | undefined;
   requestId: string;
   productId: string;
@@ -243,6 +264,74 @@ export class ProductController {
     input: ProductOrganizationControllerInput
   ): Promise<ProductControllerResult<ProductOrganizationResult>> {
     const result = await this.service.getProductOrganization(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async publish(
+    input: ProductStatusMutationControllerInput
+  ): Promise<ProductControllerResult<ProductStatusMutationResult>> {
+    const result = await this.service.publish(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async unpublish(
+    input: ProductStatusMutationControllerInput
+  ): Promise<ProductControllerResult<ProductStatusMutationResult>> {
+    const result = await this.service.unpublish(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async archive(
+    input: ProductStatusMutationControllerInput
+  ): Promise<ProductControllerResult<ProductStatusMutationResult>> {
+    const result = await this.service.archive(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async getPublishReadiness(
+    input: ProductStatusMutationControllerInput
+  ): Promise<ProductControllerResult<ProductReadinessServiceResult>> {
+    const result = await this.service.getPublishReadiness(input);
 
     if (result.error) {
       return errorResult(result, input.requestId);

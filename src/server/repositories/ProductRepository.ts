@@ -17,6 +17,7 @@ import {
 import type {
   ProductListResult,
   ProductOrganizationRecord,
+  ProductPublishReadinessSnapshot,
   ProductRecord,
   ProductStatus,
 } from "@/domain/products/types";
@@ -101,11 +102,17 @@ export type ProductRepository = {
   create(input: CreateProductRecordInput): Promise<ProductRecord>;
   findById(productId: string): Promise<ProductRecord | null>;
   findBySlug(slug: string): Promise<ProductRecord | null>;
+  getPublishReadiness(
+    productId: string
+  ): Promise<ProductPublishReadinessSnapshot | null>;
   list(options: ListProductOptions): Promise<ProductListResult>;
   update(
     productId: string,
     input: UpdateProductRecordInput
   ): Promise<ProductRecord>;
+  publishProduct(productId: string, updatedAt: string): Promise<ProductRecord>;
+  draftProduct(productId: string, updatedAt: string): Promise<ProductRecord>;
+  archiveProduct(productId: string, updatedAt: string): Promise<ProductRecord>;
   assignBrand(
     productId: string,
     brandId: string,
@@ -334,6 +341,52 @@ export class DrizzleProductRepository implements ProductRepository {
       : null;
   }
 
+  async getPublishReadiness(
+    productId: string
+  ): Promise<ProductPublishReadinessSnapshot | null> {
+    const [row] = await this.db
+      .select({
+        id: products.id,
+        status: products.status,
+        hasName:
+          sql<number>`cast(case when length(trim(${products.name})) > 0 then 1 else 0 end as integer)`,
+        hasSlug:
+          sql<number>`cast(case when length(trim(${products.slug})) > 0 then 1 else 0 end as integer)`,
+        categoryCount:
+          sql<number>`cast((select count(*) from ${product_categories} where ${product_categories.product_id} = ${products.id}) as integer)`,
+        variantCount:
+          sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        imageCount:
+          sql<number>`cast((select count(*) from ${product_photos} where ${product_photos.product_id} = ${products.id}) as integer)`,
+        availableVariantCount:
+          sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and (${product_variants.stock} > 0 or ${product_variants.is_preorder} = 1)) as integer)`,
+        variantsMissingSkuCount:
+          sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and trim(coalesce(${product_variants.sku}, '')) = '') as integer)`,
+        variantsMissingPriceCount:
+          sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and ${product_variants.price} <= 0) as integer)`,
+      })
+      .from(products)
+      .where(eq(products.id, productId))
+      .limit(1);
+
+    if (!row) {
+      return null;
+    }
+
+    return {
+      productId: row.id,
+      status: row.status,
+      hasName: Number(row.hasName ?? 0) > 0,
+      hasSlug: Number(row.hasSlug ?? 0) > 0,
+      categoryCount: Number(row.categoryCount ?? 0),
+      variantCount: Number(row.variantCount ?? 0),
+      imageCount: Number(row.imageCount ?? 0),
+      availableVariantCount: Number(row.availableVariantCount ?? 0),
+      variantsMissingSkuCount: Number(row.variantsMissingSkuCount ?? 0),
+      variantsMissingPriceCount: Number(row.variantsMissingPriceCount ?? 0),
+    };
+  }
+
   async list(options: ListProductOptions): Promise<ProductListResult> {
     const page = normalizePage(options.page);
     const pageSize = normalizePageSize(options.pageSize);
@@ -474,6 +527,62 @@ export class DrizzleProductRepository implements ProductRepository {
     }
 
     return product;
+  }
+
+  private async updateProductStatus(input: {
+    productId: string;
+    status: ProductStatusValue;
+    updatedAt: string;
+  }): Promise<ProductRecord> {
+    const [updated] = await this.db
+      .update(products)
+      .set({
+        status: input.status,
+        updated_at: input.updatedAt,
+      })
+      .where(eq(products.id, input.productId))
+      .returning({ id: products.id });
+
+    if (!updated) {
+      throw new Error("D1_ERROR: product not found for status update");
+    }
+
+    const product = await this.findById(input.productId);
+    if (!product) {
+      throw new Error("D1_ERROR: product not found after status update");
+    }
+
+    return product;
+  }
+
+  async publishProduct(
+    productId: string,
+    updatedAt: string
+  ): Promise<ProductRecord> {
+    return this.updateProductStatus({
+      productId,
+      status: "PUBLISHED",
+      updatedAt,
+    });
+  }
+
+  async draftProduct(productId: string, updatedAt: string): Promise<ProductRecord> {
+    return this.updateProductStatus({
+      productId,
+      status: "DRAFT",
+      updatedAt,
+    });
+  }
+
+  async archiveProduct(
+    productId: string,
+    updatedAt: string
+  ): Promise<ProductRecord> {
+    return this.updateProductStatus({
+      productId,
+      status: "ARCHIVED",
+      updatedAt,
+    });
   }
 
   async assignBrand(

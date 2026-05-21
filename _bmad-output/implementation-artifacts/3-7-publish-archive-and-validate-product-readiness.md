@@ -1,6 +1,6 @@
 # Story 3.7: Publish, Archive, and Validate Product Readiness
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,80 +23,80 @@ so that storefront shoppers see complete, purchasable product information.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm scope and current baseline. (AC: 1-8)
-  - [ ] Verify Epic 3 is `in-progress` and Stories 3.0-3.6 are `done`; do not reopen.
-  - [ ] Confirm this story is the seventh Epic 3 backlog item after Story 3.6.
-  - [ ] Confirm existing `products` table in `src/domain/schema/catalog.ts` — current fields include `id`, `slug`, `name`, `description`, `brand_id`, `status`, timestamps.
-  - [ ] Confirm existing `ProductRepository`, `ProductService`, `ProductController`, and product routes from Story 3.2.
-  - [ ] Confirm existing `product_variants` table with inventory fields from Stories 3.4 and 3.6.
-  - [ ] Confirm existing `product_photos` table from Story 3.5.
-  - [ ] Confirm existing brand membership guards from Story 2.6.
-  - [ ] Do NOT add storefront UI, checkout flows, or order creation — this story is admin-only publish/archive validation.
+- [x] Task 1: Confirm scope and current baseline. (AC: 1-8)
+  - [x] Verify Epic 3 is `in-progress` and Stories 3.0-3.6 are `done`; do not reopen.
+  - [x] Confirm this story is the seventh Epic 3 backlog item after Story 3.6.
+  - [x] Confirm existing `products` table in `src/domain/schema/catalog.ts` — current fields include `id`, `slug`, `name`, `description`, `brand_id`, `status`, timestamps.
+  - [x] Confirm existing `ProductRepository`, `ProductService`, `ProductController`, and product routes from Story 3.2.
+  - [x] Confirm existing `product_variants` table with inventory fields from Stories 3.4 and 3.6.
+  - [x] Confirm existing `product_photos` table from Story 3.5.
+  - [x] Confirm existing brand membership guards from Story 2.6.
+  - [x] Do NOT add storefront UI, checkout flows, or order creation — this story is admin-only publish/archive validation.
 
-- [ ] Task 2: Add product readiness validation domain logic. (AC: 1-2, 5)
-  - [ ] Add `ProductReadinessChecker` or similar domain service in `src/domain/products/`.
-  - [ ] Validation rules: product must have name, slug, at least one variant, each variant must have SKU and price_centavos > 0, at least one image, valid category assignment (if required), inventory state not `OUT_OF_STOCK` for all variants (or documented exception).
-  - [ ] Return structured readiness result with list of missing items for error messaging.
-  - [ ] Add Zod/TypeBox schemas for readiness response.
+- [x] Task 2: Add product readiness validation domain logic. (AC: 1-2, 5)
+  - [x] Add `ProductReadinessChecker` or similar domain service in `src/domain/products/`.
+  - [x] Validation rules: product must have name, slug, at least one variant, each variant must have SKU and price_centavos > 0, at least one image, valid category assignment (if required), inventory state not `OUT_OF_STOCK` for all variants (or documented exception).
+  - [x] Return structured readiness result with list of missing items for error messaging.
+  - [x] Add Zod/TypeBox schemas for readiness response.
 
-- [ ] Task 3: Add product status transition domain rules. (AC: 3-5, 7)
-  - [ ] Define valid state transitions: `DRAFT` → `PUBLISHED` (requires readiness), `PUBLISHED` → `DRAFT` (always allowed), `DRAFT` → `ARCHIVED`, `PUBLISHED` → `ARCHIVED`, `ARCHIVED` → no transitions (terminal).
-  - [ ] Add `ProductStatus` enum/type (`DRAFT`, `PUBLISHED`, `ARCHIVED`) if not already in `src/domain/products/types.ts`.
-  - [ ] Add transition validation function that returns `CONFLICT_STATE` for invalid transitions.
-  - [ ] Archive must soft-delete (set status, not hard delete) — preserve for order history.
+- [x] Task 3: Add product status transition domain rules. (AC: 3-5, 7)
+  - [x] Define valid state transitions: `DRAFT` → `PUBLISHED` (requires readiness), `PUBLISHED` → `DRAFT` (always allowed), `DRAFT` → `ARCHIVED`, `PUBLISHED` → `ARCHIVED`, `ARCHIVED` → no transitions (terminal).
+  - [x] Add `ProductStatus` enum/type (`DRAFT`, `PUBLISHED`, `ARCHIVED`) if not already in `src/domain/products/types.ts`.
+  - [x] Add transition validation function that returns `CONFLICT_STATE` for invalid transitions.
+  - [x] Archive must soft-delete (set status, not hard delete) — preserve for order history.
 
-- [ ] Task 4: Add publish/archive repository methods. (AC: 1-7)
-  - [ ] Extend `ProductRepository` with `publishProduct`, `draftProduct`, `archiveProduct`, `getPublishReadiness` methods.
-  - [ ] Use D1/Drizzle patterns consistent with existing product methods.
-  - [ ] Publish/archive operations are atomic and update `updated_at` timestamp.
-  - [ ] Archive should not break foreign key relationships — use status flag, not DELETE.
+- [x] Task 4: Add publish/archive repository methods. (AC: 1-7)
+  - [x] Extend `ProductRepository` with `publishProduct`, `draftProduct`, `archiveProduct`, `getPublishReadiness` methods.
+  - [x] Use D1/Drizzle patterns consistent with existing product methods.
+  - [x] Publish/archive operations are atomic and update `updated_at` timestamp.
+  - [x] Archive should not break foreign key relationships — use status flag, not DELETE.
 
-- [ ] Task 5: Add product status service use cases. (AC: 1-7)
-  - [ ] Extend `ProductService` with `publish`, `unpublish` (to draft), `archive` use cases.
-  - [ ] Service enforces: brand membership guard (reuse `requireBrandMutationPermission` pattern).
-  - [ ] Service validates: readiness check before publish, valid state transition, archive rules.
-  - [ ] Service returns `AppResult`/`GeneralError` with appropriate error codes.
-  - [ ] Status mutations record audit event through existing audit interface.
-  - [ ] Do NOT expose publish/archive to customer-facing endpoints — admin-only.
+- [x] Task 5: Add product status service use cases. (AC: 1-7)
+  - [x] Extend `ProductService` with `publish`, `unpublish` (to draft), `archive` use cases.
+  - [x] Service enforces: brand membership guard (reuse `requireBrandMutationPermission` pattern).
+  - [x] Service validates: readiness check before publish, valid state transition, archive rules.
+  - [x] Service returns `AppResult`/`GeneralError` with appropriate error codes.
+  - [x] Status mutations record audit event through existing audit interface.
+  - [x] Do NOT expose publish/archive to customer-facing endpoints — admin-only.
 
-- [ ] Task 6: Add publish/archive API routes and controllers. (AC: 1-7, 8)
-  - [ ] Extend `ProductController` with publish, unpublish, archive actions OR create `ProductStatusController`.
-  - [ ] Add routes under existing `products.routes.ts` OR create `product-status.routes.ts`:
+- [x] Task 6: Add publish/archive API routes and controllers. (AC: 1-7, 8)
+  - [x] Extend `ProductController` with publish, unpublish, archive actions OR create `ProductStatusController`.
+  - [x] Add routes under existing `products.routes.ts` OR create `product-status.routes.ts`:
     - `POST /api/admin/products/:productId/publish` — publish product (requires readiness).
     - `POST /api/admin/products/:productId/unpublish` — move to draft.
     - `POST /api/admin/products/:productId/archive` — archive product.
     - `GET /api/admin/products/:productId/readiness` — check publish readiness (returns missing items).
-  - [ ] All routes require Admin authentication via existing RBAC guards.
-  - [ ] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
-  - [ ] Register new routes in `src/server/app.ts` if separate file.
+  - [x] All routes require Admin authentication via existing RBAC guards.
+  - [x] All routes declare TypeBox contracts, OpenAPI metadata, auth, rate-limit class, and error codes.
+  - [x] Register new routes in `src/server/app.ts` if separate file.
 
-- [ ] Task 7: Extend storefront/product queries to filter by status. (AC: 1, 3)
-  - [ ] Ensure public product/variant queries filter out `DRAFT` and `ARCHIVED` products.
-  - [ ] Confirm existing public endpoints from Stories 3.2-3.6 already respect status — add if missing.
-  - [ ] Do NOT create new storefront UI — only ensure backend filtering is correct.
+- [x] Task 7: Extend storefront/product queries to filter by status. (AC: 1, 3)
+  - [x] Ensure public product/variant queries filter out `DRAFT` and `ARCHIVED` products.
+  - [x] Confirm existing public endpoints from Stories 3.2-3.6 already respect status — add if missing.
+  - [x] Do NOT create new storefront UI — only ensure backend filtering is correct.
 
-- [ ] Task 8: Add admin publish/archive UI controls. (AC: 1-4, 8)
-  - [ ] Create `src/features/admin-products/components/PublishControl.tsx` — publish/unpublish/archive buttons with confirmation.
-  - [ ] Create `src/features/admin-products/components/ReadinessPanel.tsx` — shows missing readiness items.
-  - [ ] Integrate into existing `ProductEditor.tsx` or product detail view.
-  - [ ] Use existing `Button`, `StatusBadge`, `ConfirmDialog`, `EmptyState` primitives.
-  - [ ] Validation feedback: missing items listed, invalid transitions blocked, confirmation required for archive.
-  - [ ] Success toast on status change; error summary on failure.
+- [x] Task 8: Add admin publish/archive UI controls. (AC: 1-4, 8)
+  - [x] Create `src/features/admin-products/components/PublishControl.tsx` — publish/unpublish/archive buttons with confirmation.
+  - [x] Create `src/features/admin-products/components/ReadinessPanel.tsx` — shows missing readiness items.
+  - [x] Integrate into existing `ProductEditor.tsx` or product detail view.
+  - [x] Use existing `Button`, `StatusBadge`, `ConfirmDialog`, `EmptyState` primitives.
+  - [x] Validation feedback: missing items listed, invalid transitions blocked, confirmation required for archive.
+  - [x] Success toast on status change; error summary on failure.
 
-- [ ] Task 9: Styles and accessibility. (AC: 4-8)
-  - [ ] Publish/archive UI uses JRW tokens: 0px corners, 1px borders, no shadows, cobalt for focus/selected.
-  - [ ] Status badges include text labels — not color alone.
-  - [ ] Archive confirmation dialog has visible label and keyboard-accessible controls.
-  - [ ] Respect `prefers-reduced-motion` for any transitions.
-  - [ ] Error states have clear text descriptions.
+- [x] Task 9: Styles and accessibility. (AC: 4-8)
+  - [x] Publish/archive UI uses JRW tokens: 0px corners, 1px borders, no shadows, cobalt for focus/selected.
+  - [x] Status badges include text labels — not color alone.
+  - [x] Archive confirmation dialog has visible label and keyboard-accessible controls.
+  - [x] Respect `prefers-reduced-motion` for any transitions.
+  - [x] Error states have clear text descriptions.
 
-- [ ] Task 10: Targeted tests and checks. (AC: 1-8)
-  - [ ] Add domain/service tests in `src/server/services/ProductService.test.ts` covering: publish success, publish blocked by missing data, unpublish success, archive success, invalid transition rejection, brand membership denial, audit event emission.
-  - [ ] Add route/controller tests in `src/server/routes/products.routes.test.ts` covering: publish, unpublish, archive, readiness check, unauthorized access, invalid data, permission denial.
-  - [ ] Add UI tests in `src/features/admin-products/components/publish-ui.test.ts` covering: publish control rendering, readiness panel rendering, validation errors, status badge text labels, confirmation dialog.
-  - [ ] Run changed-target tests only: `npx vitest run src/server/services/ProductService.test.ts src/server/routes/products.routes.test.ts src/features/admin-products`.
-  - [ ] Run `npm run check` after typed/component changes.
-  - [ ] Do not run full `npm run build-test` unless implementation touches broader surfaces or MR. JRW asks for final full verdict.
+- [x] Task 10: Targeted tests and checks. (AC: 1-8)
+  - [x] Add domain/service tests in `src/server/services/ProductService.test.ts` covering: publish success, publish blocked by missing data, unpublish success, archive success, invalid transition rejection, brand membership denial, audit event emission.
+  - [x] Add route/controller tests in `src/server/routes/products.routes.test.ts` covering: publish, unpublish, archive, readiness check, unauthorized access, invalid data, permission denial.
+  - [x] Add UI tests in `src/features/admin-products/components/publish-ui.test.ts` covering: publish control rendering, readiness panel rendering, validation errors, status badge text labels, confirmation dialog.
+  - [x] Run changed-target tests only: `npx vitest run src/server/services/ProductService.test.ts src/server/routes/products.routes.test.ts src/features/admin-products`.
+  - [x] Run `npm run check` after typed/component changes.
+  - [x] Do not run full `npm run build-test` unless implementation touches broader surfaces or MR. JRW asks for final full verdict.
 
 ### Review Findings
 
@@ -432,7 +432,7 @@ npm run check
 
 ### Agent Model Used
 
-_(To be filled by dev agent)_
+GPT-5 Codex
 
 ### Implementation Plan
 
@@ -452,16 +452,47 @@ _(To be filled by dev agent)_
 
 ### Debug Log References
 
-_(To be filled by dev agent)_
+- `npx vitest run src/server/services/ProductService.test.ts` (pass)
+- `npx vitest run src/server/routes/products.routes.test.ts` (pass)
+- `npx vitest run src/features/admin-products/components/publish-ui.test.ts` (pass)
+- `npm run check` (pass; existing non-blocking hints only)
 
 ### Completion Notes List
 
-_(To be filled by dev agent)_
+- Added domain readiness evaluator and transition validator in `src/domain/products/readiness.ts`.
+- Extended product domain types and schemas with readiness contracts for backend/frontend transport.
+- Extended `ProductRepository` with `getPublishReadiness`, `publishProduct`, `draftProduct`, and `archiveProduct`.
+- Extended `ProductService` with `getPublishReadiness`, `publish`, `unpublish`, and `archive` use cases with brand guard, transition guard, readiness guard, and audit events.
+- Extended `ProductController` and `products.routes.ts` with readiness/publish/unpublish/archive endpoints and OpenAPI metadata.
+- Hardened public variant availability query to only return variants under `PUBLISHED` products.
+- Added admin publish UI surfaces (`PublishControl`, `ReadinessPanel`) and integrated with `ProductEditor` + list toast updates.
+- Added new API client helpers for readiness and status transitions.
+- Added targeted tests for product status service flows, routes, and publish UI.
 
 ### File List
 
-_(To be filled by dev agent)_
+- `src/domain/products/readiness.ts` (new)
+- `src/domain/products/types.ts` (updated)
+- `src/domain/products/schemas.ts` (updated)
+- `src/domain/products/product.test.ts` (updated)
+- `src/server/repositories/ProductRepository.ts` (updated)
+- `src/server/repositories/VariantRepository.ts` (updated)
+- `src/server/services/ProductService.ts` (updated)
+- `src/server/services/ProductService.test.ts` (new)
+- `src/server/controllers/ProductController.ts` (updated)
+- `src/server/routes/products.routes.ts` (updated)
+- `src/server/routes/products.routes.test.ts` (updated)
+- `src/features/admin-products/types.ts` (updated)
+- `src/features/admin-products/api.ts` (updated)
+- `src/features/admin-products/components/PublishControl.tsx` (new)
+- `src/features/admin-products/components/ReadinessPanel.tsx` (new)
+- `src/features/admin-products/components/ProductEditor.tsx` (updated)
+- `src/features/admin-products/components/ProductList.tsx` (updated)
+- `src/features/admin-products/components/publish-ui.test.ts` (new)
+- `src/styles/global.css` (updated)
 
 ## Change Log
 
 - 2026-05-21: Story 3.7 context engine created for product publish/archive validation, readiness checking, state transition enforcement, brand membership guards, audit event recording, and targeted tests.
+- 2026-05-21: Implemented publish/unpublish/archive lifecycle, readiness validation, admin status UI controls, public availability status filtering, and targeted test coverage.
+
