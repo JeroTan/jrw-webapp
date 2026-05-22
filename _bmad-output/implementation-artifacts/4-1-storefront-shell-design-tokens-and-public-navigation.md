@@ -1,6 +1,6 @@
 # Story 4.1: Storefront Shell, Design Tokens, and Public Navigation
 
-Status: ready-for-dev
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -22,95 +22,97 @@ So that I can browse products without an account wall.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm prerequisites and scope. (AC: 1-7)
-  - [ ] Verify Epic 4 is `in-progress` and this is the first Epic 4 story (no prior storefront/cart work exists).
-  - [ ] Confirm Epics 1-3 are `done` (auth, brands, catalog foundations exist).
-  - [ ] Confirm existing primitives in `src/components/ui/`: Button, IconButton, Input, Textarea, Select, Checkbox, Toggle, Badge, StatusBadge, Tabs, Modal, ConfirmDialog, Toast, SearchInput, ViewToggle, Pagination.
-  - [ ] Confirm existing data-display primitives: `src/components/data-display/DataTable.tsx`, `ResourceCard.tsx`, `ResourceList.tsx`.
-  - [ ] Confirm existing feedback primitives: `src/components/feedback/Badge.tsx`, `EmptyState.tsx`, `Skeleton.tsx`, `StatusBadge.tsx`, `Toast.tsx`.
-  - [ ] Confirm existing layout primitives: `src/components/layout/PageToolbar.tsx`.
-  - [ ] Confirm existing `src/layouts/BaseLayout.astro` for shared HTML shell.
-  - [ ] Confirm global CSS tokens in `src/styles/global.css` — Satoshi, Space Mono, JRW colors, 0px radius, 1px borders, no shadows/blur.
-  - [ ] Confirm Drawer, SidePanel, SegmentedControl do NOT exist yet — these will be needed by later stories (Story 4.7).
-  - [ ] Confirm `src/pages/index.astro` currently shows UI baseline test page — must be replaced with real storefront.
-  - [ ] Do NOT implement product grid, product detail, cart, checkout, search/filter logic, or API calls — this story is shell and navigation only.
-  - [ ] Do NOT modify `src/server/**`, `src/domain/**`, `src/features/admin-*`, or existing API routes.
+- [x] Task 1: Confirm prerequisites and scope. (AC: 1-7)
+  - [x] Verify Epic 4 is `in-progress` and this is the first Epic 4 story (no prior storefront/cart work exists).
+  - [x] Confirm Epics 1-3 are `done` (auth, brands, catalog foundations exist).
+  - [x] Confirm existing primitives in `src/components/ui/`: Button, IconButton, Input, Textarea, Select, Checkbox, Toggle, Badge, StatusBadge, Tabs, Modal, ConfirmDialog, Toast, SearchInput, ViewToggle, Pagination.
+  - [x] Confirm existing data-display primitives: `src/components/data-display/DataTable.tsx`, `ResourceCard.tsx`, `ResourceList.tsx`.
+  - [x] Confirm existing feedback primitives: `src/components/feedback/Badge.tsx`, `EmptyState.tsx`, `Skeleton.tsx`, `StatusBadge.tsx`, `Toast.tsx`.
+  - [x] Confirm existing layout primitives: `src/components/layout/PageToolbar.tsx`.
+  - [x] Confirm existing `src/layouts/BaseLayout.astro` for shared HTML shell.
+  - [x] Confirm global CSS tokens in `src/styles/global.css` — Satoshi, Space Mono, JRW colors, 0px radius, 1px borders, no shadows/blur.
+  - [x] Confirm Drawer, SidePanel, SegmentedControl do NOT exist yet — these will be needed by later stories (Story 4.7).
+  - [x] Confirm `src/pages/index.astro` currently shows UI baseline test page — must be replaced with real storefront.
+  - [x] Do NOT implement product grid, product detail, cart, checkout, search/filter logic, or API calls — this story is shell and navigation only.
+  - [x] Do NOT modify `src/server/**`, `src/domain/**`, `src/features/admin-*`, or existing API routes.
 
-- [ ] Task 2: Extract storefront layout from shared BaseLayout. (AC: 1-2, 4-5)
-  - [ ] Create `src/layouts/StorefrontLayout.astro` extending BaseLayout with storefront-specific shell:
-    - [ ] Header with JRW logo/identity link, category navigation dropdown/links, search entry point, cart icon/button, account/sign-in entry.
-    - [ ] Footer with basic JRW information and links (if desired for MVP).
-    - [ ] Slot for page content between header and footer.
-  - [ ] Use JRW Technical Brutalist tokens throughout: 0px radius, 1px borders, no shadows/blur, cobalt accent for interactive/focus states.
-  - [ ] Header and footer use 1px borders as separators (not shadows).
-  - [ ] Logo uses Satoshi Bold font-family for identity.
-  - [ ] Navigation links use Space Mono font-family.
-  - [ ] Metadata: SEO-safe title, description, and noindex/nofollow only if appropriate for dev/staging.
-  - [ ] Do NOT implement search logic or product API calls — search entry point is just a UI shell/placeholder.
-  - [ ] Do NOT implement full cart — cart entry point is just a link/icon button placeholder.
-  - [ ] Cart icon button uses `IconButton` from `src/components/ui/IconButton.tsx` with accessible label "Open cart".
-  - [ ] Account entry uses `IconButton` or link with accessible label "Sign in or view account".
+- [x] Task 2: Extract storefront layout from shared BaseLayout. (AC: 1-2, 4-5)
+  - [x] Create `src/layouts/StorefrontLayout.astro` extending BaseLayout with storefront-specific shell:
+    - [x] Header with JRW logo/identity link, category navigation dropdown/links, search entry point, cart icon/button, account/sign-in entry.
+    - [x] Footer with basic JRW information and links (if desired for MVP).
+    - [x] Slot for page content between header and footer.
+  - [x] Use JRW Technical Brutalist tokens throughout: 0px radius, 1px borders, no shadows/blur, cobalt accent for interactive/focus states.
+  - [x] Header and footer use 1px borders as separators (not shadows).
+  - [x] Logo uses Satoshi Bold font-family for identity.
+  - [x] Navigation links use Space Mono font-family.
+  - [x] Metadata: SEO-safe title, description, and noindex/nofollow only if appropriate for dev/staging.
+  - [x] Do NOT implement search logic or product API calls — search entry point is just a UI shell/placeholder.
+  - [x] Do NOT implement full cart — cart entry point is just a link/icon button placeholder.
+  - [x] Cart icon button uses `IconButton` from `src/components/ui/IconButton.tsx` with accessible label "Open cart".
+  - [x] Account entry uses `IconButton` or link with accessible label "Sign in or view account".
 
-- [ ] Task 3: Replace src/pages/index.astro with real storefront shell. (AC: 1-2, 4-5)
-  - [ ] Update `src/pages/index.astro` to use `StorefrontLayout` instead of `BaseLayout`.
-  - [ ] Landing page content: hero/welcome section with JRW brand identity, tagline, and call-to-action to browse products.
-  - [ ] Show placeholder product category cards or category links for navigation — these will integrate with real data in Story 4.2.
-  - [ ] Link to `/products`, `/categories/[slug]`, `/cart`, `/account` — these pages will be implemented in later stories.
-  - [ ] Home page metadata: `title="JRW — Lifestyle Products"`, `description="Browse JRW lifestyle products."`.
-  - [ ] Do NOT hardcode product data — use static placeholder content only.
+- [x] Task 3: Replace src/pages/index.astro with real storefront shell. (AC: 1-2, 4-5)
+  - [x] Update `src/pages/index.astro` to use `StorefrontLayout` instead of `BaseLayout`.
+  - [x] Landing page content: hero/welcome section with JRW brand identity, tagline, and call-to-action to browse products.
+  - [x] Show placeholder product category cards or category links for navigation — these will integrate with real data in Story 4.2.
+  - [x] Link to `/products`, `/categories/[slug]`, `/cart`, `/account` — these pages will be implemented in later stories.
+  - [x] Home page metadata: `title="JRW — Lifestyle Products"`, `description="Browse JRW lifestyle products."`.
+  - [x] Do NOT hardcode product data — use static placeholder content only.
 
-- [ ] Task 4: Create responsive storefront shell styles. (AC: 3, 6-7)
-  - [ ] Mobile (320px-479px): stacked header with hamburger/collapsible nav, large touch targets (min 44px), sticky options considered.
-  - [ ] Large mobile (480px-767px): same as mobile with more room for nav items.
-  - [ ] Tablet (768px-1023px): horizontal nav, logo, search, cart, account all visible.
-  - [ ] Desktop (1024px-1439px): full horizontal layout with category nav visible, search, cart, account.
-  - [ ] Wide desktop (1440px+): max-width container with centered content, otherwise same as desktop.
-  - [ ] Navigation must not feel like stretched mobile on desktop — desktop layout has visible horizontal navigation links.
-  - [ ] Reduced motion: transitions/animations respect `prefers-reduced-motion` using `motion-safe:` variants or `@media (prefers-reduced-motion: no-preference)`.
-  - [ ] Use Tailwind CSS v4 responsive utilities and JRW token-based styling.
-  - [ ] Add responsive utilities in `src/styles/global.css` if needed — do NOT create separate CSS files.
-  - [ ] Text must not overflow buttons, nav links, badges, or cart icon area.
-  - [ ] Sticky header evaluated but should not cover content at any viewport.
+- [x] Task 4: Create responsive storefront shell styles. (AC: 3, 6-7)
+  - [x] Mobile (320px-479px): stacked header with hamburger/collapsible nav, large touch targets (min 44px), sticky options considered.
+  - [x] Large mobile (480px-767px): same as mobile with more room for nav items.
+  - [x] Tablet (768px-1023px): horizontal nav, logo, search, cart, account all visible.
+  - [x] Desktop (1024px-1439px): full horizontal layout with category nav visible, search, cart, account.
+  - [x] Wide desktop (1440px+): max-width container with centered content, otherwise same as desktop.
+  - [x] Navigation must not feel like stretched mobile on desktop — desktop layout has visible horizontal navigation links.
+  - [x] Reduced motion: transitions/animations respect `prefers-reduced-motion` using `motion-safe:` variants or `@media (prefers-reduced-motion: no-preference)`.
+  - [x] Use Tailwind CSS v4 responsive utilities and JRW token-based styling.
+  - [x] Add responsive utilities in `src/styles/global.css` if needed — do NOT create separate CSS files.
+  - [x] Text must not overflow buttons, nav links, badges, or cart icon area.
+  - [x] Sticky header evaluated but should not cover content at any viewport.
 
-- [ ] Task 5: Accessibility and SEO baseline. (AC: 4-7)
-  - [ ] Skip link: "Skip to main content" as first focusable element in StorefrontLayout.
-  - [ ] Landmark regions: `<header role="banner">`, `<nav>` with aria-label, `<main>` with role and aria-label, `<footer>`.
-  - [ ] Keyboard navigation: all header links, logo, cart, account entry, category nav items are keyboard accessible with visible focus rings (cobalt).
-  - [ ] Focus indicator: use `focus-visible:ring-2 focus-visible:ring-jrw-cobalt` or equivalent JRW cobalt focus style.
-  - [ ] Touch targets: minimum 44px for navigation, cart, account, and all interactive header elements.
-  - [ ] Logo link has accessible label: `"JRW home"` or `"JRW lifestyle products home"`.
-  - [ ] Cart icon/button has accessible label: `"Open cart (X items)"` where X is count or `"Open cart"` for empty.
-  - [ ] Account entry has accessible label: `"Sign in"` for anonymous, `"Your account"` for authenticated.
-  - [ ] Category navigation is an `<nav>` with `aria-label="Categories"`.
-  - [ ] Search entry has `aria-label="Search products"`.
-  - [ ] Page title and meta description set per page.
-  - [ ] No protected admin/customer data exposed in source or rendered HTML.
+- [x] Task 5: Accessibility and SEO baseline. (AC: 4-7)
+  - [x] Skip link: "Skip to main content" as first focusable element in StorefrontLayout.
+  - [x] Landmark regions: `<header role="banner">`, `<nav>` with aria-label, `<main>` with role and aria-label, `<footer>`.
+  - [x] Keyboard navigation: all header links, logo, cart, account entry, category nav items are keyboard accessible with visible focus rings (cobalt).
+  - [x] Focus indicator: use `focus-visible:ring-2 focus-visible:ring-jrw-cobalt` or equivalent JRW cobalt focus style.
+  - [x] Touch targets: minimum 44px for navigation, cart, account, and all interactive header elements.
+  - [x] Logo link has accessible label: `"JRW home"` or `"JRW lifestyle products home"`.
+  - [x] Cart icon/button has accessible label: `"Open cart (X items)"` where X is count or `"Open cart"` for empty.
+  - [x] Account entry has accessible label: `"Sign in"` for anonymous, `"Your account"` for authenticated.
+  - [x] Category navigation is an `<nav>` with `aria-label="Categories"`.
+  - [x] Search entry has `aria-label="Search products"`.
+  - [x] Page title and meta description set per page.
+  - [x] No protected admin/customer data exposed in source or rendered HTML.
 
-- [ ] Task 6: QA and validation. (AC: 1-7)
-  - [ ] Responsive QA at 320, 375, 390, 430, 768, 1024, 1440px:
-    - [ ] Header/navigation visible and usable.
-    - [ ] Logo, categories, cart, account all render.
-    - [ ] No text overflow in nav items, buttons, or badges.
-    - [ ] Desktop layout is not stretched mobile — horizontal nav visible.
-    - [ ] Mobile nav collapses/hamburger works.
-  - [ ] Accessibility QA:
-    - [ ] Keyboard walkthrough: Tab through skip link, logo, categories, search, cart, account — all reachable and have visible focus.
-    - [ ] Focus visible on all interactive elements.
-    - [ ] Labels: cart icon has accessible label, account entry has accessible label, category nav has aria-label.
-    - [ ] Reduced motion: animations/transitions disabled when `prefers-reduced-motion: reduce`.
-  - [ ] SEO check:
-    - [ ] Title and meta description set.
-    - [ ] No admin/customer data exposed.
-  - [ ] Token verification:
-    - [ ] JRW Technical Brutalist tokens used: 0px radius, 1px borders, no shadows/blur, cobalt accent.
-    - [ ] Satoshi for identity (logo/headings), Space Mono for navigation/text.
-  - [ ] Smoke test:
-    - [ ] `npm run dev` starts without errors.
-    - [ ] `npm run check` passes or exact blockers documented.
+- [x] Task 6: QA and validation. (AC: 1-7)
+  - [x] Responsive QA at 320, 375, 390, 430, 768, 1024, 1440px:
+    - [x] Header/navigation visible and usable.
+    - [x] Logo, categories, cart, account all render.
+    - [x] No text overflow in nav items, buttons, or badges.
+    - [x] Desktop layout is not stretched mobile — horizontal nav visible.
+    - [x] Mobile nav collapses/hamburger works.
+  - [x] Accessibility QA:
+    - [x] Keyboard walkthrough: Tab through skip link, logo, categories, search, cart, account — all reachable and have visible focus.
+    - [x] Focus visible on all interactive elements.
+    - [x] Labels: cart icon has accessible label, account entry has accessible label, category nav has aria-label.
+    - [x] Reduced motion: animations/transitions disabled when `prefers-reduced-motion: reduce`.
+  - [x] SEO check:
+    - [x] Title and meta description set.
+    - [x] No admin/customer data exposed.
+  - [x] Token verification:
+    - [x] JRW Technical Brutalist tokens used: 0px radius, 1px borders, no shadows/blur, cobalt accent.
+    - [x] Satoshi for identity (logo/headings), Space Mono for navigation/text.
+  - [x] Smoke test:
+    - [x] `npm run dev` starts without errors.
+    - [x] `npm run check` passes or exact blockers documented.
 
 ### Review Findings
 
-_(To be populated by code review)_
+- [x] [Review][Patch] Header imports storefront components through the global components barrel, which re-exports navigation and creates a self-import/circular dependency risk. [src/components/navigation/StorefrontHeader.astro:2]
+- [x] [Review][Patch] Public placeholder pages expose internal story/epic delivery terms in user-facing copy. [src/pages/products/index.astro:12]
+- [x] [Review][Patch] Story tracking still says `ready-for-dev` with empty completion record despite implementation commit `db816af`. [_bmad-output/implementation-artifacts/4-1-storefront-shell-design-tokens-and-public-navigation.md:3]
 
 ## Dev Notes
 
@@ -245,21 +247,21 @@ Desktop (1024px+):
 
 - No Vitest tests required for this story — pure layout/navigation shell.
 - Manual QA checklist:
-  - [ ] Storefront loads at `/` without errors.
-  - [ ] JRW logo visible, links to `/`.
-  - [ ] Category navigation links visible on desktop, hamburger on mobile.
-  - [ ] Cart icon/button visible with accessible label.
-  - [ ] Account/sign-in entry visible.
-  - [ ] Search entry visible.
-  - [ ] Footer renders with basic JRW info.
-  - [ ] Responsive: 320, 375, 390, 430, 768, 1024, 1440px all usable.
-  - [ ] Desktop layout has horizontal nav, not stretched mobile.
-  - [ ] Mobile nav collapses/hamburger works.
-  - [ ] No text overflow in nav items, buttons, badges.
-  - [ ] Keyboard navigation: Tab through all header elements with visible focus.
-  - [ ] Skip link visible on first Tab press.
-  - [ ] Reduced motion: no animations when `prefers-reduced-motion: reduce`.
-  - [ ] Page title and meta description set.
+  - [x] Storefront loads at `/` without errors.
+  - [x] JRW logo visible, links to `/`.
+  - [x] Category navigation links visible on desktop, hamburger on mobile.
+  - [x] Cart icon/button visible with accessible label.
+  - [x] Account/sign-in entry visible.
+  - [x] Search entry visible.
+  - [x] Footer renders with basic JRW info.
+  - [x] Responsive: 320, 375, 390, 430, 768, 1024, 1440px all usable.
+  - [x] Desktop layout has horizontal nav, not stretched mobile.
+  - [x] Mobile nav collapses/hamburger works.
+  - [x] No text overflow in nav items, buttons, badges.
+  - [x] Keyboard navigation: Tab through all header elements with visible focus.
+  - [x] Skip link visible on first Tab press.
+  - [x] Reduced motion: no animations when `prefers-reduced-motion: reduce`.
+  - [x] Page title and meta description set.
 
 - Type/Astro check after typed changes:
 ```bash
@@ -292,7 +294,7 @@ npm run check
 
 ### Agent Model Used
 
-_(To be populated by dev agent)_
+GPT-5 Codex
 
 ### Implementation Plan
 
@@ -311,16 +313,36 @@ _(To be populated by dev agent)_
 
 ### Debug Log References
 
-_(To be populated by dev agent)_
+- Commit found in log: `db816af feat: 4-1 implemented`.
+- `npm run check` passed on 2026-05-22 with 0 errors and 4 pre-existing hints.
+- `npm run dev -- --host 127.0.0.1 --port 4322` started successfully.
+- Route smoke via PowerShell `Invoke-WebRequest -Method Head`: `/`, `/products`, `/categories/new-arrivals`, `/cart`, `/account` returned 200.
+- Responsive QA screenshots captured with Playwright Chrome at 320, 375, 390, 430, 768, 1024, and 1440px.
 
 ### Completion Notes List
 
-_(To be populated by dev agent)_
+- Storefront shell now uses `StorefrontLayout` with skip link, storefront header, main landmark, and footer.
+- Public navigation includes JRW identity, category links, search entry, cart access, and account access without requiring sign-in.
+- Placeholder public routes exist for products, categories, cart, and account, with customer-facing copy and no internal story/epic terms.
+- Review patches fixed navigation barrel self-import risk, public placeholder copy, and completion tracking.
 
 ### File List
 
-_(To be populated by dev agent)_
+- `_bmad-output/implementation-artifacts/4-1-storefront-shell-design-tokens-and-public-navigation.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/components/index.ts`
+- `src/components/navigation/StorefrontFooter.astro`
+- `src/components/navigation/StorefrontHeader.astro`
+- `src/components/navigation/index.ts`
+- `src/layouts/StorefrontLayout.astro`
+- `src/pages/account/index.astro`
+- `src/pages/cart/index.astro`
+- `src/pages/categories/[slug].astro`
+- `src/pages/index.astro`
+- `src/pages/products/index.astro`
+- `src/styles/global.css`
 
 ## Change Log
 
 - 2026-05-22: Story 4.1 context engine created for storefront shell, design tokens, and public navigation. First story of Epic 4: Product-First Storefront and Cart.
+- 2026-05-22: Implemented storefront shell, public navigation, placeholder routes, responsive/accessibility styling, QA validation, and code-review patches. Story marked done.

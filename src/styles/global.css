@@ -505,6 +505,7 @@ p {
   max-width: 16ch;
   font-family: var(--jrw-font-identity);
   font-size: clamp(2rem, 9vw, 4.5rem);
+  overflow-wrap: anywhere;
 }
 
 .jrw-storefront-hero__copy {
@@ -595,6 +596,7 @@ p {
 
 .jrw-storefront-placeholder__title {
   font-size: clamp(1.8rem, 6vw, 3rem);
+  overflow-wrap: anywhere;
 }
 
 .jrw-storefront-placeholder__copy {
@@ -694,6 +696,40 @@ p {
   }
 }
 
+@media (max-width: 374px) {
+  .jrw-storefront-shell__inner {
+    padding-inline: 12px;
+  }
+
+  .jrw-storefront-header__mobile {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .jrw-storefront-header__mobile-actions {
+    flex: 0 0 100%;
+    width: 100%;
+    gap: 4px;
+    justify-content: space-between;
+  }
+
+  .jrw-storefront-logo {
+    padding-inline: 4px;
+    font-size: 1.45rem;
+  }
+
+  .jrw-storefront-account-link,
+  .jrw-storefront-mobile-menu__toggle {
+    padding-inline: 6px;
+    font-size: 0.6875rem;
+  }
+
+  .jrw-storefront-cart-count {
+    right: -4px;
+  }
+}
+
 @media (min-width: 480px) {
   .jrw-storefront-shell__inner {
     padding-inline: var(--jrw-space-md);
@@ -711,11 +747,22 @@ p {
 
   .jrw-storefront-header__desktop {
     display: grid;
-    grid-template-columns: auto minmax(0, 1fr) minmax(220px, 340px) auto;
+    grid-template-columns: auto minmax(220px, 1fr) auto;
     align-items: center;
     gap: var(--jrw-space-sm);
     min-height: 80px;
     padding-block: var(--jrw-space-sm);
+  }
+
+  .jrw-storefront-header__desktop .jrw-storefront-nav-shell {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .jrw-storefront-header__desktop .jrw-storefront-nav {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 2px;
   }
 
   .jrw-storefront-header__desktop-actions {
@@ -741,6 +788,17 @@ p {
 
   .jrw-storefront-category-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1200px) {
+  .jrw-storefront-header__desktop {
+    grid-template-columns: auto minmax(0, 1fr) minmax(260px, 360px) auto;
+  }
+
+  .jrw-storefront-header__desktop .jrw-storefront-nav-shell {
+    grid-column: auto;
+    grid-row: auto;
   }
 }
 
