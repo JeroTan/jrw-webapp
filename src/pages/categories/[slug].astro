@@ -1,0 +1,37 @@
+---
+import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+
+const slug = Astro.params.slug ?? "category";
+const categoryName = slug
+  .split("-")
+  .filter(Boolean)
+  .map((segment) => `${segment.charAt(0).toUpperCase()}${segment.slice(1)}`)
+  .join(" ");
+
+const resolvedCategoryName = categoryName || "Category";
+---
+
+<StorefrontLayout
+  title={`${resolvedCategoryName} | JRW Categories`}
+  description={`Browse ${resolvedCategoryName} products from JRW.`}
+  mainAriaLabel="Category placeholder"
+>
+  <section class="jrw-storefront-placeholder" aria-labelledby="category-placeholder-title">
+    <p class="jrw-storefront-kicker">Category</p>
+    <h1 class="jrw-storefront-placeholder__title" id="category-placeholder-title">
+      {resolvedCategoryName}
+    </h1>
+    <p class="jrw-storefront-placeholder__copy">
+      Category product listings and filters land in Story 4.2. Navigation route
+      now exists for storefront shell QA.
+    </p>
+    <div class="jrw-storefront-inline-links">
+      <a class="jrw-storefront-link" href="/products">
+        Browse all products
+      </a>
+      <a class="jrw-storefront-link" href="/">
+        Return home
+      </a>
+    </div>
+  </section>
+</StorefrontLayout>

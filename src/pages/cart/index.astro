@@ -1,0 +1,23 @@
+---
+import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+---
+
+<StorefrontLayout
+  title="Cart | JRW"
+  description="Review cart items before checkout."
+  mainAriaLabel="Cart placeholder"
+>
+  <section class="jrw-storefront-placeholder" aria-labelledby="cart-placeholder-title">
+    <p class="jrw-storefront-kicker">Cart</p>
+    <h1 class="jrw-storefront-placeholder__title" id="cart-placeholder-title">
+      Cart flow lands in Story 4.4
+    </h1>
+    <p class="jrw-storefront-placeholder__copy">
+      Shell route exists now so cart entry points work from storefront
+      navigation.
+    </p>
+    <a class="jrw-storefront-link" href="/products">
+      Continue browsing products
+    </a>
+  </section>
+</StorefrontLayout>

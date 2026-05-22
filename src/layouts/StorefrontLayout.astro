@@ -1,0 +1,36 @@
+---
+import StorefrontFooter from "@/components/navigation/StorefrontFooter.astro";
+import StorefrontHeader from "@/components/navigation/StorefrontHeader.astro";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+interface Props {
+  title?: string;
+  description?: string;
+  mainAriaLabel?: string;
+}
+
+const {
+  title = "JRW — Lifestyle Products",
+  description = "Browse JRW lifestyle products.",
+  mainAriaLabel = "Storefront content",
+} = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+  <a class="jrw-storefront-skip-link" href="#main-content">
+    Skip to main content
+  </a>
+
+  <StorefrontHeader />
+
+  <main
+    aria-label={mainAriaLabel}
+    class="jrw-storefront-main"
+    id="main-content"
+    role="main"
+  >
+    <slot />
+  </main>
+
+  <StorefrontFooter />
+</BaseLayout>
