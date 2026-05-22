@@ -21,11 +21,25 @@ so that {{benefit}}.
 - [ ] Task 2 (AC: #)
   - [ ] Subtask 2.1
 
+## Endpoint Guard Checklist
+
+Complete for every new or changed endpoint. Mark non-applicable items as `N/A` with reason.
+
+- [ ] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
+- [ ] Route-level RBAC guard runs before validation or side effects for protected endpoints.
+- [ ] Service/controller enforces actor state before mutation: authenticated, active, verified, approved.
+- [ ] Brand-scoped reads or writes enforce active brand membership or elevated permission server-side.
+- [ ] Public/customer endpoints explicitly document why brand membership is not required.
+- [ ] Denial tests cover unauthenticated actor, wrong role, invalid account state, missing brand membership, and elevated actor path where applicable.
+- [ ] Error response uses safe envelope codes and does not leak provider/internal authorization details.
+- [ ] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
+
 ## Dev Notes
 
 - Relevant architecture patterns and constraints
 - Source tree components to touch
 - Testing standards summary
+- For endpoint stories, fill guard-denial cases from `.agents/skills/bmad-create-story/guard-denial-test-template.md`.
 
 ### Project Structure Notes
 

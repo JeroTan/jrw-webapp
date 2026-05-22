@@ -42,7 +42,7 @@ export const order_snapshots = sqliteTable(
       .$type<VariationChain[]>()
       .notNull()
       .default(sql`'[]'`),
-    price_at_purchase: real("price_at_purchase").notNull(),
+    price_at_purchase: integer("price_at_purchase").notNull(),
     price_centavos: integer("price_centavos").notNull().default(0),
     quantity: integer("quantity").notNull().default(1),
     image_r2_key: text("image_r2_key"),

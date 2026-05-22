@@ -3,7 +3,6 @@ import {
   sqliteTable,
   text,
   integer,
-  real,
   primaryKey,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
@@ -232,7 +231,7 @@ export const product_variants = sqliteTable("product_variants", {
   inventory_state: text("inventory_state", { enum: inventoryStateValues })
     .notNull()
     .default("OUT_OF_STOCK"),
-  price: real("price").notNull(),
+  price: integer("price").notNull(),
   sku: text("sku").notNull().unique(),
   is_preorder: integer("is_preorder", { mode: "boolean" })
     .notNull()
