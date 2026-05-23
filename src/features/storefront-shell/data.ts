@@ -18,4 +18,9 @@ export const storefrontHomeLinks: StorefrontNavLink[] = [
     description: "Category browsing appears here when product listings open.",
     label: "Categories",
   },
+  {
+    href: "/brands",
+    description: "Browse products grouped by brand.",
+    label: "Brands",
+  },
 ];

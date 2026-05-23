@@ -15,6 +15,7 @@
 @import "./storefront/_layout.css";
 @import "./storefront/_navigation.css";
 @import "./storefront/_cards.css";
+@import "./storefront/_brands.css";
 @import "./storefront/_category.css";
 @import "./storefront/_footer.css";
 @import "./storefront/_responsive.css";

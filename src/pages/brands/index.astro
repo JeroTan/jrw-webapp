@@ -1,8 +1,18 @@
 ---
-return "Not yet implemented.";
+import { StorefrontBrandIndex } from "@/features/storefront-brands";
+import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+
+const query = Astro.url.searchParams.get("q") ?? "";
+const withProductsOnly = Astro.url.searchParams.get("withProducts") === "1";
 ---
 
-{/* DEV NOTE DO DELETE THE COMMENT BELOW PLEASE!!! */}
-{
-  /* This page should show a list of our brands that is Header brand name and products below it in card with only image that is clickable and once reach the max width the last item card is [More then how many more to see those products of brand]. the left side of brand list is the small icons of bar of check box and search brand so the side bar is like a filter */
-}
+<StorefrontLayout
+  title="Brands | JRW"
+  description="Browse JRW products grouped by brand."
+  mainAriaLabel="Brand browsing"
+>
+  <StorefrontBrandIndex
+    query={query}
+    withProductsOnly={withProductsOnly}
+  />
+</StorefrontLayout>

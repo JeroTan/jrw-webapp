@@ -1,4 +1,9 @@
 ---
 const brandId = Astro.params.id ?? "";
-return Astro.redirect(`/admin/brands/${encodeURIComponent(brandId)}`);
+
+if (brandId.length === 0) {
+  return Astro.redirect("/brands");
+}
+
+return Astro.redirect(`/brands/${encodeURIComponent(brandId)}`);
 ---

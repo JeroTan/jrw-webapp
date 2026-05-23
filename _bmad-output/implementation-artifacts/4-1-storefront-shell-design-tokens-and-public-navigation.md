@@ -330,6 +330,7 @@ GPT-5 Codex
 - 2026-05-22 correction smoke via PowerShell `Invoke-WebRequest -Method Head`: `/`, `/products`, `/products?sort=new`, `/products?view=categories`, `/brands`, `/cart`, `/account` returned 200.
 - 2026-05-22 correction: header navigation set to `New Arrivals`, `Categories`, `Brands`, `All Products`.
 - 2026-05-22 correction: `src/styles/global.css` reduced to import hub; fonts, colors, tokens, base, page, components, features, and storefront CSS moved into partials. Real JRW color declarations now live in `src/styles/_colors.css` with Tailwind semantic aliases such as `bg-primary`, `bg-surface`, `text-muted`, and `border-primary`.
+- 2026-05-23 correction: public brand browsing routes now render React storefront brand shells; `/brand/**` redirects to public `/brands/**` instead of admin brand pages.
 
 ### Completion Notes List
 
@@ -340,6 +341,7 @@ GPT-5 Codex
 - Storefront header, footer, home, placeholder, and navigation data now live in React feature module `src/features/storefront-shell/**`; Astro files are route/layout wrappers only.
 - Category taxonomy is not hardcoded in Story 4.1; public shell keeps generic category browsing until admin-created category data is wired in later stories.
 - `global.css` is now an import map only; new JRW styles should land in scoped partials and use Tailwind `@apply` for reusable utility groups where practical.
+- Public brand browsing exists at `/brands` and `/brands/[id]` through `src/features/storefront-brands/**`. It renders the requested filter rail and brand product rows without invented brand/product data or admin-only API calls.
 
 ### File List
 
@@ -355,8 +357,17 @@ GPT-5 Codex
 - `src/features/storefront-shell/data.ts`
 - `src/features/storefront-shell/index.ts`
 - `src/features/storefront-shell/types.ts`
+- `src/features/storefront-brands/components/BrandProductStrip.tsx`
+- `src/features/storefront-brands/components/StorefrontBrandDetail.tsx`
+- `src/features/storefront-brands/components/StorefrontBrandIndex.tsx`
+- `src/features/storefront-brands/index.ts`
+- `src/features/storefront-brands/types.ts`
 - `src/layouts/StorefrontLayout.astro`
 - `src/pages/account/index.astro`
+- `src/pages/brand/[id].astro`
+- `src/pages/brand/index.astro`
+- `src/pages/brands/[id].astro`
+- `src/pages/brands/index.astro`
 - `src/pages/cart/index.astro`
 - `src/pages/categories/[slug].astro`
 - `src/pages/index.astro`
@@ -378,6 +389,7 @@ GPT-5 Codex
 - `src/styles/storefront/_layout.css`
 - `src/styles/storefront/_navigation.css`
 - `src/styles/storefront/_cards.css`
+- `src/styles/storefront/_brands.css`
 - `src/styles/storefront/_category.css`
 - `src/styles/storefront/_footer.css`
 - `src/styles/storefront/_responsive.css`
@@ -390,3 +402,4 @@ GPT-5 Codex
 - 2026-05-22: Removed invented category taxonomy from storefront navigation; kept `New arrivals` as product browsing query.
 - 2026-05-22: Updated header navigation to `New Arrivals`, `Categories`, `Brands`, `All Products`.
 - 2026-05-23: Split JRW CSS out of `global.css` into partials; moved real color declarations to `_colors.css` and added semantic Tailwind color aliases for `@apply` usage.
+- 2026-05-23: Added public brand browsing shell and corrected `/brand/**` redirects away from admin pages.

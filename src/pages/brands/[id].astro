@@ -1,3 +1,18 @@
 ---
-return "Not yet implemented.";
+import { StorefrontBrandDetail } from "@/features/storefront-brands";
+import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+
+const brandSlug = Astro.params.id ?? "";
+
+if (brandSlug.length === 0) {
+  return Astro.redirect("/brands");
+}
 ---
+
+<StorefrontLayout
+  title="Brand Products | JRW"
+  description="Browse JRW products from this brand."
+  mainAriaLabel="Brand products"
+>
+  <StorefrontBrandDetail slug={brandSlug} />
+</StorefrontLayout>
