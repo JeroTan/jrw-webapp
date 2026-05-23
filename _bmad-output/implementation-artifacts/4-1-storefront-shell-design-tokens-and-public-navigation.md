@@ -331,6 +331,9 @@ GPT-5 Codex
 - 2026-05-22 correction: header navigation set to `New Arrivals`, `Categories`, `Brands`, `All Products`.
 - 2026-05-22 correction: `src/styles/global.css` reduced to import hub; fonts, colors, tokens, base, page, components, features, and storefront CSS moved into partials. Real JRW color declarations now live in `src/styles/_colors.css` with Tailwind semantic aliases such as `bg-primary`, `bg-surface`, `text-muted`, and `border-primary`.
 - 2026-05-23 correction: public brand browsing routes now render React storefront brand shells; `/brand/**` redirects to public `/brands/**` instead of admin brand pages.
+- 2026-05-23 correction: public brand browsing now consumes `/api/storefront/brands`; existing `/api/brands/**` routes remain admin-auth APIs.
+- 2026-05-23 correction: public brand API refactored to Route -> Controller -> Service -> Repository per project context; route file owns Elysia contract only.
+- 2026-05-23 verification: `npx vitest run src/server/routes/public-brands.routes.test.ts` passed 3 tests; `npm run check` passed with 0 errors and 2 pre-existing `event.returnValue` hints.
 
 ### Completion Notes List
 
@@ -342,6 +345,8 @@ GPT-5 Codex
 - Category taxonomy is not hardcoded in Story 4.1; public shell keeps generic category browsing until admin-created category data is wired in later stories.
 - `global.css` is now an import map only; new JRW styles should land in scoped partials and use Tailwind `@apply` for reusable utility groups where practical.
 - Public brand browsing exists at `/brands` and `/brands/[id]` through `src/features/storefront-brands/**`. It renders the requested filter rail and brand product rows without invented brand/product data or admin-only API calls.
+- Brand rows are sourced from public storefront API. Empty product strips mean no published products are linked to that brand yet, not missing brand records.
+- Public storefront API follows the canonical route/controller/service/repository split, with contract tests covering public OpenAPI metadata, unauthenticated list, detail success, and 404 envelope.
 
 ### File List
 
@@ -360,8 +365,10 @@ GPT-5 Codex
 - `src/features/storefront-brands/components/BrandProductStrip.tsx`
 - `src/features/storefront-brands/components/StorefrontBrandDetail.tsx`
 - `src/features/storefront-brands/components/StorefrontBrandIndex.tsx`
+- `src/features/storefront-brands/api.ts`
 - `src/features/storefront-brands/index.ts`
 - `src/features/storefront-brands/types.ts`
+- `src/domain/brands/public-types.ts`
 - `src/layouts/StorefrontLayout.astro`
 - `src/pages/account/index.astro`
 - `src/pages/brand/[id].astro`
@@ -372,6 +379,11 @@ GPT-5 Codex
 - `src/pages/categories/[slug].astro`
 - `src/pages/index.astro`
 - `src/pages/products/index.astro`
+- `src/server/controllers/PublicBrandController.ts`
+- `src/server/repositories/PublicBrandRepository.ts`
+- `src/server/routes/public-brands.routes.ts`
+- `src/server/routes/public-brands.routes.test.ts`
+- `src/server/services/PublicBrandService.ts`
 - `src/styles/global.css`
 - `src/styles/_colors.css`
 - `src/styles/_fonts.css`
@@ -403,3 +415,5 @@ GPT-5 Codex
 - 2026-05-22: Updated header navigation to `New Arrivals`, `Categories`, `Brands`, `All Products`.
 - 2026-05-23: Split JRW CSS out of `global.css` into partials; moved real color declarations to `_colors.css` and added semantic Tailwind color aliases for `@apply` usage.
 - 2026-05-23: Added public brand browsing shell and corrected `/brand/**` redirects away from admin pages.
+- 2026-05-23: Added public brand API and wired brand pages to it; published product previews remain data-dependent.
+- 2026-05-23: Refactored public brand API into controller/service/repository layers and added public route contract coverage.

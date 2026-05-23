@@ -28,18 +28,16 @@ import {
   ownerGovernanceRoutes,
   type OwnerGovernanceRoutesOptions,
 } from "./owner-governance.routes";
-import {
-  productsRoutes,
-  type ProductRoutesOptions,
-} from "./products.routes";
+import { productsRoutes, type ProductRoutesOptions } from "./products.routes";
 import {
   snapshotsRoutes,
   type SnapshotRoutesOptions,
 } from "./snapshots.routes";
 import {
-  variantsRoutes,
-  type VariantRoutesOptions,
-} from "./variants.routes";
+  publicBrandRoutes,
+  type PublicBrandRoutesOptions,
+} from "./public-brands.routes";
+import { variantsRoutes, type VariantRoutesOptions } from "./variants.routes";
 export { serverRouteGroups } from "./route-groups";
 
 export type ServerRoutesOptions = {
@@ -54,6 +52,7 @@ export type ServerRoutesOptions = {
   inventory?: InventoryRoutesOptions;
   ownerGovernance?: OwnerGovernanceRoutesOptions;
   products?: ProductRoutesOptions;
+  publicBrands?: PublicBrandRoutesOptions;
   snapshots?: SnapshotRoutesOptions;
   variants?: VariantRoutesOptions;
 };
@@ -76,5 +75,6 @@ export function serverRoutes(
     .use((routes) => imagesRoutes(routes, options.images))
     .use((routes) => variantsRoutes(routes, options.variants))
     .use((routes) => inventoryRoutes(routes, options.inventory))
+    .use((routes) => publicBrandRoutes(routes, options.publicBrands))
     .use((routes) => snapshotsRoutes(routes, options.snapshots));
 }

@@ -1,9 +1,13 @@
 ---
+import { fetchStorefrontBrandRows } from "@/features/storefront-brands/api";
 import { StorefrontBrandIndex } from "@/features/storefront-brands";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
 
+export const prerender = false;
+
 const query = Astro.url.searchParams.get("q") ?? "";
 const withProductsOnly = Astro.url.searchParams.get("withProducts") === "1";
+const brandRows = await fetchStorefrontBrandRows(Astro.url);
 ---
 
 <StorefrontLayout
@@ -13,6 +17,7 @@ const withProductsOnly = Astro.url.searchParams.get("withProducts") === "1";
 >
   <StorefrontBrandIndex
     query={query}
+    rows={brandRows}
     withProductsOnly={withProductsOnly}
   />
 </StorefrontLayout>

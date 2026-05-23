@@ -34,15 +34,16 @@ Technical impact:
 - Add React feature UI under `src/features/storefront-brands/**`.
 - Keep Astro pages as route/layout wrappers.
 - Add storefront brand CSS partial and import it through `global.css`.
+- Add public brand API through the canonical Route -> Controller -> Service -> Repository pattern.
 - Avoid admin-only brand APIs and avoid invented brand/product data.
 
 ## 3. Recommended Approach
 
 Direct adjustment.
 
-Reason: smallest safe change. Public pages stop being stubs, navigation no longer leaks into admin routes, and real data can be wired later when Story 4.2/public catalog API exists.
+Reason: smallest safe change. Public pages stop being stubs, navigation no longer leaks into admin routes, and active admin-created brands can render through a public read API.
 
-Risk: low. UI shell only. No server, database, auth, or admin feature changes.
+Risk: low-medium. Public read-only API touches server/database boundaries, so route contract tests and standard response envelopes are required.
 
 ## 4. Detailed Change Proposal
 
@@ -50,6 +51,11 @@ Implement:
 
 - `/brands`: React brand browsing shell with filter sidebar, search field, checkbox, brand rows, and empty state.
 - `/brands/[id]`: React brand detail shell ready for dynamic brand products.
+- Public `/api/storefront/brands` endpoints for active brand rows and published product previews.
+- `src/server/routes/public-brands.routes.ts`: Elysia contract, OpenAPI metadata, TypeBox response schemas, public auth metadata.
+- `src/server/controllers/PublicBrandController.ts`: response envelope and HTTP status mapping.
+- `src/server/services/PublicBrandService.ts`: brand list/detail use cases returning `AppResult`.
+- `src/server/repositories/PublicBrandRepository.ts`: D1/Drizzle brand and product preview reads.
 - `/brand`: redirect to `/brands`.
 - `/brand/[id]`: redirect to `/brands/[id]`.
 - `src/styles/storefront/_brands.css`: scoped brand page styles using Tailwind `@apply`.
@@ -59,11 +65,12 @@ Do not implement:
 - Fake brands.
 - Fake products.
 - Admin API calls from public pages.
-- Public product/catalog API work; leave for Story 4.2.
+- Direct page-to-DB brand loading.
+- Full public product grid/detail work; leave for Story 4.2 and later Epic 4 stories.
 
 ## 5. Handoff
 
-Developer owns implemented shell and route correction.
+Developer owns implemented shell, route correction, public brand API, and route contract verification.
 
 Story 4.2 should wire real published product data, brand grouping, product images, filtering, and pagination through a public catalog API.
 

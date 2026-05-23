@@ -1,12 +1,17 @@
 ---
+import { fetchStorefrontBrandRow } from "@/features/storefront-brands/api";
 import { StorefrontBrandDetail } from "@/features/storefront-brands";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+
+export const prerender = false;
 
 const brandSlug = Astro.params.id ?? "";
 
 if (brandSlug.length === 0) {
   return Astro.redirect("/brands");
 }
+
+const brand = await fetchStorefrontBrandRow(Astro.url, brandSlug);
 ---
 
 <StorefrontLayout
@@ -14,5 +19,5 @@ if (brandSlug.length === 0) {
   description="Browse JRW products from this brand."
   mainAriaLabel="Brand products"
 >
-  <StorefrontBrandDetail slug={brandSlug} />
+  <StorefrontBrandDetail brand={brand} slug={brandSlug} />
 </StorefrontLayout>

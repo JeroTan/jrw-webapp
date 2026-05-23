@@ -175,6 +175,9 @@ export function createApp(options: CreateAppOptions = {}) {
     snapshots: {
       ...options.routes?.snapshots,
     },
+    publicBrands: {
+      ...options.routes?.publicBrands,
+    },
     customers: {
       ...options.routes?.customers,
       operationalLogger:
