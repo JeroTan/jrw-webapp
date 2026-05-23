@@ -29,20 +29,6 @@ export function StorefrontHome() {
             Browse categories
           </a>
         </div>
-        <ul
-          className="jrw-storefront-path-list"
-          aria-label="Storefront surface links"
-        >
-          <li>
-            <a href="/products">Products</a>
-          </li>
-          <li>
-            <a href="/cart">Cart</a>
-          </li>
-          <li>
-            <a href="/account">Account</a>
-          </li>
-        </ul>
       </div>
 
       <section aria-labelledby="storefront-start-title">
