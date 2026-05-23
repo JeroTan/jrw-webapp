@@ -1,0 +1,51 @@
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/satoshi/Satoshi-Variable.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Satoshi";
+  src: url("/fonts/satoshi/Satoshi-VariableItalic.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: italic;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Space Mono";
+  src: url("/fonts/space-mono/SpaceMono-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Space Mono";
+  src: url("/fonts/space-mono/SpaceMono-Bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-satoshi: "Satoshi", Arial, sans-serif;
+  --font-space-mono: "Space Mono", "Courier New", monospace;
+  --font-heading: "Satoshi", Arial, sans-serif;
+  --font-identity: "Satoshi", Arial, sans-serif;
+  --font-body: "Space Mono", "Courier New", monospace;
+  --font-label: "Space Mono", "Courier New", monospace;
+  --font-system: "Space Mono", "Courier New", monospace;
+  --font-data: "Space Mono", "Courier New", monospace;
+}
+
+:root {
+  --jrw-font-heading: var(--font-heading);
+  --jrw-font-identity: var(--font-identity);
+  --jrw-font-body: var(--font-body);
+  --jrw-font-label: var(--font-label);
+  --jrw-font-system: var(--font-system);
+  --jrw-font-data: var(--font-data);
+}

@@ -27,9 +27,9 @@ createdDate: "2026-05-11"
 
 ### Project Vision
 
-JRW Webapp is a single-store ecommerce experience for JRW lifestyle products. UX must support two main surfaces: public customer storefront and internal admin command dashboard. Storefront must feel sharp, fast, trustworthy, and product-first. Admin dashboard must feel dense, controlled, and operational.
+JRW. Webapp is a single-store ecommerce experience for JRW. lifestyle products. UX must support two main surfaces: public customer storefront and internal admin command dashboard. Storefront must feel sharp, fast, trustworthy, and product-first. Admin dashboard must feel dense, controlled, and operational.
 
-JRW is seller of record. Brands organize catalog collaboration only; they are not stores, sellers, or payment owners.
+JRW. is seller of record. Brands organize catalog collaboration only; they are not stores, sellers, or payment owners.
 
 ### Target Users
 
@@ -200,6 +200,7 @@ Adopt structure and discipline. Avoid making it too cold for shopping by pairing
 **Old JRW Simple E-commerce reference**
 
 Useful flow memory:
+
 - Discovery: landing to product grid to product preview/detail.
 - Checkout: cart drawer, delivery/contact form, PayMongo handoff, receipt-style success.
 - Admin: dashboard overview, table row drill-in, status update, email notification.
@@ -253,18 +254,21 @@ Adapt for orders, inventory, brands, audit logs, and owner controls.
 ### Design Inspiration Strategy
 
 **Adopt**
+
 - Google Stitch sharp grid, typography, cobalt accent, no-shadow structure.
 - Old JRW discovery, cart, PayMongo, receipt, and admin command flow.
 - Shopify-like catalog/order information architecture.
 - Linear-like admin density and status clarity.
 
 **Adapt**
+
 - Lifestyle storefront patterns into technical brutalist storefront.
 - Product previews into responsive desktop side panels and mobile full-screen sheets.
 - Admin CRUD flows into brand-aware, role-aware operations.
 - Order timelines into separate lanes for payment, fulfillment, return, and refund truth.
 
 **Avoid**
+
 - Marketplace mental model.
 - Soft generic ecommerce theme.
 - Promo-heavy shopping clutter.
@@ -375,6 +379,7 @@ Admins think in operations: product exists, stock changes, price changes, order 
 Super Admin thinks in governance: who can operate JRW, who owns platform authority, what changed, and who did it.
 
 Likely confusion points:
+
 - Brand mistaken as seller/store.
 - Product unavailable after cart add.
 - Payment success but order status unclear.
@@ -400,6 +405,7 @@ Core experience succeeds when:
 JRW mostly uses established ecommerce and admin patterns, with a distinct visual system.
 
 Established:
+
 - Product grid
 - Product detail page/panel
 - Cart drawer
@@ -410,6 +416,7 @@ Established:
 - Confirmation dialogs
 
 JRW-specific twist:
+
 - Technical Brutalist storefront instead of soft ecommerce UI.
 - Brands as collaboration/catalog groups, not sellers.
 - Order detail timeline split into payment, fulfillment, return, and refund truth.
@@ -446,6 +453,7 @@ JRW-specific twist:
 JRW uses existing Google Stitch palette as brand foundation.
 
 Core tokens:
+
 - Surface: `#FFFFFF`
 - Background: `#FCF8F9`
 - Content: `#0D1117`
@@ -456,6 +464,7 @@ Core tokens:
 - Error: `#BA1A1A`
 
 Semantic mapping:
+
 - Primary: black or cobalt depending action weight.
 - Secondary: white with black border.
 - Selected/focus/live: cobalt.
@@ -477,6 +486,7 @@ Use Stitch typography as default:
 - Numeric/order/payment data: Space Mono with tabular alignment where supported.
 
 Typography roles:
+
 - Storefront headings can use Satoshi for product identity and category impact.
 - Storefront product metadata uses Space Mono for price, SKU, status, and variant details.
 - Admin dashboard uses Space Mono heavily for tables, filters, timestamps, audit events, and status.
@@ -487,6 +497,7 @@ Typography roles:
 - Keep technical boundary language in planning docs, API docs, audit/legal/payment contexts, and developer notes. Routine UI should not say "JRW is seller of record", "single merchant account", "not a tenant", or similar disclaimers.
 
 Type scale:
+
 - Display/H1: 48px desktop, responsive down to 32px mobile.
 - H2: 32px desktop, 24px mobile.
 - H3: 20px.
@@ -499,6 +510,7 @@ Type scale:
 Base spacing uses 4px system.
 
 Spacing tokens:
+
 - `xs`: 8px
 - `sm`: 16px
 - `md`: 24px
@@ -507,6 +519,7 @@ Spacing tokens:
 - grid gutter: 1px border
 
 Layout rules:
+
 - Use 12-column modular grid on desktop storefront.
 - Use 2-4 column product grid on tablet based on width.
 - Use 1-2 column product grid on mobile depending product card density.
@@ -547,6 +560,7 @@ Seven directions were explored in `_bmad-output/planning-artifacts/ux-design-dir
 Use combined direction: **Architectural Commerce System**.
 
 Base:
+
 - Direction 01 for storefront product discovery.
 - Direction 02 for product detail and cart behavior.
 - Direction 04 for checkout.
@@ -890,15 +904,18 @@ OrderStatusPanel, ReturnRefundRecorder, AuditTimeline, OwnershipTransferDialog.
 ### Button Hierarchy
 
 Primary buttons trigger main next action:
+
 - Storefront: Add to Cart, Checkout, Continue to PayMongo.
 - Customer: Verify Email, Track Order.
 - Admin: Save Product, Publish Product, Update Order.
 - Super Admin: Create Admin, Begin Ownership Transfer.
 
 Secondary buttons support navigation or low-risk alternatives:
+
 - Continue Shopping, View Details, Save Draft, Cancel, Back.
 
 Danger buttons handle destructive or authority-changing actions:
+
 - Suspend Admin, Archive Product, Reject Return, Transfer Ownership final confirmation.
 
 Icon buttons only for compact repeated tools: search, filter, edit, close, upload, copy, print. Every icon button needs tooltip and accessible label.
@@ -906,32 +923,38 @@ Icon buttons only for compact repeated tools: search, filter, edit, close, uploa
 ### Feedback Patterns
 
 Success:
+
 - Use toast for routine saves.
 - Use inline confirmation for checkout, payment, ownership transfer, and return/refund records.
 
 Error:
+
 - Field errors appear beside fields.
 - Form-level error summary appears at top.
 - Customer errors hide internals and show next action.
 - Admin errors include request ID when safe.
 
 Warning:
+
 - Show before irreversible or high-impact action.
 - Include consequence and required confirmation.
 
 Loading:
+
 - Button loading for actions.
 - Skeletons for product grid, tables, cards, order timeline.
 - Stable dimensions; loading must not shift layout.
 - Skeleton animation must respect reduced motion. Use one standard: `motion-safe:animate-pulse` where Tailwind utilities are used, or centralized `jrw-skeleton` CSS that mirrors pulse behavior.
 
 Conflict:
+
 - For stale inventory, update cart and explain item changed.
 - For invalid order transition, rollback UI and show allowed next status.
 
 ### Form Patterns
 
 All forms:
+
 - Visible labels.
 - Required fields marked.
 - Inline errors.
@@ -940,32 +963,38 @@ All forms:
 - Dirty-state protection for admin editors.
 
 Storefront forms:
+
 - Short, checkout-focused.
 - Delivery/contact fields grouped by address logic.
 - Email verification prompts appear only when needed.
 
 Admin forms:
+
 - Sectioned modules: identity, media, brand, categories, variants, pricing, inventory, status.
 - Brand field must say catalog group, not seller/store.
 - Publish action blocked until required fields valid.
 
 Sensitive forms:
+
 - Suspension, ownership transfer, manual refund/return records need confirmation.
 - Ownership transfer requires target eligibility, confirmation phrase, and password re-entry.
 
 ### Navigation Patterns
 
 Storefront:
+
 - Header contains logo, categories/search, cart, account.
 - Desktop supports rich grid filters.
 - Mobile supports compact category/filter controls and sticky cart.
 - No account wall before browsing.
 
 Customer account:
+
 - Orders, profile, email verification, sign out.
 - Keep account navigation shallow.
 
 Admin:
+
 - Sidebar: Dashboard, Products, Brands, Inventory, Orders, Customers, Audit, Settings.
 - Top context bar: role, active brand scope, search/action area.
 - Resource overview pages use a toolbar with search/filter controls on the left and view toggle/actions on the right.
@@ -973,22 +1002,27 @@ Admin:
 - Tables, lists, or cards lead to side panels or detail pages.
 
 Super Admin:
+
 - Separate owner-only nav group: Admin Accounts, Ownership Transfer, Audit.
 - Owner controls visually distinct from normal Admin catalog work.
 
 ### Modal And Overlay Patterns
 
 Drawers:
+
 - Cart drawer desktop.
 - Admin side panels for product/order edits.
 
 Mobile sheets:
+
 - Product detail, filters, cart summary when space constrained.
 
 Modals:
+
 - Confirmation, ownership transfer, manual return/refund, image preview.
 
 Rules:
+
 - Trap focus.
 - Restore focus on close.
 - Escape/back closes non-destructive overlays.
@@ -997,6 +1031,7 @@ Rules:
 ### Empty, Loading, And Recovery Patterns
 
 Empty states:
+
 - No products: prompt Admin to create first product.
 - No brands: state no brands exist and offer the next action.
 - No orders: show waiting state.
@@ -1004,6 +1039,7 @@ Empty states:
 - Empty storefront category: show alternatives.
 
 Recovery:
+
 - Payment failed: let customer retry or return to cart.
 - Payment pending: show reconciliation message and order status.
 - Inventory unavailable: update affected line item.
@@ -1014,17 +1050,20 @@ Recovery:
 ### Additional Patterns
 
 Status labels:
+
 - Payment: Pending, Paid, Failed, Cancelled, Refunded.
 - Fulfillment: Placed, Processing, Ready to Ship, Shipped, Delivered, Cancelled, Refunded.
 - Return: Not Requested, Requested, Approved, Rejected, Received.
 - Refund: Not Requested, Requested, Approved, Rejected, Completed.
 
 Status and heading rhythm:
+
 - Badges/status labels above titles must have at least 12px bottom spacing.
 - Titles above descriptive copy must have at least 16px bottom spacing in dashboard cards, timelines, panels, and governance modules.
 - Badge, title, and copy must not appear visually glued even in dense admin surfaces.
 
 Brand language:
+
 - Use "brand", "catalog group", "brand members".
 - Never use seller, merchant, tenant, store owner, payout owner.
 - Use "catalog group" only when it helps explain product assignment. Do not turn brand UI into a lesson about what brands are not.
@@ -1033,6 +1072,7 @@ Brand language:
 - Seller-of-record and payment-owner wording belongs in technical/business docs or payment/legal surfaces, not normal brand management UI.
 
 Audit language:
+
 - Always show actor, action, target, timestamp, request ID when safe.
 
 ## Responsive Design & Accessibility
@@ -1042,17 +1082,20 @@ Audit language:
 Storefront is responsive-first with desktop and mobile parity.
 
 Desktop storefront:
+
 - 12-column product grid system.
 - Rich filters, search, cart drawer, product detail side panel or full detail page.
 - More visible product metadata without clutter.
 - Keyboard and pointer hover/focus states.
 
 Tablet storefront:
+
 - 2-4 column product grid.
 - Touch-safe filters and cart.
 - Product detail can use full page or wide sheet based on viewport.
 
 Mobile storefront:
+
 - 1-2 column product grid.
 - Compact category/filter controls.
 - Sticky cart/action area.
@@ -1060,11 +1103,13 @@ Mobile storefront:
 - Checkout uses stacked steps.
 
 Admin dashboard:
+
 - Desktop-first for dense tables, filters, side panels, and audit views.
 - Tablet usable for catalog/order operations.
 - Mobile admin support may be read-first or limited, not primary MVP work surface.
 
 Super Admin:
+
 - Desktop-first. Ownership transfer and admin governance require stable, spacious layout.
 
 ### Breakpoint Strategy
@@ -1078,6 +1123,7 @@ Use mobile-up breakpoints:
 - Wide desktop: 1440px+.
 
 Rules:
+
 - Storefront must be fully usable from 320px.
 - Storefront desktop must not feel like stretched mobile.
 - Dashboard tables may collapse to row cards on tablet when needed.
@@ -1089,6 +1135,7 @@ Rules:
 Target WCAG 2.2 AA.
 
 Requirements:
+
 - Text contrast meets AA.
 - Touch targets at least 44px on storefront, checkout, and mobile controls.
 - Visible focus indicator for every interactive element.
@@ -1102,6 +1149,7 @@ Requirements:
 ### Testing Strategy
 
 Responsive testing:
+
 - Test storefront at 320, 375, 390, 430, 768, 1024, 1440px.
 - Test checkout at mobile, tablet, desktop.
 - Test dashboard at tablet, desktop, wide desktop.
@@ -1109,6 +1157,7 @@ Responsive testing:
 - Verify product cards, badges, buttons, titles, and tables do not overflow.
 
 Accessibility testing:
+
 - Automated axe or equivalent scan for core pages.
 - Keyboard-only walkthrough for storefront, checkout, admin product editor, order detail, ownership transfer.
 - Screen reader spot check for status labels, errors, dialogs, drawers.
@@ -1116,6 +1165,7 @@ Accessibility testing:
 - Reduced-motion check for drawer/panel transitions.
 
 Performance UX testing:
+
 - Storefront usable load under 2.5s p75 target.
 - Product images sized to target.
 - Checkout feedback visible within 300ms.

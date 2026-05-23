@@ -129,12 +129,13 @@ So that I can browse products without an account wall.
 ### Story Scope Boundaries
 
 **IN SCOPE:**
-- `src/layouts/StorefrontLayout.astro` — new storefront shell layout
-- `src/pages/index.astro` — replace UI baseline with real storefront landing page
-- `src/styles/global.css` — add responsive/utility tokens if needed
-- `src/components/ui/` — reuse existing primitives (Button, IconButton, SearchInput, etc.)
-- `src/components/navigation/` — create if needed for header nav components
-- `src/components/layout/` — create storefront header/footer components if needed
+- `src/layouts/StorefrontLayout.astro` -- storefront shell layout
+- `src/pages/index.astro` -- storefront landing route
+- `src/pages/products/index.astro`, `src/pages/categories/[slug].astro`, `src/pages/cart/index.astro`, `src/pages/account/index.astro` -- public placeholders
+- `src/features/storefront-shell/**` -- React storefront shell feature components and navigation data
+- `src/styles/global.css` -- Tailwind/JRW CSS import hub only
+- `src/styles/_colors.css`, `_fonts.css`, `_tokens.css`, `_base.css`, `_page.css` -- global JRW style partials
+- `src/styles/components/**`, `src/styles/features/**`, `src/styles/storefront/**` -- scoped style partials
 
 **OUT OF SCOPE (do NOT implement):**
 - Product grid, product cards, product detail — Story 4.2
@@ -192,14 +193,20 @@ So that I can browse products without an account wall.
 
 - Expected new files:
   - `src/layouts/StorefrontLayout.astro` (NEW)
-  - `src/components/navigation/StorefrontHeader.tsx` (NEW — or Astro component depending on interactivity needs)
-  - `src/components/navigation/StorefrontFooter.astro` (NEW)
-  - `src/components/navigation/index.ts` (NEW — export storefront navigation components)
+  - `src/features/storefront-shell/components/StorefrontHeader.tsx` (NEW)
+  - `src/features/storefront-shell/components/StorefrontFooter.tsx` (NEW)
+  - `src/features/storefront-shell/components/StorefrontHome.tsx` (NEW)
+  - `src/features/storefront-shell/components/StorefrontPlaceholder.tsx` (NEW)
+  - `src/features/storefront-shell/data.ts` (NEW)
+  - `src/features/storefront-shell/types.ts` (NEW)
+  - `src/features/storefront-shell/index.ts` (NEW)
 
 - Expected updated files:
-  - `src/pages/index.astro` (UPDATE — replace baseline with storefront)
-  - `src/styles/global.css` (UPDATE — add storefront layout utilities)
-  - `src/components/navigation/index.ts` (UPDATE — export new components)
+  - `src/pages/index.astro` (UPDATE -- replace baseline with storefront)
+  - `src/pages/products/index.astro`, `src/pages/categories/[slug].astro`, `src/pages/cart/index.astro`, `src/pages/account/index.astro` (UPDATE -- public placeholders)
+  - `src/styles/global.css` (UPDATE -- import hub)
+  - `src/styles/_colors.css`, `_fonts.css`, `_tokens.css`, `_base.css`, `_page.css` (NEW/UPDATE -- global partials)
+  - `src/styles/components/**`, `src/styles/features/**`, `src/styles/storefront/**` (NEW/UPDATE -- scoped partials)
 
 - Do not modify:
   - `src/server/**` (no API/server changes)
@@ -217,8 +224,8 @@ So that I can browse products without an account wall.
 
 ### Component Architecture Decisions
 
-- Storefront header should be an Astro component (`.astro`) if no client-side interactivity is needed for MVP. If mobile hamburger nav requires React state, use a React island (`.tsx`).
-- Storefront footer is a static Astro component (`.astro`) — no interactivity needed.
+- Storefront header should be a React feature component (`.tsx`) under `src/features/storefront-shell/**`, rendered by Astro without client hydration while no client-side interactivity is needed.
+- Storefront footer is a static React feature component (`.tsx`) under `src/features/storefront-shell/**`.
 - Navigation links use `<a>` tags for standard navigation — not React Router or client-side routing.
 - Category navigation in header is static placeholder links for MVP — real category data integration comes in Story 4.2.
 - Cart icon shows static badge — real cart count comes in Story 4.4.
@@ -299,13 +306,13 @@ GPT-5 Codex
 ### Implementation Plan
 
 1. Review existing BaseLayout, global.css, and available UI primitives.
-2. Create `src/components/navigation/StorefrontHeader.astro` (or `.tsx` if mobile nav needs React state) with:
+2. Create `src/features/storefront-shell/components/StorefrontHeader.tsx` with:
    - Logo link, category nav links (static placeholders), search entry, cart icon button, account entry.
    - Responsive hamburger toggle for mobile.
    - JRW Technical Brutalist styling.
-3. Create `src/components/navigation/StorefrontFooter.astro` with basic info links.
+3. Create `src/features/storefront-shell/components/StorefrontFooter.tsx` with basic info links.
 4. Create `src/layouts/StorefrontLayout.astro` extending BaseLayout with header/footer.
-5. Update `src/pages/index.astro` to use StorefrontLayout with hero/welcome section and category placeholder cards.
+5. Update `src/pages/index.astro` to use StorefrontLayout and React `StorefrontHome`.
 6. Add responsive utilities to `src/styles/global.css` if needed.
 7. Run responsive QA at all specified breakpoints.
 8. Run accessibility QA (keyboard, focus, labels, reduced motion).
@@ -316,24 +323,38 @@ GPT-5 Codex
 - Commit found in log: `db816af feat: 4-1 implemented`.
 - `npm run check` passed on 2026-05-22 with 0 errors and 4 pre-existing hints.
 - `npm run dev -- --host 127.0.0.1 --port 4322` started successfully.
-- Route smoke via PowerShell `Invoke-WebRequest -Method Head`: `/`, `/products`, `/categories/new-arrivals`, `/cart`, `/account` returned 200.
+- Initial route smoke via PowerShell `Invoke-WebRequest -Method Head` returned 200 for storefront shell routes.
 - Responsive QA screenshots captured with Playwright Chrome at 320, 375, 390, 430, 768, 1024, and 1440px.
+- 2026-05-22 correction: storefront-specific UI moved out of `src/components/navigation/**` into React feature module `src/features/storefront-shell/**`.
+- 2026-05-22 correction: invented public category labels removed; admin-created categories remain dynamic and Story 4.1 only links to product browsing/category browsing placeholders.
+- 2026-05-22 correction smoke via PowerShell `Invoke-WebRequest -Method Head`: `/`, `/products`, `/products?sort=new`, `/products?view=categories`, `/brands`, `/cart`, `/account` returned 200.
+- 2026-05-22 correction: header navigation set to `New Arrivals`, `Categories`, `Brands`, `All Products`.
+- 2026-05-22 correction: `src/styles/global.css` reduced to import hub; fonts, colors, tokens, base, page, components, features, and storefront CSS moved into partials. Real JRW color declarations now live in `src/styles/_colors.css` with Tailwind semantic aliases such as `bg-primary`, `bg-surface`, `text-muted`, and `border-primary`.
 
 ### Completion Notes List
 
 - Storefront shell now uses `StorefrontLayout` with skip link, storefront header, main landmark, and footer.
-- Public navigation includes JRW identity, category links, search entry, cart access, and account access without requiring sign-in.
+- Public navigation includes JRW identity, `New Arrivals`, `Categories`, `Brands`, `All Products`, search entry, cart access, and account access without requiring sign-in.
 - Placeholder public routes exist for products, categories, cart, and account, with customer-facing copy and no internal story/epic terms.
 - Review patches fixed navigation barrel self-import risk, public placeholder copy, and completion tracking.
+- Storefront header, footer, home, placeholder, and navigation data now live in React feature module `src/features/storefront-shell/**`; Astro files are route/layout wrappers only.
+- Category taxonomy is not hardcoded in Story 4.1; public shell keeps generic category browsing until admin-created category data is wired in later stories.
+- `global.css` is now an import map only; new JRW styles should land in scoped partials and use Tailwind `@apply` for reusable utility groups where practical.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/4-1-storefront-shell-design-tokens-and-public-navigation.md`
+- `_bmad-output/implementation-artifacts/spec-storefront-react-feature-boundary.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `_bmad-output/planning-artifacts/sprint-change-proposal-2026-05-22-storefront-react-feature-boundary.md`
 - `src/components/index.ts`
-- `src/components/navigation/StorefrontFooter.astro`
-- `src/components/navigation/StorefrontHeader.astro`
-- `src/components/navigation/index.ts`
+- `src/features/storefront-shell/components/StorefrontFooter.tsx`
+- `src/features/storefront-shell/components/StorefrontHeader.tsx`
+- `src/features/storefront-shell/components/StorefrontHome.tsx`
+- `src/features/storefront-shell/components/StorefrontPlaceholder.tsx`
+- `src/features/storefront-shell/data.ts`
+- `src/features/storefront-shell/index.ts`
+- `src/features/storefront-shell/types.ts`
 - `src/layouts/StorefrontLayout.astro`
 - `src/pages/account/index.astro`
 - `src/pages/cart/index.astro`
@@ -341,8 +362,31 @@ GPT-5 Codex
 - `src/pages/index.astro`
 - `src/pages/products/index.astro`
 - `src/styles/global.css`
+- `src/styles/_colors.css`
+- `src/styles/_fonts.css`
+- `src/styles/_tokens.css`
+- `src/styles/_base.css`
+- `src/styles/_page.css`
+- `src/styles/components/_ui.css`
+- `src/styles/features/_owner-governance.css`
+- `src/styles/features/_brands.css`
+- `src/styles/features/_categories.css`
+- `src/styles/features/_products.css`
+- `src/styles/features/_variants.css`
+- `src/styles/features/_shared.css`
+- `src/styles/features/_responsive.css`
+- `src/styles/storefront/_layout.css`
+- `src/styles/storefront/_navigation.css`
+- `src/styles/storefront/_cards.css`
+- `src/styles/storefront/_category.css`
+- `src/styles/storefront/_footer.css`
+- `src/styles/storefront/_responsive.css`
 
 ## Change Log
 
 - 2026-05-22: Story 4.1 context engine created for storefront shell, design tokens, and public navigation. First story of Epic 4: Product-First Storefront and Cart.
 - 2026-05-22: Implemented storefront shell, public navigation, placeholder routes, responsive/accessibility styling, QA validation, and code-review patches. Story marked done.
+- 2026-05-22: Corrected Story 4.1 implementation boundary to React feature module `src/features/storefront-shell/**`; removed storefront-specific generic navigation components.
+- 2026-05-22: Removed invented category taxonomy from storefront navigation; kept `New arrivals` as product browsing query.
+- 2026-05-22: Updated header navigation to `New Arrivals`, `Categories`, `Brands`, `All Products`.
+- 2026-05-23: Split JRW CSS out of `global.css` into partials; moved real color declarations to `_colors.css` and added semantic Tailwind color aliases for `@apply` usage.

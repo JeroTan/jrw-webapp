@@ -1,4 +1,5 @@
 ---
+import { StorefrontPlaceholder } from "@/features/storefront-shell";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
 
 const slug = Astro.params.slug ?? "category";
@@ -16,22 +17,14 @@ const resolvedCategoryName = categoryName || "Category";
   description={`Browse ${resolvedCategoryName} products from JRW.`}
   mainAriaLabel="Category placeholder"
 >
-  <section class="jrw-storefront-placeholder" aria-labelledby="category-placeholder-title">
-    <p class="jrw-storefront-kicker">Category</p>
-    <h1 class="jrw-storefront-placeholder__title" id="category-placeholder-title">
-      {resolvedCategoryName}
-    </h1>
-    <p class="jrw-storefront-placeholder__copy">
-      Products in this category are being prepared. Browse all products or
-      return home.
-    </p>
-    <div class="jrw-storefront-inline-links">
-      <a class="jrw-storefront-link" href="/products">
-        Browse all products
-      </a>
-      <a class="jrw-storefront-link" href="/">
-        Return home
-      </a>
-    </div>
-  </section>
+  <StorefrontPlaceholder
+    copy="Products in this category are being prepared. Browse all products or return home."
+    kicker="Category"
+    links={[
+      { href: "/products", label: "Browse all products" },
+      { href: "/", label: "Return home" },
+    ]}
+    title={resolvedCategoryName}
+    titleId="category-placeholder-title"
+  />
 </StorefrontLayout>

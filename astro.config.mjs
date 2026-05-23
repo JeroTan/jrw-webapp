@@ -44,6 +44,9 @@ function optimizeWorkerServerDeps() {
 // https://astro.build/config
 export default defineConfig({
   output: "server",
+  devToolbar: {
+    enabled: false,
+  },
   adapter: cloudflare(),
   integrations: [react()],
   vite: {

@@ -1,4 +1,5 @@
 ---
+import { StorefrontPlaceholder } from "@/features/storefront-shell";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
 ---
 
@@ -7,16 +8,11 @@ import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
   description="Review cart items before checkout."
   mainAriaLabel="Cart placeholder"
 >
-  <section class="jrw-storefront-placeholder" aria-labelledby="cart-placeholder-title">
-    <p class="jrw-storefront-kicker">Cart</p>
-    <h1 class="jrw-storefront-placeholder__title" id="cart-placeholder-title">
-      Cart opens here soon
-    </h1>
-    <p class="jrw-storefront-placeholder__copy">
-      Keep browsing JRW products and return here when cart actions are ready.
-    </p>
-    <a class="jrw-storefront-link" href="/products">
-      Continue browsing products
-    </a>
-  </section>
+  <StorefrontPlaceholder
+    copy="Keep browsing JRW products and return here when cart actions are ready."
+    kicker="Cart"
+    links={[{ href: "/products", label: "Continue browsing products" }]}
+    title="Cart opens here soon"
+    titleId="cart-placeholder-title"
+  />
 </StorefrontLayout>

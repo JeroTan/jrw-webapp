@@ -1,86 +1,12 @@
 ---
+import { StorefrontHome } from "@/features/storefront-shell";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
-
-const featuredCategories = [
-  {
-    href: "/categories/new-arrivals",
-    description: "Fresh launches and limited runs curated for JRW shoppers.",
-    label: "New arrivals",
-  },
-  {
-    href: "/categories/everyday-essentials",
-    description: "Daily-use accessories and practical lifestyle staples.",
-    label: "Everyday essentials",
-  },
-  {
-    href: "/categories/home-office",
-    description: "Desk, room, and setup upgrades for focused work.",
-    label: "Home office",
-  },
-  {
-    href: "/categories/travel",
-    description: "Lightweight carry gear and trip-ready utility picks.",
-    label: "Travel",
-  },
-];
 ---
 
 <StorefrontLayout
   title="JRW — Lifestyle Products"
-  description="Browse JRW lifestyle products."
-  mainAriaLabel="JRW storefront home"
+  description="Browse JRW. lifestyle products."
+  mainAriaLabel="JRW. storefront home"
 >
-  <section class="jrw-storefront-home" aria-labelledby="storefront-home-title">
-    <div class="jrw-storefront-hero">
-      <p class="jrw-storefront-kicker">JRW Storefront</p>
-      <h1 class="jrw-storefront-hero__title" id="storefront-home-title">
-        Lifestyle products, ready to browse.
-      </h1>
-      <p class="jrw-storefront-hero__copy">
-        Explore JRW categories, move into products, and reach cart or account
-        when needed.
-      </p>
-      <div class="jrw-storefront-hero__actions">
-        <a class="jrw-button jrw-button--md jrw-button--primary" href="/products">
-          Browse products
-        </a>
-        <a class="jrw-button jrw-button--md jrw-button--secondary" href="/categories/new-arrivals">
-          Browse categories
-        </a>
-      </div>
-      <ul class="jrw-storefront-path-list" aria-label="Storefront surface links">
-        <li>
-          <a href="/products">Products</a>
-        </li>
-        <li>
-          <a href="/cart">Cart</a>
-        </li>
-        <li>
-          <a href="/account">Account</a>
-        </li>
-      </ul>
-    </div>
-
-    <section aria-labelledby="storefront-category-title">
-      <h2 class="jrw-storefront-section-title" id="storefront-category-title">
-        Browse by category
-      </h2>
-      <ul class="jrw-storefront-category-grid">
-        {
-          featuredCategories.map((category) => (
-            <li>
-              <a class="jrw-storefront-category-card" href={category.href}>
-                <span class="jrw-storefront-category-card__label">
-                  {category.label}
-                </span>
-                <span class="jrw-storefront-category-card__description">
-                  {category.description}
-                </span>
-              </a>
-            </li>
-          ))
-        }
-      </ul>
-    </section>
-  </section>
+  <StorefrontHome />
 </StorefrontLayout>

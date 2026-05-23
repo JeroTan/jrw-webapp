@@ -1,6 +1,8 @@
 ---
-import StorefrontFooter from "@/components/navigation/StorefrontFooter.astro";
-import StorefrontHeader from "@/components/navigation/StorefrontHeader.astro";
+import {
+  StorefrontFooter,
+  StorefrontHeader,
+} from "@/features/storefront-shell";
 import BaseLayout from "@/layouts/BaseLayout.astro";
 
 interface Props {
@@ -11,7 +13,7 @@ interface Props {
 
 const {
   title = "JRW — Lifestyle Products",
-  description = "Browse JRW lifestyle products.",
+  description = "Browse JRW. lifestyle products.",
   mainAriaLabel = "Storefront content",
 } = Astro.props;
 ---

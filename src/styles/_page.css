@@ -1,0 +1,48 @@
+.jrw-page-shell {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+  padding: var(--jrw-space-md);
+}
+
+.jrw-page-section {
+  display: grid;
+  gap: var(--jrw-space-sm);
+  padding: var(--jrw-space-md) 0;
+  border-bottom: var(--jrw-border-width) solid var(--jrw-color-border);
+}
+
+.jrw-page-section:first-child {
+  padding-top: var(--jrw-space-lg);
+}
+
+.jrw-page-kicker,
+.jrw-meta-text,
+.jrw-field__label,
+.jrw-field__description,
+.jrw-field__error,
+.jrw-button,
+.jrw-icon-button,
+.jrw-badge,
+.jrw-toast,
+.jrw-empty-state,
+.jrw-data-table {
+  font-family: var(--jrw-font-system);
+}
+
+.jrw-page-kicker {
+  color: var(--jrw-color-muted);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+}
+
+.jrw-page-title {
+  font-family: var(--jrw-font-identity);
+  font-size: clamp(2.25rem, 8vw, 5.5rem);
+  max-width: 10ch;
+}
+
+.jrw-page-copy {
+  max-width: 72ch;
+  color: var(--jrw-color-muted);
+  font-size: 0.9375rem;
+}

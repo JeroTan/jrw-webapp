@@ -1,0 +1,30 @@
+.jrw-storefront-path-list {
+  @apply m-0 flex list-none flex-wrap p-0;
+  gap: var(--jrw-space-xs);
+}
+
+.jrw-storefront-path-list a {
+  @apply inline-flex items-center border border-strong-border font-bold no-underline;
+  min-height: var(--jrw-control-height-sm);
+  padding: 0 var(--jrw-space-xs);
+  font-family: var(--jrw-font-system);
+  font-size: 0.75rem;
+}
+
+.jrw-storefront-path-list a:hover,
+.jrw-storefront-path-list a:focus-visible {
+  @apply border-primary;
+}
+
+.jrw-storefront-link {
+  @apply inline-flex w-fit items-center justify-center border border-strong-border font-bold no-underline uppercase;
+  min-height: var(--jrw-control-height-md);
+  padding: 0 var(--jrw-space-xs);
+  font-family: var(--jrw-font-system);
+  font-size: 0.75rem;
+}
+
+.jrw-storefront-link:hover,
+.jrw-storefront-link:focus-visible {
+  @apply border-primary;
+}

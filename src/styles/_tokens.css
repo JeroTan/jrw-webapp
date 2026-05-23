@@ -1,0 +1,26 @@
+@theme {
+  --radius-jrw: 0px;
+
+  --spacing-jrw-base: 4px;
+  --spacing-jrw-xs: 8px;
+  --spacing-jrw-sm: 16px;
+  --spacing-jrw-md: 24px;
+  --spacing-jrw-lg: 48px;
+  --spacing-jrw-xl: 80px;
+}
+
+:root {
+  --jrw-radius: 0px;
+  --jrw-border-width: 1px;
+  --jrw-focus-width: 2px;
+  --jrw-space-base: var(--spacing-jrw-base);
+  --jrw-space-xs: var(--spacing-jrw-xs);
+  --jrw-space-sm: var(--spacing-jrw-sm);
+  --jrw-space-md: var(--spacing-jrw-md);
+  --jrw-space-lg: var(--spacing-jrw-lg);
+  --jrw-space-xl: var(--spacing-jrw-xl);
+  --jrw-control-height-sm: 36px;
+  --jrw-control-height-md: 44px;
+  --jrw-z-modal: 50;
+  --jrw-z-toast: 60;
+}
