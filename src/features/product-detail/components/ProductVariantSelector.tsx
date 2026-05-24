@@ -43,7 +43,7 @@ export function ProductVariantSelector({
 
           return (
             <label
-              className={`grid gap-grid-xs border p-grid-sm ${
+              className={`grid gap-grid-xs border p-grid-sm focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-brand-accent ${
                 isSelected
                   ? "border-brand-accent bg-brand-background"
                   : "border-brand-border-strong bg-brand-surface"

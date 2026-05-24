@@ -1,0 +1,30 @@
+---
+import { DashboardShell, type DashboardRole } from "@/components/layout";
+import BaseLayout from "@/layouts/BaseLayout.astro";
+
+interface Props {
+  activeHref: string;
+  description: string;
+  role?: DashboardRole;
+  title: string;
+}
+
+const {
+  activeHref,
+  description,
+  role = "ADMIN",
+  title,
+} = Astro.props;
+---
+
+<BaseLayout description={description} robots="noindex,nofollow" title={title}>
+  <DashboardShell
+    activeHref={activeHref}
+    brandScopeLabel="All brands"
+    client:load
+    role={role}
+    userLabel={role === "SUPER_ADMIN" ? "Super Admin" : "Admin"}
+  >
+    <slot />
+  </DashboardShell>
+</BaseLayout>

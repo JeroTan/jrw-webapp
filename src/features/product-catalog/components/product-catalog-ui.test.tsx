@@ -6,6 +6,7 @@ import type {
   PublicCatalogResult,
 } from "@/domain/products/public-types";
 import {
+  ProductCard,
   ProductCatalogPage,
   ProductCatalogSkeleton,
 } from "@/features/product-catalog";
@@ -86,7 +87,7 @@ const catalog: PublicCatalogResult = {
 };
 
 describe("product catalog UI", () => {
-  it("renders live product browsing with search, categories, availability labels, and quick actions", () => {
+  it("renders live product browsing with search, categories, availability labels, and clickable cards", () => {
     const markup = renderToStaticMarkup(
       createElement(ProductCatalogPage, {
         basePath: "/products",
@@ -113,9 +114,53 @@ describe("product catalog UI", () => {
     expect(markup).toContain("md:grid-cols-4");
     expect(markup).toContain("lg:grid-cols-12");
     expect(markup).toContain("lg:col-span-4");
+    expect(markup).toContain("xl:col-span-3");
     expect(markup).toContain("h-[220px]");
     expect(markup).toContain("JRW Studio / Apparel / Available");
+    expect(markup).toContain('aria-label="View Linen Shirt"');
+    expect(markup).not.toContain("View product");
     expect(markup).not.toContain("missing seller or store");
+  });
+
+  it("renders Direction 01 card anatomy with softened borders and small price tag", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ProductCard, { product: catalog.items[0] })
+    );
+
+    expect(markup).toContain("min-h-[360px]");
+    expect(markup).toContain("border-brand-border bg-brand-surface");
+    expect(markup).toContain("h-[220px]");
+    expect(markup).toContain("object-cover");
+    expect(markup).toContain("JRW Studio / Apparel / Available");
+    expect(markup).toContain("text-[0.6875rem]");
+    expect(markup).toContain("border border-brand-content px-2.5");
+    expect(markup).not.toContain("bg-brand-accent");
+    expect(markup).toContain("PHP 19.99");
+    expect(markup).toContain("hover:outline-2");
+    expect(markup).toContain("hover:outline-offset-2");
+    expect(markup).toContain("hover:outline-brand-content");
+    expect(markup).toContain("focus-visible:outline-brand-accent");
+    expect(markup).not.toContain("aria-disabled");
+    expect(markup).not.toContain("rounded");
+    expect(markup).not.toContain("shadow");
+    expect(markup).not.toContain("blur");
+  });
+
+  it("renders missing image card with diagonal initial module", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ProductCard, { product: catalog.items[1] })
+    );
+
+    expect(markup).toContain("bg-[linear-gradient(135deg");
+    expect(markup).toContain("bg-[length:28px_28px]");
+    expect(markup).toContain('aria-label="Ceramic Vase image coming soon"');
+    expect(markup).toContain("size-[112px]");
+    expect(markup).toContain(">CV</span>");
+    expect(markup).toContain("Brandless / Home Goods / Unavailable");
+    expect(markup).toContain('aria-label="View Ceramic Vase"');
+    expect(markup).not.toContain('aria-disabled="true"');
+    expect(markup).not.toContain("rounded");
+    expect(markup).not.toContain("shadow");
   });
 
   it("keeps the landing page focused on products without category directory or filter rail", () => {

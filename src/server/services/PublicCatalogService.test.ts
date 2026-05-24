@@ -39,9 +39,9 @@ const product: PublicCatalogProductCard = {
 
 const detail: PublicCatalogDetailResult = {
   action: {
-    disabled: true,
+    disabled: false,
     label: "Add to cart",
-    reason: "Selected option is available. Cart actions are not active on this page yet.",
+    reason: "Availability rechecks before checkout.",
   },
   gallery: [
     {
@@ -83,6 +83,7 @@ const detail: PublicCatalogDetailResult = {
     description: "Lightweight linen shirt for warm days.",
     id: "prod_linen",
     name: "Linen Shirt",
+    priceCentavos: 1999,
     priceLabel: "PHP 19.99",
     primaryImage: {
       alt: "Linen Shirt front",
@@ -113,6 +114,7 @@ const detail: PublicCatalogDetailResult = {
       imageSrc: "/assets/products/linen-shirt/front.jpg",
       label: "Size: Small",
       optionValues: [{ group: "Size", name: "Small" }],
+      priceCentavos: 1999,
       priceLabel: "PHP 19.99",
       productId: "prod_linen",
       selected: true,
@@ -127,6 +129,7 @@ const detail: PublicCatalogDetailResult = {
       id: "variant_linen_large",
       label: "Size: Large",
       optionValues: [{ group: "Size", name: "Large" }],
+      priceCentavos: 2499,
       priceLabel: "PHP 24.99",
       productId: "prod_linen",
       selected: false,

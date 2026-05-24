@@ -10,9 +10,9 @@ import {
 
 const detail: PublicCatalogDetailResult = {
   action: {
-    disabled: true,
+    disabled: false,
     label: "Add to cart",
-    reason: "Selected option is available. Cart actions are not active on this page yet.",
+    reason: "Availability rechecks before checkout.",
   },
   gallery: [
     {
@@ -61,6 +61,7 @@ const detail: PublicCatalogDetailResult = {
     description: "Lightweight linen shirt for warm days.",
     id: "prod_linen",
     name: "Linen Shirt",
+    priceCentavos: 1999,
     priceLabel: "PHP 19.99",
     primaryImage: {
       alt: "Linen Shirt front",
@@ -91,6 +92,7 @@ const detail: PublicCatalogDetailResult = {
       imageSrc: "/assets/products/linen-shirt/front.jpg",
       label: "Size: Small",
       optionValues: [{ group: "Size", name: "Small" }],
+      priceCentavos: 1999,
       priceLabel: "PHP 19.99",
       productId: "prod_linen",
       selected: true,
@@ -105,6 +107,7 @@ const detail: PublicCatalogDetailResult = {
       id: "variant_linen_large",
       label: "Size: Large",
       optionValues: [{ group: "Size", name: "Large" }],
+      priceCentavos: 2499,
       priceLabel: "PHP 24.99",
       productId: "prod_linen",
       selected: false,
@@ -127,9 +130,19 @@ describe("product detail UI", () => {
     expect(markup).toContain('type="radio"');
     expect(markup).toContain("Cart action");
     expect(markup).toContain("Browse all products");
-    expect(markup).toContain("Selected option is available. Cart actions are not active on this page yet.");
+    expect(markup).toContain("Availability rechecks before checkout.");
+    expect(markup).toContain("hover:outline-2");
+    expect(markup).toContain("hover:outline-offset-2");
+    expect(markup).toContain("focus-visible:outline-brand-accent");
+    expect(markup).toContain("border-brand-accent bg-brand-accent text-brand-surface");
+    expect(markup).not.toContain("Cart actions are not active");
     expect(markup).toContain("aria-pressed=\"true\"");
     expect(markup).not.toContain("seller of record");
+    expect(markup).not.toContain("rounded-md");
+    expect(markup).not.toContain("rounded-lg");
+    expect(markup).not.toContain("shadow-sm");
+    expect(markup).not.toContain("shadow-md");
+    expect(markup).not.toContain("blur");
   });
 
   it("renders unavailable variant text and keeps brandless product copy safe", () => {
@@ -215,6 +228,8 @@ describe("product detail UI", () => {
     expect(alternateMarkup).toContain("aspect-ratio:1200 / 1500");
     expect(primaryMarkup).toContain("aspect-square");
     expect(alternateMarkup).toContain("aspect-square");
+    expect(primaryMarkup).toContain("focus-visible:outline-brand-accent");
+    expect(alternateMarkup).toContain("hover:outline-2");
   });
 
   it("renders safe recovery state for missing or unavailable products", () => {

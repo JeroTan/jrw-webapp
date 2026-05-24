@@ -1,6 +1,6 @@
 # Story 3.10: Admin Shell, Navigation, and Session UI
 
-Status: ready-for-dev
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -25,40 +25,40 @@ so that admin work starts from a real operational console instead of disconnecte
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock auth/session scope and route decisions. (AC: 1-10)
-  - [ ] Use existing Admin auth APIs only: `/api/admin/auth/sessions`, `/api/admin/auth/sessions/current`, `/api/admin/auth/password-resets`, `/api/admin/auth/password-resets/confirmations`.
-  - [ ] Do not add Admin OAuth, Customer auth reuse, generic `/api/auth/*`, or cross-realm lookup.
-  - [ ] Default Admin self-registration UI to disabled unless an existing config/feature flag already enables it. Do not invent backend registration behavior.
-  - [ ] Do not wrap all existing admin resource pages in this story; Story 3.11 owns page migration into shell.
+- [x] Task 1: Lock auth/session scope and route decisions. (AC: 1-10)
+  - [x] Use existing Admin auth APIs only: `/api/admin/auth/sessions`, `/api/admin/auth/sessions/current`, `/api/admin/auth/password-resets`, `/api/admin/auth/password-resets/confirmations`.
+  - [x] Do not add Admin OAuth, Customer auth reuse, generic `/api/auth/*`, or cross-realm lookup.
+  - [x] Default Admin self-registration UI to disabled unless an existing config/feature flag already enables it. Do not invent backend registration behavior.
+  - [x] Do not wrap all existing admin resource pages in this story; Story 3.11 owns page migration into shell.
 
-- [ ] Task 2: Add Admin auth feature UI and tests. (AC: 1-6, 10)
-  - [ ] Create `src/features/admin-auth/**` for sign-in, sign-out/session helpers, password reset request, password reset confirmation, and disabled registration notice if needed.
-  - [ ] Add tests for successful sign-in request shape, failed sign-in safe error, logout request, password reset request/confirmation request shape, and disabled registration copy.
-  - [ ] Keep copy short: "Sign in to JRW admin", "Password reset sent if account is eligible", "Ask Super Admin to create an account" when registration disabled.
+- [x] Task 2: Add Admin auth feature UI and tests. (AC: 1-6, 10)
+  - [x] Create `src/features/admin-auth/**` for sign-in, sign-out/session helpers, password reset request, password reset confirmation, and disabled registration notice if needed.
+  - [x] Add tests for successful sign-in request shape, failed sign-in safe error, logout request, password reset request/confirmation request shape, and disabled registration copy.
+  - [x] Keep copy short: "Sign in to JRW admin", "Password reset sent if account is eligible", "Ask Super Admin to create an account" when registration disabled.
 
-- [ ] Task 3: Build shared Admin shell components. (AC: 7-9)
-  - [ ] Create `DashboardShell`, `SidebarNav`, and `TopBar` under `src/components/layout/**` or `src/components/navigation/**` per architecture boundaries.
-  - [ ] Shell must expose landmarks: skip link, `nav`, `main`, top context bar, active nav item, role badge, brand scope placeholder, action/search slot.
-  - [ ] Sidebar daily Admin nav: Dashboard, Products, Brands, Inventory, Orders, Customers, Audit, Settings.
-  - [ ] Owner-only nav group: Admin Accounts, Ownership Transfer, Audit.
-  - [ ] Include logout control in top bar or sidebar utility area.
+- [x] Task 3: Build shared Admin shell components. (AC: 7-9)
+  - [x] Create `DashboardShell`, `SidebarNav`, and `TopBar` under `src/components/layout/**` or `src/components/navigation/**` per architecture boundaries.
+  - [x] Shell must expose landmarks: skip link, `nav`, `main`, top context bar, active nav item, role badge, brand scope placeholder, action/search slot.
+  - [x] Sidebar daily Admin nav: Dashboard, Products, Brands, Inventory, Orders, Customers, Audit, Settings.
+  - [x] Owner-only nav group: Admin Accounts, Ownership Transfer, Audit.
+  - [x] Include logout control in top bar or sidebar utility area.
 
-- [ ] Task 4: Add Admin routes and layout entry points. (AC: 1-10)
-  - [ ] Add `/admin` dashboard entry route.
-  - [ ] Add Admin sign-in route and password reset routes under `src/pages/admin/**`.
-  - [ ] Add `AdminLayout.astro` if Astro wrapper is cleaner than composing shell per page.
-  - [ ] Ensure protected admin data is not rendered for unauthenticated users. If server session inspection is not available in Astro yet, render shell-safe sign-in/forbidden states and keep real API/server RBAC authoritative.
+- [x] Task 4: Add Admin routes and layout entry points. (AC: 1-10)
+  - [x] Add `/admin` dashboard entry route.
+  - [x] Add Admin sign-in route and password reset routes under `src/pages/admin/**`.
+  - [x] N/A `AdminLayout.astro`; route entry points use `BaseLayout` plus client shell composition for this story.
+  - [x] Ensure protected admin data is not rendered for unauthenticated users. If server session inspection is not available in Astro yet, render shell-safe sign-in/forbidden states and keep real API/server RBAC authoritative.
 
-- [ ] Task 5: Add forbidden/loading states. (AC: 7-10)
-  - [ ] Add shell states for loading session, unauthenticated, forbidden, Admin, and Super Admin.
-  - [ ] Owner-only controls must be hidden from non-owner Admin UI.
-  - [ ] Forbidden copy must state needed permission without exposing server internals.
+- [x] Task 5: Add forbidden/loading states. (AC: 7-10)
+  - [x] Add shell states for loading session, unauthenticated, forbidden, Admin, and Super Admin.
+  - [x] Owner-only controls must be hidden from non-owner Admin UI.
+  - [x] Forbidden copy must state needed permission without exposing server internals.
 
-- [ ] Task 6: Validate. (AC: 10)
-  - [ ] Run targeted tests for admin auth and shell components.
-  - [ ] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
-  - [ ] Run `npm run check`.
-  - [ ] Manual QA `/admin`, sign-in, logout, password reset, forbidden/shell states if dev server is available.
+- [x] Task 6: Validate. (AC: 10)
+  - [x] Run targeted tests for admin auth and shell components.
+  - [x] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
+  - [x] Run `npm run check`.
+  - [x] Manual QA `/admin`, sign-in, logout, password reset, forbidden/shell states if dev server is available.
 
 ## Endpoint Guard Checklist
 
@@ -155,12 +155,34 @@ GPT-5 Codex
 
 ### Completion Notes List
 
-- Story context created only. No implementation performed.
+- Added `src/features/admin-auth/**` API helpers and React panels for admin sign-in, session inspection/logout, and password reset request/confirmation.
+- Added `/admin`, `/admin/sign-in`, `/admin/password-reset`, and `/admin/password-reset/confirm` routes. `/admin` renders a client session gate first, so unauthenticated SSR does not expose protected admin data.
+- Course correction: Admin self-registration UI/route removed. Admin accounts are created by Super Admin.
+- Added shared `DashboardShell`, `SidebarNav`, `TopBar`, loading, and forbidden states with Direction 05/07 shell landmarks, active navigation, role badge, brand scope, owner-only navigation separation, search/action region, skip link, and logout control.
+- Existing admin resource pages remain standalone; Story 3.11 owns wrapping them in the shell.
+- Validation passed: `npx vitest run src/features/admin-auth/components/admin-auth-ui.test.tsx src/components/layout/admin-shell.test.tsx`; styling `rg` produced only fixture/test-token matches; `npm run check` returned 0 errors with existing deprecated `returnValue` hints.
+- Manual browser QA was not run in this environment; static route/component coverage and Astro check validate route integration.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/3-10-admin-shell-navigation-and-session-ui.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/components/layout/DashboardShell.tsx`
+- `src/components/layout/admin-shell.test.tsx`
+- `src/components/layout/index.ts`
+- `src/features/admin-auth/api.ts`
+- `src/features/admin-auth/components/AdminPasswordResetPanels.tsx`
+- `src/features/admin-auth/components/AdminSessionGate.tsx`
+- `src/features/admin-auth/components/AdminSignInPanel.tsx`
+- `src/features/admin-auth/components/admin-auth-ui.test.tsx`
+- `src/features/admin-auth/index.ts`
+- `src/pages/admin/index.astro`
+- `src/pages/admin/sign-in.astro`
+- `src/pages/admin/password-reset/index.astro`
+- `src/pages/admin/password-reset/confirm.astro`
 
 ### Change Log
 
 - 2026-05-24: Created ready-for-dev story context.
+- 2026-05-24: Implemented admin shell, navigation, and session UI; moved story to review.
+- 2026-05-24: Completed local code review and marked story done.

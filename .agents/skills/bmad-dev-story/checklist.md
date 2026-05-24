@@ -43,6 +43,7 @@ validation-rules:
 - [ ] **Integration Tests:** Integration tests added/updated for component interactions when story requirements demand them
 - [ ] **End-to-End Tests:** End-to-end tests created for critical user flows when story requirements specify them
 - [ ] **Test Coverage:** Tests cover acceptance criteria and edge cases from story Dev Notes
+- [ ] **UI Fidelity QA:** UI stories cite exact UX directions, preserve accepted layout unless explicitly approved, and include component visual-contract assertions, responsive/manual QA notes, or a documented QA blocker. Type checks alone do not complete UI stories.
 - [ ] **Regression Prevention:** ALL existing tests pass (no regressions introduced)
 - [ ] **Code Quality:** Linting and static checks pass when configured in project
 - [ ] **Test Framework Compliance:** Tests use project's testing frameworks and patterns from Dev Notes

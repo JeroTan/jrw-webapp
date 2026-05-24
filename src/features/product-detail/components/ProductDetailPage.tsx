@@ -1,6 +1,11 @@
 import * as React from "react";
+import { Button } from "@/components/ui";
 import { StatusBadge } from "@/components/feedback";
 import type { PublicCatalogDetailVariant } from "@/domain/products/public-types";
+import {
+  addCartItemToStore,
+  cartItemInputFromDetail,
+} from "@/features/cart-checkout";
 import type { StorefrontProductDetailResult } from "../types";
 import { ProductGallery } from "./ProductGallery";
 import { ProductVariantSelector } from "./ProductVariantSelector";
@@ -8,6 +13,9 @@ import { ProductVariantSelector } from "./ProductVariantSelector";
 type ProductDetailPageProps = {
   detail: StorefrontProductDetailResult;
 };
+
+const linkOutlineClass =
+  "hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
 
 function selectedVariantFromDetail(
   detail: StorefrontProductDetailResult,
@@ -50,6 +58,10 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
     selectedImageIdFromDetail(detail, initialVariant, null)
   );
   const selectedVariant = selectedVariantFromDetail(detail, selectedVariantId);
+  const [cartStatus, setCartStatus] = React.useState<
+    "idle" | "pending" | "success" | "error"
+  >("idle");
+  const [cartMessage, setCartMessage] = React.useState<string | null>(null);
   const selectedImage = selectedImageIdFromDetail(
     detail,
     selectedVariant,
@@ -61,6 +73,30 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
   const actionReason = selectedVariant?.disabled
     ? selectedVariant.unavailableReason ?? detail.action.reason
     : detail.action.reason;
+  const canAddToCart = Boolean(selectedVariant && !selectedVariant.disabled);
+
+  function handleAddToCart() {
+    if (!selectedVariant || selectedVariant.disabled) {
+      return;
+    }
+
+    setCartStatus("pending");
+    const result = addCartItemToStore(
+      cartItemInputFromDetail(detail, selectedVariant, 1)
+    );
+
+    if (result.error) {
+      setCartStatus("error");
+      setCartMessage(result.error.message);
+      return;
+    }
+
+    setCartStatus("success");
+    setCartMessage("Added to cart.");
+    window.setTimeout(() => {
+      setCartStatus("idle");
+    }, 1400);
+  }
 
   return (
     <section
@@ -86,7 +122,7 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
           ) : null}
           {detail.product.categories.map((category) => (
             <a
-              className="inline-flex min-h-control-md items-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase text-brand-muted no-underline hover:border-brand-accent focus-visible:border-brand-accent"
+              className={`inline-flex min-h-control-md items-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase text-brand-muted no-underline ${linkOutlineClass}`}
               href={category.href}
               key={category.id}
             >
@@ -161,23 +197,38 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
               <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
                 Cart action
               </p>
-              <button
-                className="inline-flex min-h-control-md items-center justify-center border border-brand-border-strong bg-brand-background px-grid-sm font-system text-xs font-bold uppercase text-brand-muted disabled:cursor-not-allowed"
-                disabled
-                type="button"
+              <Button
+                className="uppercase disabled:cursor-not-allowed disabled:opacity-70"
+                disabled={!canAddToCart}
+                loading={cartStatus === "pending"}
+                loadingLabel="Adding"
+                onClick={handleAddToCart}
+                variant="primary"
               >
                 {actionLabel}
-              </button>
+              </Button>
             </div>
 
-            {actionReason ? (
-              <p className="m-0 text-sm text-brand-muted">{actionReason}</p>
-            ) : null}
+            <div className="min-h-control-md" aria-live="polite">
+              {cartMessage ? (
+                <p
+                  className={
+                    cartStatus === "error"
+                      ? "m-0 text-sm font-bold text-brand-danger"
+                      : "m-0 text-sm font-bold text-brand-success"
+                  }
+                >
+                  {cartMessage}
+                </p>
+              ) : actionReason ? (
+                <p className="m-0 text-sm text-brand-muted">{actionReason}</p>
+              ) : null}
+            </div>
 
             <div className="flex flex-wrap gap-grid-xs">
               {detail.recoveryLinks.map((link) => (
                 <a
-                  className="inline-flex min-h-control-md items-center justify-center border border-brand-border-strong px-grid-sm font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent"
+                  className={`inline-flex min-h-control-md items-center justify-center border border-brand-border-strong px-grid-sm font-system text-xs font-bold uppercase no-underline ${linkOutlineClass}`}
                   href={link.href}
                   key={link.href}
                 >

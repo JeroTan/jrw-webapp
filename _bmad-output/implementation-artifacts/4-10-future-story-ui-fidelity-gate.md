@@ -1,6 +1,6 @@
 # Story 4.10: Future Story UI Fidelity Gate
 
-Status: ready-for-dev
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -20,33 +20,33 @@ so that sprint work does not repeat expectation-versus-reality UI drift.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Locate story-creation and review guidance files. (AC: 1-5)
-  - [ ] Read `.agents/skills/bmad-create-story/template.md`, `checklist.md`, and `discover-inputs.md`.
-  - [ ] Read `.agents/skills/bmad-dev-story/SKILL.md` for allowed story-file edits and Definition of Done expectations.
-  - [ ] Read `.agents/skills/bmad-code-review/**` enough to know where review guidance can reference UI fidelity without changing review workflow semantics.
-  - [ ] Do not modify skill source files outside project unless they are under this repo and intended customizations.
+- [x] Task 1: Locate story-creation and review guidance files. (AC: 1-5)
+  - [x] Read `.agents/skills/bmad-create-story/template.md`, `checklist.md`, and `discover-inputs.md`.
+  - [x] Read `.agents/skills/bmad-dev-story/SKILL.md` for allowed story-file edits and Definition of Done expectations.
+  - [x] Read `.agents/skills/bmad-code-review/**` enough to know where review guidance can reference UI fidelity without changing review workflow semantics.
+  - [x] Do not modify skill source files outside project unless they are under this repo and intended customizations.
 
-- [ ] Task 2: Add UI fidelity section to story template/guidance. (AC: 1-5)
-  - [ ] Update the project-local create-story template or repo guidance so future generated stories include a `Design Direction Fidelity` subsection under Dev Notes.
-  - [ ] The subsection must require exact references to `_bmad-output/planning-artifacts/ux-design-directions.html` and direction numbers.
-  - [ ] Include layout-preservation note: do not remove accepted layout while changing component visual anatomy unless story explicitly approves it.
-  - [ ] Include primitive interaction note: Button/IconButton hover/focus must use 2px cobalt outline with 2px offset.
+- [x] Task 2: Add UI fidelity section to story template/guidance. (AC: 1-5)
+  - [x] Update the project-local create-story template or repo guidance so future generated stories include a `Design Direction Fidelity` subsection under Dev Notes.
+  - [x] The subsection must require exact references to `_bmad-output/planning-artifacts/ux-design-directions.html` and direction numbers.
+  - [x] Include layout-preservation note: do not remove accepted layout while changing component visual anatomy unless story explicitly approves it.
+  - [x] Include primitive interaction note: Button/IconButton hover/focus must use 2px cobalt outline with 2px offset.
 
-- [ ] Task 3: Add checklist gate for story quality. (AC: 1-5)
-  - [ ] Update create-story checklist or local validation guidance so UI stories fail quality review if they omit exact design directions.
-  - [ ] Storefront checklist must name Direction 01/02/03/04 as applicable.
-  - [ ] Admin checklist must name Direction 05/07 as applicable.
-  - [ ] Shared primitive checklist must include hover/focus/status/loading/empty/error state review.
+- [x] Task 3: Add checklist gate for story quality. (AC: 1-5)
+  - [x] Update create-story checklist or local validation guidance so UI stories fail quality review if they omit exact design directions.
+  - [x] Storefront checklist must name Direction 01/02/03/04 as applicable.
+  - [x] Admin checklist must name Direction 05/07 as applicable.
+  - [x] Shared primitive checklist must include hover/focus/status/loading/empty/error state review.
 
-- [ ] Task 4: Add implementation prompt guidance. (AC: 3-5)
-  - [ ] Update or create a small project guidance artifact if needed so dev agents know type checks alone are not UI completion.
-  - [ ] Require at least one of: component tests asserting visual contract classes, responsive/manual QA notes, or documented blocker.
-  - [ ] Keep guidance short and agent-readable. Avoid policy essays.
+- [x] Task 4: Add implementation prompt guidance. (AC: 3-5)
+  - [x] Update or create a small project guidance artifact if needed so dev agents know type checks alone are not UI completion.
+  - [x] Require at least one of: component tests asserting visual contract classes, responsive/manual QA notes, or documented blocker.
+  - [x] Keep guidance short and agent-readable. Avoid policy essays.
 
-- [ ] Task 5: Validate no workflow breakage. (AC: 5)
-  - [ ] Confirm modified Markdown files keep valid headings and placeholders.
-  - [ ] Run `rg -n "Design Direction Fidelity|Direction 01|Direction 05|UX-DR35|FR79" .agents _bmad-output/project-context.md _bmad-output/planning-artifacts`.
-  - [ ] Run `git diff --check` for changed docs.
+- [x] Task 5: Validate no workflow breakage. (AC: 5)
+  - [x] Confirm modified Markdown files keep valid headings and placeholders.
+  - [x] Run `rg -n "Design Direction Fidelity|Direction 01|Direction 05|UX-DR35|FR79" .agents _bmad-output/project-context.md _bmad-output/planning-artifacts`.
+  - [x] Run `git diff --check` for changed docs.
 
 ## Endpoint Guard Checklist
 
@@ -133,12 +133,21 @@ GPT-5 Codex
 
 ### Completion Notes List
 
-- Story context created only. No implementation performed.
+- Added `Design Direction Fidelity` subsection to `.agents/skills/bmad-create-story/template.md` with exact UX direction references, storefront/admin direction mapping, primitive state checks, layout-preservation guidance, and UI completion QA requirements.
+- Added create-story checklist failure gates for UI fidelity drift, missing storefront/admin direction references, primitive state omissions, layout-preservation omissions, and weak type-check-only completion.
+- Added dev-story Definition of Done UI fidelity QA gate requiring exact UX directions plus component visual-contract assertions, responsive/manual QA notes, or documented blocker.
+- Validation passed: required `rg` found the new direction/FR/UX references and `git diff --check` was clean for changed docs.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/4-10-future-story-ui-fidelity-gate.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `.agents/skills/bmad-create-story/template.md`
+- `.agents/skills/bmad-create-story/checklist.md`
+- `.agents/skills/bmad-dev-story/checklist.md`
 
 ### Change Log
 
 - 2026-05-24: Created ready-for-dev story context.
+- 2026-05-24: Implemented future UI fidelity gate guidance and moved story to review.
+- 2026-05-24: Completed local code review and marked story done.

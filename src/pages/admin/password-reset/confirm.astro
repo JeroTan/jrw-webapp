@@ -1,0 +1,18 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { AdminPasswordResetConfirmPanel } from "@/features/admin-auth";
+
+const token = Astro.url.searchParams.get("token") ?? "";
+---
+
+<BaseLayout
+  title="Set New Password | JRW Admin"
+  description="Confirm a JRW admin password reset."
+  robots="noindex,nofollow"
+>
+  <main class="grid min-h-screen place-items-center bg-brand-background p-grid-md">
+    <div class="w-full max-w-[520px]">
+      <AdminPasswordResetConfirmPanel client:load token={token} />
+    </div>
+  </main>
+</BaseLayout>

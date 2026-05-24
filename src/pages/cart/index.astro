@@ -1,18 +1,12 @@
 ---
-import { StorefrontPlaceholder } from "@/features/storefront-shell";
+import { CartPage } from "@/features/cart-checkout";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
 ---
 
 <StorefrontLayout
   title="Cart | JRW"
   description="Review cart items before checkout."
-  mainAriaLabel="Cart placeholder"
+  mainAriaLabel="Cart"
 >
-  <StorefrontPlaceholder
-    copy="Keep browsing JRW products and return here when cart actions are ready."
-    kicker="Cart"
-    links={[{ href: "/products", label: "Continue browsing products" }]}
-    title="Cart opens here soon"
-    titleId="cart-placeholder-title"
-  />
+  <CartPage client:load />
 </StorefrontLayout>

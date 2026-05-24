@@ -1,4 +1,6 @@
+import * as React from "react";
 import { IconButton, SearchInput } from "@/components/ui";
+import { CartDrawer, useCartSummary } from "@/features/cart-checkout";
 
 import { storefrontNavLinks } from "../data";
 
@@ -22,17 +24,28 @@ function CartIcon() {
 }
 
 function CartAction() {
+  const [drawerOpen, setDrawerOpen] = React.useState(false);
+  const summary = useCartSummary();
+  const cartLabel =
+    summary.totalQuantity === 1
+      ? "Open cart, 1 item"
+      : `Open cart, ${summary.totalQuantity} items`;
+
   return (
-    <form action="/cart" className="m-0" method="get">
+    <>
       <div className="relative">
-        <IconButton label="Open cart" type="submit">
+        <IconButton label={cartLabel} onClick={() => setDrawerOpen(true)}>
           <CartIcon />
         </IconButton>
-        <span aria-hidden="true" className="absolute -right-1.5 -top-1.5 inline-flex min-h-[18px] min-w-[18px] items-center justify-center border border-brand-border-strong bg-brand-surface px-1 font-system text-[0.625rem] font-bold leading-none max-[374px]:-right-1">
-          0
+        <span
+          aria-hidden="true"
+          className="absolute -right-1.5 -top-1.5 inline-flex min-h-[18px] min-w-[18px] items-center justify-center border border-brand-border-strong bg-brand-surface px-1 font-system text-[0.625rem] font-bold leading-none max-[374px]:-right-1"
+        >
+          {summary.totalQuantity}
         </span>
       </div>
-    </form>
+      <CartDrawer onClose={() => setDrawerOpen(false)} open={drawerOpen} />
+    </>
   );
 }
 

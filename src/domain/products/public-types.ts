@@ -62,6 +62,7 @@ export type PublicCatalogDetailVariant = {
   imageSrc?: string;
   label: string;
   optionValues: PublicCatalogVariantOption[];
+  priceCentavos: number;
   priceLabel: string;
   productId: string;
   selected: boolean;
@@ -91,6 +92,7 @@ export type PublicCatalogProductDetailSummary = {
   description: string;
   id: string;
   name: string;
+  priceCentavos: number | null;
   priceLabel: string;
   primaryImage: PublicCatalogGalleryItem | null;
   slug: string;

@@ -1,11 +1,13 @@
 ---
-import BaseLayout from "../../../layouts/BaseLayout.astro";
+import AdminLayout from "../../../layouts/AdminLayout.astro";
 import { OwnershipTransferPanel } from "../../../features/owner-governance/OwnershipTransferPanel";
 ---
 
-<BaseLayout
+<AdminLayout
+  activeHref="/admin/owner/transfer"
   title="Ownership Transfer | JRW Admin"
   description="Owner-only JRW governance surface."
+  role="SUPER_ADMIN"
 >
   <OwnershipTransferPanel client:load />
-</BaseLayout>
+</AdminLayout>

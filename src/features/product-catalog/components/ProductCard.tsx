@@ -5,86 +5,77 @@ type ProductCardProps = {
   product: StorefrontCatalogProductCard;
 };
 
+function productInitials(name: string): string {
+  const initials = name
+    .trim()
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+
+  return initials || "JRW";
+}
+
 function ProductImage({ product }: ProductCardProps) {
   if (product.imageSrc) {
     return (
-      <a
-        className="grid h-[220px] place-items-center overflow-hidden border-b border-brand-border-strong bg-brand-background"
-        href={product.href}
-      >
+      <div className="grid h-[220px] place-items-center overflow-hidden border-b border-brand-border bg-brand-background">
         <img
           alt={product.imageAlt}
           className="h-full w-full object-cover"
           loading="lazy"
           src={product.imageSrc}
         />
-      </a>
+      </div>
     );
   }
 
   return (
-    <a
-      className="grid h-[220px] place-items-center border-b border-brand-border-strong bg-[linear-gradient(135deg,var(--color-brand-background)_0_25%,var(--color-brand-surface)_25%_50%,var(--color-brand-border)_50%_75%,var(--color-brand-surface)_75%)] bg-[length:28px_28px] p-grid-sm text-center font-system text-xs font-bold uppercase text-brand-muted no-underline"
-      href={product.href}
+    <div
+      aria-label={`${product.name} image coming soon`}
+      className="grid h-[220px] place-items-center border-b border-brand-border bg-[linear-gradient(135deg,var(--color-brand-background)_0_25%,var(--color-brand-surface)_25%_50%,var(--color-brand-border)_50%_75%,var(--color-brand-surface)_75%)] bg-[length:28px_28px] p-grid-sm text-center font-system text-xs font-bold uppercase text-brand-muted"
+      role="img"
     >
-      Image coming soon
-    </a>
+      <span className="grid size-[112px] place-items-center border border-brand-border bg-brand-surface font-identity text-[2.375rem] font-black text-brand-content">
+        {productInitials(product.name)}
+      </span>
+    </div>
   );
 }
 
 export function ProductCard({ product }: ProductCardProps) {
   return (
-    <article className="grid h-full min-h-[360px] grid-rows-[auto_1fr] bg-brand-surface">
-      <ProductImage product={product} />
+    <article className="h-full min-h-[360px] border border-brand-border bg-brand-surface">
+      <a
+        aria-label={`View ${product.name}`}
+        className="group grid h-full grid-rows-[auto_1fr] text-brand-content no-underline hover:outline-2 hover:outline-offset-2 hover:outline-brand-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+        href={product.href}
+      >
+        <ProductImage product={product} />
 
-      <div className="grid content-start gap-grid-xs p-grid-sm">
-        <div className="grid gap-grid-xs">
-          <a
-            className="font-identity text-[1.1rem] font-extrabold leading-tight no-underline hover:text-brand-accent focus-visible:text-brand-accent [overflow-wrap:anywhere]"
-            href={product.href}
-          >
-            {product.name}
-          </a>
+        <div className="grid content-start gap-grid-xs p-grid-sm">
+          <div className="grid gap-grid-xs">
+            <h3 className="m-0 font-identity text-[1.05rem] font-extrabold leading-tight [overflow-wrap:anywhere] group-hover:text-brand-accent">
+              {product.name}
+            </h3>
 
-          <p className="m-0 font-system text-xs text-brand-muted">
-            {[
-              product.brandName ?? "Brandless",
-              product.categoryName,
-              product.availability.label,
-            ]
-              .filter(Boolean)
-              .join(" / ")}
-          </p>
-        </div>
+            <p className="m-0 font-system text-xs text-brand-muted">
+              {[
+                product.brandName ?? "Brandless",
+                product.categoryName,
+                product.availability.label,
+              ]
+                .filter(Boolean)
+                .join(" / ")}
+            </p>
+          </div>
 
-        <div className="flex flex-wrap items-center gap-grid-xs">
-          <span className="inline-flex min-h-control-sm items-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase">
+          <span className="inline-flex min-h-[28px] w-fit items-center border border-brand-content px-2.5 font-system text-[0.6875rem] font-bold uppercase leading-none text-brand-content">
             {product.priceLabel}
           </span>
-
-          {product.quickAction.disabled ? (
-            <span
-              aria-disabled="true"
-              className="inline-flex min-h-control-sm items-center justify-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase text-brand-muted"
-            >
-              {product.quickAction.label}
-            </span>
-          ) : (
-            <a
-              className="inline-flex min-h-control-sm items-center justify-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent"
-              href={product.quickAction.href}
-            >
-              {product.quickAction.label}
-            </a>
-          )}
         </div>
-
-        {product.quickAction.disabled && product.quickAction.hint ? (
-          <p className="m-0 font-system text-xs text-brand-muted">
-            {product.quickAction.hint}
-          </p>
-        ) : null}
-      </div>
+      </a>
     </article>
   );
 }

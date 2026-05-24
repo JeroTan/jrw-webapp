@@ -231,7 +231,7 @@ export function OwnershipTransferPanel() {
   }
 
   return (
-    <main className="mx-auto w-full max-w-[1240px] p-grid-md max-md:p-grid-sm">
+    <section className="grid gap-grid-sm">
       <header className="grid grid-cols-[minmax(0,1fr)_minmax(280px,420px)] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
         <div>
           <p className="font-system text-xs font-bold uppercase text-brand-muted">Owner-only governance</p>
@@ -405,6 +405,6 @@ export function OwnershipTransferPanel() {
           </form>
         ) : null}
       </Modal>
-    </main>
+    </section>
   );
 }

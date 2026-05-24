@@ -8,6 +8,9 @@ type ProductGalleryProps = {
   onSelectImage: (imageId: string) => void;
 };
 
+const thumbnailOutlineClass =
+  "hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
+
 function aspectRatioValue(image: PublicCatalogGalleryItem | null): string {
   if (!image?.width || !image.height) {
     return "1 / 1";
@@ -76,7 +79,7 @@ export function ProductGallery({
                     isSelected
                       ? "border-brand-accent"
                       : "border-brand-border-strong"
-                  }`}
+                  } ${thumbnailOutlineClass}`}
                   onClick={() => onSelectImage(image.id)}
                   type="button"
                 >

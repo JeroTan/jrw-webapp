@@ -1,11 +1,12 @@
 ---
-import BaseLayout from "@/layouts/BaseLayout.astro";
+import AdminLayout from "@/layouts/AdminLayout.astro";
 import { ProductListDashboard } from "@/features/admin-products/components/ProductListDashboard";
 ---
 
-<BaseLayout
+<AdminLayout
+  activeHref="/admin/products"
   title="Products | JRW Admin"
   description="Product identity drafts, edits, and catalog search."
 >
   <ProductListDashboard client:load />
-</BaseLayout>
+</AdminLayout>

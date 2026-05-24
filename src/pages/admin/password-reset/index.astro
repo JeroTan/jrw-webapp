@@ -1,0 +1,16 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { AdminPasswordResetRequestPanel } from "@/features/admin-auth";
+---
+
+<BaseLayout
+  title="Reset Password | JRW Admin"
+  description="Request a JRW admin password reset."
+  robots="noindex,nofollow"
+>
+  <main class="grid min-h-screen place-items-center bg-brand-background p-grid-md">
+    <div class="w-full max-w-[520px]">
+      <AdminPasswordResetRequestPanel client:load />
+    </div>
+  </main>
+</BaseLayout>

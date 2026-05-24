@@ -1,6 +1,6 @@
 # Story 3.11: Admin Dashboard Console Fidelity
 
-Status: ready-for-dev
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -21,41 +21,41 @@ so that product, brand, category, inventory, and owner work keeps functionality 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock scope and preserve resource functionality. (AC: 1-6)
-  - [ ] Requires Story 3.10 complete. Reuse `AdminLayout`/`DashboardShell`; do not create a second shell.
-  - [ ] Do not rewrite product/category/brand/owner feature logic.
-  - [ ] Preserve existing table/list/card toggles and all mutations.
-  - [ ] Do not add order/audit/customer functionality beyond placeholder nav targets.
+- [x] Task 1: Lock scope and preserve resource functionality. (AC: 1-6)
+  - [x] Requires Story 3.10 complete. Reuse `AdminLayout`/`DashboardShell`; do not create a second shell.
+  - [x] Do not rewrite product/category/brand/owner feature logic.
+  - [x] Preserve existing table/list/card toggles and all mutations.
+  - [x] Do not add order/audit/customer functionality beyond placeholder nav targets.
 
-- [ ] Task 2: Wrap admin pages in shared shell. (AC: 1-6)
-  - [ ] Update `src/pages/admin/products/index.astro`, `brands/index.astro`, `brands/[id].astro`, `categories/index.astro`, and `owner/transfer.astro` to use the admin shell/layout.
-  - [ ] Preserve existing client hydration directives.
-  - [ ] Ensure active nav item is correct per route.
-  - [ ] Ensure owner-only page is visually in owner group and unavailable to non-owner shell state where applicable.
+- [x] Task 2: Wrap admin pages in shared shell. (AC: 1-6)
+  - [x] Update `src/pages/admin/products/index.astro`, `brands/index.astro`, `brands/[id].astro`, `categories/index.astro`, and `owner/transfer.astro` to use the admin shell/layout.
+  - [x] Preserve existing client hydration directives.
+  - [x] Ensure active nav item is correct per route.
+  - [x] Ensure owner-only page is visually in owner group and unavailable to non-owner shell state where applicable.
 
-- [ ] Task 3: Refactor page-level framing out of feature dashboards where needed. (AC: 1-5)
-  - [ ] Remove duplicated `main mx-auto max-w-[1240px]` wrappers from feature components only if shell now owns the page frame.
-  - [ ] Preserve feature header content, summaries, filters, toolbar actions, empty/error/loading states.
-  - [ ] Do not collapse dense product table into card-only UI.
-  - [ ] Keep brand cards/list behavior from Story 3.0.
+- [x] Task 3: Refactor page-level framing out of feature dashboards where needed. (AC: 1-5)
+  - [x] Remove duplicated `main mx-auto max-w-[1240px]` wrappers from feature components only if shell now owns the page frame.
+  - [x] Preserve feature header content, summaries, filters, toolbar actions, empty/error/loading states.
+  - [x] Do not collapse dense product table into card-only UI.
+  - [x] Keep brand cards/list behavior from Story 3.0.
 
-- [ ] Task 4: Align admin resources to Direction 05/07 modules. (AC: 1-5)
-  - [ ] Products: dense table-first work area, toolbar rows, side panel/editor flow, list view preserved.
-  - [ ] Brands: card/list resource browser remains, but card modules align with 1px dashboard surface.
-  - [ ] Categories: table/search/editor flow uses same shell and toolbar rhythm.
-  - [ ] Owner governance: owner controls use Direction 07 warning/governance panel style.
-  - [ ] Text must stay practical: manage records, review status, retry action. No marketplace doctrine.
+- [x] Task 4: Align admin resources to Direction 05/07 modules. (AC: 1-5)
+  - [x] Products: dense table-first work area, toolbar rows, side panel/editor flow, list view preserved.
+  - [x] Brands: card/list resource browser remains, but card modules align with 1px dashboard surface.
+  - [x] Categories: table/search/editor flow uses same shell and toolbar rhythm.
+  - [x] Owner governance: owner controls use Direction 07 warning/governance panel style.
+  - [x] Text must stay practical: manage records, review status, retry action. No marketplace doctrine.
 
-- [ ] Task 5: Add focused tests. (AC: 1-6)
-  - [ ] Add or update admin layout tests for shell wrapping, active nav, owner group, and preserved content slots.
-  - [ ] Update product/brand/category/owner UI tests where wrappers changed.
-  - [ ] Ensure tests still cover product table/list view, brand card/list view, category table, and ownership transfer controls.
+- [x] Task 5: Add focused tests. (AC: 1-6)
+  - [x] Add or update admin layout tests for shell wrapping, active nav, owner group, and preserved content slots.
+  - [x] Update product/brand/category/owner UI tests where wrappers changed.
+  - [x] Ensure tests still cover product table/list view, brand card/list view, category table, and ownership transfer controls.
 
-- [ ] Task 6: Run validation. (AC: 6)
-  - [ ] Run targeted admin UI tests.
-  - [ ] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
-  - [ ] Run `npm run check`.
-  - [ ] Manual QA admin pages at tablet, desktop, and wide desktop if dev server/browser QA is available; otherwise document blocker.
+- [x] Task 6: Run validation. (AC: 6)
+  - [x] Run targeted admin UI tests.
+  - [x] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
+  - [x] Run `npm run check`.
+  - [x] Manual QA admin pages at tablet, desktop, and wide desktop if dev server/browser QA is available; otherwise document blocker.
 
 ## Endpoint Guard Checklist
 
@@ -151,12 +151,31 @@ GPT-5 Codex
 
 ### Completion Notes List
 
-- Story context created only. No implementation performed.
+- Added `src/layouts/AdminLayout.astro` using the shared `DashboardShell` from Story 3.10; wrapped products, brands, brand detail, categories, and owner transfer admin routes with correct active nav and owner role state.
+- Removed duplicate feature-level `<main>`/max-width page frames from products, brands, categories, and owner governance so the shell owns page landmarks and spacing.
+- Preserved existing feature hydration, table/list/card toggles, product editor/variant/inventory/publish flows, category CRUD, brand resource browser, and ownership transfer flow.
+- Addressed local review finding: shell logout now has a default client-side session DELETE + redirect handler for wrapped admin pages.
+- Validation passed: targeted admin UI suites (`10` files, `50` tests), shell retest after logout fix, styling `rg` with only fixture/test-token matches, and `npm run check` with 0 errors plus existing deprecated `returnValue` hints.
+- Manual tablet/desktop/wide browser QA was not run in this environment; responsive class coverage and Astro check validate integration.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/3-11-admin-dashboard-console-fidelity.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/components/layout/DashboardShell.tsx`
+- `src/features/admin-products/components/ProductListDashboard.tsx`
+- `src/features/brands/components/BrandList.tsx`
+- `src/features/admin-categories/components/CategoryList.tsx`
+- `src/features/owner-governance/OwnershipTransferPanel.tsx`
+- `src/layouts/AdminLayout.astro`
+- `src/pages/admin/products/index.astro`
+- `src/pages/admin/brands/index.astro`
+- `src/pages/admin/brands/[id].astro`
+- `src/pages/admin/categories/index.astro`
+- `src/pages/admin/owner/transfer.astro`
 
 ### Change Log
 
 - 2026-05-24: Created ready-for-dev story context.
+- 2026-05-24: Wrapped admin resources in dashboard console shell and moved story to review.
+- 2026-05-24: Completed local code review and marked story done.

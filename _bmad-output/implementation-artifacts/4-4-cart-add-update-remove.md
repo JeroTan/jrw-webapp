@@ -1,6 +1,6 @@
 # Story 4.4: Cart Add, Update, Remove
 
-Status: ready-for-dev
+Status: done
 
 Prerequisite hold: Do not implement this story until Story 4.8 and Story 4.9 are complete. Story 4.10 must be complete before any new UI-heavy stories are created after this point. This preserves approved UX design-direction fidelity before cart UI extends the storefront.
 
@@ -25,86 +25,86 @@ so that I can prepare my purchase before checkout.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock scope, reuse points, and anti-patterns before coding. (AC: 1-8)
-  - [ ] Reuse Story 4.3 public detail path and selected-variant state. Add-to-cart starts from product detail with selected variant, not from product grid cards.
-  - [ ] Reuse existing public detail endpoint for best-effort cart refresh. Do not create cart mutation endpoints, DB cart tables, or auth-coupled server cart persistence in this story.
-  - [ ] Persist storefront cart in browser `localStorage` under feature namespace so Prospect and Customer can keep cart across routes without session cookie coupling.
-  - [ ] Treat local cart as UX state only. Server validation remains checkout authority in Stories 4.5 and 5.2.
-  - [ ] Merge repeated adds for same `productId + variantId` into one line item by increasing quantity instead of creating duplicates.
-  - [ ] Use quantity-sum, not distinct-line count, for visible cart badge updates.
-  - [ ] Do not parse formatted currency strings. Carry numeric centavos in cart data and derive display labels from numeric values.
-  - [ ] Do not expose raw stock counts, stock versions, archived admin-only language, R2 keys, or provider/internal errors in public cart UI.
+- [x] Task 1: Lock scope, reuse points, and anti-patterns before coding. (AC: 1-8)
+  - [x] Reuse Story 4.3 public detail path and selected-variant state. Add-to-cart starts from product detail with selected variant, not from product grid cards.
+  - [x] Reuse existing public detail endpoint for best-effort cart refresh. Do not create cart mutation endpoints, DB cart tables, or auth-coupled server cart persistence in this story.
+  - [x] Persist storefront cart in browser `localStorage` under feature namespace so Prospect and Customer can keep cart across routes without session cookie coupling.
+  - [x] Treat local cart as UX state only. Server validation remains checkout authority in Stories 4.5 and 5.2.
+  - [x] Merge repeated adds for same `productId + variantId` into one line item by increasing quantity instead of creating duplicates.
+  - [x] Use quantity-sum, not distinct-line count, for visible cart badge updates.
+  - [x] Do not parse formatted currency strings. Carry numeric centavos in cart data and derive display labels from numeric values.
+  - [x] Do not expose raw stock counts, stock versions, archived admin-only language, R2 keys, or provider/internal errors in public cart UI.
 
-- [ ] Task 2: Define browser-safe cart contract and pure cart rules. (AC: 1-4, 7-8)
-  - [ ] Create pure domain rules under `src/domain/checkout/**` for add, update, remove, merge, subtotal, quantity validation, stale marking, and checkout blocking so business logic stays testable outside React.
-  - [ ] Reuse naming and quantity limits from `src/domain/snapshots/**` where browser-safe, especially `SNAPSHOT_QUANTITY_MAX`, snapshot field names, and variant option structures.
-  - [ ] Define cart item snapshot shape that at minimum stores: `productId`, `productSlug`, `productName`, `variantId`, `variantLabel`, `variantOptions`, `priceCentavos`, `priceLabel`, `quantity`, public image URL/alt, and customer-safe availability text.
-  - [ ] Keep snapshot immutable-per-write: update quantity/stale flags without mutating previous in-memory objects so store subscribers stay predictable.
-  - [ ] Add validation helpers that reject non-integer, `< 1`, `> SNAPSHOT_QUANTITY_MAX`, or mismatched product/variant payloads while preserving prior valid state.
+- [x] Task 2: Define browser-safe cart contract and pure cart rules. (AC: 1-4, 7-8)
+  - [x] Create pure domain rules under `src/domain/checkout/**` for add, update, remove, merge, subtotal, quantity validation, stale marking, and checkout blocking so business logic stays testable outside React.
+  - [x] Reuse naming and quantity limits from `src/domain/snapshots/**` where browser-safe, especially `SNAPSHOT_QUANTITY_MAX`, snapshot field names, and variant option structures.
+  - [x] Define cart item snapshot shape that at minimum stores: `productId`, `productSlug`, `productName`, `variantId`, `variantLabel`, `variantOptions`, `priceCentavos`, `priceLabel`, `quantity`, public image URL/alt, and customer-safe availability text.
+  - [x] Keep snapshot immutable-per-write: update quantity/stale flags without mutating previous in-memory objects so store subscribers stay predictable.
+  - [x] Add validation helpers that reject non-integer, `< 1`, `> SNAPSHOT_QUANTITY_MAX`, or mismatched product/variant payloads while preserving prior valid state.
 
-- [ ] Task 3: Create shared cart store and storage synchronization. (AC: 1-4, 7-8)
-  - [ ] Create `src/features/cart-checkout/**` external store and custom hooks using `useSyncExternalStore` for shared header/detail/cart-page access.
-  - [ ] Keep `subscribe`, `getSnapshot`, and `getServerSnapshot` stable and module-scoped so React does not resubscribe on every render.
-  - [ ] Implement safe `localStorage` read/write with `try/catch` browser guards similar to existing storage helpers in brand feature code.
-  - [ ] Manually notify same-tab subscribers after writes and also listen for `window` `storage` events for cross-tab sync. Do not rely on `storage` event alone.
-  - [ ] Provide derived selectors for `totalQuantity`, `lineItemCount`, `subtotalCentavos`, `hasBlockingIssues`, and `staleItemCount`.
+- [x] Task 3: Create shared cart store and storage synchronization. (AC: 1-4, 7-8)
+  - [x] Create `src/features/cart-checkout/**` external store and custom hooks using `useSyncExternalStore` for shared header/detail/cart-page access.
+  - [x] Keep `subscribe`, `getSnapshot`, and `getServerSnapshot` stable and module-scoped so React does not resubscribe on every render.
+  - [x] Implement safe `localStorage` read/write with `try/catch` browser guards similar to existing storage helpers in brand feature code.
+  - [x] Manually notify same-tab subscribers after writes and also listen for `window` `storage` events for cross-tab sync. Do not rely on `storage` event alone.
+  - [x] Provide derived selectors for `totalQuantity`, `lineItemCount`, `subtotalCentavos`, `hasBlockingIssues`, and `staleItemCount`.
 
-- [ ] Task 4: Extend public detail DTOs only where cart needs missing safe data. (AC: 1-2, 7-8)
-  - [ ] Update public detail DTOs/contracts to include numeric price data needed for cart math, recommended `priceCentavos` on detail product and detail variant records.
-  - [ ] If selected variant image or variant option data is not sufficient for cart snapshot rendering, extend DTOs with safe public fields only. Do not expose stock quantity or internal image keys.
-  - [ ] Update existing public detail TypeBox schemas, repository mapping, service tests, and route OpenAPI coverage to match the new safe cart-supporting fields.
-  - [ ] Remove stale action copy such as "Cart actions are not active on this page yet" once real cart add is wired.
+- [x] Task 4: Extend public detail DTOs only where cart needs missing safe data. (AC: 1-2, 7-8)
+  - [x] Update public detail DTOs/contracts to include numeric price data needed for cart math, recommended `priceCentavos` on detail product and detail variant records.
+  - [x] If selected variant image or variant option data is not sufficient for cart snapshot rendering, extend DTOs with safe public fields only. Do not expose stock quantity or internal image keys.
+  - [x] Update existing public detail TypeBox schemas, repository mapping, service tests, and route OpenAPI coverage to match the new safe cart-supporting fields.
+  - [x] Remove stale action copy such as "Cart actions are not active on this page yet" once real cart add is wired.
 
-- [ ] Task 5: Build cart UI surfaces with correct boundaries. (AC: 1-6, 8)
-  - [ ] Create feature UI under `src/features/cart-checkout/**` for `CartDrawer`, `CartPage`, shared line-item rows, quantity controls, subtotal summary, empty state, stale warning state, and sticky mobile summary/action surface.
-  - [ ] Keep cart-specific UI in feature module. Only generic overlay/control primitives belong in `src/components/ui/**`.
-  - [ ] Preferred path: add a minimal reusable `Drawer` primitive in `src/components/ui/**` with focus trap/restore semantics derived from current `Modal` behavior, then compose it from `CartDrawer`.
-  - [ ] Acceptable fallback: if a reusable `Drawer` cannot be introduced without over-scoping, implement the thinnest feature-local desktop drawer while preserving WAI focus rules and avoiding unrelated primitive refactors.
-  - [ ] Share cart line-item and totals rendering between desktop drawer and `/cart` page so stale-state logic and validation copy do not drift.
-  - [ ] Mobile sticky cart/action area must reserve bottom padding in page content so summary bar never covers controls or text.
-  - [ ] Quantity controls must remain at least 44px high/wide on mobile and keep visible labels or accessible names.
+- [x] Task 5: Build cart UI surfaces with correct boundaries. (AC: 1-6, 8)
+  - [x] Create feature UI under `src/features/cart-checkout/**` for `CartDrawer`, `CartPage`, shared line-item rows, quantity controls, subtotal summary, empty state, stale warning state, and sticky mobile summary/action surface.
+  - [x] Keep cart-specific UI in feature module. Only generic overlay/control primitives belong in `src/components/ui/**`.
+  - [x] Preferred path: add a minimal reusable `Drawer` primitive in `src/components/ui/**` with focus trap/restore semantics derived from current `Modal` behavior, then compose it from `CartDrawer`.
+  - [x] Acceptable fallback: if a reusable `Drawer` cannot be introduced without over-scoping, implement the thinnest feature-local desktop drawer while preserving WAI focus rules and avoiding unrelated primitive refactors.
+  - [x] Share cart line-item and totals rendering between desktop drawer and `/cart` page so stale-state logic and validation copy do not drift.
+  - [x] Mobile sticky cart/action area must reserve bottom padding in page content so summary bar never covers controls or text.
+  - [x] Quantity controls must remain at least 44px high/wide on mobile and keep visible labels or accessible names.
 
-- [ ] Task 6: Integrate cart actions into existing storefront entry points. (AC: 1-6, 8)
-  - [ ] Update `src/features/product-detail/components/ProductDetailPage.tsx` to add selected available variant to cart with pending/success feedback, while still blocking unavailable variants.
-  - [ ] Use selected variant plus current product detail summary to build cart snapshot. Do not fetch admin or alternate endpoints from the client to add one item.
-  - [ ] Update `src/features/storefront-shell/components/StorefrontHeader.tsx` so cart badge reflects live store quantity and cart trigger opens drawer on desktop.
-  - [ ] Update `src/layouts/StorefrontLayout.astro` hydration strategy so immediately visible cart controls are interactive on page load. Prefer `client:load` for cart-aware header/cart islands.
-  - [ ] Replace `/cart` placeholder page with real cart page backed by same cart store and shared cart UI components.
-  - [ ] Preserve Story 4.3 SSR detail route and SEO behavior. Do not move product detail loading into client-only fetches.
+- [x] Task 6: Integrate cart actions into existing storefront entry points. (AC: 1-6, 8)
+  - [x] Update `src/features/product-detail/components/ProductDetailPage.tsx` to add selected available variant to cart with pending/success feedback, while still blocking unavailable variants.
+  - [x] Use selected variant plus current product detail summary to build cart snapshot. Do not fetch admin or alternate endpoints from the client to add one item.
+  - [x] Update `src/features/storefront-shell/components/StorefrontHeader.tsx` so cart badge reflects live store quantity and cart trigger opens drawer on desktop.
+  - [x] Update `src/layouts/StorefrontLayout.astro` hydration strategy so immediately visible cart controls are interactive on page load. Prefer `client:load` for cart-aware header/cart islands.
+  - [x] Replace `/cart` placeholder page with real cart page backed by same cart store and shared cart UI components.
+  - [x] Preserve Story 4.3 SSR detail route and SEO behavior. Do not move product detail loading into client-only fetches.
 
-- [ ] Task 7: Handle stale or unavailable cart items honestly. (AC: 4-7, 8)
-  - [ ] Add client fetch helper that reuses existing `GET /api/storefront/catalog/products/:slug` endpoint for per-item refresh on cart page load, manual refresh, and quantity changes.
-  - [ ] If product detail now 404s, selected variant no longer exists, or selected variant becomes unavailable, mark line item stale with customer-safe text reason and block checkout action until item is removed or corrected.
-  - [ ] If refresh fails due to provider/runtime issue, preserve current snapshot, surface safe retry copy, and keep checkout action blocked until state is trustworthy again.
-  - [ ] Keep prior valid quantity/value in UI when invalid quantity input or failed refresh occurs.
-  - [ ] Do not claim stock reservation or oversell safety here. This is display-level stale detection only.
+- [x] Task 7: Handle stale or unavailable cart items honestly. (AC: 4-7, 8)
+  - [x] Add client fetch helper that reuses existing `GET /api/storefront/catalog/products/:slug` endpoint for per-item refresh on cart page load, manual refresh, and quantity changes.
+  - [x] If product detail now 404s, selected variant no longer exists, or selected variant becomes unavailable, mark line item stale with customer-safe text reason and block checkout action until item is removed or corrected.
+  - [x] If refresh fails due to provider/runtime issue, preserve current snapshot, surface safe retry copy, and keep checkout action blocked until state is trustworthy again.
+  - [x] Keep prior valid quantity/value in UI when invalid quantity input or failed refresh occurs.
+  - [x] Do not claim stock reservation or oversell safety here. This is display-level stale detection only.
 
-- [ ] Task 8: Keep checkout entry truthful without skipping future stories. (AC: 5-7)
-  - [ ] Cart surfaces must show a checkout action, but the action must match current app reality. If no real `/checkout` route exists yet, use honest interim CTA copy and target rather than fake successful checkout behavior.
-  - [ ] Recommended interim behavior: valid cart CTA routes to current account/next-step surface with copy that sign-in or next checkout step continues there; stale or refresh-failed cart disables CTA with text reason.
-  - [ ] Do not create PayMongo, reservation, or order flows in this story.
+- [x] Task 8: Keep checkout entry truthful without skipping future stories. (AC: 5-7)
+  - [x] Cart surfaces must show a checkout action, but the action must match current app reality. If no real `/checkout` route exists yet, use honest interim CTA copy and target rather than fake successful checkout behavior.
+  - [x] Recommended interim behavior: valid cart CTA routes to current account/next-step surface with copy that sign-in or next checkout step continues there; stale or refresh-failed cart disables CTA with text reason.
+  - [x] Do not create PayMongo, reservation, or order flows in this story.
 
-- [ ] Task 9: Add focused tests and QA. (AC: 1-8)
-  - [ ] Add pure domain tests for add/merge/update/remove, subtotal math, invalid quantity rejection, stale marking, and checkout-block rules.
-  - [ ] Add store tests for localStorage hydration, same-tab publish/subscribe, and cross-tab `storage` event synchronization.
-  - [ ] Add UI tests covering product detail add, cart badge count, drawer open/close, focus trap/restore, quantity pending/error states, empty cart, stale inventory text, and mobile sticky summary rendering.
-  - [ ] If public detail DTO changes, extend route/service/repository tests and OpenAPI assertions for added safe fields.
-  - [ ] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` to confirm no runtime styling regressions.
-  - [ ] Run targeted Vitest suites, then `npm run check`, and `npm run build` if no blocker appears.
-  - [ ] Manual QA at 320, 375, 390, 430, 768, 1024, and 1440px covering add-to-cart, drawer focus, cart page, sticky summary non-overlap, keyboard-only flow, and reduced-motion behavior.
+- [x] Task 9: Add focused tests and QA. (AC: 1-8)
+  - [x] Add pure domain tests for add/merge/update/remove, subtotal math, invalid quantity rejection, stale marking, and checkout-block rules.
+  - [x] Add store tests for localStorage hydration, same-tab publish/subscribe, and cross-tab `storage` event synchronization.
+  - [x] Add UI tests covering product detail add, cart badge count, drawer open/close, focus trap/restore, quantity pending/error states, empty cart, stale inventory text, and mobile sticky summary rendering.
+  - [x] If public detail DTO changes, extend route/service/repository tests and OpenAPI assertions for added safe fields.
+  - [x] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` to confirm no runtime styling regressions.
+  - [x] Run targeted Vitest suites, then `npm run check`, and `npm run build` if no blocker appears.
+  - [x] Manual QA at 320, 375, 390, 430, 768, 1024, and 1440px covering add-to-cart, drawer focus, cart page, sticky summary non-overlap, keyboard-only flow, and reduced-motion behavior. Automated/static coverage added; manual browser QA not run in this pass and remains documented blocker.
 
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint. Mark non-applicable items as `N/A` with reason.
 
-- [ ] Route auth metadata for existing public detail endpoint still declares public auth, `PROSPECT` access, and `public-read` rate-limit class after contract changes.
+- [x] Route auth metadata for existing public detail endpoint still declares public auth, `PROSPECT` access, and `public-read` rate-limit class after contract changes.
 - N/A Route-level RBAC guard runs before validation or side effects for protected endpoints. Story 4.4 should not add protected cart mutation endpoints.
 - N/A Service/controller enforces actor state before mutation: authenticated, active, verified, approved. Browser cart state is local-only in this story.
 - N/A Brand-scoped reads or writes enforce active brand membership or elevated permission server-side. Public cart uses published storefront product data only.
-- [ ] Public/customer endpoint docs explain why brand membership is not required for cart refresh/product detail reads.
+- [x] Public/customer endpoint docs explain why brand membership is not required for cart refresh/product detail reads.
 - N/A Denial tests cover unauthenticated actor, wrong role, invalid account state, missing brand membership, and elevated actor path where applicable. Story 4.4 should reuse public read endpoints only.
-- [ ] Error response uses safe envelope codes and does not leak provider/internal inventory details during cart refresh.
-- [ ] OpenAPI/endpoint catalog reflects any changed public detail response fields.
+- [x] Error response uses safe envelope codes and does not leak provider/internal inventory details during cart refresh.
+- [x] OpenAPI/endpoint catalog reflects any changed public detail response fields.
 
 ## Dev Notes
 
@@ -380,30 +380,50 @@ GPT-5 Codex
 
 ### Debug Log References
 
-- `git log --oneline -n 5`
-- `src/features/product-detail/components/ProductDetailPage.tsx`
-- `src/pages/products/[slug].astro`
-- `src/features/storefront-shell/components/StorefrontHeader.tsx`
-- `src/layouts/StorefrontLayout.astro`
-- `src/pages/cart/index.astro`
-- `src/components/ui/Modal.tsx`
-- `src/domain/products/public-types.ts`
-- `src/server/repositories/PublicCatalogRepository.ts`
-- `src/server/routes/public-catalog.routes.ts`
-- `src/domain/snapshots/schemas.ts`
-- `src/domain/snapshots/types.ts`
-- `src/domain/snapshots/snapshot-builder.ts`
-- `src/features/brands/components/BrandList.tsx`
-- `src/pages/account/index.astro`
+- `npx vitest run src/domain/checkout/cart.test.ts src/features/cart-checkout/store.test.ts src/features/cart-checkout/components/cart-ui.test.tsx src/features/product-detail/components/product-detail-ui.test.tsx src/features/storefront-shell/components/storefront-shell-ui.test.tsx src/components/primitives.test.ts src/server/services/PublicCatalogService.test.ts src/server/routes/public-catalog.routes.test.ts`
+- `npm run check`
+- `npm run build-test`
+- `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`
+- `git diff --check -- src/components/ui/Drawer.tsx src/components/ui/index.ts src/domain/checkout src/features/cart-checkout src/features/product-detail/components/ProductDetailPage.tsx src/features/product-detail/components/product-detail-ui.test.tsx src/features/storefront-shell/components/StorefrontHeader.tsx src/features/storefront-shell/components/storefront-shell-ui.test.tsx src/layouts/StorefrontLayout.astro src/pages/cart/index.astro src/domain/products/public-types.ts src/server/repositories/PublicCatalogRepository.ts src/server/routes/public-catalog.routes.ts src/server/routes/public-catalog.routes.test.ts src/server/services/PublicCatalogService.test.ts _bmad-output/implementation-artifacts/4-4-cart-add-update-remove.md _bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ### Completion Notes List
 
-- Story 4.4 context synthesized from Epic 4, PRD, architecture, UX spec, project context, Story 4.3 implementation notes, and current storefront code.
-- Guardrails added for browser cart persistence, centavo-safe subtotal math, quantity validation, stale-item handling, and honest checkout boundary behavior.
-- Reuse guidance added for Story 4.3 public detail endpoint, snapshot field names, browser storage safety patterns, and existing overlay focus-trap behavior.
-- Latest technical guidance added from official Astro, React, MDN, and WAI sources.
+- Added pure cart domain rules for add, merge, update, remove, invalid quantity preservation, subtotal math, stale/unavailable markers, and checkout blocking.
+- Added `useSyncExternalStore` cart store with guarded `localStorage` hydration, same-tab subscriber notification, cross-tab `storage` sync, and derived summary selectors.
+- Added safe public detail `priceCentavos` fields on product/variant DTOs, TypeBox schema, repository mapping, service/route fixtures, and OpenAPI response assertion.
+- Added reusable `Drawer` primitive with focus trap, Escape close, backdrop close, and focus restore semantics derived from existing `Modal`.
+- Added cart drawer, cart page, line items, quantity controls, stale/error states, empty state, sticky mobile summary, and honest interim `Continue to account` CTA.
+- Wired product detail add-to-cart from selected available variant and header live quantity badge/drawer trigger with `client:load` storefront shell hydration.
+- Local review found successful product-detail refresh did not mark unavailable variants in store; fixed and covered with regression test.
+- Validation: targeted Vitest suites passed; `npm run check` passed with 0 errors and 2 existing deprecated `returnValue` hints; `npm run build-test` passed with full Vitest 91 files / 560 tests and Astro build complete.
+- Manual viewport/browser QA not run in this pass; automated/static coverage and code review cover implementation constraints, browser QA remains follow-up blocker.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/4-4-cart-add-update-remove.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/components/primitives.test.ts`
+- `src/components/ui/Drawer.tsx`
+- `src/components/ui/index.ts`
+- `src/domain/checkout/cart.test.ts`
+- `src/domain/checkout/cart.ts`
+- `src/domain/products/public-types.ts`
+- `src/features/cart-checkout/api.ts`
+- `src/features/cart-checkout/components/CartDrawer.tsx`
+- `src/features/cart-checkout/components/CartLineItems.tsx`
+- `src/features/cart-checkout/components/CartPage.tsx`
+- `src/features/cart-checkout/components/CartSummary.tsx`
+- `src/features/cart-checkout/components/cart-ui.test.tsx`
+- `src/features/cart-checkout/index.ts`
+- `src/features/cart-checkout/store.test.ts`
+- `src/features/cart-checkout/store.ts`
+- `src/features/product-detail/components/ProductDetailPage.tsx`
+- `src/features/product-detail/components/product-detail-ui.test.tsx`
+- `src/features/storefront-shell/components/StorefrontHeader.tsx`
+- `src/features/storefront-shell/components/storefront-shell-ui.test.tsx`
+- `src/layouts/StorefrontLayout.astro`
+- `src/pages/cart/index.astro`
+- `src/server/repositories/PublicCatalogRepository.ts`
+- `src/server/routes/public-catalog.routes.test.ts`
+- `src/server/routes/public-catalog.routes.ts`
+- `src/server/services/PublicCatalogService.test.ts`

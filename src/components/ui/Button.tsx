@@ -16,7 +16,7 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const buttonBaseClass =
-  "inline-flex min-h-control-md items-center justify-center gap-grid-xs rounded-none border border-brand-border-strong bg-brand-surface px-grid-sm font-system font-bold leading-none text-brand-content no-underline shadow-none whitespace-nowrap filter-none enabled:hover:border-brand-accent aria-busy:border-dashed";
+  "inline-flex min-h-control-md items-center justify-center gap-grid-xs rounded-none border px-grid-sm font-system font-bold leading-none no-underline shadow-none whitespace-nowrap filter-none enabled:hover:outline-2 enabled:hover:outline-offset-2 enabled:hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent aria-busy:border-dashed";
 
 const buttonSizeClass: Record<ButtonSize, string> = {
   sm: "min-h-control-sm px-grid-xs text-[0.8125rem]",
@@ -24,9 +24,9 @@ const buttonSizeClass: Record<ButtonSize, string> = {
 };
 
 const buttonVariantClass: Record<ButtonVariant, string> = {
-  primary: "bg-brand-accent text-brand-surface",
-  secondary: "bg-brand-surface text-brand-content",
-  danger: "bg-brand-danger text-brand-surface",
+  primary: "border-brand-accent bg-brand-accent text-brand-surface",
+  secondary: "border-brand-border-strong bg-brand-surface text-brand-content",
+  danger: "border-brand-danger bg-brand-danger text-brand-surface",
   ghost: "border-transparent bg-transparent text-brand-content",
 };
 

@@ -1,0 +1,12 @@
+---
+import BaseLayout from "@/layouts/BaseLayout.astro";
+import { AdminSessionGate } from "@/features/admin-auth";
+---
+
+<BaseLayout
+  title="Admin Dashboard | JRW Admin"
+  description="JRW admin dashboard entry and session state."
+  robots="noindex,nofollow"
+>
+  <AdminSessionGate client:load />
+</BaseLayout>

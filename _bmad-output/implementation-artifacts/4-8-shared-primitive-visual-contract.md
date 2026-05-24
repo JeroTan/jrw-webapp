@@ -1,6 +1,6 @@
 # Story 4.8: Shared Primitive Visual Contract
 
-Status: ready-for-dev
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -20,33 +20,33 @@ so that storefront, dashboard, and checkout interactions feel consistent.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock scope and prevent broad primitive churn. (AC: 1-5)
-  - [ ] Only touch shared primitive visual contract needed by this story: `Button`, `IconButton`, and tests. Touch `ViewToggle` only if keeping it visually inconsistent would fail AC4.
-  - [ ] Do not redesign feature pages, storefront cards, admin layouts, or cart behavior in this story.
-  - [ ] Do not add dependencies, CSS files, feature-local button variants, or one-off `jrw-*` selectors.
-  - [ ] Preserve existing props and public API for `Button`, `IconButton`, and `ViewToggle`.
+- [x] Task 1: Lock scope and prevent broad primitive churn. (AC: 1-5)
+  - [x] Only touch shared primitive visual contract needed by this story: `Button`, `IconButton`, and tests. Touch `ViewToggle` only if keeping it visually inconsistent would fail AC4.
+  - [x] Do not redesign feature pages, storefront cards, admin layouts, or cart behavior in this story.
+  - [x] Do not add dependencies, CSS files, feature-local button variants, or one-off `jrw-*` selectors.
+  - [x] Preserve existing props and public API for `Button`, `IconButton`, and `ViewToggle`.
 
-- [ ] Task 2: Add failing primitive tests first. (AC: 1-5)
-  - [ ] Update `src/components/primitives.test.ts` to assert `Button` includes `hover:outline-2`, `hover:outline-offset-2`, `hover:outline-brand-accent`, `focus-visible:outline-2`, `focus-visible:outline-offset-2`, and `focus-visible:outline-brand-accent`.
-  - [ ] Add the same outline contract assertion for `IconButton`.
-  - [ ] Assert primary button includes accent border/background and white/surface text.
-  - [ ] Assert disabled/loading buttons keep `aria-busy`, `disabled`, and no shadow/blur classes.
+- [x] Task 2: Add failing primitive tests first. (AC: 1-5)
+  - [x] Update `src/components/primitives.test.ts` to assert `Button` includes `hover:outline-2`, `hover:outline-offset-2`, `hover:outline-brand-accent`, `focus-visible:outline-2`, `focus-visible:outline-offset-2`, and `focus-visible:outline-brand-accent`.
+  - [x] Add the same outline contract assertion for `IconButton`.
+  - [x] Assert primary button includes accent border/background and white/surface text.
+  - [x] Assert disabled/loading buttons keep `aria-busy`, `disabled`, and no shadow/blur classes.
 
-- [ ] Task 3: Implement shared outline contract. (AC: 1-4)
-  - [ ] Update `src/components/ui/Button.tsx` base class to use cobalt outline on enabled hover and focus-visible, with 2px outline and 2px offset.
-  - [ ] Update `src/components/ui/IconButton.tsx` base class with same outline contract.
-  - [ ] Ensure primary/danger variants set matching border colors where needed so idle state is clear before outline appears.
-  - [ ] Keep controls sharp: `rounded-none`, `border`, `shadow-none`, no blur/filter effects.
+- [x] Task 3: Implement shared outline contract. (AC: 1-4)
+  - [x] Update `src/components/ui/Button.tsx` base class to use cobalt outline on enabled hover and focus-visible, with 2px outline and 2px offset.
+  - [x] Update `src/components/ui/IconButton.tsx` base class with same outline contract.
+  - [x] Ensure primary/danger variants set matching border colors where needed so idle state is clear before outline appears.
+  - [x] Keep controls sharp: `rounded-none`, `border`, `shadow-none`, no blur/filter effects.
 
-- [ ] Task 4: Confirm no regressions in shared primitive behavior. (AC: 1-5)
-  - [ ] Verify icon buttons still require accessible `label` and tooltip/title metadata.
-  - [ ] Verify loading buttons keep stable label and role.
-  - [ ] Verify `StatusBadge`, `Input`, `SearchInput`, `Skeleton`, `DataTable`, `ResourceCard`, and `PageToolbar` tests still pass without unrelated edits.
+- [x] Task 4: Confirm no regressions in shared primitive behavior. (AC: 1-5)
+  - [x] Verify icon buttons still require accessible `label` and tooltip/title metadata.
+  - [x] Verify loading buttons keep stable label and role.
+  - [x] Verify `StatusBadge`, `Input`, `SearchInput`, `Skeleton`, `DataTable`, `ResourceCard`, and `PageToolbar` tests still pass without unrelated edits.
 
-- [ ] Task 5: Run validation. (AC: 5)
-  - [ ] Run `npx vitest run src/components/primitives.test.ts`.
-  - [ ] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` and confirm no new runtime styling regressions.
-  - [ ] Run `npm run check`.
+- [x] Task 5: Run validation. (AC: 5)
+  - [x] Run `npx vitest run src/components/primitives.test.ts`.
+  - [x] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` and confirm no new runtime styling regressions.
+  - [x] Run `npm run check`.
 
 ## Endpoint Guard Checklist
 
@@ -132,12 +132,20 @@ GPT-5 Codex
 
 ### Completion Notes List
 
-- Story context created only. No implementation performed.
+- Added primitive regression coverage for `Button` and `IconButton` 2px cobalt hover/focus outline contract.
+- Updated `Button` and `IconButton` shared base classes to use enabled hover and focus-visible accent outlines with 2px offset.
+- Added explicit primary and danger variant border colors while preserving existing props, loading behavior, accessible icon labels, sharp corners, 1px borders, `shadow-none`, and `filter-none`.
+- Validation passed: `npx vitest run src/components/primitives.test.ts`; styling `rg` produced only fixture/test-token matches; `npm run check` returned 0 errors with existing deprecated `returnValue` hints.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/4-8-shared-primitive-visual-contract.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/components/primitives.test.ts`
+- `src/components/ui/Button.tsx`
+- `src/components/ui/IconButton.tsx`
 
 ### Change Log
 
 - 2026-05-24: Created ready-for-dev story context.
+- 2026-05-24: Implemented shared primitive visual contract and moved story to review.

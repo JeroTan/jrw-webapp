@@ -15,6 +15,7 @@ import {
 import { PageToolbar } from "@/components/layout";
 import {
   Button,
+  CleanButton,
   ConfirmDialog,
   Pagination,
   SearchInput,
@@ -736,7 +737,7 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
   }
 
   return (
-    <main className="mx-auto w-full max-w-[1240px] p-grid-md max-md:p-grid-sm">
+    <section className="grid gap-grid-sm">
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
         <div>
           <p className="font-system text-xs font-bold uppercase text-brand-muted">
@@ -765,12 +766,12 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
 
       <PageToolbar
         actions={
-          <Button
+          <CleanButton
             onClick={() => openEditor({ mode: "create", product: null })}
             variant="primary"
           >
             Create product
-          </Button>
+          </CleanButton>
         }
         main={
           <SearchInput
@@ -1055,6 +1056,6 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
           />
         </aside>
       ) : null}
-    </main>
+    </section>
   );
 }

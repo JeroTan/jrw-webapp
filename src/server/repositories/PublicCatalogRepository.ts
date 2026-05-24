@@ -324,6 +324,7 @@ function detailResultFromSource(input: {
         group: option.group,
         name: option.name,
       })),
+      priceCentavos: variant.priceCentavos,
       priceLabel: formatCatalogPrice(variant.priceCentavos),
       productId: variant.productId,
       selected: defaultVariant?.id === variant.id,
@@ -356,9 +357,9 @@ function detailResultFromSource(input: {
               "Selected option is unavailable right now.",
           }
         : {
-            disabled: true,
+            disabled: false,
             label: "Add to cart",
-            reason: "Selected option is available. Cart actions are not active on this page yet.",
+            reason: "Availability rechecks before checkout.",
           }
       : {
           disabled: true,
@@ -382,6 +383,7 @@ function detailResultFromSource(input: {
       description: input.product.description,
       id: input.product.id,
       name: input.product.name,
+      priceCentavos: selectedVariant?.priceCentavos ?? input.product.lowestPrice,
       priceLabel: selectedPriceLabel,
       primaryImage,
       slug: input.product.slug,

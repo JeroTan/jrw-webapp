@@ -37,9 +37,9 @@ const catalogItem = {
 
 const detailItem = {
   action: {
-    disabled: true,
+    disabled: false,
     label: "Add to cart",
-    reason: "Selected option is available. Cart actions are not active on this page yet.",
+    reason: "Availability rechecks before checkout.",
   },
   gallery: [
     {
@@ -72,6 +72,7 @@ const detailItem = {
     description: "Lightweight linen shirt for warm days.",
     id: "prod_linen",
     name: "Linen Shirt",
+    priceCentavos: 1999,
     priceLabel: "PHP 19.99",
     primaryImage: {
       alt: "Linen Shirt front",
@@ -101,6 +102,7 @@ const detailItem = {
       id: "variant_linen_small",
       label: "Size: Small",
       optionValues: [{ group: "Size", name: "Small" }],
+      priceCentavos: 1999,
       priceLabel: "PHP 19.99",
       productId: "prod_linen",
       selected: true,
@@ -180,6 +182,9 @@ describe("public catalog routes", () => {
     });
     expect(detail?.responses).toHaveProperty("200");
     expect(detail?.responses).toHaveProperty("404");
+    expect(JSON.stringify(detail?.responses?.["200"])).toContain(
+      "priceCentavos"
+    );
 
     expect(categories?.summary).toBe("List public catalog categories");
     expect(categories?.tags).toContain("Public Catalog");
@@ -233,12 +238,14 @@ describe("public catalog routes", () => {
         product: {
           brandName: "JRW Studio",
           name: "Linen Shirt",
+          priceCentavos: 1999,
           priceLabel: "PHP 19.99",
         },
         selectedVariantId: "variant_linen_small",
         variants: [
           {
             label: "Size: Small",
+            priceCentavos: 1999,
             selected: true,
           },
         ],

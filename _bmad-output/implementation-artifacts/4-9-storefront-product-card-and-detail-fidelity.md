@@ -1,6 +1,6 @@
 # Story 4.9: Storefront Product Card and Detail Fidelity
 
-Status: ready-for-dev
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,43 +23,43 @@ so that the catalog feels like the approved architectural system, not a generic 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock scope and preserve accepted storefront layout. (AC: 1, 7-8)
-  - [ ] Do not remove or restructure storefront hero/billboard, header, filters, pagination, route loaders, or page metadata.
-  - [ ] Do not implement cart mutation, drawer, checkout, server cart, or inventory reservation.
-  - [ ] Do not change admin pages in this story.
-  - [ ] Reuse Story 4.8 primitive contract. If `Button`/`IconButton` are not corrected yet, stop and implement 4.8 first.
+- [x] Task 1: Lock scope and preserve accepted storefront layout. (AC: 1, 7-8)
+  - [x] Do not remove or restructure storefront hero/billboard, header, filters, pagination, route loaders, or page metadata.
+  - [x] Do not implement cart mutation, drawer, checkout, server cart, or inventory reservation.
+  - [x] Do not change admin pages in this story.
+  - [x] Reuse Story 4.8 primitive contract. If `Button`/`IconButton` are not corrected yet, stop and implement 4.8 first.
 
-- [ ] Task 2: Add failing product-card fidelity tests first. (AC: 1-5, 7-8)
-  - [ ] Update `src/features/product-catalog/components/product-catalog-ui.test.tsx` to assert Direction 01 anatomy: `min-h-[360px]`, 220px media, diagonal placeholder, slash metadata, compact price tag, and no soft/shadow/rounded card styling.
-  - [ ] Assert product cards preserve responsive grid behavior already covered: 1-2 mobile columns, tablet 4 columns, desktop 12-column spans.
-  - [ ] Assert quick action link/button uses shared focus/hover outline contract from Story 4.8.
-  - [ ] Assert home mode still renders current hero copy and does not render category directory or filter rail when disabled.
+- [x] Task 2: Add failing product-card fidelity tests first. (AC: 1-5, 7-8)
+  - [x] Update `src/features/product-catalog/components/product-catalog-ui.test.tsx` to assert Direction 01 anatomy: `min-h-[360px]`, 220px media, diagonal placeholder, slash metadata, compact price tag, and no soft/shadow/rounded card styling.
+  - [x] Assert product cards preserve responsive grid behavior already covered: 1-2 mobile columns, tablet 4 columns, desktop 12-column spans.
+  - [x] Assert quick action link/button uses shared focus/hover outline contract from Story 4.8.
+  - [x] Assert home mode still renders current hero copy and does not render category directory or filter rail when disabled.
 
-- [ ] Task 3: Implement Direction 01 product-card anatomy. (AC: 1-5, 7)
-  - [ ] Update `src/features/product-catalog/components/ProductCard.tsx` only as needed to match the HTML card anatomy.
-  - [ ] Product card must be a sharp module: 1px border or grid divider, no radius, no shadow, no blur, min height 360px.
-  - [ ] Media area must stay 220px, bordered, stable, `object-cover` for images.
-  - [ ] Missing image state must use the diagonal stripe pattern and centered label/module treatment from the HTML direction.
-  - [ ] Metadata must be compact utility text: brand or `Brandless`, category when present, availability label.
-  - [ ] Price and quick action must be compact, uppercase, token-driven, and use shared outline focus/hover behavior.
+- [x] Task 3: Implement Direction 01 product-card anatomy. (AC: 1-5, 7)
+  - [x] Update `src/features/product-catalog/components/ProductCard.tsx` only as needed to match the HTML card anatomy.
+  - [x] Product card must be a sharp module: 1px border or grid divider, no radius, no shadow, no blur, min height 360px.
+  - [x] Media area must stay 220px, bordered, stable, `object-cover` for images.
+  - [x] Missing image state must use the diagonal stripe pattern and centered label/module treatment from the HTML direction.
+  - [x] Metadata must be compact utility text: brand or `Brandless`, category when present, availability label.
+  - [x] Price and quick action must be compact, uppercase, token-driven, and use shared outline focus/hover behavior.
 
-- [ ] Task 4: Add product detail Direction 02 polish without changing data flow. (AC: 6-8)
-  - [ ] Update `src/features/product-detail/components/ProductDetailPage.tsx`, `ProductGallery.tsx`, and `ProductVariantSelector.tsx` only if needed for sharper module language and shared primitive contract.
-  - [ ] Keep SSR route and DTO flow from Story 4.3 intact.
-  - [ ] Keep cart action truthful and disabled until Story 4.4 implements cart mutation.
-  - [ ] Replace ad hoc cart action button/link styling with shared `Button` where safe, preserving disabled action state.
-  - [ ] Do not add drawer/sheet behavior here.
+- [x] Task 4: Add product detail Direction 02 polish without changing data flow. (AC: 6-8)
+  - [x] Update `src/features/product-detail/components/ProductDetailPage.tsx`, `ProductGallery.tsx`, and `ProductVariantSelector.tsx` only if needed for sharper module language and shared primitive contract.
+  - [x] Keep SSR route and DTO flow from Story 4.3 intact.
+  - [x] Keep cart action truthful and disabled until Story 4.4 implements cart mutation.
+  - [x] Replace ad hoc cart action button/link styling with shared `Button` where safe, preserving disabled action state.
+  - [x] Do not add drawer/sheet behavior here.
 
-- [ ] Task 5: Preserve public catalog/data behavior. (AC: 7-8)
-  - [ ] Verify `ProductGrid`, `ProductCatalogPage`, filters, pagination, category links, and error/empty states still render.
-  - [ ] Do not touch public catalog routes/services/repositories unless a visual field is missing from current DTOs. If data changes are needed, keep them public-safe.
-  - [ ] Do not expose raw ids, stock counts, stock versions, R2 keys, archived language, or provider/internal errors in UI copy.
+- [x] Task 5: Preserve public catalog/data behavior. (AC: 7-8)
+  - [x] Verify `ProductGrid`, `ProductCatalogPage`, filters, pagination, category links, and error/empty states still render.
+  - [x] Do not touch public catalog routes/services/repositories unless a visual field is missing from current DTOs. If data changes are needed, keep them public-safe.
+  - [x] Do not expose raw ids, stock counts, stock versions, R2 keys, archived language, or provider/internal errors in UI copy.
 
-- [ ] Task 6: Run validation and manual QA notes. (AC: 8)
-  - [ ] Run `npx vitest run src/features/product-catalog/components/product-catalog-ui.test.tsx src/features/product-detail/components/product-detail-ui.test.tsx`.
-  - [ ] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
-  - [ ] Run `npm run check`.
-  - [ ] Manually verify at 320, 375, 390, 430, 768, 1024, and 1440px if dev server/browser QA is available; otherwise document blocker.
+- [x] Task 6: Run validation and manual QA notes. (AC: 8)
+  - [x] Run `npx vitest run src/features/product-catalog/components/product-catalog-ui.test.tsx src/features/product-detail/components/product-detail-ui.test.tsx`.
+  - [x] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
+  - [x] Run `npm run check`.
+  - [x] Manually verify at 320, 375, 390, 430, 768, 1024, and 1440px if dev server/browser QA is available; otherwise document blocker.
 
 ## Endpoint Guard Checklist
 
@@ -160,12 +160,27 @@ GPT-5 Codex
 
 ### Completion Notes List
 
-- Story context created only. No implementation performed.
+- Added ProductCard fidelity tests for Direction 01 module anatomy, 220px media, diagonal missing-image state, initials module, slash metadata, compact price/action, responsive grid spans, and shared outline contract.
+- Updated ProductCard to use a sharp bordered 360px module, stable 220px media, diagonal placeholder with product initials, compact utility metadata, and 4.8 outline treatment on quick action links.
+- Updated ProductDetailPage, ProductGallery, and ProductVariantSelector with sharper 1px module focus language; cart action now uses shared `Button` while remaining disabled/truthful until Story 4.4.
+- Addressed local review finding: missing-image card initials keep an explicit accessible link label.
+- Preserved catalog/detail SSR and DTO flow; no routes, services, repositories, cart mutation, checkout, drawer, admin page, or inventory logic changed.
+- Validation passed: targeted product catalog/detail Vitest suites, styling `rg` check with only fixture/test-token matches, and `npm run check` with 0 errors plus existing deprecated `returnValue` hints.
+- Manual viewport browser QA blocked in this environment; class-level responsive assertions cover mobile/tablet/desktop grid spans.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/4-9-storefront-product-card-and-detail-fidelity.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/features/product-catalog/components/ProductCard.tsx`
+- `src/features/product-catalog/components/product-catalog-ui.test.tsx`
+- `src/features/product-detail/components/ProductDetailPage.tsx`
+- `src/features/product-detail/components/ProductGallery.tsx`
+- `src/features/product-detail/components/ProductVariantSelector.tsx`
+- `src/features/product-detail/components/product-detail-ui.test.tsx`
 
 ### Change Log
 
 - 2026-05-24: Created ready-for-dev story context.
+- 2026-05-24: Implemented storefront product card/detail fidelity and moved story to review.
+- 2026-05-24: Completed local code review fix and marked story done.

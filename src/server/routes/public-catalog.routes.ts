@@ -87,6 +87,7 @@ const tboxPublicCatalogDetailVariant = t.Object({
   imageSrc: t.Optional(t.String()),
   label: t.String(),
   optionValues: t.Array(tboxPublicCatalogVariantOption),
+  priceCentavos: t.Number(),
   priceLabel: t.String(),
   productId: t.String(),
   selected: t.Boolean(),
@@ -116,6 +117,7 @@ const tboxPublicCatalogProductDetailSummary = t.Object({
   description: t.String(),
   id: t.String(),
   name: t.String(),
+  priceCentavos: t.Union([t.Number(), t.Null()]),
   priceLabel: t.String(),
   primaryImage: t.Union([tboxPublicCatalogGalleryItem, t.Null()]),
   slug: t.String(),
@@ -298,7 +300,7 @@ export function publicCatalogRoutes(
         detail: routeDetail({
           summary: "Read public product detail",
           description:
-            "Returns customer-safe storefront detail for one published product, including gallery, variants, availability, and metadata fields.",
+            "Returns customer-safe storefront detail for one published product, including gallery, variants, availability, numeric display price data, and metadata fields. Brand membership is not required because only published public storefront fields are exposed.",
           tags: ["Public Catalog"],
           auth: publicCatalogAuth,
           rateLimitClass: "public-read",

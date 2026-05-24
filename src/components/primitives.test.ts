@@ -6,7 +6,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   Button,
+  CleanButton,
+  CleanLinkButton,
   DataTable,
+  Drawer,
   IconButton,
   Input,
   Modal,
@@ -39,6 +42,68 @@ describe("shared UI primitives", () => {
     expect(markup).toContain('title="Open menu"');
   });
 
+  it("renders button hover and focus outline contract", () => {
+    const markup = renderToStaticMarkup(createElement(Button, null, "Save"));
+
+    for (const token of [
+      "hover:outline-2",
+      "hover:outline-offset-2",
+      "hover:outline-brand-accent",
+      "focus-visible:outline-2",
+      "focus-visible:outline-offset-2",
+      "focus-visible:outline-brand-accent",
+    ]) {
+      expect(markup).toContain(token);
+    }
+  });
+
+  it("renders icon button hover and focus outline contract", () => {
+    const markup = renderToStaticMarkup(
+      createElement(IconButton, { label: "Open menu" }, "+")
+    );
+
+    for (const token of [
+      "hover:outline-2",
+      "hover:outline-offset-2",
+      "hover:outline-brand-accent",
+      "focus-visible:outline-2",
+      "focus-visible:outline-offset-2",
+      "focus-visible:outline-brand-accent",
+    ]) {
+      expect(markup).toContain(token);
+    }
+  });
+
+  it("renders primary button with accent fill and surface text", () => {
+    const markup = renderToStaticMarkup(
+      createElement(Button, { variant: "primary" }, "Save")
+    );
+
+    expect(markup).toContain("border-brand-accent");
+    expect(markup).toContain("bg-brand-accent");
+    expect(markup).toContain("text-brand-surface");
+  });
+
+  it("renders clean button and link button with low-border visual contract", () => {
+    const buttonMarkup = renderToStaticMarkup(
+      createElement(CleanButton, { variant: "primary" }, "New product")
+    );
+    const linkMarkup = renderToStaticMarkup(
+      createElement(
+        CleanLinkButton,
+        { active: true, href: "/admin/products" },
+        "Products"
+      )
+    );
+
+    expect(buttonMarkup).toContain("border-transparent");
+    expect(buttonMarkup).toContain("bg-brand-accent");
+    expect(buttonMarkup).toContain("text-brand-surface");
+    expect(linkMarkup).toContain("bg-brand-content");
+    expect(linkMarkup).toContain("text-brand-surface");
+    expect(linkMarkup).toContain("focus-visible:outline-brand-accent");
+  });
+
   it("associates input errors with fields", () => {
     const markup = renderToStaticMarkup(
       createElement(Input, {
@@ -63,6 +128,12 @@ describe("shared UI primitives", () => {
     );
 
     expect(markup).toContain('aria-busy="true"');
+    expect(markup).toContain("disabled");
+    expect(markup).toContain("shadow-none");
+    expect(markup).toContain("filter-none");
+    expect(markup).not.toContain("shadow-sm");
+    expect(markup).not.toContain("shadow-md");
+    expect(markup).not.toContain("blur");
     expect(markup).toContain("Saving");
   });
 
@@ -107,6 +178,25 @@ describe("shared UI primitives", () => {
     expect(markup).toContain('role="dialog"');
     expect(markup).toContain('aria-modal="true"');
     expect(markup).toContain("Confirm change");
+  });
+
+  it("renders drawer dialog semantics when open", () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        Drawer,
+        {
+          onClose: () => undefined,
+          open: true,
+          title: "Cart",
+        },
+        "Cart line items"
+      )
+    );
+
+    expect(markup).toContain('role="dialog"');
+    expect(markup).toContain('aria-modal="true"');
+    expect(markup).toContain("grid-cols-[minmax(0,1fr)_minmax(320px,440px)]");
+    expect(markup).toContain("Close drawer");
   });
 
   it("renders search input with search semantics", () => {

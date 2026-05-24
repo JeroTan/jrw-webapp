@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-12T08:38:32+08:00"
-last_updated: "2026-05-24T19:55:00+08:00"
+last_updated: "2026-05-24T22:06:00+08:00"
 project: jrw-webapp
 project_key: NOKEY
 tracking_system: file-system
@@ -77,21 +77,21 @@ development_status:
   3-7-publish-archive-and-validate-product-readiness: done
   3-8-preserve-product-snapshot-fields-for-future-orders: done
   3-9-admin-product-editor-variant-matrix-and-inventory-ui: done
-  3-10-admin-shell-navigation-and-session-ui: ready-for-dev
-  3-11-admin-dashboard-console-fidelity: ready-for-dev
+  3-10-admin-shell-navigation-and-session-ui: done
+  3-11-admin-dashboard-console-fidelity: done
   epic-3-retrospective: done
   epic-4: in-progress
   4-1-storefront-shell-design-tokens-and-public-navigation: done
   4-2-product-grid-category-browsing-search-and-filters: done
   4-3-product-detail-experience: done
   # Approved UI correction: 4-8, 4-9, and 4-10 must run before 4-4 implementation.
-  4-4-cart-add-update-remove: ready-for-dev
+  4-4-cart-add-update-remove: done
   4-5-availability-blocking-before-checkout: backlog
   4-6-storefront-responsive-accessibility-and-performance-qa: backlog
   4-7-storefront-and-cart-ui-primitive-extensions: backlog
-  4-8-shared-primitive-visual-contract: ready-for-dev
-  4-9-storefront-product-card-and-detail-fidelity: ready-for-dev
-  4-10-future-story-ui-fidelity-gate: ready-for-dev
+  4-8-shared-primitive-visual-contract: done
+  4-9-storefront-product-card-and-detail-fidelity: done
+  4-10-future-story-ui-fidelity-gate: done
   epic-4-retrospective: optional
   epic-5: backlog
   5-1-checkout-identity-contact-and-delivery-validation: backlog

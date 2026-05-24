@@ -1,12 +1,13 @@
 ---
-import BaseLayout from "@/layouts/BaseLayout.astro";
+import AdminLayout from "@/layouts/AdminLayout.astro";
 import { BrandList } from "@/features/brands/components/BrandList";
 ---
 
-<BaseLayout
+<AdminLayout
+  activeHref="/admin/brands"
   title="Brands | JRW Admin"
   description="Brand catalog groups and membership operations."
 >
   <BrandList client:load />
-</BaseLayout>
+</AdminLayout>
 

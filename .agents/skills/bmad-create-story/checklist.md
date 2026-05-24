@@ -156,6 +156,7 @@ You will systematically re-do the entire story creation process, but with a crit
 - **Breaking changes:** Missing requirements that could break existing functionality
 - **Test failures:** Missing test requirements that could allow bugs to reach production
 - **UX violations:** Missing user experience requirements that could ruin the product
+- **UI fidelity drift:** UI stories missing exact `_bmad-output/planning-artifacts/ux-design-directions.html` direction numbers and layout-preservation notes
 - **Learning failures:** Missing previous story context that could repeat same mistakes
 
 #### **3.5 Implementation DISASTERS**
@@ -164,6 +165,14 @@ You will systematically re-do the entire story creation process, but with a crit
 - **Completion lies:** Missing acceptance criteria that could allow fake implementations
 - **Scope creep:** Missing boundaries that could cause unnecessary work
 - **Quality failures:** Missing quality requirements that could deliver broken features
+
+#### **3.6 UI Fidelity Gate DISASTERS**
+
+- **Storefront direction missing:** Storefront stories must cite Direction 01/02/03/04 as applicable and name product-grid, product-card, product-detail, cart, or checkout fidelity checks.
+- **Admin direction missing:** Admin stories must cite Direction 05/07 as applicable and name shell, sidebar, topbar, dense table, role/scope state, and owner-governance checks.
+- **Primitive state missing:** Shared primitive stories must cover hover, focus-visible, status, empty, loading, disabled, and error states against the HTML direction and UX spec.
+- **Layout preservation missing:** UI stories must say what accepted layout must remain unchanged while component visual anatomy changes.
+- **Weak completion gate:** UI done status requires component tests asserting visual contract classes, responsive/manual QA notes, or a documented QA blocker. Type checks alone are not enough.
 
 ### **Step 4: LLM-Dev-Agent Optimization Analysis**
 

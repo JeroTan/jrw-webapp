@@ -41,6 +41,16 @@ Complete for every new or changed endpoint. Mark non-applicable items as `N/A` w
 - Testing standards summary
 - For endpoint stories, fill guard-denial cases from `.agents/skills/bmad-create-story/guard-denial-test-template.md`.
 
+### Design Direction Fidelity
+
+- If this story touches UI, cite `_bmad-output/planning-artifacts/ux-design-directions.html` and exact direction numbers in Acceptance Criteria and Dev Notes.
+- Storefront UI must cite Direction 01, 02, 03, or 04 as applicable and name exact product/card/detail/cart/checkout fidelity checks.
+- Admin UI must cite Direction 05 or 07 as applicable and name shell, sidebar, topbar, table-density, and governance fidelity checks.
+- Shared primitives must cover hover, focus-visible, status, empty, loading, disabled, and error states against the HTML direction and UX spec.
+- Preserve accepted page layout while changing component visual anatomy unless the story explicitly approves layout changes.
+- Button and IconButton hover/focus must use 2px cobalt outline with 2px offset.
+- Done requires component class assertions, responsive/manual QA notes, or a documented QA blocker; type checks alone are not enough for UI completion.
+
 ### Project Structure Notes
 
 - Alignment with unified project structure (paths, modules, naming)
