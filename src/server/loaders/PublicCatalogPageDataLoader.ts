@@ -8,6 +8,10 @@ import type {
   StorefrontCatalogPageError,
   StorefrontCatalogView,
 } from "@/features/product-catalog/types";
+import type {
+  StorefrontProductDetailPageData,
+  StorefrontProductDetailPageError,
+} from "@/features/product-detail/types";
 import { createPublicCatalogRepositories } from "@/server/repositories/PublicCatalogRepository";
 import { PublicCatalogService } from "@/server/services/PublicCatalogService";
 import type { GeneralError } from "@/utils/general/error";
@@ -20,12 +24,6 @@ const defaultQuery: PublicCatalogQuery = {
 };
 
 type RuntimeEnv = Partial<Env> & Record<string, unknown>;
-
-export type StorefrontProductPlaceholderPageData = {
-  error: StorefrontCatalogPageError | null;
-  exists: boolean;
-  status: 200 | 404 | 503;
-};
 
 function parseView(value: string | null): StorefrontCatalogView {
   return value === "categories" ? "categories" : "grid";
@@ -103,6 +101,27 @@ function catalogError(input: {
   };
 }
 
+function detailError(input: {
+  error?: GeneralError;
+  message?: string;
+}): StorefrontProductDetailPageError {
+  if (input.error?.code === "RESOURCE_NOT_FOUND") {
+    return {
+      code: "RESOURCE_NOT_FOUND",
+      message: "Product not found. Browse current products instead.",
+      title: "Product not found",
+    };
+  }
+
+  return {
+    code: input.error?.code ?? "PROVIDER_UNAVAILABLE",
+    message:
+      input.message?.trim() ||
+      "Product page is unavailable right now. Try again soon.",
+    title: "Product unavailable",
+  };
+}
+
 export async function loadStorefrontCatalogPageData(input: {
   baseUrl: URL;
   categorySlug?: string;
@@ -161,20 +180,20 @@ export async function loadStorefrontCatalogPageData(input: {
   };
 }
 
-export async function loadStorefrontProductPlaceholderPageData(input: {
+export async function loadStorefrontProductDetailPageData(input: {
   runtimeEnv?: RuntimeEnv;
   slug: string;
-}): Promise<StorefrontProductPlaceholderPageData> {
+}): Promise<StorefrontProductDetailPageData> {
   const slug = input.slug.trim();
 
   if (!slug) {
     return {
+      detail: null,
       error: {
         code: "RESOURCE_NOT_FOUND",
         message: "Product not found. Browse current products instead.",
         title: "Product not found",
       },
-      exists: false,
       status: 404,
     };
   }
@@ -183,40 +202,44 @@ export async function loadStorefrontProductPlaceholderPageData(input: {
 
   if (!db) {
     return {
-      error: {
-        code: "PROVIDER_UNAVAILABLE",
+      detail: null,
+      error: detailError({
         message: "Product page is unavailable right now. Try again soon.",
-        title: "Product unavailable",
-      },
-      exists: false,
+      }),
       status: 503,
     };
   }
 
   try {
     const repositories = createPublicCatalogRepositories(db as D1Database);
-    const exists =
-      await repositories.repository.findPublishedProductExistsBySlug(slug);
+    const service = new PublicCatalogService({
+      ...repositories,
+    });
+    const result = await service.getProductDetail({
+      requestId: "storefront_product_detail_page",
+      slug,
+    });
 
     return {
-      error: exists
-        ? null
-        : {
-            code: "RESOURCE_NOT_FOUND",
-            message: "Product not found. Browse current products instead.",
-            title: "Product not found",
-          },
-      exists,
-      status: exists ? 200 : 404,
+      detail: result.error ? null : result.content,
+      error: result.error
+        ? detailError({
+            error: result.error,
+          })
+        : null,
+      status:
+        result.error?.code === "RESOURCE_NOT_FOUND"
+          ? 404
+          : result.error
+            ? 503
+            : 200,
     };
   } catch {
     return {
-      error: {
-        code: "PROVIDER_UNAVAILABLE",
+      detail: null,
+      error: detailError({
         message: "Product page is unavailable right now. Try again soon.",
-        title: "Product unavailable",
-      },
-      exists: false,
+      }),
       status: 503,
     };
   }

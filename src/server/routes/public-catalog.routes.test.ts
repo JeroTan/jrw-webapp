@@ -35,6 +35,79 @@ const catalogItem = {
   },
 };
 
+const detailItem = {
+  action: {
+    disabled: true,
+    label: "Add to cart",
+    reason: "Selected option is available. Cart actions are not active on this page yet.",
+  },
+  gallery: [
+    {
+      alt: "Linen Shirt front",
+      height: 1200,
+      id: "photo_linen_front",
+      isPrimary: true,
+      name: "Linen Shirt front",
+      src: "/assets/products/linen-shirt/front.jpg",
+      width: 1200,
+    },
+  ],
+  metadata: {
+    availabilityText: "Available",
+    canonicalPath: "/products/linen-shirt",
+    description: "Lightweight linen shirt • PHP 19.99 • Available • JRW Studio",
+    imageAlt: "Linen Shirt front",
+    imageSrc: "/assets/products/linen-shirt/front.jpg",
+    robots: "index,follow" as const,
+    title: "Linen Shirt | JRW",
+  },
+  product: {
+    availability: {
+      inStock: true,
+      label: "Available" as const,
+      tone: "success" as const,
+    },
+    brandName: "JRW Studio",
+    categories: [categoryOption],
+    description: "Lightweight linen shirt for warm days.",
+    id: "prod_linen",
+    name: "Linen Shirt",
+    priceLabel: "PHP 19.99",
+    primaryImage: {
+      alt: "Linen Shirt front",
+      height: 1200,
+      id: "photo_linen_front",
+      isPrimary: true,
+      name: "Linen Shirt front",
+      src: "/assets/products/linen-shirt/front.jpg",
+      width: 1200,
+    },
+    slug: "linen-shirt",
+    summary: "Lightweight linen shirt",
+  },
+  recoveryLinks: [
+    { href: "/products", label: "Browse all products" },
+    { href: "/products?view=categories", label: "Browse categories" },
+  ],
+  selectedVariantId: "variant_linen_small",
+  variants: [
+    {
+      availability: {
+        inStock: true,
+        label: "Available" as const,
+        tone: "success" as const,
+      },
+      disabled: false,
+      id: "variant_linen_small",
+      label: "Size: Small",
+      optionValues: [{ group: "Size", name: "Small" }],
+      priceLabel: "PHP 19.99",
+      productId: "prod_linen",
+      selected: true,
+    },
+  ],
+};
+
 function publicCatalogController(
   overrides: Partial<PublicCatalogServiceLike>
 ): PublicCatalogController {
@@ -58,6 +131,7 @@ function publicCatalogController(
         selectedCategory: null,
       }),
     listCategories: async () => Result.okay({ items: [] }),
+    getProductDetail: async () => Result.okay(detailItem),
     ...overrides,
   });
 }
@@ -85,6 +159,7 @@ describe("public catalog routes", () => {
     };
 
     const catalog = body.paths?.["/api/storefront/catalog"]?.get;
+    const detail = body.paths?.["/api/storefront/catalog/products/{slug}"]?.get;
     const categories = body.paths?.["/api/storefront/catalog/categories"]?.get;
 
     expect(catalog?.summary).toBe("Browse public catalog");
@@ -97,6 +172,15 @@ describe("public catalog routes", () => {
     expect(catalog?.responses).toHaveProperty("200");
     expect(catalog?.responses).toHaveProperty("400");
 
+    expect(detail?.summary).toBe("Read public product detail");
+    expect(detail?.tags).toContain("Public Catalog");
+    expect(detail?.["x-auth"]).toEqual({
+      mode: "public",
+      roles: ["PROSPECT"],
+    });
+    expect(detail?.responses).toHaveProperty("200");
+    expect(detail?.responses).toHaveProperty("404");
+
     expect(categories?.summary).toBe("List public catalog categories");
     expect(categories?.tags).toContain("Public Catalog");
     expect(categories?.["x-auth"]).toEqual({
@@ -104,6 +188,63 @@ describe("public catalog routes", () => {
       roles: ["PROSPECT"],
     });
     expect(categories?.responses).toHaveProperty("200");
+  });
+
+  it("reads published product detail without auth and preserves slug params", async () => {
+    let receivedInput:
+      | Parameters<PublicCatalogServiceLike["getProductDetail"]>[0]
+      | undefined;
+
+    const app = createApp({
+      routes: {
+        publicCatalog: {
+          controllerFactory: () =>
+            publicCatalogController({
+              getProductDetail: async (input) => {
+                receivedInput = input;
+                return Result.okay(detailItem);
+              },
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request(
+        "https://jrw.test/api/storefront/catalog/products/linen-shirt",
+        {
+          headers: { "x-request-id": "req_storefront_product_detail" },
+        }
+      )
+    );
+
+    expect(receivedInput).toMatchObject({
+      requestId: "req_storefront_product_detail",
+      slug: "linen-shirt",
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        metadata: {
+          canonicalPath: "/products/linen-shirt",
+          title: "Linen Shirt | JRW",
+        },
+        product: {
+          brandName: "JRW Studio",
+          name: "Linen Shirt",
+          priceLabel: "PHP 19.99",
+        },
+        selectedVariantId: "variant_linen_small",
+        variants: [
+          {
+            label: "Size: Small",
+            selected: true,
+          },
+        ],
+      },
+      meta: { requestId: "req_storefront_product_detail" },
+    });
   });
 
   it("lists published catalog data without auth and preserves storefront query inputs", async () => {
@@ -254,6 +395,20 @@ describe("public catalog routes", () => {
                     "RESOURCE_NOT_FOUND"
                   )
                 ),
+              getProductDetail: async (input) =>
+                input.slug.trim().length === 0
+                  ? Result.error(
+                      new GeneralError(
+                        { reasons: ["slug:invalid_value"] },
+                        "VALIDATION_FAILED"
+                      )
+                    )
+                  : Result.error(
+                      new GeneralError(
+                        { slug: input.slug },
+                        "RESOURCE_NOT_FOUND"
+                      )
+                    ),
             }),
         },
       },
@@ -277,6 +432,19 @@ describe("public catalog routes", () => {
         headers: { "x-request-id": "req_storefront_catalog_fractional" },
       })
     );
+    const missingProductResponse = await app.handle(
+      new Request(
+        "https://jrw.test/api/storefront/catalog/products/missing-shirt",
+        {
+          headers: { "x-request-id": "req_storefront_product_missing" },
+        }
+      )
+    );
+    const invalidProductResponse = await app.handle(
+      new Request("https://jrw.test/api/storefront/catalog/products/%20", {
+        headers: { "x-request-id": "req_storefront_product_invalid" },
+      })
+    );
 
     expect(missingResponse.status).toBe(404);
     await expect(missingResponse.json()).resolves.toMatchObject({
@@ -294,6 +462,20 @@ describe("public catalog routes", () => {
 
     expect(fractionalResponse.status).toBe(400);
     await expect(fractionalResponse.json()).resolves.toMatchObject({
+      error: {
+        code: "VALIDATION_FAILED",
+      },
+    });
+
+    expect(missingProductResponse.status).toBe(404);
+    await expect(missingProductResponse.json()).resolves.toMatchObject({
+      error: {
+        code: "RESOURCE_NOT_FOUND",
+      },
+    });
+
+    expect(invalidProductResponse.status).toBe(400);
+    await expect(invalidProductResponse.json()).resolves.toMatchObject({
       error: {
         code: "VALIDATION_FAILED",
       },

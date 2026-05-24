@@ -28,6 +28,7 @@ type ProductCatalogPageProps = {
   mode: StorefrontCatalogPageMode;
   query?: StorefrontCatalogQuery;
   showCategoryDirectory?: boolean;
+  showFilters?: boolean;
   view?: StorefrontCatalogView;
 };
 
@@ -75,6 +76,7 @@ export function ProductCatalogPage({
   mode,
   query,
   showCategoryDirectory = false,
+  showFilters = true,
   view = "grid",
 }: ProductCatalogPageProps) {
   const resolvedQuery = query ?? catalog?.query ?? defaultQuery;
@@ -157,16 +159,24 @@ export function ProductCatalogPage({
         </section>
       ) : null}
 
-      <div className="grid gap-grid-sm md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
-        <aside className="self-start border border-brand-border-strong bg-brand-surface p-grid-sm">
-          <ProductCatalogFilters
-            basePath={basePath}
-            categories={categories}
-            categoryNavigationMode={categoryNavigationMode}
-            query={resolvedQuery}
-            view={view}
-          />
-        </aside>
+      <div
+        className={
+          showFilters
+            ? "grid gap-grid-sm md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]"
+            : "grid gap-grid-sm"
+        }
+      >
+        {showFilters ? (
+          <aside className="self-start border border-brand-border-strong bg-brand-surface p-grid-sm">
+            <ProductCatalogFilters
+              basePath={basePath}
+              categories={categories}
+              categoryNavigationMode={categoryNavigationMode}
+              query={resolvedQuery}
+              view={view}
+            />
+          </aside>
+        ) : null}
 
         <div className="grid gap-grid-sm">
           {error ? (

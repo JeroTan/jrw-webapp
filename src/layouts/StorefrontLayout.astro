@@ -6,19 +6,34 @@ import {
 import BaseLayout from "@/layouts/BaseLayout.astro";
 
 interface Props {
+  canonicalUrl?: string;
   title?: string;
   description?: string;
   mainAriaLabel?: string;
+  robots?: string;
+  socialImageAlt?: string;
+  socialImageUrl?: string;
 }
 
 const {
+  canonicalUrl,
   title = "JRW — Lifestyle Products",
   description = "Browse JRW. lifestyle products.",
   mainAriaLabel = "Storefront content",
+  robots,
+  socialImageAlt,
+  socialImageUrl,
 } = Astro.props;
 ---
 
-<BaseLayout title={title} description={description}>
+<BaseLayout
+  canonicalUrl={canonicalUrl}
+  description={description}
+  robots={robots}
+  socialImageAlt={socialImageAlt}
+  socialImageUrl={socialImageUrl}
+  title={title}
+>
   <a
     class="absolute left-grid-sm top-grid-xs z-61 inline-flex min-h-control-md translate-y-[-160%] items-center border border-brand-border-strong bg-brand-surface px-grid-xs font-system text-xs font-bold no-underline focus-visible:translate-y-0"
     href="#main-content"

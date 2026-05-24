@@ -1,6 +1,7 @@
 import { GeneralError } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
 import { normalizeProductListQuery } from "./product";
+import type { ProductVariantOption } from "./types";
 import type { InventoryState } from "./types";
 import type {
   PublicCatalogAvailability,
@@ -132,4 +133,57 @@ export function publicCatalogAvailabilityFromStates(
 
 export function formatCatalogPrice(value: number): string {
   return `PHP ${(value / 100).toFixed(2)}`;
+}
+
+export function formatCatalogPriceLabel(input: {
+  lowestPrice: number | null;
+  priceRangeMax: number | null;
+  priceRangeMin: number | null;
+}): string {
+  if (
+    typeof input.priceRangeMin === "number" &&
+    typeof input.priceRangeMax === "number"
+  ) {
+    if (input.priceRangeMin === input.priceRangeMax) {
+      return formatCatalogPrice(input.priceRangeMin);
+    }
+
+    return `${formatCatalogPrice(input.priceRangeMin)} - ${formatCatalogPrice(input.priceRangeMax)}`;
+  }
+
+  if (typeof input.lowestPrice === "number") {
+    return `Starts at ${formatCatalogPrice(input.lowestPrice)}`;
+  }
+
+  return "Price unavailable";
+}
+
+export function formatPublicVariantLabel(input: {
+  name: string;
+  optionValues: ProductVariantOption[];
+}): string {
+  const optionLabel = input.optionValues
+    .map((option) => `${option.group}: ${option.name}`)
+    .join(" / ");
+
+  if (optionLabel.length > 0) {
+    return optionLabel;
+  }
+
+  return input.name.trim() || "Option";
+}
+
+export function publicCatalogUnavailableReason(input: {
+  availability: PublicCatalogAvailability;
+  variantCount: number;
+}): string | undefined {
+  if (input.availability.inStock) {
+    return undefined;
+  }
+
+  if (input.variantCount <= 0) {
+    return "Product options are unavailable right now.";
+  }
+
+  return "Selected option is unavailable right now.";
 }

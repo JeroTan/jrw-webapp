@@ -1,14 +1,25 @@
 import { createDb, type AppDb } from "@/adapter/infrastructure/db/client";
 import {
   formatCatalogPrice,
+  formatCatalogPriceLabel,
+  formatPublicVariantLabel,
   publicCatalogAvailabilityFromStates,
+  publicCatalogUnavailableReason,
 } from "@/domain/products/public-catalog";
 import type {
   PublicCatalogCategoryOption,
+  PublicCatalogDetailResult,
+  PublicCatalogGalleryItem,
   PublicCatalogPagination,
   PublicCatalogProductCard,
+  PublicCatalogRecoveryLink,
 } from "@/domain/products/public-types";
-import type { InventoryState, ProductRecord } from "@/domain/products/types";
+import type {
+  InventoryState,
+  ProductPhotoRecord,
+  ProductRecord,
+  ProductVariantRecord,
+} from "@/domain/products/types";
 import {
   categories,
   product_categories,
@@ -21,9 +32,17 @@ import {
   type CategoryRepository,
 } from "@/server/repositories/CategoryRepository";
 import {
+  DrizzlePhotoRepository,
+  type PhotoRepository,
+} from "@/server/repositories/PhotoRepository";
+import {
   DrizzleProductRepository,
   type ProductRepository,
 } from "@/server/repositories/ProductRepository";
+import {
+  DrizzleVariantRepository,
+  type VariantRepository,
+} from "@/server/repositories/VariantRepository";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 type PublicCatalogBrowseInput = {
@@ -62,6 +81,9 @@ export type PublicCatalogRepository = {
   findActiveVisibleCategoryBySlug(
     slug: string
   ): Promise<PublicCatalogCategoryOption | null>;
+  findPublishedProductDetailBySlug(
+    slug: string
+  ): Promise<PublicCatalogDetailResult | null>;
   findPublishedProductExistsBySlug(slug: string): Promise<boolean>;
   listActiveVisibleCategoryOptions(): Promise<PublicCatalogCategoryOption[]>;
   listPublishedProductCards(
@@ -77,12 +99,8 @@ function productHref(slug: string): string {
   return `/products/${encodeURIComponent(slug)}`;
 }
 
-function productImageSrc(r2Key: string | null): string | undefined {
-  const cleanKey = r2Key?.trim().replace(/^products\//, "");
-
-  if (!cleanKey) {
-    return undefined;
-  }
+function publicProductAssetUrl(key: string): string {
+  const cleanKey = key.trim().replace(/^products\//, "");
 
   return `/assets/products/${cleanKey
     .split("/")
@@ -90,23 +108,22 @@ function productImageSrc(r2Key: string | null): string | undefined {
     .join("/")}`;
 }
 
+function productImageSrc(r2Key: string | null): string | undefined {
+  const cleanKey = r2Key?.trim();
+
+  if (!cleanKey) {
+    return undefined;
+  }
+
+  return publicProductAssetUrl(cleanKey);
+}
+
 function priceLabel(product: ProductRecord): string {
-  if (
-    typeof product.priceRangeMin === "number" &&
-    typeof product.priceRangeMax === "number"
-  ) {
-    if (product.priceRangeMin === product.priceRangeMax) {
-      return formatCatalogPrice(product.priceRangeMin);
-    }
-
-    return `${formatCatalogPrice(product.priceRangeMin)} - ${formatCatalogPrice(product.priceRangeMax)}`;
-  }
-
-  if (typeof product.lowestPrice === "number") {
-    return `Starts at ${formatCatalogPrice(product.lowestPrice)}`;
-  }
-
-  return "Price unavailable";
+  return formatCatalogPriceLabel({
+    lowestPrice: product.lowestPrice,
+    priceRangeMax: product.priceRangeMax,
+    priceRangeMin: product.priceRangeMin,
+  });
 }
 
 function toCategoryOption(input: {
@@ -161,11 +178,209 @@ function productCardFromRecord(input: {
   };
 }
 
+function truncateDescription(value: string, maxLength = 160): string {
+  const trimmed = value.trim().replace(/\s+/g, " ");
+
+  if (trimmed.length <= maxLength) {
+    return trimmed;
+  }
+
+  return `${trimmed.slice(0, maxLength - 1).trimEnd()}…`;
+}
+
+function galleryItemFromPhoto(input: {
+  index: number;
+  photo: ProductPhotoRecord;
+  productName: string;
+}): PublicCatalogGalleryItem {
+  return {
+    alt:
+      input.photo.name?.trim() ||
+      `${input.productName} image ${String(input.index + 1)}`,
+    height: input.photo.height,
+    id: input.photo.id,
+    isPrimary: input.photo.isPrimary,
+    name: input.photo.name,
+    src: input.photo.url,
+    width: input.photo.width,
+  };
+}
+
+function detailRecoveryLinks(
+  categories: PublicCatalogCategoryOption[]
+): PublicCatalogRecoveryLink[] {
+  const links: PublicCatalogRecoveryLink[] = [
+    {
+      href: "/products",
+      label: "Browse all products",
+    },
+    {
+      href: "/products?view=categories",
+      label: "Browse categories",
+    },
+  ];
+
+  if (categories[0]) {
+    links.push({
+      href: categories[0].href,
+      label: `More in ${categories[0].name}`,
+    });
+  }
+
+  return links;
+}
+
+function detailMetadata(input: {
+  availabilityText: string;
+  brandName: string | null;
+  categories: PublicCatalogCategoryOption[];
+  imageAlt?: string;
+  imageSrc?: string;
+  priceLabel: string;
+  product: ProductRecord;
+}): PublicCatalogDetailResult["metadata"] {
+  const descriptionSource =
+    input.product.summary?.trim() || input.product.description.trim();
+  const contextLabel =
+    input.brandName?.trim() || input.categories[0]?.name || "JRW";
+  const description = truncateDescription(
+    [descriptionSource, input.priceLabel, input.availabilityText, contextLabel]
+      .filter((value) => value && value.trim().length > 0)
+      .join(" • ")
+  );
+
+  return {
+    availabilityText: input.availabilityText,
+    canonicalPath: productHref(input.product.slug),
+    description,
+    ...(input.imageAlt ? { imageAlt: input.imageAlt } : {}),
+    ...(input.imageSrc ? { imageSrc: input.imageSrc } : {}),
+    robots: "index,follow",
+    title: `${input.product.name} | JRW`,
+  };
+}
+
+function detailResultFromSource(input: {
+  categories: PublicCatalogCategoryOption[];
+  galleryPhotos: ProductPhotoRecord[];
+  product: ProductRecord;
+  variants: ProductVariantRecord[];
+}): PublicCatalogDetailResult {
+  const gallery = input.galleryPhotos.map((photo, index) =>
+    galleryItemFromPhoto({
+      index,
+      photo,
+      productName: input.product.name,
+    })
+  );
+  const primaryImage = gallery.find((item) => item.isPrimary) ?? gallery[0] ?? null;
+  const photoByImageReference = new Map(
+    input.galleryPhotos.map((photo) => [photo.imageId, photo.url])
+  );
+  const activeVariants = input.variants.filter(
+    (variant) => variant.status !== "ARCHIVED"
+  );
+  const defaultVariant =
+    activeVariants.find((variant) => variant.hasAvailableStock) ??
+    activeVariants[0] ??
+    null;
+  const variants = activeVariants.map((variant) => {
+    const availability = publicCatalogAvailabilityFromStates([
+      variant.inventoryState,
+    ]);
+
+    return {
+      availability,
+      disabled: !availability.inStock,
+      id: variant.id,
+      ...(variant.imageReferenceId &&
+      photoByImageReference.has(variant.imageReferenceId)
+        ? { imageSrc: photoByImageReference.get(variant.imageReferenceId) }
+        : {}),
+      label: formatPublicVariantLabel({
+        name: variant.name,
+        optionValues: variant.variationChain,
+      }),
+      optionValues: variant.variationChain.map((option) => ({
+        group: option.group,
+        name: option.name,
+      })),
+      priceLabel: formatCatalogPrice(variant.priceCentavos),
+      productId: variant.productId,
+      selected: defaultVariant?.id === variant.id,
+      ...(publicCatalogUnavailableReason({
+        availability,
+        variantCount: activeVariants.length,
+      })
+        ? {
+            unavailableReason: publicCatalogUnavailableReason({
+              availability,
+              variantCount: activeVariants.length,
+            }),
+          }
+        : {}),
+    };
+  });
+  const selectedVariant = variants.find((variant) => variant.selected) ?? null;
+  const selectedAvailability =
+    selectedVariant?.availability ?? publicCatalogAvailabilityFromStates([]);
+  const selectedPriceLabel = selectedVariant?.priceLabel ?? priceLabel(input.product);
+
+  return {
+    action: selectedVariant
+      ? selectedVariant.disabled
+        ? {
+            disabled: true,
+            label: "Unavailable",
+            reason:
+              selectedVariant.unavailableReason ??
+              "Selected option is unavailable right now.",
+          }
+        : {
+            disabled: true,
+            label: "Add to cart",
+            reason: "Selected option is available. Cart actions are not active on this page yet.",
+          }
+      : {
+          disabled: true,
+          label: "Unavailable",
+          reason: "Product options are unavailable right now.",
+        },
+    gallery,
+    metadata: detailMetadata({
+      availabilityText: selectedAvailability.label,
+      brandName: input.product.brandName,
+      categories: input.categories,
+      ...(primaryImage?.alt ? { imageAlt: primaryImage.alt } : {}),
+      ...(primaryImage?.src ? { imageSrc: primaryImage.src } : {}),
+      priceLabel: selectedPriceLabel,
+      product: input.product,
+    }),
+    product: {
+      availability: selectedAvailability,
+      brandName: input.product.brandName,
+      categories: input.categories,
+      description: input.product.description,
+      id: input.product.id,
+      name: input.product.name,
+      priceLabel: selectedPriceLabel,
+      primaryImage,
+      slug: input.product.slug,
+      summary: input.product.summary,
+    },
+    recoveryLinks: detailRecoveryLinks(input.categories),
+    selectedVariantId: selectedVariant?.id ?? null,
+    variants,
+  };
+}
+
 export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
   constructor(
     private readonly db: AppDb,
     private readonly categoryRepository: CategoryRepository,
-    private readonly productRepository: ProductRepository
+    private readonly photoRepository: PhotoRepository,
+    private readonly productRepository: ProductRepository,
+    private readonly variantRepository: VariantRepository
   ) {}
 
   async findActiveVisibleCategoryBySlug(
@@ -225,6 +440,35 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
       .limit(1);
 
     return Boolean(row);
+  }
+
+  async findPublishedProductDetailBySlug(
+    slug: string
+  ): Promise<PublicCatalogDetailResult | null> {
+    const cleanSlug = slug.trim();
+
+    if (!cleanSlug) {
+      return null;
+    }
+
+    const product = await this.productRepository.findBySlug(cleanSlug);
+
+    if (!product || product.status !== "PUBLISHED") {
+      return null;
+    }
+
+    const [visibleCategories, galleryPhotos, variants] = await Promise.all([
+      this.listVisibleCategories(product.id),
+      this.photoRepository.listByProductId(product.id),
+      this.listAllVariants(product.id),
+    ]);
+
+    return detailResultFromSource({
+      categories: visibleCategories,
+      galleryPhotos,
+      product,
+      variants,
+    });
   }
 
   async listPublishedProductCards(
@@ -324,6 +568,28 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
     return states;
   }
 
+  private async listAllVariants(productId: string): Promise<ProductVariantRecord[]> {
+    const items: ProductVariantRecord[] = [];
+    let page = 1;
+
+    while (true) {
+      const result = await this.variantRepository.listByProductId(productId, {
+        page,
+        pageSize: 100,
+      });
+
+      items.push(...result.items);
+
+      if (result.totalPages <= page || result.items.length === 0) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return items;
+  }
+
   private async listPrimaryPhotos(
     productIds: string[]
   ): Promise<Map<string, ProductPhotoRow>> {
@@ -389,6 +655,33 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
 
     return categoryMap;
   }
+
+  private async listVisibleCategories(
+    productId: string
+  ): Promise<PublicCatalogCategoryOption[]> {
+    const rows = await this.db
+      .select({
+        id: categories.id,
+        name: categories.name,
+        slug: categories.slug,
+      })
+      .from(product_categories)
+      .innerJoin(categories, eq(categories.id, product_categories.category_id))
+      .where(
+        and(
+          eq(product_categories.product_id, productId),
+          eq(categories.status, "ACTIVE"),
+          eq(categories.is_visible, true)
+        )
+      )
+      .orderBy(
+        asc(categories.sort_order),
+        asc(categories.name),
+        asc(categories.id)
+      );
+
+    return rows.map(toCategoryOption);
+  }
 }
 
 export function createPublicCatalogRepositories(dbBinding: D1Database) {
@@ -398,7 +691,12 @@ export function createPublicCatalogRepositories(dbBinding: D1Database) {
     repository: new DrizzlePublicCatalogRepository(
       db,
       new DrizzleCategoryRepository(db),
-      new DrizzleProductRepository(db)
+      new DrizzlePhotoRepository({
+        db,
+        resolvePublicUrl: publicProductAssetUrl,
+      }),
+      new DrizzleProductRepository(db),
+      new DrizzleVariantRepository(db)
     ),
   };
 }

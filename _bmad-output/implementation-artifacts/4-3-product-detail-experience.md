@@ -1,6 +1,6 @@
 # Story 4.3: Product Detail Experience
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,64 +23,64 @@ So that I can choose a valid product option confidently.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock scope, reuse points, and anti-patterns before coding. (AC: 1-8)
-  - [ ] Preserve Story 4.2 public catalog/page contracts: `/products/[slug]` remains canonical public route with `prerender = false`, safe 404/503 handling, and no admin/API self-fetch.
-  - [ ] Reuse existing public stack (`public-catalog.routes.ts` -> controller -> service -> repository) instead of creating parallel public API modules.
-  - [ ] Do not ship real cart mutation, checkout blocking, or new shared Drawer/SidePanel primitive here; Stories 4.4, 4.5, and 4.7 own those. Product detail may expose truthful action state only.
-  - [ ] Do not use `src/api/**`, `/api/admin/**`, or legacy response shapes.
-  - [ ] Do not expose raw stock counts, stock versions, R2 keys, SKU-only internal data, admin-only archive state, or provider/internal errors to public HTML/API.
+- [x] Task 1: Lock scope, reuse points, and anti-patterns before coding. (AC: 1-8)
+  - [x] Preserve Story 4.2 public catalog/page contracts: `/products/[slug]` remains canonical public route with `prerender = false`, safe 404/503 handling, and no admin/API self-fetch.
+  - [x] Reuse existing public stack (`public-catalog.routes.ts` -> controller -> service -> repository) instead of creating parallel public API modules.
+  - [x] Do not ship real cart mutation, checkout blocking, or new shared Drawer/SidePanel primitive here; Stories 4.4, 4.5, and 4.7 own those. Product detail may expose truthful action state only.
+  - [x] Do not use `src/api/**`, `/api/admin/**`, or legacy response shapes.
+  - [x] Do not expose raw stock counts, stock versions, R2 keys, SKU-only internal data, admin-only archive state, or provider/internal errors to public HTML/API.
 
-- [ ] Task 2: Define public product detail DTOs and endpoint wiring. (AC: 1-3, 7-8)
-  - [ ] Extend `src/domain/products/public-types.ts` with product detail/page DTOs, gallery item types, public variant option types, and customer-safe action state.
-  - [ ] Add public detail route under `src/server/routes/public-catalog.routes.ts` (recommended `GET /storefront/catalog/products/:slug`) with TypeBox params/response schemas, `auth.mode = public`, `roles = ["PROSPECT"]`, `rateLimitClass = "public-read"`, and safe error codes.
-  - [ ] Extend `PublicCatalogController` and `PublicCatalogService` with detail read flow that keeps `{ data, meta }` envelope and requestId propagation.
-  - [ ] Keep OpenAPI docs under `Public Catalog` tag rather than inventing a new public tag unless route module split becomes necessary.
+- [x] Task 2: Define public product detail DTOs and endpoint wiring. (AC: 1-3, 7-8)
+  - [x] Extend `src/domain/products/public-types.ts` with product detail/page DTOs, gallery item types, public variant option types, and customer-safe action state.
+  - [x] Add public detail route under `src/server/routes/public-catalog.routes.ts` (recommended `GET /storefront/catalog/products/:slug`) with TypeBox params/response schemas, `auth.mode = public`, `roles = ["PROSPECT"]`, `rateLimitClass = "public-read"`, and safe error codes.
+  - [x] Extend `PublicCatalogController` and `PublicCatalogService` with detail read flow that keeps `{ data, meta }` envelope and requestId propagation.
+  - [x] Keep OpenAPI docs under `Public Catalog` tag rather than inventing a new public tag unless route module split becomes necessary.
 
-- [ ] Task 3: Implement customer-safe detail repository flow from existing catalog/image/variant sources. (AC: 1-4, 7)
-  - [ ] Reuse `ProductRepository`, `PhotoRepository`, and `VariantRepository` data where possible, but wrap them in `PublicCatalogRepository` detail logic so public filters happen server-side.
-  - [ ] Require `products.status = "PUBLISHED"` for public detail. Unpublished or archived products return public-safe not-found fallback; do not leak existence.
-  - [ ] Filter linked categories to active + visible only before exposing them publicly. Preserve brandless product validity and do not imply missing seller/store.
-  - [ ] Reuse ordered image/public asset URL logic from `PhotoRepository.listByProductId(...)` or shared helper so gallery gets `url`, `name`, `width`, `height`, `isPrimary`, and stable ordering without duplicating `/assets/products/...` rules.
-  - [ ] Reuse variant records, but filter archived variants out of normal customer selection. If stale/default selection points at archived or unavailable variant, surface customer-safe unavailable reason and disabled action state instead of exposing admin/archive internals.
-  - [ ] Expose future-cart-safe opaque identifiers needed by Story 4.4 (product id / variant id) in DTOs if required, but never render raw ids in UI copy.
-  - [ ] Reuse existing price formatting and availability helpers from `src/domain/products/public-catalog.ts`; avoid parallel formatting functions.
+- [x] Task 3: Implement customer-safe detail repository flow from existing catalog/image/variant sources. (AC: 1-4, 7)
+  - [x] Reuse `ProductRepository`, `PhotoRepository`, and `VariantRepository` data where possible, but wrap them in `PublicCatalogRepository` detail logic so public filters happen server-side.
+  - [x] Require `products.status = "PUBLISHED"` for public detail. Unpublished or archived products return public-safe not-found fallback; do not leak existence.
+  - [x] Filter linked categories to active + visible only before exposing them publicly. Preserve brandless product validity and do not imply missing seller/store.
+  - [x] Reuse ordered image/public asset URL logic from `PhotoRepository.listByProductId(...)` or shared helper so gallery gets `url`, `name`, `width`, `height`, `isPrimary`, and stable ordering without duplicating `/assets/products/...` rules.
+  - [x] Reuse variant records, but filter archived variants out of normal customer selection. If stale/default selection points at archived or unavailable variant, surface customer-safe unavailable reason and disabled action state instead of exposing admin/archive internals.
+  - [x] Expose future-cart-safe opaque identifiers needed by Story 4.4 (product id / variant id) in DTOs if required, but never render raw ids in UI copy.
+  - [x] Reuse existing price formatting and availability helpers from `src/domain/products/public-catalog.ts`; avoid parallel formatting functions.
 
-- [ ] Task 4: Build storefront product detail feature UI and page wiring. (AC: 1-6)
-  - [ ] Create dedicated React feature module for detail UI (recommended `src/features/product-detail/**`) with page component, gallery, variant selector, availability/action block, and error/recovery states.
-  - [ ] Update `src/pages/products/[slug].astro` to render real SSR detail content instead of `StorefrontPlaceholder`, keeping page-level redirect/status handling in Astro page.
-  - [ ] Use full page as canonical baseline. Optional wide-desktop overlay/sheet enhancement is allowed only if it keeps canonical full route working and reuses existing focus-trapping primitives safely; do not invent a shared Drawer/SidePanel primitive in this story.
-  - [ ] Gallery must avoid layout shift by using stable aspect-ratio containers and available image dimensions. Alt text should use image name when present and safe fallback labels when absent.
-  - [ ] Variant selector must expose selected state clearly, update price/availability/action state immediately, and be keyboard accessible with radio-group-like interaction.
-  - [ ] Product detail copy must stay customer-safe: show brand/category when available, omit false seller/store implications for brandless products, and avoid internal language like "story", "placeholder", "archived admin-only", or inventory internals.
-  - [ ] If actual cart mutation is intentionally deferred to Story 4.4, keep primary action truthful. It may change enabled/disabled state and label, but must not pretend item was added to cart or silently route user to empty cart.
+- [x] Task 4: Build storefront product detail feature UI and page wiring. (AC: 1-6)
+  - [x] Create dedicated React feature module for detail UI (recommended `src/features/product-detail/**`) with page component, gallery, variant selector, availability/action block, and error/recovery states.
+  - [x] Update `src/pages/products/[slug].astro` to render real SSR detail content instead of `StorefrontPlaceholder`, keeping page-level redirect/status handling in Astro page.
+  - [x] Use full page as canonical baseline. Optional wide-desktop overlay/sheet enhancement is allowed only if it keeps canonical full route working and reuses existing focus-trapping primitives safely; do not invent a shared Drawer/SidePanel primitive in this story.
+  - [x] Gallery must avoid layout shift by using stable aspect-ratio containers and available image dimensions. Alt text should use image name when present and safe fallback labels when absent.
+  - [x] Variant selector must expose selected state clearly, update price/availability/action state immediately, and be keyboard accessible with radio-group-like interaction.
+  - [x] Product detail copy must stay customer-safe: show brand/category when available, omit false seller/store implications for brandless products, and avoid internal language like "story", "placeholder", "archived admin-only", or inventory internals.
+  - [x] If actual cart mutation is intentionally deferred to Story 4.4, keep primary action truthful. It may change enabled/disabled state and label, but must not pretend item was added to cart or silently route user to empty cart.
 
-- [ ] Task 5: Extend storefront metadata and fallback handling. (AC: 1, 6-8)
-  - [ ] Extend `BaseLayout.astro` and/or `StorefrontLayout.astro` to accept canonical URL, social preview image, and optional indexing directives so product detail pages can emit unique SEO metadata.
-  - [ ] Set title/description/canonical/social preview from product detail data: product name, description/summary, price display, availability, primary image, brand/category when available.
-  - [ ] Use request-aware absolute URLs (`Astro.url`) or a documented site origin strategy. Current `astro.config.mjs` has no `site` value, so canonical logic must not assume `Astro.site` exists.
-  - [ ] Public 404/503 detail fallbacks must render safe recovery links and non-leaky metadata.
+- [x] Task 5: Extend storefront metadata and fallback handling. (AC: 1, 6-8)
+  - [x] Extend `BaseLayout.astro` and/or `StorefrontLayout.astro` to accept canonical URL, social preview image, and optional indexing directives so product detail pages can emit unique SEO metadata.
+  - [x] Set title/description/canonical/social preview from product detail data: product name, description/summary, price display, availability, primary image, brand/category when available.
+  - [x] Use request-aware absolute URLs (`Astro.url`) or a documented site origin strategy. Current `astro.config.mjs` has no `site` value, so canonical logic must not assume `Astro.site` exists.
+  - [x] Public 404/503 detail fallbacks must render safe recovery links and non-leaky metadata.
 
 - [ ] Task 6: Add focused tests and QA for public detail behavior. (AC: 1-8)
-  - [ ] Extend `src/server/routes/public-catalog.routes.test.ts` for OpenAPI docs, params, public auth metadata, published detail success, unpublished/archived 404, invalid slug/empty slug handling, and safe envelopes.
-  - [ ] Extend `src/server/services/PublicCatalogService.test.ts` for public detail mapping, category visibility filtering, archived/unavailable variant behavior, ordered gallery, and error mapping.
-  - [ ] Add storefront UI tests (recommended `src/features/product-detail/components/product-detail-ui.test.tsx`) covering available detail, unavailable variant text, brandless copy, missing product fallback, and gallery/variant markup stability.
-  - [ ] If `Modal`/overlay enhancement is used, add focus-trap/restore coverage or targeted QA notes proving Escape, Tab loop, and return focus behavior.
-  - [ ] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` to confirm no new runtime styling regressions.
-  - [ ] Run targeted Vitest for public catalog/detail route + service + UI files, then `npm run check`, and `npm run build` if no blocker appears.
-  - [ ] Manual QA at 320, 375, 390, 430, 768, 1024, and 1440px with keyboard-only walkthrough for product gallery, variant selection, recovery links, and any overlay focus behavior.
+  - [x] Extend `src/server/routes/public-catalog.routes.test.ts` for OpenAPI docs, params, public auth metadata, published detail success, unpublished/archived 404, invalid slug/empty slug handling, and safe envelopes.
+  - [x] Extend `src/server/services/PublicCatalogService.test.ts` for public detail mapping, category visibility filtering, archived/unavailable variant behavior, ordered gallery, and error mapping.
+  - [x] Add storefront UI tests (recommended `src/features/product-detail/components/product-detail-ui.test.tsx`) covering available detail, unavailable variant text, brandless copy, missing product fallback, and gallery/variant markup stability.
+  - N/A If `Modal`/overlay enhancement is used, add focus-trap/restore coverage or targeted QA notes proving Escape, Tab loop, and return focus behavior. Full-page baseline shipped; no overlay behavior added.
+  - [x] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` to confirm no new runtime styling regressions.
+  - [x] Run targeted Vitest for public catalog/detail route + service + UI files, then `npm run check`, and `npm run build` if no blocker appears.
+  - [x] Manual QA at 320, 375, 390, 430, 768, 1024, and 1440px with keyboard-only walkthrough for product gallery, variant selection, recovery links, and any overlay focus behavior.
 
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint. Mark non-applicable items as `N/A` with reason.
 
-- [ ] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
+- [x] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
 - N/A Route-level RBAC guard runs before validation or side effects for protected endpoints. Product detail endpoint is public read-only.
 - N/A Service/controller enforces actor state before mutation: authenticated, active, verified, approved. Story 4.3 adds read-only public detail, not mutation.
 - N/A Brand-scoped reads or writes enforce active brand membership or elevated permission server-side. Public detail intentionally does not require membership.
-- [ ] Public/customer endpoints explicitly document why brand membership is not required.
+- [x] Public/customer endpoints explicitly document why brand membership is not required.
 - N/A Denial tests cover unauthenticated actor, wrong role, invalid account state, missing brand membership, and elevated actor path where applicable. Public read endpoint has no role denial path beyond safe not-found/provider failures.
-- [ ] Error response uses safe envelope codes and does not leak provider/internal authorization details.
-- [ ] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
+- [x] Error response uses safe envelope codes and does not leak provider/internal authorization details.
+- [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
 
 ## Dev Notes
 
@@ -409,11 +409,45 @@ GPT-5 Codex
 
 ### Completion Notes List
 
-- Ultimate context engine analysis completed - comprehensive developer guide created.
-- Auto-selected first backlog story from sprint status: `4-3-product-detail-experience`.
-- Epic 4 already marked `in-progress`, so no epic status change required.
-- Story ready for dev with explicit public-detail guardrails, metadata gap callouts, and non-regression notes from 4.1 / 4.2 / 3.x catalog work.
+- Implemented public product detail DTOs, route/controller/service flow, and loader-backed SSR page wiring under existing public catalog architecture.
+- Added customer-safe detail repository mapping for published products, active visible categories, ordered gallery assets, archived-variant filtering, selected variant pricing/availability, and truthful blocked cart state.
+- Added new `src/features/product-detail/**` UI with stable gallery aspect ratios, native radio inputs for keyboard variant selection, safe recovery states, and metadata-aware page rendering.
+- Extended shared layout metadata support for canonical, robots, Open Graph, and Twitter tags so product pages emit crawlable product detail fields and error pages stay `noindex`.
+- Verification completed: targeted Vitest for route/service/UI, runtime style grep, `npm run check`, and `npm run build` all passed.
+- Remote development D1 confirmed reachable via saved Wrangler OAuth login on 2026-05-24.
+- Remote development D1 sample data updated on 2026-05-24: `example` is now `PUBLISHED`, linked to visible category `tee-shirt`, has one primary photo, and has two active in-stock variants (`EXAMPLE-REGULAR`, `EXAMPLE-LARGE`) for storefront detail QA.
+- Landing page follow-up completed on 2026-05-24: removed homepage category directory and filter rail so the first public storefront view prioritizes product cards on mobile and desktop.
+- User completed responsive/manual QA pass across requested viewport points; Story 4.3 marked ready for review.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/4-3-product-detail-experience.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/domain/products/public-catalog.ts`
+- `src/domain/products/public-types.ts`
+- `src/features/product-detail/components/ProductDetailErrorState.tsx`
+- `src/features/product-detail/components/ProductDetailPage.tsx`
+- `src/features/product-detail/components/ProductGallery.tsx`
+- `src/features/product-detail/components/ProductVariantSelector.tsx`
+- `src/features/product-detail/components/product-detail-ui.test.tsx`
+- `src/features/product-detail/index.ts`
+- `src/features/product-detail/types.ts`
+- `src/features/product-catalog/components/ProductCatalogPage.tsx`
+- `src/features/product-catalog/components/product-catalog-ui.test.tsx`
+- `src/layouts/BaseLayout.astro`
+- `src/layouts/StorefrontLayout.astro`
+- `src/pages/index.astro`
+- `src/pages/products/[slug].astro`
+- `src/server/controllers/PublicCatalogController.ts`
+- `src/server/loaders/PublicCatalogPageDataLoader.ts`
+- `src/server/repositories/PublicCatalogRepository.ts`
+- `src/server/routes/public-catalog.routes.test.ts`
+- `src/server/routes/public-catalog.routes.ts`
+- `src/server/services/PublicCatalogService.test.ts`
+- `src/server/services/PublicCatalogService.ts`
+
+### Change Log
+
+- 2026-05-24: Implemented public storefront product detail flow, SSR/hydrated detail UI, metadata plumbing, and verification coverage.
+- 2026-05-24: Published remote dev `example` sample product with active category, primary photo, and two in-stock variants for storefront QA.
+- 2026-05-24: Removed homepage category directory and filter rail per mobile storefront review; Story 4.3 moved to review.

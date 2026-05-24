@@ -2,13 +2,21 @@
 import "../styles/global.css";
 
 interface Props {
+  canonicalUrl?: string;
   title?: string;
   description?: string;
+  robots?: string;
+  socialImageAlt?: string;
+  socialImageUrl?: string;
 }
 
 const {
+  canonicalUrl,
   title = "JRW Webapp",
   description = "JRW Webapp interface shell.",
+  robots,
+  socialImageAlt,
+  socialImageUrl,
 } = Astro.props;
 ---
 
@@ -20,7 +28,30 @@ const {
     <link rel="icon" href="/favicon.ico" />
     <meta name="viewport" content="width=device-width" />
     <meta name="description" content={description} />
+    {robots ? <meta name="robots" content={robots} /> : null}
+    {canonicalUrl ? <link rel="canonical" href={canonicalUrl} /> : null}
     <meta name="generator" content={Astro.generator} />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    {canonicalUrl ? <meta property="og:url" content={canonicalUrl} /> : null}
+    {socialImageUrl ? (
+      <>
+        <meta property="og:image" content={socialImageUrl} />
+        {socialImageAlt ? (
+          <meta property="og:image:alt" content={socialImageAlt} />
+        ) : null}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:image" content={socialImageUrl} />
+        {socialImageAlt ? (
+          <meta name="twitter:image:alt" content={socialImageAlt} />
+        ) : null}
+      </>
+    ) : (
+      <meta name="twitter:card" content="summary" />
+    )}
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
     <title>{title}</title>
   </head>
   <body>

@@ -6,10 +6,12 @@ import {
 } from "@/lib/api/response";
 import type {
   PublicCatalogCategoryListResult,
+  PublicCatalogDetailResult,
   PublicCatalogResult,
 } from "@/domain/products/public-types";
 import type {
   PublicCatalogCategoryListServiceInput,
+  PublicCatalogDetailServiceInput,
   PublicCatalogListServiceInput,
 } from "@/server/services/PublicCatalogService";
 import type { AppResult } from "@/utils/general/result";
@@ -21,6 +23,9 @@ export type PublicCatalogServiceLike = {
   listCategories(
     input: PublicCatalogCategoryListServiceInput
   ): Promise<AppResult<PublicCatalogCategoryListResult>>;
+  getProductDetail(
+    input: PublicCatalogDetailServiceInput
+  ): Promise<AppResult<PublicCatalogDetailResult>>;
 };
 
 export type PublicCatalogControllerResult<T> = {
@@ -35,6 +40,11 @@ export type PublicCatalogListControllerInput = {
 
 export type PublicCatalogCategoryListControllerInput = {
   requestId: string;
+};
+
+export type PublicCatalogDetailControllerInput = {
+  requestId: string;
+  slug: string;
 };
 
 function errorResult<T>(
@@ -87,6 +97,23 @@ export class PublicCatalogController {
     input: PublicCatalogCategoryListControllerInput
   ): Promise<PublicCatalogControllerResult<PublicCatalogCategoryListResult>> {
     const result = await this.service.listCategories(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+      status: 200,
+    };
+  }
+
+  async getProductDetail(
+    input: PublicCatalogDetailControllerInput
+  ): Promise<PublicCatalogControllerResult<PublicCatalogDetailResult>> {
+    const result = await this.service.getProductDetail(input);
 
     if (result.error) {
       return errorResult(result, input.requestId);

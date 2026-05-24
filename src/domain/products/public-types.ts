@@ -35,6 +35,78 @@ export type PublicCatalogCategoryOption = {
   slug: string;
 };
 
+export type PublicCatalogRecoveryLink = {
+  href: string;
+  label: string;
+};
+
+export type PublicCatalogGalleryItem = {
+  alt: string;
+  height: number | null;
+  id: string;
+  isPrimary: boolean;
+  name: string | null;
+  src: string;
+  width: number | null;
+};
+
+export type PublicCatalogVariantOption = {
+  group: string;
+  name: string;
+};
+
+export type PublicCatalogDetailVariant = {
+  availability: PublicCatalogAvailability;
+  disabled: boolean;
+  id: string;
+  imageSrc?: string;
+  label: string;
+  optionValues: PublicCatalogVariantOption[];
+  priceLabel: string;
+  productId: string;
+  selected: boolean;
+  unavailableReason?: string;
+};
+
+export type PublicCatalogActionState = {
+  disabled: boolean;
+  label: string;
+  reason?: string;
+};
+
+export type PublicCatalogDetailMetadata = {
+  availabilityText: string;
+  canonicalPath: string;
+  description: string;
+  imageAlt?: string;
+  imageSrc?: string;
+  robots: "index,follow" | "noindex,nofollow";
+  title: string;
+};
+
+export type PublicCatalogProductDetailSummary = {
+  availability: PublicCatalogAvailability;
+  brandName: string | null;
+  categories: PublicCatalogCategoryOption[];
+  description: string;
+  id: string;
+  name: string;
+  priceLabel: string;
+  primaryImage: PublicCatalogGalleryItem | null;
+  slug: string;
+  summary: string | null;
+};
+
+export type PublicCatalogDetailResult = {
+  action: PublicCatalogActionState;
+  gallery: PublicCatalogGalleryItem[];
+  metadata: PublicCatalogDetailMetadata;
+  product: PublicCatalogProductDetailSummary;
+  recoveryLinks: PublicCatalogRecoveryLink[];
+  selectedVariantId: string | null;
+  variants: PublicCatalogDetailVariant[];
+};
+
 export type PublicCatalogPagination = {
   page: number;
   pageSize: number;

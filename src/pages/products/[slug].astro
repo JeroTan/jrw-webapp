@@ -1,7 +1,10 @@
 ---
-import { StorefrontPlaceholder } from "@/features/storefront-shell";
+import {
+  ProductDetailErrorState,
+  ProductDetailPage,
+} from "@/features/product-detail";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
-import { loadStorefrontProductPlaceholderPageData } from "@/server/loaders/PublicCatalogPageDataLoader";
+import { loadStorefrontProductDetailPageData } from "@/server/loaders/PublicCatalogPageDataLoader";
 import { env } from "cloudflare:workers";
 
 export const prerender = false;
@@ -12,43 +15,46 @@ if (slug.length === 0) {
   return Astro.redirect("/products");
 }
 
-const pageData = await loadStorefrontProductPlaceholderPageData({
+const pageData = await loadStorefrontProductDetailPageData({
   runtimeEnv: env as Partial<Env> & Record<string, unknown>,
   slug,
 });
 
 Astro.response.status = pageData.status;
-
-const placeholder = pageData.exists
-  ? {
-      copy: "Full product details open here soon. Browse products or categories while this page is prepared.",
-      kicker: "Product",
-      title: "Product detail coming soon",
-      titleId: "product-placeholder-title",
-    }
-  : {
-      copy:
-        pageData.error?.message ??
-        "Product not found. Browse current products instead.",
-      kicker: "Product",
-      title: pageData.error?.title ?? "Product not found",
-      titleId: "product-not-found-title",
-    };
+const metadata = pageData.detail?.metadata ?? null;
+const title = metadata?.title ?? `${pageData.error?.title ?? "Product unavailable"} | JRW`;
+const description =
+  metadata?.description ??
+  pageData.error?.message ??
+  "Product page is unavailable right now. Try again soon.";
+const canonicalUrl = metadata
+  ? new URL(metadata.canonicalPath, Astro.url).toString()
+  : Astro.url.toString();
+const socialImageUrl = metadata?.imageSrc
+  ? new URL(metadata.imageSrc, Astro.url).toString()
+  : undefined;
 ---
 
 <StorefrontLayout
-  title={`${placeholder.title} | JRW`}
-  description={placeholder.copy}
+  canonicalUrl={canonicalUrl}
+  description={description}
   mainAriaLabel="Product detail"
+  robots={metadata?.robots ?? "noindex,nofollow"}
+  socialImageAlt={metadata?.imageAlt}
+  socialImageUrl={socialImageUrl}
+  title={title}
 >
-  <StorefrontPlaceholder
-    copy={placeholder.copy}
-    kicker={placeholder.kicker}
-    links={[
-      { href: "/products", label: "Browse all products" },
-      { href: "/products?view=categories", label: "Browse categories" },
-    ]}
-    title={placeholder.title}
-    titleId={placeholder.titleId}
-  />
+  {pageData.detail ? (
+    <ProductDetailPage client:load detail={pageData.detail} />
+  ) : pageData.error ? (
+    <ProductDetailErrorState error={pageData.error} />
+  ) : (
+    <ProductDetailErrorState
+      error={{
+        code: "PROVIDER_UNAVAILABLE",
+        message: "Product page is unavailable right now. Try again soon.",
+        title: "Product unavailable",
+      }}
+    />
+  )}
 </StorefrontLayout>

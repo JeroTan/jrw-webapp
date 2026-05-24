@@ -115,6 +115,26 @@ describe("product catalog UI", () => {
     expect(markup).not.toContain("missing seller or store");
   });
 
+  it("keeps the landing page focused on products without category directory or filter rail", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ProductCatalogPage, {
+        basePath: "/",
+        categories,
+        catalog,
+        categoryNavigationMode: "route",
+        error: null,
+        mode: "home",
+        showFilters: false,
+      })
+    );
+
+    expect(markup).toContain("Lifestyle products, live in catalog.");
+    expect(markup).toContain("Linen Shirt");
+    expect(markup).not.toContain("Shop by category");
+    expect(markup).not.toContain("Filters");
+    expect(markup).not.toContain("md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]");
+  });
+
   it("renders category recovery empty state without fake seller language", () => {
     const markup = renderToStaticMarkup(
       createElement(ProductCatalogPage, {

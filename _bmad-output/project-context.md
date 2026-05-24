@@ -12,7 +12,7 @@ sections_completed:
   - workflow_rules
   - anti_patterns
 status: "complete"
-rule_count: 89
+rule_count: 91
 optimized_for_llm: true
 existing_patterns_found: 18
 ---
@@ -158,6 +158,7 @@ Tooling:
 - Development D1: `jrw-database-development`, id `beabfd98-8611-4d58-8f1b-7a972b8af1ed`.
 - Production D1: `jrw-database-production`, id `fd08e264-2046-4648-9164-84f66948533e`.
 - Remote-first D1 is project standard. Apply schema changes to remote `development` first, then explicit remote `production` after review.
+- Remote Cloudflare bindings in `wrangler.jsonc` are source of truth even during local app development. Current development `DB` and `STORAGE` bindings use `"remote": true`, so local app flows should assume real remote D1 and R2 unless task explicitly switches to `--local` or test-only mocks.
 - Wrangler Cloudflare bindings are environment-scoped only in `wrangler.jsonc`; `DB`, `STORAGE`, Durable Object bindings, and Durable Object migrations live under `env.development` and `env.production`, not root config.
 - Any Wrangler command that needs Cloudflare bindings must pass the intended environment explicitly: use `--env development` for development and `--env production` only after production review.
 - `npm run db:migrate:remote` applies remote development. Production migration must use `wrangler d1 migrations apply DB --remote --env production` or a reviewed script.
@@ -170,6 +171,7 @@ Tooling:
 ### Cloudflare Runtime Rules
 
 - Runtime code must be Workers-compatible. Avoid Node-only APIs in request path.
+- During local development, treat Cloudflare environment resources as remote by default: D1, R2, and env-scoped Durable Object bindings follow Wrangler env config, not assumed in-memory/local clones, unless command, test harness, or config explicitly opts into local behavior.
 - Node APIs are allowed in scripts such as `scripts/seed-admin.ts`, not in Worker handlers.
 - Use `jose` for JWT signing/verification. Do not add Node-only JWT libraries.
 - Use Web Crypto-compatible password/token utilities.

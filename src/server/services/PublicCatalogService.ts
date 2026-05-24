@@ -1,6 +1,7 @@
 import { normalizePublicCatalogQuery } from "@/domain/products/public-catalog";
 import type {
   PublicCatalogCategoryListResult,
+  PublicCatalogDetailResult,
   PublicCatalogResult,
 } from "@/domain/products/public-types";
 import type { PublicCatalogRepository } from "@/server/repositories/PublicCatalogRepository";
@@ -20,6 +21,11 @@ export type PublicCatalogListServiceInput = {
 
 export type PublicCatalogCategoryListServiceInput = {
   requestId: string;
+};
+
+export type PublicCatalogDetailServiceInput = {
+  requestId: string;
+  slug: string;
 };
 
 export type PublicCatalogServiceOptions = {
@@ -172,6 +178,40 @@ export class PublicCatalogService {
       const items = await this.repository.listActiveVisibleCategoryOptions();
 
       return Result.okay({ items });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async getProductDetail(
+    input: PublicCatalogDetailServiceInput
+  ): Promise<AppResult<PublicCatalogDetailResult>> {
+    const slug = input.slug.trim();
+
+    if (!slug) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", {
+          reasons: ["slug:invalid_value"],
+        })
+      );
+    }
+
+    try {
+      const detail = await this.repository.findPublishedProductDetailBySlug(slug);
+
+      if (!detail) {
+        return Result.error(
+          serviceError("RESOURCE_NOT_FOUND", {
+            slug,
+          })
+        );
+      }
+
+      return Result.okay(detail);
     } catch (error) {
       if (providerFailure(error)) {
         return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
