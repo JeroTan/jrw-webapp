@@ -22,10 +22,10 @@ export function ProductGallery({
   selectedImageId,
   onSelectImage,
 }: ProductGalleryProps) {
+  const frameImage = gallery.find((image) => image.isPrimary) ?? gallery[0] ?? null;
   const selectedImage =
     gallery.find((image) => image.id === selectedImageId) ??
-    gallery.find((image) => image.isPrimary) ??
-    gallery[0] ??
+    frameImage ??
     null;
 
   return (
@@ -44,7 +44,7 @@ export function ProductGallery({
 
       <div
         className="grid overflow-hidden border border-brand-border-strong bg-brand-background"
-        style={{ aspectRatio: aspectRatioValue(selectedImage) }}
+        style={{ aspectRatio: aspectRatioValue(frameImage) }}
       >
         {selectedImage ? (
           <img
@@ -80,10 +80,7 @@ export function ProductGallery({
                   onClick={() => onSelectImage(image.id)}
                   type="button"
                 >
-                  <span
-                    className="grid"
-                    style={{ aspectRatio: aspectRatioValue(image) }}
-                  >
+                  <span className="grid aspect-square">
                     <img
                       alt=""
                       className="h-full w-full object-cover"

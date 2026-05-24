@@ -1,6 +1,6 @@
 # Story 4.3: Product Detail Experience
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -127,6 +127,13 @@ Complete for every new or changed endpoint. Mark non-applicable items as `N/A` w
 - `src/layouts/BaseLayout.astro` currently only emits `title` and `description`. PRD SEO requirements for canonical/social metadata are still unmet, so Story 4.3 must extend layout metadata plumbing or add a dedicated head helper.
 - `src/components/ui/Modal.tsx` already traps focus, restores focus on close, and supports `aria-modal`. If a detail overlay/sheet is added, reuse or adapt this behavior. Do not ship a brand-new shared Drawer primitive here; Story 4.7 owns primitive extensions.
 - `src/pages/cart/index.astro` is still placeholder-only. Story 4.3 must not fake successful add-to-cart flows or silently send users to an empty cart experience.
+
+#### Code Review 2026-05-24
+
+- [x] [Review][Patch] Stabilize product gallery frame ratio and thumbnail geometry [`src/features/product-detail/components/ProductGallery.tsx:25`]
+- [x] [Review][Patch] Include both brand and category in crawlable detail metadata [`src/server/repositories/PublicCatalogRepository.ts:233`]
+- [x] [Review][Patch] Add regression coverage for gallery geometry and metadata description [`src/features/product-detail/components/product-detail-ui.test.tsx:160`]
+- [x] [Review][Patch] Add loader fallback regression coverage for blank slug and missing DB [`src/server/loaders/PublicCatalogPageDataLoader.test.ts:4`]
 
 ### Latest Technical Intelligence (2026-05-24)
 

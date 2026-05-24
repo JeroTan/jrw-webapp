@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { PublicCatalogDetailResult } from "@/domain/products/public-types";
 import {
+  ProductGallery,
   ProductDetailErrorState,
   ProductDetailPage,
 } from "@/features/product-detail";
@@ -154,6 +155,66 @@ describe("product detail UI", () => {
     expect(unavailableMarkup).toContain("Unavailable");
     expect(unavailableMarkup).not.toContain("missing seller");
     expect(unavailableMarkup).not.toContain("seller of record");
+  });
+
+  it("keeps gallery frame geometry stable across image selection", () => {
+    const mixedGalleryDetail: PublicCatalogDetailResult = {
+      ...detail,
+      gallery: [
+        {
+          alt: "Linen Shirt portrait",
+          height: 1500,
+          id: "photo_linen_portrait",
+          isPrimary: true,
+          name: "Linen Shirt portrait",
+          src: "/assets/products/linen-shirt/portrait.jpg",
+          width: 1200,
+        },
+        {
+          alt: "Linen Shirt landscape",
+          height: 900,
+          id: "photo_linen_landscape",
+          isPrimary: false,
+          name: "Linen Shirt landscape",
+          src: "/assets/products/linen-shirt/landscape.jpg",
+          width: 1600,
+        },
+      ],
+      product: {
+        ...detail.product,
+        primaryImage: {
+          alt: "Linen Shirt portrait",
+          height: 1500,
+          id: "photo_linen_portrait",
+          isPrimary: true,
+          name: "Linen Shirt portrait",
+          src: "/assets/products/linen-shirt/portrait.jpg",
+          width: 1200,
+        },
+      },
+    };
+
+    const primaryMarkup = renderToStaticMarkup(
+      createElement(ProductGallery, {
+        gallery: mixedGalleryDetail.gallery,
+        onSelectImage: () => undefined,
+        productName: mixedGalleryDetail.product.name,
+        selectedImageId: "photo_linen_portrait",
+      })
+    );
+    const alternateMarkup = renderToStaticMarkup(
+      createElement(ProductGallery, {
+        gallery: mixedGalleryDetail.gallery,
+        onSelectImage: () => undefined,
+        productName: mixedGalleryDetail.product.name,
+        selectedImageId: "photo_linen_landscape",
+      })
+    );
+
+    expect(primaryMarkup).toContain("aspect-ratio:1200 / 1500");
+    expect(alternateMarkup).toContain("aspect-ratio:1200 / 1500");
+    expect(primaryMarkup).toContain("aspect-square");
+    expect(alternateMarkup).toContain("aspect-square");
   });
 
   it("renders safe recovery state for missing or unavailable products", () => {

@@ -230,7 +230,19 @@ function detailRecoveryLinks(
   return links;
 }
 
-function detailMetadata(input: {
+function metadataContextLabels(input: {
+  brandName: string | null;
+  categories: PublicCatalogCategoryOption[];
+}): string[] {
+  const labels = [
+    input.brandName?.trim(),
+    input.categories[0]?.name?.trim(),
+  ].filter((value): value is string => Boolean(value && value.length > 0));
+
+  return Array.from(new Set(labels));
+}
+
+export function buildPublicCatalogDetailMetadata(input: {
   availabilityText: string;
   brandName: string | null;
   categories: PublicCatalogCategoryOption[];
@@ -241,10 +253,17 @@ function detailMetadata(input: {
 }): PublicCatalogDetailResult["metadata"] {
   const descriptionSource =
     input.product.summary?.trim() || input.product.description.trim();
-  const contextLabel =
-    input.brandName?.trim() || input.categories[0]?.name || "JRW";
+  const contextLabels = metadataContextLabels({
+    brandName: input.brandName,
+    categories: input.categories,
+  });
   const description = truncateDescription(
-    [descriptionSource, input.priceLabel, input.availabilityText, contextLabel]
+    [
+      descriptionSource,
+      input.priceLabel,
+      input.availabilityText,
+      ...(contextLabels.length > 0 ? contextLabels : ["JRW"]),
+    ]
       .filter((value) => value && value.trim().length > 0)
       .join(" • ")
   );
@@ -347,7 +366,7 @@ function detailResultFromSource(input: {
           reason: "Product options are unavailable right now.",
         },
     gallery,
-    metadata: detailMetadata({
+    metadata: buildPublicCatalogDetailMetadata({
       availabilityText: selectedAvailability.label,
       brandName: input.product.brandName,
       categories: input.categories,
