@@ -2,6 +2,8 @@
 
 Status: ready-for-dev
 
+Prerequisite hold: Do not implement this story until Story 4.8 and Story 4.9 are complete. Story 4.10 must be complete before any new UI-heavy stories are created after this point. This preserves approved UX design-direction fidelity before cart UI extends the storefront.
+
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
 ## Story

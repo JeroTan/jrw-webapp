@@ -112,6 +112,9 @@ describe("product catalog UI", () => {
     expect(markup).toContain("xs:grid-cols-2");
     expect(markup).toContain("md:grid-cols-4");
     expect(markup).toContain("lg:grid-cols-12");
+    expect(markup).toContain("lg:col-span-4");
+    expect(markup).toContain("h-[220px]");
+    expect(markup).toContain("JRW Studio / Apparel / Available");
     expect(markup).not.toContain("missing seller or store");
   });
 
@@ -132,7 +135,9 @@ describe("product catalog UI", () => {
     expect(markup).toContain("Linen Shirt");
     expect(markup).not.toContain("Shop by category");
     expect(markup).not.toContain("Filters");
-    expect(markup).not.toContain("md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]");
+    expect(markup).not.toContain(
+      "md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]"
+    );
   });
 
   it("renders category recovery empty state without fake seller language", () => {

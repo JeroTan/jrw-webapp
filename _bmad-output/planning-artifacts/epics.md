@@ -184,6 +184,8 @@ FR77: Project can maintain component-level UI specifications for shared shell, n
 
 FR78: Project can maintain Tailwind utility-first UI implementation rules so feature-specific styling stays visible in markup, uses JRW brand theme tokens, and avoids one-off `jrw-*` runtime class layers.
 
+FR79: Project can enforce approved UX design-direction fidelity for shared buttons, product cards, storefront layout-preserving changes, admin auth entry points, admin dashboard shell, and future UI stories before marking UI work done.
+
 ### NonFunctional Requirements
 
 NFR1: Public storefront initial usable load must be under 2.5 seconds at p75 on typical mobile 4G as measured by Lighthouse or WebPageTest mobile profile.
@@ -385,6 +387,8 @@ UX-DR33: Add performance UX QA requirements: storefront usable load under 2.5s p
 
 UX-DR34: Define and implement shared component-level specs for DashboardShell, SidebarNav, TopBar, Footer, PageToolbar, SearchInput, ViewToggle, ResourceCard, ResourceList, DataTable, EmptyState, and Skeleton so future admin/storefront work reuses consistent primitives.
 
+UX-DR35: Enforce approved HTML direction fidelity before UI stories are done: Button/IconButton hover and focus use 2px cobalt outline with 2px offset, storefront product cards match Direction 01 without removing accepted layout, admin shell/auth pages match Direction 05 and Direction 07, and every future UI story cites the exact UX direction reference it implements.
+
 ### FR Coverage Map
 
 FR1: Epic 1 - Super Admin unique-owner authentication.
@@ -545,6 +549,8 @@ FR77: Epic 3.0 - Component-level UI specifications for shared shell, navigation,
 
 FR78: Epic 1.5 / Epic 3.0 / Epic 4 - Tailwind utility-first UI implementation guardrails with JRW brand tokens and no one-off runtime class layers.
 
+FR79: Epic 3.10 / Epic 3.11 / Epic 4.8 / Epic 4.9 / Epic 4.10 - Approved UX design-direction fidelity gate for admin shell/auth, storefront product cards, shared button behavior, and future UI stories.
+
 ## Epic List
 
 ### Epic 1: Trusted Access, Governance, and Rebuild Guardrails
@@ -569,13 +575,13 @@ Admin and Customer accounts remain separate legal/security realms before catalog
 
 Admins can manage categories, products, variants, images, prices, stock, publish states, and order-safe product snapshots.
 
-**FRs covered:** FR21, FR22, FR23, FR24, FR25, FR26, FR27, FR28, FR29, FR30, FR31, FR76, FR77
+**FRs covered:** FR21, FR22, FR23, FR24, FR25, FR26, FR27, FR28, FR29, FR30, FR31, FR76, FR77, FR79
 
 ### Epic 4: Product-First Storefront and Cart
 
 Prospects browse JRW storefront, inspect products, understand availability, and customers manage cart before checkout.
 
-**FRs covered:** FR32, FR33, FR34, FR35, FR36, FR37, FR38
+**FRs covered:** FR32, FR33, FR34, FR35, FR36, FR37, FR38, FR78, FR79
 
 ### Epic 5: Inventory-Safe Checkout and PayMongo Payments
 
@@ -2218,6 +2224,100 @@ So that I can manage product identity, variants, images, prices, stock, brand, c
 **Then** UI tests or documented QA cover product list, editor sections, variant matrix, inventory adjuster, publish readiness, permission states, and accessibility basics
 **And** `npm run check` passes or blocker is documented.
 
+### Story 3.10: Admin Shell, Navigation, and Session UI
+
+As an Admin or Super Admin,
+I want protected admin entry points and a JRW dashboard shell,
+So that admin work starts from a real operational console instead of disconnected standalone pages.
+
+**Requirements covered:** FR4, FR60, FR77, FR79; supports UX-DR10, UX-DR23, UX-DR30, UX-DR34, UX-DR35.
+
+**Acceptance Criteria:**
+
+**Given** unauthenticated user opens `/admin`
+**When** no valid `jrw_admin_session` exists
+**Then** Admin sign-in UI appears or the user is routed to an Admin sign-in route
+**And** no protected admin data is rendered.
+
+**Given** Admin submits valid dashboard credentials
+**When** `/api/admin/auth/sessions` succeeds
+**Then** an HttpOnly admin session cookie is created
+**And** Admin lands inside the dashboard shell.
+
+**Given** Admin chooses sign out
+**When** `/api/admin/auth/sessions/current` delete succeeds
+**Then** the session is cleared
+**And** UI returns to sign-in state.
+
+**Given** Admin needs password recovery
+**When** reset request or reset confirmation is submitted
+**Then** UI consumes existing Admin password reset APIs
+**And** reset completion does not create a new session.
+
+**Given** Admin self-registration is enabled by product decision
+**When** registration UI is available
+**Then** the page states that approval is required before dashboard access.
+
+**Given** Admin self-registration is not enabled
+**When** user seeks registration
+**Then** UI points to Super Admin account creation instead of exposing unsupported signup.
+
+**Given** Admin dashboard shell renders
+**When** compared to Direction 05
+**Then** sidebar, top context bar, role badge, active brand scope area, search/action region, skip link, landmarks, and keyboard navigation are present.
+
+**Given** Super Admin dashboard shell renders
+**When** owner-only navigation is visible
+**Then** Admin Accounts, Ownership Transfer, and Audit are separated from daily Admin navigation.
+
+**Given** Admin lacks permission for a route
+**When** protected view is blocked
+**Then** a safe forbidden state appears inside the shell
+**And** owner-only controls are not exposed.
+
+**Given** implementation finishes
+**When** tests/QA run
+**Then** checks cover sign-in, sign-out, password reset entry, disabled registration behavior, shell landmarks, sidebar/topbar rendering, forbidden state, and `npm run check`
+**And** blockers are documented if any API dependency is unavailable.
+
+### Story 3.11: Admin Dashboard Console Fidelity
+
+As an Admin,
+I want existing admin resources wrapped in the approved JRW console design,
+So that product, brand, category, inventory, and owner work keeps functionality while matching the UX reference.
+
+**Requirements covered:** FR21-FR31, FR76, FR77, FR79; supports UX-DR10, UX-DR11, UX-DR23, UX-DR29, UX-DR31, UX-DR34, UX-DR35.
+
+**Acceptance Criteria:**
+
+**Given** Admin opens `/admin/products`
+**When** products load
+**Then** page renders inside dashboard shell with Direction 05 sidebar, top context bar, toolbar row, dense table-first work area, and editor/side-panel flow
+**And** existing product search, filters, pagination, table view, list view, editor, variant, inventory, publish, and permission behavior remains intact.
+
+**Given** Admin opens brand resources
+**When** brand cards or list/table view renders
+**Then** existing card/list functionality remains
+**And** visual treatment follows the 1px module system without decorative card-heavy dashboard styling.
+
+**Given** Admin opens categories
+**When** category table, editor, loading, empty, or error state renders
+**Then** UI uses the same dashboard toolbar, table density, focus, and status treatment.
+
+**Given** Super Admin opens owner governance
+**When** Admin Accounts or Ownership Transfer controls render
+**Then** Direction 07 owner-governance composition is followed
+**And** ownership transfer remains deliberate with confirmation and audit-safe wording.
+
+**Given** tablet or wide desktop viewport is used
+**When** dashboard pages render
+**Then** shell remains usable, table/action text does not overflow, and side panels adapt per responsive admin rules.
+
+**Given** implementation finishes
+**When** tests/QA run
+**Then** checks cover products, brands, categories, owner governance, preserved view toggles, preserved resource actions, shell composition, keyboard access, text overflow, and `npm run check`
+**And** blockers are documented if any page cannot be wrapped safely.
+
 ## Epic 4: Product-First Storefront and Cart
 
 Prospects browse JRW storefront, inspect products, understand availability, and customers manage cart before checkout.
@@ -2365,7 +2465,121 @@ So that I can choose a valid product option confidently.
 **Then** checks cover published detail, missing product, unpublished/archived handling, variant selection, unavailable state, gallery, SEO metadata, keyboard access, and mobile/desktop layout
 **And** `npm run check` passes or blocker is documented.
 
+Correction sequencing note: Stories 4.8, 4.9, and 4.10 were added after 4.3 and must run before Story 4.4. Existing 4.4-4.7 IDs are not renumbered to avoid breaking sprint references.
+
+### Story 4.8: Shared Primitive Visual Contract
+
+As a Customer, Prospect, Admin, or Super Admin,
+I want shared controls to follow the approved JRW HTML direction,
+So that storefront, dashboard, and checkout interactions feel consistent.
+
+**Requirements covered:** FR78, FR79; supports UX-DR1, UX-DR2, UX-DR30, UX-DR34, UX-DR35.
+
+**Acceptance Criteria:**
+
+**Given** `Button` or `IconButton` renders
+**When** hover or focus-visible state is active
+**Then** cobalt outline appears with 2px width and 2px offset
+**And** hover does not rely on border-color-only feedback.
+
+**Given** primary button renders
+**When** idle
+**Then** background and border use cobalt accent
+**And** text remains white with no shadow/blur.
+
+**Given** secondary button renders
+**When** idle
+**Then** it keeps surface background, 1px strong border, sharp corners, Space Mono/system label, and no shadow/blur.
+
+**Given** shared primitives render statuses, loading, disabled, and error states
+**When** reviewed against the HTML direction
+**Then** 0px radius, 1px borders, text status, visible focus, and tokenized cobalt accent are preserved.
+
+**Given** primitive tests run
+**When** classes/markup are asserted
+**Then** button hover/focus contract, disabled/loading states, and accessible icon labels are covered
+**And** `npm run check` passes or blocker is documented.
+
+### Story 4.9: Storefront Product Card and Detail Fidelity
+
+As a Prospect or Customer,
+I want product browsing components to match JRW storefront design direction,
+So that the catalog feels like the approved architectural system, not a generic ecommerce card grid.
+
+**Requirements covered:** FR32, FR33, FR34, FR78, FR79; supports UX-DR3, UX-DR4, UX-DR5, UX-DR28, UX-DR31, UX-DR35.
+
+**Acceptance Criteria:**
+
+**Given** storefront product grid renders
+**When** compared to Direction 01
+**Then** accepted page layout, header, filters, and billboard/hero structure remain intact
+**And** only product-card/detail visual anatomy changes unless explicitly approved.
+
+**Given** product card renders with image
+**When** viewed on mobile, tablet, or desktop
+**Then** media area keeps strict bordered module behavior, stable dimensions, object-fit treatment, and no rounded/shadow framing.
+
+**Given** product card renders without image
+**When** placeholder appears
+**Then** diagonal placeholder pattern and numbered/initial module style follows the HTML reference.
+
+**Given** product metadata renders
+**When** card is scanned
+**Then** brand, category, and availability appear as compact slash-separated utility metadata where useful
+**And** no status relies on color alone.
+
+**Given** price and action render
+**When** card is viewed or focused
+**Then** price is compact, action uses shared button primitive, and hover/focus shows cobalt outline treatment.
+
+**Given** product detail renders
+**When** compared to Direction 02
+**Then** detail media, variants, price, availability, and add-to-cart affordance use the same sharp 1px module language.
+
+**Given** existing browse behavior exists
+**When** fidelity update is complete
+**Then** search, filters, pagination, category browsing, product links, and current card/list/table behavior remain intact.
+
+**Given** implementation finishes
+**When** QA/tests run
+**Then** checks cover product card anatomy, image/missing-image states, metadata, price/action, product detail visual contract, preserved layout, responsive widths, text overflow, and `npm run check`
+**And** blockers are documented if any layout cannot be preserved.
+
+### Story 4.10: Future Story UI Fidelity Gate
+
+As project owner,
+I want future UI stories to cite exact design-direction references,
+So that sprint work does not repeat expectation-versus-reality UI drift.
+
+**Requirements covered:** FR77, FR79; supports UX-DR31, UX-DR34, UX-DR35.
+
+**Acceptance Criteria:**
+
+**Given** a new UI story is created
+**When** it touches storefront
+**Then** it cites Direction 01, 02, 03, or 04 as applicable
+**And** acceptance criteria name exact product/card/detail/cart/checkout fidelity checks.
+
+**Given** a new UI story is created
+**When** it touches admin
+**Then** it cites Direction 05 or 07 as applicable
+**And** acceptance criteria name shell/sidebar/topbar/table density/governance fidelity checks.
+
+**Given** a shared primitive is changed
+**When** story is reviewed
+**Then** hover, focus, status, empty, loading, disabled, and error states are checked against the HTML direction and UX spec.
+
+**Given** implementation passes type checks
+**When** reviewer evaluates done status
+**Then** visual fidelity still requires manual or automated component QA before story can be considered done.
+
+**Given** story template or planning guidance is updated
+**When** future stories are generated
+**Then** exact UX direction references and layout-preservation notes are present by default.
+
 ### Story 4.4: Cart Add, Update, Remove
+
+**Prerequisite:** Story 4.8 and Story 4.9 must be complete before implementation begins. Story 4.10 must be complete before new UI-heavy stories are created after this point.
 
 As a Customer or Prospect,
 I want to add available variants to cart and update or remove cart items,

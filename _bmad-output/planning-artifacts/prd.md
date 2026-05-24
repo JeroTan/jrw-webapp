@@ -65,6 +65,8 @@ editHistory:
     changes: "Added approved admin resource browsing and component-level UI specification requirements FR76-FR77."
   - date: "2026-05-24"
     changes: "Added FR78 and maintainability rules for Tailwind utility-first UI implementation with JRW brand theme tokens and no one-off jrw-* runtime class layers."
+  - date: "2026-05-24"
+    changes: "Approved UI fidelity and admin shell correction; added FR79 to require exact UX design-direction fidelity before UI stories are marked done."
 ---
 
 # Product Requirements Document - jrw-webapp
@@ -750,6 +752,7 @@ Resource risks:
 - FR76: Admin resource pages can provide searchable, responsive browse controls with appropriate card/list/table views so records are digestible without losing dense operational scanning.
 - FR77: Project can maintain component-level UI specifications for shared shell, navigation, footer, toolbar, view toggle, search, card/list/table, loading, empty, and permission patterns.
 - FR78: Project can maintain Tailwind utility-first UI implementation rules so feature-specific styling stays visible in markup, uses JRW brand theme tokens, and avoids one-off `jrw-*` runtime class layers.
+- FR79: Project can enforce approved UX design-direction fidelity for shared buttons, product cards, storefront layout-preserving changes, admin auth entry points, admin dashboard shell, and future UI stories before marking UI work done.
 
 ## Non-Functional Requirements
 

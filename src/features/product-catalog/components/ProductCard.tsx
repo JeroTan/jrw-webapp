@@ -1,5 +1,4 @@
 import * as React from "react";
-import { StatusBadge } from "@/components/feedback";
 import type { StorefrontCatalogProductCard } from "../types";
 
 type ProductCardProps = {
@@ -10,7 +9,7 @@ function ProductImage({ product }: ProductCardProps) {
   if (product.imageSrc) {
     return (
       <a
-        className="grid aspect-square place-items-center overflow-hidden border-b border-brand-border-strong bg-brand-background"
+        className="grid h-[220px] place-items-center overflow-hidden border-b border-brand-border-strong bg-brand-background"
         href={product.href}
       >
         <img
@@ -25,7 +24,7 @@ function ProductImage({ product }: ProductCardProps) {
 
   return (
     <a
-      className="grid aspect-square place-items-center border-b border-brand-border-strong bg-brand-background p-grid-sm text-center font-system text-xs font-bold uppercase text-brand-muted no-underline"
+      className="grid h-[220px] place-items-center border-b border-brand-border-strong bg-[linear-gradient(135deg,var(--color-brand-background)_0_25%,var(--color-brand-surface)_25%_50%,var(--color-brand-border)_50%_75%,var(--color-brand-surface)_75%)] bg-[length:28px_28px] p-grid-sm text-center font-system text-xs font-bold uppercase text-brand-muted no-underline"
       href={product.href}
     >
       Image coming soon
@@ -35,56 +34,44 @@ function ProductImage({ product }: ProductCardProps) {
 
 export function ProductCard({ product }: ProductCardProps) {
   return (
-    <article className="grid h-full grid-rows-[auto_1fr_auto] border border-brand-border-strong bg-brand-surface">
+    <article className="grid h-full min-h-[360px] grid-rows-[auto_1fr] bg-brand-surface">
       <ProductImage product={product} />
 
-      <div className="grid gap-grid-sm p-grid-sm">
-        <div className="flex flex-wrap items-center gap-grid-xs">
-          <StatusBadge
-            label={product.availability.label}
-            tone={product.availability.tone}
-          />
-          {product.brandName ? (
-            <span className="font-system text-xs font-bold uppercase text-brand-muted">
-              {product.brandName}
-            </span>
-          ) : null}
-        </div>
-
+      <div className="grid content-start gap-grid-xs p-grid-sm">
         <div className="grid gap-grid-xs">
           <a
-            className="font-identity text-[1.2rem] font-extrabold leading-tight no-underline hover:text-brand-accent focus-visible:text-brand-accent [overflow-wrap:anywhere]"
+            className="font-identity text-[1.1rem] font-extrabold leading-tight no-underline hover:text-brand-accent focus-visible:text-brand-accent [overflow-wrap:anywhere]"
             href={product.href}
           >
             {product.name}
           </a>
 
-          <div className="min-h-[2.5rem] text-sm text-brand-muted">
-            {product.categoryName ? (
-              <p className="m-0">{product.categoryName}</p>
-            ) : (
-              <p className="m-0">Published product</p>
-            )}
-          </div>
+          <p className="m-0 font-system text-xs text-brand-muted">
+            {[
+              product.brandName ?? "Brandless",
+              product.categoryName,
+              product.availability.label,
+            ]
+              .filter(Boolean)
+              .join(" / ")}
+          </p>
         </div>
-      </div>
 
-      <div className="grid gap-grid-xs border-t border-brand-border-strong p-grid-sm">
-        <div className="flex flex-wrap items-center justify-between gap-grid-xs">
-          <span className="font-system text-sm font-bold text-brand-content">
+        <div className="flex flex-wrap items-center gap-grid-xs">
+          <span className="inline-flex min-h-control-sm items-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase">
             {product.priceLabel}
           </span>
 
           {product.quickAction.disabled ? (
             <span
               aria-disabled="true"
-              className="inline-flex min-h-control-md items-center justify-center border border-brand-border-strong px-grid-sm font-system text-xs font-bold uppercase text-brand-muted"
+              className="inline-flex min-h-control-sm items-center justify-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase text-brand-muted"
             >
               {product.quickAction.label}
             </span>
           ) : (
             <a
-              className="inline-flex min-h-control-md items-center justify-center border border-brand-border-strong px-grid-sm font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent"
+              className="inline-flex min-h-control-sm items-center justify-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent"
               href={product.quickAction.href}
             >
               {product.quickAction.label}
@@ -93,7 +80,7 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
 
         {product.quickAction.disabled && product.quickAction.hint ? (
-          <p className="m-0 text-xs text-brand-muted">
+          <p className="m-0 font-system text-xs text-brand-muted">
             {product.quickAction.hint}
           </p>
         ) : null}

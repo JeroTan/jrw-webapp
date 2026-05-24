@@ -1,0 +1,49 @@
+IMPLEMENT ALL UI FIDELITY CORRECTION STORIES
+
+Use explicit story paths. Do not rely on dev-story auto-discovery, because 4-4 exists but is held until UI prerequisites finish.
+
+Rule for every story:
+1. Run bmad-dev-story with the exact story file path.
+2. When dev-story moves the story to review, run bmad-code-review for that story/diff.
+3. If code review finds issues, run bmad-dev-story again on the same story file to resolve review follow-ups.
+4. Run bmad-code-review again.
+5. Repeat dev-story -> code-review until review is clean or explicitly approved.
+6. Only then move to the next story in this list.
+
+Implementation order:
+
+1. _bmad-output/implementation-artifacts/4-8-shared-primitive-visual-contract.md
+   Purpose: fix shared Button/IconButton hover/focus contract first.
+   Prompt: [$bmad-dev-story] Dev this story exactly: _bmad-output/implementation-artifacts/4-8-shared-primitive-visual-contract.md
+   Review: [$bmad-code-review] Review Story 4.8 implementation and require fixes before next story.
+
+2. _bmad-output/implementation-artifacts/4-9-storefront-product-card-and-detail-fidelity.md
+   Purpose: fix storefront product card/detail design while preserving accepted layout and hero.
+   Prompt: [$bmad-dev-story] Dev this story exactly: _bmad-output/implementation-artifacts/4-9-storefront-product-card-and-detail-fidelity.md
+   Review: [$bmad-code-review] Review Story 4.9 implementation and require fixes before next story.
+
+3. _bmad-output/implementation-artifacts/4-10-future-story-ui-fidelity-gate.md
+   Purpose: update story/checklist guidance so future UI stories cite exact UX directions.
+   Prompt: [$bmad-dev-story] Dev this story exactly: _bmad-output/implementation-artifacts/4-10-future-story-ui-fidelity-gate.md
+   Review: [$bmad-code-review] Review Story 4.10 implementation and require fixes before next story.
+
+4. _bmad-output/implementation-artifacts/3-10-admin-shell-navigation-and-session-ui.md
+   Purpose: add admin sign-in/logout/password reset UI and shared admin shell.
+   Prompt: [$bmad-dev-story] Dev this story exactly: _bmad-output/implementation-artifacts/3-10-admin-shell-navigation-and-session-ui.md
+   Review: [$bmad-code-review] Review Story 3.10 implementation and require fixes before next story.
+
+5. _bmad-output/implementation-artifacts/3-11-admin-dashboard-console-fidelity.md
+   Purpose: wrap existing admin resource pages in Direction 05/07 dashboard console while preserving functionality.
+   Prompt: [$bmad-dev-story] Dev this story exactly: _bmad-output/implementation-artifacts/3-11-admin-dashboard-console-fidelity.md
+   Review: [$bmad-code-review] Review Story 3.11 implementation and require fixes before next story.
+
+6. _bmad-output/implementation-artifacts/4-4-cart-add-update-remove.md
+   Purpose: resume cart implementation after UI prerequisites are complete.
+   Prompt: [$bmad-dev-story] Dev this story exactly: _bmad-output/implementation-artifacts/4-4-cart-add-update-remove.md
+   Review: [$bmad-code-review] Review Story 4.4 implementation and require fixes before continuing Epic 4.
+
+Final verification after story 4-4 review is clean:
+- Run npm run check.
+- Run targeted Vitest suites touched by all stories.
+- Run npm run build-test if time and environment allow.
+- Confirm sprint-status.yaml reflects completed/reviewed story states.

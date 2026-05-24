@@ -569,6 +569,14 @@ Base:
 - Direction 07 for Super Admin governance.
 - Direction 03 as mobile adaptation rule, not separate product.
 
+Implementation fidelity gate:
+
+- Story acceptance must cite the exact direction used for each UI surface.
+- Storefront product-card changes must preserve accepted page layout and match Direction 01 card anatomy.
+- Button and icon-button hover/focus must use cobalt outline treatment from the HTML reference, not border-color-only hover.
+- Admin work must use Direction 05 dashboard shell and Direction 07 owner-governance composition before new admin screens are considered complete.
+- Admin auth entry points must exist for sign-in, logout, and password reset; Admin registration appears only when enabled by product decision and must state approval is required before dashboard access.
+
 ### Design Rationale
 
 This combined direction fits JRW because it preserves Stitch identity while covering both commerce and operations.
@@ -883,6 +891,9 @@ All primitives use JRW tokens: 0px radius, 1px borders, no shadows, visible focu
 - Keep business-rule explanations in feature components, not primitive UI.
 
 ### Implementation Roadmap
+
+Phase 0: Fidelity correction
+Button/IconButton hover/focus contract, ProductCard/ProductGrid visual fidelity, Admin sign-in/logout/reset entry points, DashboardShell, SidebarNav, TopBar, and owner-governance shell.
 
 Phase 1: Primitives and layout shell  
 Button, inputs, badges, table, modal, drawer, side panel, toast, confirm dialog, dashboard shell.

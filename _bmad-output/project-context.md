@@ -214,6 +214,10 @@ Tooling:
 - Use `src/styles/global.css` only as the Tailwind entrypoint plus font imports, `@theme` brand tokens, spacing/breakpoint tokens, and global base styles. Do not reintroduce deleted `src/styles/features/**`, `src/styles/storefront/**`, or `src/styles/components/_ui.css` class layers.
 - Brand tokens live in `src/styles/_colors.css` and `src/styles/_tokens.css`; prefer classes such as `bg-brand-accent`, `text-brand-muted`, `border-brand-border-strong`, `p-grid-sm`, `gap-grid-xs`, `min-h-control-md`, and responsive variants like `xs:`, `md:`, `lg:`, `3xl:` over raw colors/spacing or custom `jrw-*` selectors.
 - Shared primitives in `src/components/**` may keep reusable Tailwind class constants inside component files. Feature-specific UI should keep utility classes close to element markup unless true cross-feature reuse belongs in a shared component.
+- Approved HTML direction fidelity is mandatory for UI stories. Cite `_bmad-output/planning-artifacts/ux-design-directions.html` directions in story ACs and implementation notes before marking UI work done.
+- Button and icon button hover/focus must use cobalt outline treatment matching the HTML reference: 2px accent outline with 2px offset, not border-color-only hover.
+- Product card changes must preserve accepted storefront layout and match Direction 01 card anatomy: strict 1px modules, 220px media block, compact metadata, and no generic rounded/shadow ecommerce cards.
+- Admin UI must use Direction 05 dashboard shell and Direction 07 owner-governance composition: sidebar, top context bar, dense tables, role/scope state, owner-only nav group, and logout/session controls.
 - Before finishing UI work, run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`; runtime UI should have no matches except legitimate brand slugs, fixture text, or tests that explicitly assert absence.
 - Use cobalt accent sparingly for focus, selected state, primary action, and live status.
 - Storefront must be responsive-first with desktop and mobile parity.
@@ -259,6 +263,7 @@ Tooling:
 - Server-side RBAC guards are implemented for completed protected Admin/Customer route groups; future protected endpoints must use the same guard pattern.
 - Durable Object inventory locking is scaffolded only.
 - Storefront/admin UI is partially implemented in current feature modules. Future UI changes must preserve Tailwind utility-first markup and avoid resurrecting deleted `jrw-*` CSS class layers.
+- UI fidelity correction is approved as of 2026-05-24: add shared primitive contract, storefront product-card fidelity, admin shell/auth entry UI, admin dashboard console wrap, and future story UI fidelity gate before expanding checkout/admin/order UI.
 - Existing API response shapes are inconsistent; standardize before marking endpoints complete.
 - `src/api/**` still has outdated scaffold text and routes. Treat it as migration source only and follow Story 1.3 baseline before removal.
 - Old docs mention automated PayMongo refunds and apparel-only scope; current PRD prefers lifestyle products and manual refund/return recording for MVP.

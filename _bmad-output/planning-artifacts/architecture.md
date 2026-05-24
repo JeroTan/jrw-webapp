@@ -537,7 +537,13 @@ Controllers adapt transport data. Services orchestrate use cases. Domain modules
 D1 is source of truth. Durable Objects coordinate inventory reservation/release only. R2 stores product assets. PayMongo, Resend, and Google OAuth stay behind `src/lib/**` clients and `src/adapter/infrastructure/**` adapters.
 
 **Visual System Boundaries:**
-JRW UI uses `docs/design-by-google-stitch.md`: sharp 0px corners, 1px borders, no shadows, no blur, Satoshi headings, Space Mono utility text, cobalt accent, dense dashboard tables, responsive storefront parity, and product imagery as warmth. Implementation uses Tailwind v4 theme tokens and utility classes directly in JSX/Astro. CSS files define tokens/base only; they do not hide feature-specific layout behind `jrw-*` selectors.
+JRW UI uses `docs/design-by-google-stitch.md` and `_bmad-output/planning-artifacts/ux-design-directions.html`: sharp 0px corners, 1px borders, no shadows, no blur, Satoshi headings, Space Mono utility text, cobalt accent, dense dashboard tables, responsive storefront parity, and product imagery as warmth. Implementation uses Tailwind v4 theme tokens and utility classes directly in JSX/Astro. CSS files define tokens/base only; they do not hide feature-specific layout behind `jrw-*` selectors.
+
+Approved UI fidelity boundaries from 2026-05-24:
+- `Button` and `IconButton` hover/focus must use cobalt 2px outline with 2px offset, not border-color-only feedback.
+- Product cards must match Direction 01 anatomy while preserving accepted storefront page layout.
+- Admin pages must use `DashboardShell`, sidebar, top context bar, role/scope state, session/logout controls, and owner-only navigation before new admin screens expand.
+- Admin sign-in, logout, and password reset UI must use existing Admin auth routes; Admin registration UI appears only when enabled by product decision.
 
 ### Requirements to Structure Mapping
 
@@ -605,7 +611,7 @@ Structure supports storefront, admin dashboard, Super Admin governance, brand co
 All PRD feature areas map to domains, features, routes, adapters, or infrastructure.
 
 **Functional Requirements Coverage:**
-FR1-FR77 are architecturally supported by identity/RBAC, admin governance, brands, catalog, storefront, checkout, payments, orders/returns/refunds, notifications, audit, API contract structure, resource browsing, and component-level UI specifications.
+FR1-FR79 are architecturally supported by identity/RBAC, admin governance, brands, catalog, storefront, checkout, payments, orders/returns/refunds, notifications, audit, API contract structure, resource browsing, component-level UI specifications, Tailwind token rules, and approved design-direction fidelity gates.
 
 **Non-Functional Requirements Coverage:**
 Performance, security/privacy, reliability, accessibility, integration, observability, and maintainability are addressed through Cloudflare runtime, server-side guards, Durable Object inventory coordination, OpenAPI contracts, request IDs, safe logs, WCAG-oriented UI rules, and domain tests.
