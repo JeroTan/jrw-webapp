@@ -1,6 +1,6 @@
 # Story 4.2: Product Grid, Category Browsing, Search, and Filters
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -357,7 +357,7 @@ GPT-5 Codex
 - Added route contract tests and static-markup catalog UI tests; targeted `vitest`, full `npm run build-test`, `npm run check`, and `npm run build` pass.
 - Applied code-review patches for strict public query validation, server-side catalog page loading, safe product placeholder 404/503 states, category-route filter navigation, category empty-state priority, selected category labels, and full active visible category option paging.
 - Completed manual responsive and keyboard QA at 320, 375, 390, 430, 768, 1024, and 1440px; search, category controls, product links, quick actions, and pagination stayed reachable with no overflow or hidden focus regressions.
-- Re-ran targeted public catalog tests plus full `npm run build-test`; story now meets verification gates and is ready for review.
+- Re-ran targeted public catalog tests plus full `npm run build-test`; story now meets verification gates and is complete.
 
 ### File List
 
