@@ -37,6 +37,10 @@ import {
   publicBrandRoutes,
   type PublicBrandRoutesOptions,
 } from "./public-brands.routes";
+import {
+  publicCatalogRoutes,
+  type PublicCatalogRoutesOptions,
+} from "./public-catalog.routes";
 import { variantsRoutes, type VariantRoutesOptions } from "./variants.routes";
 export { serverRouteGroups } from "./route-groups";
 
@@ -53,6 +57,7 @@ export type ServerRoutesOptions = {
   ownerGovernance?: OwnerGovernanceRoutesOptions;
   products?: ProductRoutesOptions;
   publicBrands?: PublicBrandRoutesOptions;
+  publicCatalog?: PublicCatalogRoutesOptions;
   snapshots?: SnapshotRoutesOptions;
   variants?: VariantRoutesOptions;
 };
@@ -76,5 +81,6 @@ export function serverRoutes(
     .use((routes) => variantsRoutes(routes, options.variants))
     .use((routes) => inventoryRoutes(routes, options.inventory))
     .use((routes) => publicBrandRoutes(routes, options.publicBrands))
+    .use((routes) => publicCatalogRoutes(routes, options.publicCatalog))
     .use((routes) => snapshotsRoutes(routes, options.snapshots));
 }

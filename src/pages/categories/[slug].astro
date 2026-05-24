@@ -1,30 +1,40 @@
 ---
-import { StorefrontPlaceholder } from "@/features/storefront-shell";
+import {
+  ProductCatalogPage,
+  fetchStorefrontCatalogPageData,
+} from "@/features/product-catalog";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
 
-const slug = Astro.params.slug ?? "category";
-const categoryName = slug
-  .split("-")
-  .filter(Boolean)
-  .map((segment) => `${segment.charAt(0).toUpperCase()}${segment.slice(1)}`)
-  .join(" ");
+export const prerender = false;
 
-const resolvedCategoryName = categoryName || "Category";
+const slug = Astro.params.slug ?? "";
+
+if (slug.length === 0) {
+  return Astro.redirect("/products?view=categories");
+}
+
+const pageData = await fetchStorefrontCatalogPageData({
+  baseUrl: Astro.url,
+  categorySlug: slug,
+});
+
+const categoryTitle = pageData.catalog?.selectedCategory?.name || "Category";
 ---
 
 <StorefrontLayout
-  title={`${resolvedCategoryName} | JRW Categories`}
-  description={`Browse ${resolvedCategoryName} products from JRW.`}
-  mainAriaLabel="Category placeholder"
+  title={`${categoryTitle} | JRW Categories`}
+  description={`Browse ${categoryTitle} products from JRW.`}
+  mainAriaLabel="Category browsing"
 >
-  <StorefrontPlaceholder
-    copy="Products in this category are being prepared. Browse all products or return home."
-    kicker="Category"
-    links={[
-      { href: "/products", label: "Browse all products" },
-      { href: "/", label: "Return home" },
-    ]}
-    title={resolvedCategoryName}
-    titleId="category-placeholder-title"
+  <ProductCatalogPage
+    basePath={`/categories/${encodeURIComponent(slug)}`}
+    catalog={pageData.catalog}
+    categories={pageData.categories}
+    categoryNavigationMode="route"
+    error={pageData.error}
+    mode="category"
+    query={pageData.query}
+    showCategoryDirectory
+    view={pageData.view}
   />
 </StorefrontLayout>

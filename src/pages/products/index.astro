@@ -1,18 +1,31 @@
 ---
-import { StorefrontPlaceholder } from "@/features/storefront-shell";
+import {
+  ProductCatalogPage,
+  fetchStorefrontCatalogPageData,
+} from "@/features/product-catalog";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+
+export const prerender = false;
+
+const pageData = await fetchStorefrontCatalogPageData({
+  baseUrl: Astro.url,
+});
 ---
 
 <StorefrontLayout
   title="Products | JRW"
   description="Browse JRW. lifestyle products."
-  mainAriaLabel="Products placeholder"
+  mainAriaLabel="Product browsing"
 >
-  <StorefrontPlaceholder
-    copy="JRW products are being prepared for browsing. Use category links or return to the storefront home."
-    kicker="Products"
-    links={[{ href: "/", label: "Back to storefront home" }]}
-    title="Product list coming soon"
-    titleId="products-placeholder-title"
+  <ProductCatalogPage
+    basePath="/products"
+    catalog={pageData.catalog}
+    categories={pageData.categories}
+    categoryNavigationMode="query"
+    error={pageData.error}
+    mode="products"
+    query={pageData.query}
+    showCategoryDirectory={pageData.view === "categories"}
+    view={pageData.view}
   />
 </StorefrontLayout>

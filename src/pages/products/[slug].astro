@@ -1,0 +1,29 @@
+---
+import { StorefrontPlaceholder } from "@/features/storefront-shell";
+import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+
+export const prerender = false;
+
+const slug = Astro.params.slug ?? "";
+
+if (slug.length === 0) {
+  return Astro.redirect("/products");
+}
+---
+
+<StorefrontLayout
+  title="Product | JRW"
+  description="Product detail opens here next."
+  mainAriaLabel="Product placeholder"
+>
+  <StorefrontPlaceholder
+    copy="Product detail opens here next. Browse products or move through categories while this view stays light for Story 4.3."
+    kicker="Product"
+    links={[
+      { href: "/products", label: "Browse all products" },
+      { href: "/products?view=categories", label: "Browse categories" },
+    ]}
+    title="Product detail coming soon"
+    titleId="product-placeholder-title"
+  />
+</StorefrontLayout>

@@ -1,6 +1,6 @@
 # Story 4.2: Product Grid, Category Browsing, Search, and Filters
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -24,56 +24,56 @@ So that I can discover available products quickly.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm scope, reuse points, and anti-patterns before coding. (AC: 1-9)
-  - [ ] Confirm Story 4.1 storefront shell, Story 4.1/2026-05-23 public brand correction, and 2026-05-24 Tailwind utility migration stay intact.
-  - [ ] Confirm existing public browsing pattern: Astro route wrapper with `export const prerender = false`, server fetch using `Astro.url`, and React feature UI under `src/features/**`.
-  - [ ] Reuse standard API envelopes from `src/lib/api/response.ts` and OpenAPI helpers from `src/lib/typebox/api.ts`.
-  - [ ] Reuse Route -> Controller -> Service -> Repository split used by `src/server/routes/public-brands.routes.ts`.
-  - [ ] Do not fetch storefront data from legacy `src/api/**` or any `/api/admin/**` endpoint.
-  - [ ] Do not add one-off `jrw-*` runtime classes, `src/styles/storefront/**`, `src/styles/features/**`, or new feature CSS files.
-  - [ ] Do not implement product detail experience, variant selection, cart state, checkout, or customer account UI in this story.
+- [x] Task 1: Confirm scope, reuse points, and anti-patterns before coding. (AC: 1-9)
+  - [x] Confirm Story 4.1 storefront shell, Story 4.1/2026-05-23 public brand correction, and 2026-05-24 Tailwind utility migration stay intact.
+  - [x] Confirm existing public browsing pattern: Astro route wrapper with `export const prerender = false`, server fetch using `Astro.url`, and React feature UI under `src/features/**`.
+  - [x] Reuse standard API envelopes from `src/lib/api/response.ts` and OpenAPI helpers from `src/lib/typebox/api.ts`.
+  - [x] Reuse Route -> Controller -> Service -> Repository split used by `src/server/routes/public-brands.routes.ts`.
+  - [x] Do not fetch storefront data from legacy `src/api/**` or any `/api/admin/**` endpoint.
+  - [x] Do not add one-off `jrw-*` runtime classes, `src/styles/storefront/**`, `src/styles/features/**`, or new feature CSS files.
+  - [x] Do not implement product detail experience, variant selection, cart state, checkout, or customer account UI in this story.
 
-- [ ] Task 2: Define public storefront catalog contracts and route wiring. (AC: 1-7, 9)
-  - [ ] Create public catalog DTOs for product cards, category options, pagination metadata, and safe error/empty states.
-  - [ ] Add canonical public catalog route(s) under `src/server/routes/**` for published product browsing and category option reads.
-  - [ ] Register new public route(s) in `src/server/routes/index.ts` and pass options through `src/server/app.ts` like existing public brand routes.
-  - [ ] Mark route metadata as public read-only with `rateLimitClass: "public-read"` and safe error codes only.
-  - [ ] Keep default page size 20, max 100, and explicit validation for malformed query params.
-  - [ ] Preserve current storefront search/navigation URL expectations: shell header already submits `q` to `/products`; page layer must map that safely to server/API search input instead of breaking existing links.
+- [x] Task 2: Define public storefront catalog contracts and route wiring. (AC: 1-7, 9)
+  - [x] Create public catalog DTOs for product cards, category options, pagination metadata, and safe error/empty states.
+  - [x] Add canonical public catalog route(s) under `src/server/routes/**` for published product browsing and category option reads.
+  - [x] Register new public route(s) in `src/server/routes/index.ts` and pass options through `src/server/app.ts` like existing public brand routes.
+  - [x] Mark route metadata as public read-only with `rateLimitClass: "public-read"` and safe error codes only.
+  - [x] Keep default page size 20, max 100, and explicit validation for malformed query params.
+  - [x] Preserve current storefront search/navigation URL expectations: shell header already submits `q` to `/products`; page layer must map that safely to server/API search input instead of breaking existing links.
 
-- [ ] Task 3: Implement public catalog repository/service/controller flow with existing domain logic. (AC: 1-6, 9)
-  - [ ] Create public repository/service/controller modules that expose customer-safe published product browsing only.
-  - [ ] Reuse `ProductRepository.list(...)` for pagination/search/category filtering where possible instead of duplicating admin list SQL; force published-only results at public boundary.
-  - [ ] Resolve category slug from `/categories/[slug]` using active + visible category rules before listing products.
-  - [ ] Expose active visible category options for filter rail and empty-category recovery flow.
-  - [ ] Preserve brandless product validity and avoid any copy that implies missing seller/store/merchant.
-  - [ ] Use existing customer-safe availability fields or inventory-derived labels; never expose raw stock counts or internal inventory/provider details.
-  - [ ] Preserve newest-first ordering so current `New Arrivals` links (`/products?sort=new`) stay meaningful. If additional sort options are introduced, document and test them explicitly.
-  - [ ] Do not surface category product counts as public truth from `CategoryRepository.list(...)` unless counts are filtered to published products.
+- [x] Task 3: Implement public catalog repository/service/controller flow with existing domain logic. (AC: 1-6, 9)
+  - [x] Create public repository/service/controller modules that expose customer-safe published product browsing only.
+  - [x] Reuse `ProductRepository.list(...)` for pagination/search/category filtering where possible instead of duplicating admin list SQL; force published-only results at public boundary.
+  - [x] Resolve category slug from `/categories/[slug]` using active + visible category rules before listing products.
+  - [x] Expose active visible category options for filter rail and empty-category recovery flow.
+  - [x] Preserve brandless product validity and avoid any copy that implies missing seller/store/merchant.
+  - [x] Use existing customer-safe availability fields or inventory-derived labels; never expose raw stock counts or internal inventory/provider details.
+  - [x] Preserve newest-first ordering so current `New Arrivals` links (`/products?sort=new`) stay meaningful. If additional sort options are introduced, document and test them explicitly.
+  - [x] Do not surface category product counts as public truth from `CategoryRepository.list(...)` unless counts are filtered to published products.
 
-- [ ] Task 4: Build `src/features/product-catalog/**` as new storefront feature module. (AC: 1-8)
-  - [ ] Create product-catalog feature components for catalog page shell, filter rail/toolbar, product grid, product card, pagination area, empty/error/loading states, and small reusable helpers local to this feature.
-  - [ ] Keep feature-specific UI in `src/features/product-catalog/**`; move anything generic to `src/components/**` only if it is clearly cross-feature reusable.
-  - [ ] Product cards must show image module, product name, optional brand/category, price, availability text, and quick action with stable dimensions.
-  - [ ] Use Tailwind utilities and JRW tokens directly in JSX/Astro markup: `bg-brand-accent`, `text-brand-muted`, `border-brand-border-strong`, `p-grid-sm`, `gap-grid-xs`, `min-h-control-md`, responsive `xs:/md:/lg:/3xl:`.
-  - [ ] Use `SearchInput`, `EmptyState`, `Skeleton`, `StatusBadge`, and other existing primitives where they fit without forcing admin-specific behavior into storefront.
-  - [ ] Evaluate `src/components/ui/Pagination.tsx` carefully: it is callback-driven for hydrated/admin use. For storefront SSR query links, either extend it without breaking current callers or create a feature-local link/query pagination surface under `src/features/product-catalog/**`.
-  - [ ] If quick action needs a non-dead product target before Story 4.3, add only a thin placeholder route wrapper for `/products/[slug]`; do not implement gallery, variants, add-to-cart, or detailed content here.
+- [x] Task 4: Build `src/features/product-catalog/**` as new storefront feature module. (AC: 1-8)
+  - [x] Create product-catalog feature components for catalog page shell, filter rail/toolbar, product grid, product card, pagination area, empty/error/loading states, and small reusable helpers local to this feature.
+  - [x] Keep feature-specific UI in `src/features/product-catalog/**`; move anything generic to `src/components/**` only if it is clearly cross-feature reusable.
+  - [x] Product cards must show image module, product name, optional brand/category, price, availability text, and quick action with stable dimensions.
+  - [x] Use Tailwind utilities and JRW tokens directly in JSX/Astro markup: `bg-brand-accent`, `text-brand-muted`, `border-brand-border-strong`, `p-grid-sm`, `gap-grid-xs`, `min-h-control-md`, responsive `xs:/md:/lg:/3xl:`.
+  - [x] Use `SearchInput`, `EmptyState`, `Skeleton`, `StatusBadge`, and other existing primitives where they fit without forcing admin-specific behavior into storefront.
+  - [x] Evaluate `src/components/ui/Pagination.tsx` carefully: it is callback-driven for hydrated/admin use. For storefront SSR query links, either extend it without breaking current callers or create a feature-local link/query pagination surface under `src/features/product-catalog/**`.
+  - [x] If quick action needs a non-dead product target before Story 4.3, add only a thin placeholder route wrapper for `/products/[slug]`; do not implement gallery, variants, add-to-cart, or detailed content here.
 
-- [ ] Task 5: Replace placeholder storefront browsing pages with real SSR catalog surfaces. (AC: 1-8)
-  - [ ] Update `src/pages/index.astro` so first storefront visit shows JRW identity plus live product browsing instead of placeholder-only home cards.
-  - [ ] Update `src/pages/products/index.astro` to render full published catalog browsing with search/filter/pagination query handling.
-  - [ ] Update `src/pages/categories/[slug].astro` to resolve active visible category by slug and render category-scoped catalog or recovery state.
-  - [ ] Keep `StorefrontLayout.astro`, header, footer, skip link, cart/account links, and public brand navigation intact.
-  - [ ] Keep Astro page wrappers thin: parse `Astro.url.searchParams`, call public catalog fetch helper(s), pass serializable props into React feature components.
-  - [ ] Keep storefront pages `prerender = false` for fresh query-driven server rendering, matching current public brands pattern.
+- [x] Task 5: Replace placeholder storefront browsing pages with real SSR catalog surfaces. (AC: 1-8)
+  - [x] Update `src/pages/index.astro` so first storefront visit shows JRW identity plus live product browsing instead of placeholder-only home cards.
+  - [x] Update `src/pages/products/index.astro` to render full published catalog browsing with search/filter/pagination query handling.
+  - [x] Update `src/pages/categories/[slug].astro` to resolve active visible category by slug and render category-scoped catalog or recovery state.
+  - [x] Keep `StorefrontLayout.astro`, header, footer, skip link, cart/account links, and public brand navigation intact.
+  - [x] Keep Astro page wrappers thin: parse `Astro.url.searchParams`, call public catalog fetch helper(s), pass serializable props into React feature components.
+  - [x] Keep storefront pages `prerender = false` for fresh query-driven server rendering, matching current public brands pattern.
 
 - [ ] Task 6: Add focused verification for public catalog UI and routes. (AC: 1-9)
-  - [ ] Add route contract tests similar to `src/server/routes/public-brands.routes.test.ts` and public-read inventory coverage in `src/server/routes/inventory.routes.test.ts`.
-  - [ ] Add React static-markup UI tests for product catalog surfaces, matching local feature patterns such as `src/features/brands/components/brands-ui.test.ts`.
-  - [ ] Verify public OpenAPI metadata, public auth annotations, response envelopes, and 404/validation behavior for missing category or bad query params.
-  - [ ] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` and confirm no new runtime styling regressions.
-  - [ ] Run `npm run check`, targeted `vitest` for new public catalog routes/UI, and `npm run build` if no blocker appears.
+  - [x] Add route contract tests similar to `src/server/routes/public-brands.routes.test.ts` and public-read inventory coverage in `src/server/routes/inventory.routes.test.ts`.
+  - [x] Add React static-markup UI tests for product catalog surfaces, matching local feature patterns such as `src/features/brands/components/brands-ui.test.ts`.
+  - [x] Verify public OpenAPI metadata, public auth annotations, response envelopes, and 404/validation behavior for missing category or bad query params.
+  - [x] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` and confirm no new runtime styling regressions.
+  - [x] Run `npm run check`, targeted `vitest` for new public catalog routes/UI, and `npm run build` if no blocker appears.
   - [ ] Manual QA at 320, 375, 390, 430, 768, 1024, and 1440px with keyboard-only walkthrough for search, category controls, product links, quick actions, and pagination.
 
 ### Review Findings
@@ -321,15 +321,53 @@ GPT-5 Codex
   - Astro on-demand rendering
   - Astro render context / `Astro.url`
   - Tailwind v4 `@theme` variables
+- Validation commands run on 2026-05-24:
+  - `npx vitest run src/server/routes/public-catalog.routes.test.ts src/features/product-catalog/components/product-catalog-ui.test.tsx`
+  - `npm run check`
+  - `npm run build`
+  - `npm run build-test`
+  - `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`
+- Manual breakpoint QA not executed in-session because no browser automation or interactive browser tool was exposed in this environment.
 
 ### Completion Notes List
 
-- Pending implementation.
+- Implemented public catalog DTOs, query normalization, repository/service/controller flow, and public storefront catalog routes.
+- Built `src/features/product-catalog/**` with SSR-friendly filters, category recovery, product cards, availability labels, loading/error/empty states, and link-based pagination.
+- Replaced placeholder storefront pages on `/`, `/products`, and `/categories/[slug]`, and added thin `/products/[slug]` placeholder routing for non-dead quick actions.
+- Added route contract tests and static-markup catalog UI tests; targeted `vitest`, full `npm run build-test`, `npm run check`, and `npm run build` pass.
+- Story remains `in-progress` until manual breakpoint QA and keyboard walkthrough complete outside this session.
 
 ### File List
 
-- Pending implementation.
+- _bmad-output/implementation-artifacts/4-2-product-grid-category-browsing-search-and-filters.md
+- _bmad-output/implementation-artifacts/sprint-status.yaml
+- src/domain/products/public-catalog.ts
+- src/domain/products/public-types.ts
+- src/features/product-catalog/api.ts
+- src/features/product-catalog/components/CatalogPagination.tsx
+- src/features/product-catalog/components/ProductCard.tsx
+- src/features/product-catalog/components/ProductCatalogEmptyState.tsx
+- src/features/product-catalog/components/ProductCatalogErrorState.tsx
+- src/features/product-catalog/components/ProductCatalogFilters.tsx
+- src/features/product-catalog/components/ProductCatalogPage.tsx
+- src/features/product-catalog/components/ProductCatalogSkeleton.tsx
+- src/features/product-catalog/components/ProductGrid.tsx
+- src/features/product-catalog/components/product-catalog-ui.test.tsx
+- src/features/product-catalog/index.ts
+- src/features/product-catalog/types.ts
+- src/pages/categories/[slug].astro
+- src/pages/index.astro
+- src/pages/products/[slug].astro
+- src/pages/products/index.astro
+- src/server/app.ts
+- src/server/controllers/PublicCatalogController.ts
+- src/server/repositories/PublicCatalogRepository.ts
+- src/server/routes/index.ts
+- src/server/routes/public-catalog.routes.test.ts
+- src/server/routes/public-catalog.routes.ts
+- src/server/services/PublicCatalogService.ts
 
 ## Change Log
 
 - 2026-05-24: Story 4.2 context engine created for published product grid browsing, category browsing, search/filter query mapping, pagination, public catalog API, Tailwind utility-first storefront UI, and focused verification.
+- 2026-05-24: Implemented public catalog routes, SSR storefront catalog feature/pages, validation coverage, and build checks. Manual breakpoint QA remains pending, so story stays in-progress.

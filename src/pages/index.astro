@@ -1,6 +1,15 @@
 ---
-import { StorefrontHome } from "@/features/storefront-shell";
+import {
+  ProductCatalogPage,
+  fetchStorefrontCatalogPageData,
+} from "@/features/product-catalog";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+
+export const prerender = false;
+
+const pageData = await fetchStorefrontCatalogPageData({
+  baseUrl: Astro.url,
+});
 ---
 
 <StorefrontLayout
@@ -8,5 +17,15 @@ import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
   description="Browse JRW. lifestyle products."
   mainAriaLabel="JRW. storefront home"
 >
-  <StorefrontHome />
+  <ProductCatalogPage
+    basePath="/"
+    catalog={pageData.catalog}
+    categories={pageData.categories}
+    categoryNavigationMode="route"
+    error={pageData.error}
+    mode="home"
+    query={pageData.query}
+    showCategoryDirectory
+    view={pageData.view}
+  />
 </StorefrontLayout>
