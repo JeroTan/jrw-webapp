@@ -14,6 +14,7 @@ import {
   product_categories,
   product_photos,
   product_variants,
+  products,
 } from "@/domain/schema/catalog";
 import {
   DrizzleCategoryRepository,
@@ -27,6 +28,7 @@ import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 type PublicCatalogBrowseInput = {
   categoryId?: string;
+  categoryName?: string;
   page: number;
   pageSize: number;
   search?: string;
@@ -60,6 +62,7 @@ export type PublicCatalogRepository = {
   findActiveVisibleCategoryBySlug(
     slug: string
   ): Promise<PublicCatalogCategoryOption | null>;
+  findPublishedProductExistsBySlug(slug: string): Promise<boolean>;
   listActiveVisibleCategoryOptions(): Promise<PublicCatalogCategoryOption[]>;
   listPublishedProductCards(
     input: PublicCatalogBrowseInput
@@ -180,14 +183,48 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
   async listActiveVisibleCategoryOptions(): Promise<
     PublicCatalogCategoryOption[]
   > {
-    const result = await this.categoryRepository.list({
-      isVisible: true,
-      page: 1,
-      pageSize: 100,
-      status: "ACTIVE",
-    });
+    const items: PublicCatalogCategoryOption[] = [];
+    let page = 1;
 
-    return result.items.map(toCategoryOption);
+    while (true) {
+      const result = await this.categoryRepository.list({
+        isVisible: true,
+        page,
+        pageSize: 100,
+        status: "ACTIVE",
+      });
+
+      items.push(...result.items.map(toCategoryOption));
+
+      if (result.totalPages <= page || result.items.length === 0) {
+        break;
+      }
+
+      page += 1;
+    }
+
+    return items;
+  }
+
+  async findPublishedProductExistsBySlug(slug: string): Promise<boolean> {
+    const cleanSlug = slug.trim();
+
+    if (!cleanSlug) {
+      return false;
+    }
+
+    const [row] = await this.db
+      .select({ id: products.id })
+      .from(products)
+      .where(
+        and(
+          sql`lower(${products.slug}) = ${cleanSlug.toLowerCase()}`,
+          eq(products.status, "PUBLISHED")
+        )
+      )
+      .limit(1);
+
+    return Boolean(row);
   }
 
   async listPublishedProductCards(
@@ -224,7 +261,7 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
     return {
       items: result.items.map((product) =>
         productCardFromRecord({
-          categoryName: categoryNames.get(product.id),
+          categoryName: input.categoryName ?? categoryNames.get(product.id),
           imageAlt: photos.get(product.id)?.imageAlt,
           imageSrc: productImageSrc(photos.get(product.id)?.r2Key ?? null),
           product,

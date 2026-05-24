@@ -84,6 +84,21 @@ So that I can discover available products quickly.
 - Current `StorefrontHeader` search form submits `q` to `/products`. Preserve that public URL contract or provide backwards-compatible mapping. Do not silently switch public search URLs in a way that breaks existing navigation.
 - `CategoryRepository.list(...)` linked-product counts are not published-only counts. Do not display them publicly unless public filtering is applied first.
 
+#### Code Review 2026-05-24
+
+- [x] [Review][Patch] SSR catalog page self-fetch trusted request origin [src/features/product-catalog/api.ts:18] -- replaced page API self-fetch with server-side catalog loader that uses runtime DB/service boundaries.
+- [x] [Review][Patch] Storefront pages hid malformed query params [src/features/product-catalog/api.ts:22] -- moved page query handling through strict public catalog normalization and safe validation error state.
+- [x] [Review][Patch] Fractional page/pageSize returned catalog data [src/server/routes/public-catalog.routes.ts:73] -- added integer validation and service coverage for malformed pagination.
+- [x] [Review][Patch] Category route clear/all-products links stayed scoped or went to `/` [src/features/product-catalog/components/ProductCatalogFilters.tsx:24] -- route-mode clear and all-products now target `/products`.
+- [x] [Review][Patch] Category search/page-overflow empty states used wrong message [src/server/services/PublicCatalogService.ts:45] -- page overflow and category+search states now take priority.
+- [x] [Review][Patch] Category-filtered cards could show another category label [src/server/repositories/PublicCatalogRepository.ts:230] -- selected category name is passed through public browse results.
+- [x] [Review][Patch] Visible category options stopped after 100 [src/server/repositories/PublicCatalogRepository.ts:183] -- public category options now page through all active visible categories.
+- [x] [Review][Patch] Blank category slug rendered all products under category route [src/pages/categories/[slug].astro:10] -- category slug is trimmed before fetch and blank slugs redirect to category browser.
+- [x] [Review][Patch] Unknown product slug returned a 200 placeholder [src/pages/products/[slug].astro:7] -- product placeholder route validates published slug and returns 404/503 safe states.
+- [x] [Review][Patch] Public copy exposed internal story/shell language [src/features/product-catalog/components/ProductCatalogPage.tsx:48] -- public copy now uses storefront-user language only.
+- [ ] [Review][Patch] Manual responsive and keyboard QA still incomplete [_bmad-output/implementation-artifacts/4-2-product-grid-category-browsing-search-and-filters.md:77] -- breakpoint and keyboard walkthrough remains pending, so story stays in-progress.
+- [x] [Review][Dismiss] Public availability uses `stock_lock_version >= 0` as active variant proxy [src/server/repositories/PublicCatalogRepository.ts:285] -- dismissed because current variant domain has no separate active/sellable field and existing `VariantRepository` uses stock lock plus inventory state as availability source.
+
 ## Dev Notes
 
 ### Epic Context
@@ -327,6 +342,11 @@ GPT-5 Codex
   - `npm run build`
   - `npm run build-test`
   - `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`
+- Review patch validation commands run on 2026-05-24:
+  - `npx vitest run src/server/routes/public-catalog.routes.test.ts src/server/services/PublicCatalogService.test.ts src/features/product-catalog/components/product-catalog-ui.test.tsx src/domain/products/product.test.ts`
+  - `npm run check`
+  - `npm run build`
+  - `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`
 - Manual breakpoint QA not executed in-session because no browser automation or interactive browser tool was exposed in this environment.
 
 ### Completion Notes List
@@ -335,6 +355,7 @@ GPT-5 Codex
 - Built `src/features/product-catalog/**` with SSR-friendly filters, category recovery, product cards, availability labels, loading/error/empty states, and link-based pagination.
 - Replaced placeholder storefront pages on `/`, `/products`, and `/categories/[slug]`, and added thin `/products/[slug]` placeholder routing for non-dead quick actions.
 - Added route contract tests and static-markup catalog UI tests; targeted `vitest`, full `npm run build-test`, `npm run check`, and `npm run build` pass.
+- Applied code-review patches for strict public query validation, server-side catalog page loading, safe product placeholder 404/503 states, category-route filter navigation, category empty-state priority, selected category labels, and full active visible category option paging.
 - Story remains `in-progress` until manual breakpoint QA and keyboard walkthrough complete outside this session.
 
 ### File List
@@ -361,10 +382,12 @@ GPT-5 Codex
 - src/pages/products/index.astro
 - src/server/app.ts
 - src/server/controllers/PublicCatalogController.ts
+- src/server/loaders/PublicCatalogPageDataLoader.ts
 - src/server/repositories/PublicCatalogRepository.ts
 - src/server/routes/index.ts
 - src/server/routes/public-catalog.routes.test.ts
 - src/server/routes/public-catalog.routes.ts
+- src/server/services/PublicCatalogService.test.ts
 - src/server/services/PublicCatalogService.ts
 
 ## Change Log

@@ -272,6 +272,11 @@ describe("public catalog routes", () => {
         headers: { "x-request-id": "req_storefront_catalog_invalid" },
       })
     );
+    const fractionalResponse = await app.handle(
+      new Request("https://jrw.test/api/storefront/catalog?page=1.5", {
+        headers: { "x-request-id": "req_storefront_catalog_fractional" },
+      })
+    );
 
     expect(missingResponse.status).toBe(404);
     await expect(missingResponse.json()).resolves.toMatchObject({
@@ -282,6 +287,13 @@ describe("public catalog routes", () => {
 
     expect(invalidResponse.status).toBe(400);
     await expect(invalidResponse.json()).resolves.toMatchObject({
+      error: {
+        code: "VALIDATION_FAILED",
+      },
+    });
+
+    expect(fractionalResponse.status).toBe(400);
+    await expect(fractionalResponse.json()).resolves.toMatchObject({
       error: {
         code: "VALIDATION_FAILED",
       },

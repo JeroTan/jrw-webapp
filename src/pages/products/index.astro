@@ -1,14 +1,14 @@
 ---
-import {
-  ProductCatalogPage,
-  fetchStorefrontCatalogPageData,
-} from "@/features/product-catalog";
+import { ProductCatalogPage } from "@/features/product-catalog";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+import { loadStorefrontCatalogPageData } from "@/server/loaders/PublicCatalogPageDataLoader";
+import { env } from "cloudflare:workers";
 
 export const prerender = false;
 
-const pageData = await fetchStorefrontCatalogPageData({
+const pageData = await loadStorefrontCatalogPageData({
   baseUrl: Astro.url,
+  runtimeEnv: env as Partial<Env> & Record<string, unknown>,
 });
 ---
 

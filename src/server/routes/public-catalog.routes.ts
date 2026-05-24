@@ -70,8 +70,10 @@ const tboxPublicCatalogPagination = t.Object({
 const tboxPublicCatalogQuery = t.Object(
   {
     category: t.Optional(t.String()),
-    page: t.Optional(t.Numeric({ minimum: 1, default: 1 })),
-    pageSize: t.Optional(t.Numeric({ minimum: 1, maximum: 100, default: 20 })),
+    page: t.Optional(t.Numeric({ minimum: 1, multipleOf: 1, default: 1 })),
+    pageSize: t.Optional(
+      t.Numeric({ minimum: 1, maximum: 100, multipleOf: 1, default: 20 })
+    ),
     q: t.Optional(t.String()),
     sort: t.Optional(t.Literal("new")),
   },
@@ -157,8 +159,8 @@ export function publicCatalogRoutes(
             RequestContextDecorations & {
               query: {
                 category?: string;
-                page?: number;
-                pageSize?: number;
+                page?: number | string;
+                pageSize?: number | string;
                 q?: string;
                 sort?: "new";
               };

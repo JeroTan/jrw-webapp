@@ -46,8 +46,8 @@ export type PublicCatalogSort = "new";
 
 export type PublicCatalogQueryInput = {
   category?: string;
-  page?: number;
-  pageSize?: number;
+  page?: number | string;
+  pageSize?: number | string;
   q?: string;
   sort?: string;
 };

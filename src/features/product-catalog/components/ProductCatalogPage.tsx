@@ -45,7 +45,7 @@ function heroContent(input: {
   switch (input.mode) {
     case "home":
       return {
-        copy: "Search published products, browse categories, and open product pages inside JRW storefront shell.",
+        copy: "Search published products, browse categories, and open product pages from one storefront view.",
         kicker: "JRW. Storefront",
         title: "Lifestyle products, live in catalog.",
       };
@@ -59,7 +59,7 @@ function heroContent(input: {
       };
     default:
       return {
-        copy: "Search published products, move through categories, and keep browsing inside storefront shell.",
+        copy: "Search published products, move through categories, and keep browsing JRW products.",
         kicker: "Products",
         title: "Browse products.",
       };

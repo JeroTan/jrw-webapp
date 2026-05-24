@@ -1,21 +1,21 @@
 ---
-import {
-  ProductCatalogPage,
-  fetchStorefrontCatalogPageData,
-} from "@/features/product-catalog";
+import { ProductCatalogPage } from "@/features/product-catalog";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+import { loadStorefrontCatalogPageData } from "@/server/loaders/PublicCatalogPageDataLoader";
+import { env } from "cloudflare:workers";
 
 export const prerender = false;
 
-const slug = Astro.params.slug ?? "";
+const slug = (Astro.params.slug ?? "").trim();
 
 if (slug.length === 0) {
   return Astro.redirect("/products?view=categories");
 }
 
-const pageData = await fetchStorefrontCatalogPageData({
+const pageData = await loadStorefrontCatalogPageData({
   baseUrl: Astro.url,
   categorySlug: slug,
+  runtimeEnv: env as Partial<Env> & Record<string, unknown>,
 });
 
 const categoryTitle = pageData.catalog?.selectedCategory?.name || "Category";

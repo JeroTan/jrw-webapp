@@ -1,29 +1,54 @@
 ---
 import { StorefrontPlaceholder } from "@/features/storefront-shell";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+import { loadStorefrontProductPlaceholderPageData } from "@/server/loaders/PublicCatalogPageDataLoader";
+import { env } from "cloudflare:workers";
 
 export const prerender = false;
 
-const slug = Astro.params.slug ?? "";
+const slug = (Astro.params.slug ?? "").trim();
 
 if (slug.length === 0) {
   return Astro.redirect("/products");
 }
+
+const pageData = await loadStorefrontProductPlaceholderPageData({
+  runtimeEnv: env as Partial<Env> & Record<string, unknown>,
+  slug,
+});
+
+Astro.response.status = pageData.status;
+
+const placeholder = pageData.exists
+  ? {
+      copy: "Full product details open here soon. Browse products or categories while this page is prepared.",
+      kicker: "Product",
+      title: "Product detail coming soon",
+      titleId: "product-placeholder-title",
+    }
+  : {
+      copy:
+        pageData.error?.message ??
+        "Product not found. Browse current products instead.",
+      kicker: "Product",
+      title: pageData.error?.title ?? "Product not found",
+      titleId: "product-not-found-title",
+    };
 ---
 
 <StorefrontLayout
-  title="Product | JRW"
-  description="Product detail opens here next."
-  mainAriaLabel="Product placeholder"
+  title={`${placeholder.title} | JRW`}
+  description={placeholder.copy}
+  mainAriaLabel="Product detail"
 >
   <StorefrontPlaceholder
-    copy="Product detail opens here next. Browse products or move through categories while this view stays light for Story 4.3."
-    kicker="Product"
+    copy={placeholder.copy}
+    kicker={placeholder.kicker}
     links={[
       { href: "/products", label: "Browse all products" },
       { href: "/products?view=categories", label: "Browse categories" },
     ]}
-    title="Product detail coming soon"
-    titleId="product-placeholder-title"
+    title={placeholder.title}
+    titleId={placeholder.titleId}
   />
 </StorefrontLayout>

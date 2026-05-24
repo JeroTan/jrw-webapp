@@ -10,8 +10,8 @@ import { Result, type AppResult } from "@/utils/general/result";
 export type PublicCatalogListServiceInput = {
   query: {
     category?: string;
-    page?: number;
-    pageSize?: number;
+    page?: number | string;
+    pageSize?: number | string;
     q?: string;
     sort?: string;
   };
@@ -49,12 +49,25 @@ function buildEmptyState(input: {
   totalItems: number;
   totalPages: number;
 }) {
-  if (input.category) {
+  if (
+    input.totalItems > 0 &&
+    input.totalPages > 0 &&
+    input.page > input.totalPages
+  ) {
+    return {
+      actionHref: "/products",
+      actionLabel: "Return to first page",
+      message: "This page has no products. Try an earlier page.",
+      title: "No products on this page",
+    };
+  }
+
+  if (input.category && input.q.trim().length > 0) {
     return {
       actionHref: "/products",
       actionLabel: "Browse all products",
-      message: "This category has no published products yet.",
-      title: "Category empty",
+      message: `Try a different term in ${input.category.name} or browse all products.`,
+      title: "No products match this category search",
     };
   }
 
@@ -67,16 +80,12 @@ function buildEmptyState(input: {
     };
   }
 
-  if (
-    input.totalItems > 0 &&
-    input.totalPages > 0 &&
-    input.page > input.totalPages
-  ) {
+  if (input.category) {
     return {
       actionHref: "/products",
-      actionLabel: "Return to first page",
-      message: "This page has no products. Try an earlier page.",
-      title: "No products on this page",
+      actionLabel: "Browse all products",
+      message: "This category has no published products yet.",
+      title: "Category empty",
     };
   }
 
@@ -123,6 +132,7 @@ export class PublicCatalogService {
 
       const browseResult = await this.repository.listPublishedProductCards({
         ...(selectedCategory ? { categoryId: selectedCategory.id } : {}),
+        ...(selectedCategory ? { categoryName: selectedCategory.name } : {}),
         page: normalizedQuery.content.page,
         pageSize: normalizedQuery.content.pageSize,
         ...(normalizedQuery.content.q

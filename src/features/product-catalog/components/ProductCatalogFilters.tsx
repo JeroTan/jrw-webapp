@@ -22,9 +22,16 @@ function clearHref(
   view: StorefrontCatalogView
 ) {
   if (categoryNavigationMode === "route") {
-    return view === "categories"
-      ? `${basePath}?sort=new&view=categories`
-      : `${basePath}?sort=new`;
+    return buildCatalogHref(
+      "/products",
+      {
+        page: 1,
+        pageSize: 20,
+        q: "",
+        sort: "new",
+      },
+      view
+    );
   }
 
   return buildCatalogHref(
@@ -130,7 +137,7 @@ export function ProductCatalogFilters({
             className="inline-flex min-h-control-md items-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent"
             href={
               categoryNavigationMode === "route"
-                ? buildCatalogHref("/", query, view, {
+                ? buildCatalogHref("/products", query, view, {
                     category: undefined,
                     page: 1,
                   })

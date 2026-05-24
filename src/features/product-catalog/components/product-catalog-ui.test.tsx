@@ -140,6 +140,7 @@ describe("product catalog UI", () => {
 
     expect(markup).toContain("Category empty");
     expect(markup).toContain("Browse all products");
+    expect(markup).toContain("/products?sort=new");
     expect(markup).toContain("/categories/home-goods");
     expect(markup).not.toContain("seller of record");
   });
