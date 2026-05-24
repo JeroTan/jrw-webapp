@@ -52,11 +52,9 @@ export function evaluateProductPublishReadiness(
   }
 
   if (snapshot.variantsMissingPriceCount > 0) {
-    missingItems.push("Every active variant must have price greater than zero.");
-  }
-
-  if (snapshot.imageCount <= 0) {
-    missingItems.push("At least one product image is required.");
+    missingItems.push(
+      "Every active variant must have price greater than zero."
+    );
   }
 
   if (snapshot.variantCount > 0 && snapshot.availableVariantCount <= 0) {
@@ -99,4 +97,3 @@ export function validateProductStatusTransition(
 
   return Result.okay(null);
 }
-

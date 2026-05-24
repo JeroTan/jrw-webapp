@@ -194,7 +194,10 @@ class ProductRepositoryStub implements ProductRepository {
     return next;
   }
 
-  async assignBrand(productId: string, brandId: string): Promise<ProductRecord> {
+  async assignBrand(
+    productId: string,
+    brandId: string
+  ): Promise<ProductRecord> {
     const next = productRecord({
       ...(this.product ?? {}),
       id: productId,
@@ -253,10 +256,10 @@ class AuditPublisherStub {
 }
 
 describe("ProductService status flows", () => {
-  it("publishes product when readiness is satisfied", async () => {
+  it("publishes product when readiness is satisfied without an image", async () => {
     const repository = new ProductRepositoryStub();
     repository.product = productRecord({ status: "DRAFT" });
-    repository.readiness = readinessSnapshot();
+    repository.readiness = readinessSnapshot({ imageCount: 0 });
     const auditPublisher = new AuditPublisherStub();
     const service = new ProductService({
       repository,
@@ -306,8 +309,12 @@ describe("ProductService status flows", () => {
     expect(result.error?.data).toMatchObject({
       reason: "PRODUCT_NOT_READY_FOR_PUBLISH",
       missingItems: expect.arrayContaining([
-        "At least one product image is required.",
         "At least one active variant must be in stock or preorder.",
+      ]),
+    });
+    expect(result.error?.data).not.toMatchObject({
+      missingItems: expect.arrayContaining([
+        "At least one product image is required.",
       ]),
     });
   });

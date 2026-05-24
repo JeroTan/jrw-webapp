@@ -124,7 +124,7 @@ function toEditorFormState(input: {
     slug: product.slug,
     summary: product.summary ?? "",
     description: product.description,
-    brandId: mode === "edit" ? organization?.brand?.id ?? "" : "",
+    brandId: mode === "edit" ? (organization?.brand?.id ?? "") : "",
     categoryIds:
       mode === "edit"
         ? (organization?.categories ?? []).map((category) => category.id)
@@ -147,7 +147,9 @@ function productOrganizationFields(input: {
 
   return {
     brandId: organization?.brand?.id ?? "",
-    categoryIds: (organization?.categories ?? []).map((category) => category.id),
+    categoryIds: (organization?.categories ?? []).map(
+      (category) => category.id
+    ),
   };
 }
 
@@ -215,7 +217,10 @@ function validateProductInput(
   }
 
   if (options.allowOrganization) {
-    if (form.brandId.length > 0 && !options.availableBrandIds.has(form.brandId)) {
+    if (
+      form.brandId.length > 0 &&
+      !options.availableBrandIds.has(form.brandId)
+    ) {
       return {
         okay: false,
         validation: {
@@ -299,7 +304,8 @@ function parseSerializedFormState(
         typeof parsed.description === "string"
           ? parsed.description
           : fallback.description,
-      brandId: typeof parsed.brandId === "string" ? parsed.brandId : fallback.brandId,
+      brandId:
+        typeof parsed.brandId === "string" ? parsed.brandId : fallback.brandId,
       categoryIds: Array.isArray(parsed.categoryIds)
         ? parsed.categoryIds.filter(
             (categoryId): categoryId is string => typeof categoryId === "string"
@@ -331,7 +337,7 @@ function imageActionErrorMessage(error: unknown, fallback: string): string {
   if (
     typeof error !== "object" ||
     error === null ||
-    !(("code" in error) && typeof (error as ApiFailure).code === "string")
+    !("code" in error && typeof (error as ApiFailure).code === "string")
   ) {
     return fallback;
   }
@@ -369,7 +375,8 @@ function imageActionErrorMessage(error: unknown, fallback: string): string {
     return "Image storage is unavailable right now. Try again.";
   }
 
-  return typeof failure.message === "string" && failure.message.trim().length > 0
+  return typeof failure.message === "string" &&
+    failure.message.trim().length > 0
     ? failure.message
     : fallback;
 }
@@ -378,7 +385,7 @@ function statusActionErrorMessage(error: unknown, fallback: string): string {
   if (
     typeof error !== "object" ||
     error === null ||
-    !(("code" in error) && typeof (error as ApiFailure).code === "string")
+    !("code" in error && typeof (error as ApiFailure).code === "string")
   ) {
     return fallback;
   }
@@ -396,7 +403,10 @@ function statusActionErrorMessage(error: unknown, fallback: string): string {
     if (reason === "PRODUCT_NOT_READY_FOR_PUBLISH") {
       return "Product is missing publish requirements.";
     }
-    if (reason === "INVALID_STATUS_TRANSITION" || reason === "STATUS_TERMINAL") {
+    if (
+      reason === "INVALID_STATUS_TRANSITION" ||
+      reason === "STATUS_TERMINAL"
+    ) {
       return "Status transition is not allowed.";
     }
     if (reason === "BRAND_ARCHIVED") {
@@ -417,7 +427,8 @@ function statusActionErrorMessage(error: unknown, fallback: string): string {
     return "Product was not found.";
   }
 
-  return typeof failure.message === "string" && failure.message.trim().length > 0
+  return typeof failure.message === "string" &&
+    failure.message.trim().length > 0
     ? failure.message
     : fallback;
 }
@@ -491,7 +502,7 @@ function inventoryActionErrorMessage(error: unknown, fallback: string): string {
   if (
     typeof error !== "object" ||
     error === null ||
-    !(("code" in error) && typeof (error as ApiFailure).code === "string")
+    !("code" in error && typeof (error as ApiFailure).code === "string")
   ) {
     return fallback;
   }
@@ -527,7 +538,8 @@ function inventoryActionErrorMessage(error: unknown, fallback: string): string {
     return "You do not have permission to update inventory.";
   }
 
-  return typeof failure.message === "string" && failure.message.trim().length > 0
+  return typeof failure.message === "string" &&
+    failure.message.trim().length > 0
     ? failure.message
     : fallback;
 }
@@ -549,6 +561,91 @@ function allowedNextActionFromError(error: unknown): string | null {
   }
 
   return null;
+}
+
+function ProductSetupGuide({
+  activeVariantCount,
+  categoryCount,
+  hasAvailableVariant,
+  imageCount,
+  loadingVariants,
+}: {
+  activeVariantCount: number;
+  categoryCount: number;
+  hasAvailableVariant: boolean;
+  imageCount: number;
+  loadingVariants: boolean;
+}) {
+  const requiredReady =
+    categoryCount > 0 && activeVariantCount > 0 && hasAvailableVariant;
+  const rows = [
+    {
+      label: "Category",
+      status: categoryCount > 0 ? `${categoryCount} selected` : "Required next",
+      ready: categoryCount > 0,
+    },
+    {
+      label: "Variant",
+      status: loadingVariants
+        ? "Checking variants"
+        : activeVariantCount > 0
+          ? `${activeVariantCount} active`
+          : "Required next",
+      ready: activeVariantCount > 0,
+    },
+    {
+      label: "Availability",
+      status: loadingVariants
+        ? "Checking stock"
+        : activeVariantCount <= 0
+          ? "After variant"
+          : hasAvailableVariant
+            ? "Ready"
+            : "Set stock or preorder",
+      ready: hasAvailableVariant,
+    },
+    {
+      label: "Image",
+      status:
+        imageCount > 0
+          ? `${imageCount} uploaded`
+          : "Optional; placeholder used",
+      ready: true,
+    },
+  ];
+
+  return (
+    <section
+      aria-label="Product setup next steps"
+      className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm"
+    >
+      <header className="grid gap-grid-xs">
+        <p className="m-0 text-sm font-bold">Next catalog steps</p>
+        <p className="font-system text-xs text-brand-muted">
+          {requiredReady
+            ? "Required setup is ready. Review publish readiness below."
+            : "Finish required rows, then publish. Image upload can wait."}
+        </p>
+      </header>
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] border border-brand-border-strong">
+        {rows.map((row) => (
+          <div
+            className="grid gap-grid-xs border-r border-brand-border p-grid-sm last:border-r-0 max-md:border-b max-md:border-r-0 max-md:last:border-b-0"
+            key={row.label}
+          >
+            <span className="font-system text-xs font-bold uppercase text-brand-muted">
+              {row.label}
+            </span>
+            <strong
+              className={row.ready ? "text-brand-success" : "text-brand-danger"}
+            >
+              {row.status}
+            </strong>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 export function ProductEditor({
@@ -604,7 +701,9 @@ export function ProductEditor({
     tone: "success" | "error";
     message: string;
   } | null>(null);
-  const [readiness, setReadiness] = useState<ProductReadinessResult | null>(null);
+  const [readiness, setReadiness] = useState<ProductReadinessResult | null>(
+    null
+  );
   const [readinessLoadState, setReadinessLoadState] = useState<
     "idle" | "loading" | "ready" | "failed"
   >("idle");
@@ -625,6 +724,7 @@ export function ProductEditor({
     message: string;
     allowedNextAction?: string | null;
   } | null>(null);
+  const [variantEditorOpen, setVariantEditorOpen] = useState(false);
 
   useEffect(() => {
     if (!open) {
@@ -654,6 +754,7 @@ export function ProductEditor({
     setInventoryValidation({});
     setInventoryBusy(false);
     setInventoryFeedback(null);
+    setVariantEditorOpen(false);
   }, [product, mode, open]);
 
   useEffect(() => {
@@ -687,7 +788,7 @@ export function ProductEditor({
     );
   }, [mode, open, organization, organizationReady, product]);
 
-  const editingProductId = mode === "edit" ? product?.id ?? null : null;
+  const editingProductId = mode === "edit" ? (product?.id ?? null) : null;
 
   async function reloadImages(productId: string): Promise<void> {
     const result = await fetchProductImages(productId);
@@ -711,7 +812,9 @@ export function ProductEditor({
     setVariantLoadState("ready");
     if (result.items.length > 0) {
       setSelectedVariantId((previous) => {
-        const stillExists = result.items.some((variant) => variant.id === previous);
+        const stillExists = result.items.some(
+          (variant) => variant.id === previous
+        );
         return stillExists ? previous : result.items[0].id;
       });
     } else {
@@ -837,6 +940,19 @@ export function ProductEditor({
     () => variants.find((variant) => variant.id === selectedVariantId) ?? null,
     [selectedVariantId, variants]
   );
+  const activeVariantCount = useMemo(
+    () => variants.filter((variant) => variant.status === "ACTIVE").length,
+    [variants]
+  );
+  const hasAvailableVariant = useMemo(
+    () =>
+      variants.some(
+        (variant) =>
+          variant.status === "ACTIVE" &&
+          (variant.hasAvailableStock || variant.inventoryState === "PREORDER")
+      ),
+    [variants]
+  );
 
   useEffect(() => {
     if (!selectedVariant) {
@@ -853,7 +969,12 @@ export function ProductEditor({
     setInventoryReason("");
     setInventoryValidation({});
     setInventoryFeedback(null);
-  }, [selectedVariantId, selectedVariant?.id, selectedVariant?.stock, selectedVariant?.inventoryState]);
+  }, [
+    selectedVariantId,
+    selectedVariant?.id,
+    selectedVariant?.stock,
+    selectedVariant?.inventoryState,
+  ]);
 
   const isDirty = useMemo(
     () => serializeFormState(form) !== baselineForm,
@@ -1096,15 +1217,19 @@ export function ProductEditor({
         "details" in error &&
         typeof (error as ApiFailure).details === "object" &&
         (error as ApiFailure).details !== null &&
-        "missingItems" in ((error as ApiFailure).details as Record<string, unknown>) &&
+        "missingItems" in
+          ((error as ApiFailure).details as Record<string, unknown>) &&
         Array.isArray(
-          ((error as ApiFailure).details as { missingItems?: unknown }).missingItems
+          ((error as ApiFailure).details as { missingItems?: unknown })
+            .missingItems
         )
           ? (
-              ((error as ApiFailure).details as {
+              (error as ApiFailure).details as {
                 missingItems: Array<unknown>;
-              }).missingItems
-            ).filter((item): item is string => typeof item === "string")
+              }
+            ).missingItems.filter(
+              (item): item is string => typeof item === "string"
+            )
           : null;
 
       if (missingItems && missingItems.length > 0) {
@@ -1316,159 +1441,188 @@ export function ProductEditor({
     mode === "create"
       ? "Save product first, then assign brand and categories."
       : mutationsBlocked
-        ? mutationBlockReason ??
-          "You need active membership in this product brand."
-      : !organizationReady
-        ? organizationUnavailable
-          ? "Product organization data unavailable. You can still update identity."
-          : "Loading product organization..."
-        : form.brandId.length === 0
-          ? "Brand optional. Product stays brandless when no brand selected."
-          : availableBrandIds.has(form.brandId)
-            ? "Membership status: You are active brand member for selected brand."
-            : "Membership status: Brand membership required for selected brand.";
+        ? (mutationBlockReason ??
+          "You need active membership in this product brand.")
+        : !organizationReady
+          ? organizationUnavailable
+            ? "Product organization data unavailable. You can still update identity."
+            : "Loading product organization..."
+          : form.brandId.length === 0
+            ? "Brand optional. Product stays brandless when no brand selected."
+            : availableBrandIds.has(form.brandId)
+              ? "Membership status: You are active brand member for selected brand."
+              : "Membership status: Brand membership required for selected brand.";
 
   return (
     <Modal
+      className={mode === "edit" ? "!w-[min(100%,1040px)]" : undefined}
       description="You can create or edit product identity before variants, pricing, stock, and publishing."
       onClose={handleClose}
       open={open}
       title={mode === "create" ? "Create product" : "Edit product"}
       footer={
-        <>
-          <Button onClick={handleClose} variant="secondary">
-            Cancel
-          </Button>
-          <Button
-            disabled={mode === "edit" && mutationsBlocked}
-            form="product-editor-form"
-            loading={saving}
-            title={mode === "edit" && mutationsBlocked ? mutationBlockReason ?? undefined : undefined}
-            type="submit"
-            variant="primary"
-          >
-            {mode === "create" ? "Create product" : "Save changes"}
-          </Button>
-        </>
+        variantEditorOpen ? null : (
+          <>
+            <Button onClick={handleClose} variant="secondary">
+              Cancel
+            </Button>
+            <Button
+              disabled={mode === "edit" && mutationsBlocked}
+              form="product-editor-form"
+              loading={saving}
+              title={
+                mode === "edit" && mutationsBlocked
+                  ? (mutationBlockReason ?? undefined)
+                  : undefined
+              }
+              type="submit"
+              variant="primary"
+            >
+              {mode === "create" ? "Create product" : "Save changes"}
+            </Button>
+          </>
+        )
       }
     >
-      <form
-        className="grid gap-grid-sm"
-        id="product-editor-form"
-        onSubmit={handleSubmit}
-      >
-        {validation.summary.length > 0 ? (
-          <section
-            aria-live="assertive"
-            className="grid gap-grid-xs border border-brand-danger bg-brand-danger/6 p-grid-sm text-brand-danger [&_p]:font-system [&_p]:text-[0.8125rem] [&_p]:font-bold [&_ul]:m-0 [&_ul]:pl-grid-sm"
-            role="alert"
-          >
-            <p>We found issues in this form:</p>
-            <ul>
-              {validation.summary.map((message) => (
-                <li key={message}>{message}</li>
-              ))}
-            </ul>
-          </section>
-        ) : null}
-
-        {mode === "edit" && mutationsBlocked ? (
-          <section className="grid gap-grid-xs border border-brand-border-strong p-grid-sm font-system text-[0.8125rem] font-bold [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm border-brand-danger bg-brand-danger/6 text-brand-danger" role="alert">
-            <p>
-              {mutationBlockReason ??
-                "You need active membership in this product brand."}
-            </p>
-          </section>
-        ) : null}
-
-        <Input
-          disabled={saving || (mode === "edit" && mutationsBlocked)}
-          error={validation.fields.name}
-          label="Product name"
-          onChange={(event) => updateName(event.currentTarget.value)}
-          required
-          value={form.name}
-        />
-
-        <Input
-          disabled={saving || (mode === "edit" && mutationsBlocked)}
-          error={validation.fields.slug}
-          label="Slug"
-          onChange={(event) => updateSlug(event.currentTarget.value)}
-          placeholder="desk-lamp"
-          value={form.slug}
-        />
-
-        <Textarea
-          disabled={saving || (mode === "edit" && mutationsBlocked)}
-          error={validation.fields.summary}
-          label="Summary"
-          onChange={(event) => updateField("summary", event.currentTarget.value)}
-          rows={2}
-          value={form.summary}
-        />
-
-        <Textarea
-          disabled={saving || (mode === "edit" && mutationsBlocked)}
-          error={validation.fields.description}
-          label="Description"
-          onChange={(event) => updateField("description", event.currentTarget.value)}
-          required
-          rows={6}
-          value={form.description}
-        />
-
-        <Select
-          description={brandDescription}
-          disabled={mode !== "edit" || !organizationReady || saving || mutationsBlocked}
-          error={validation.fields.brandId}
-          label="Brand"
-          onChange={(event) => updateField("brandId", event.currentTarget.value)}
-          value={form.brandId}
+      <div className="grid gap-grid-sm">
+        <form
+          className="grid gap-grid-sm"
+          id="product-editor-form"
+          onSubmit={handleSubmit}
         >
-          <option value="">No brand (brandless)</option>
-          {availableBrands.map((brand) => (
-            <option key={brand.id} value={brand.id}>
-              {brand.name}
-            </option>
-          ))}
-        </Select>
+          {validation.summary.length > 0 ? (
+            <section
+              aria-live="assertive"
+              className="grid gap-grid-xs border border-brand-danger bg-brand-danger/6 p-grid-sm text-brand-danger [&_p]:font-system [&_p]:text-[0.8125rem] [&_p]:font-bold [&_ul]:m-0 [&_ul]:pl-grid-sm"
+              role="alert"
+            >
+              <p>We found issues in this form:</p>
+              <ul>
+                {validation.summary.map((message) => (
+                  <li key={message}>{message}</li>
+                ))}
+              </ul>
+            </section>
+          ) : null}
 
-        <Select
-          description={
-            mode === "create"
-              ? "Save product first, then assign category links."
-              : "Assign one or more active categories. Archived categories are rejected."
-          }
-          disabled={mode !== "edit" || !organizationReady || saving || mutationsBlocked}
-          error={validation.fields.categoryIds}
-          label="Categories"
-          multiple
-          onChange={(event) =>
-            updateField(
-              "categoryIds",
-              Array.from(event.currentTarget.selectedOptions, (option) => option.value)
-            )
-          }
-          selectClassName="min-h-[8.5rem]"
-          size={Math.min(Math.max(availableCategories.length, 2), 8)}
-          value={form.categoryIds}
-        >
-          {availableCategories.map((category) => (
-            <option key={category.id} value={category.id}>
-              {category.name}
-            </option>
-          ))}
-        </Select>
+          {mode === "edit" && mutationsBlocked ? (
+            <section
+              className="grid gap-grid-xs border border-brand-border-strong p-grid-sm font-system text-[0.8125rem] font-bold [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm border-brand-danger bg-brand-danger/6 text-brand-danger"
+              role="alert"
+            >
+              <p>
+                {mutationBlockReason ??
+                  "You need active membership in this product brand."}
+              </p>
+            </section>
+          ) : null}
 
-        {mode === "edit" ? (
-          <p className="font-system text-xs text-brand-muted">
-            {organizationReady
-              ? `Category links selected: ${form.categoryIds.length}`
-              : organizationUnavailable
-                ? "Product organization unavailable. Save updates for identity only."
-                : "Loading product organization..."}
-          </p>
+          <Input
+            disabled={saving || (mode === "edit" && mutationsBlocked)}
+            error={validation.fields.name}
+            label="Product name"
+            onChange={(event) => updateName(event.currentTarget.value)}
+            required
+            value={form.name}
+          />
+
+          <Input
+            disabled={saving || (mode === "edit" && mutationsBlocked)}
+            error={validation.fields.slug}
+            label="Slug"
+            onChange={(event) => updateSlug(event.currentTarget.value)}
+            placeholder="desk-lamp"
+            value={form.slug}
+          />
+
+          <Textarea
+            disabled={saving || (mode === "edit" && mutationsBlocked)}
+            error={validation.fields.summary}
+            label="Summary"
+            onChange={(event) =>
+              updateField("summary", event.currentTarget.value)
+            }
+            rows={2}
+            value={form.summary}
+          />
+
+          <Textarea
+            disabled={saving || (mode === "edit" && mutationsBlocked)}
+            error={validation.fields.description}
+            label="Description"
+            onChange={(event) =>
+              updateField("description", event.currentTarget.value)
+            }
+            required
+            rows={6}
+            value={form.description}
+          />
+
+          {mode === "edit" ? (
+            <>
+              <Select
+                description={brandDescription}
+                disabled={!organizationReady || saving || mutationsBlocked}
+                error={validation.fields.brandId}
+                label="Brand"
+                onChange={(event) =>
+                  updateField("brandId", event.currentTarget.value)
+                }
+                value={form.brandId}
+              >
+                <option value="">No brand (brandless)</option>
+                {availableBrands.map((brand) => (
+                  <option key={brand.id} value={brand.id}>
+                    {brand.name}
+                  </option>
+                ))}
+              </Select>
+
+              <Select
+                description="Assign one or more active categories. Archived categories are rejected."
+                disabled={!organizationReady || saving || mutationsBlocked}
+                error={validation.fields.categoryIds}
+                label="Categories"
+                multiple
+                onChange={(event) =>
+                  updateField(
+                    "categoryIds",
+                    Array.from(
+                      event.currentTarget.selectedOptions,
+                      (option) => option.value
+                    )
+                  )
+                }
+                selectClassName="min-h-[8.5rem]"
+                size={Math.min(Math.max(availableCategories.length, 2), 8)}
+                value={form.categoryIds}
+              >
+                {availableCategories.map((category) => (
+                  <option key={category.id} value={category.id}>
+                    {category.name}
+                  </option>
+                ))}
+              </Select>
+
+              <p className="font-system text-xs text-brand-muted">
+                {organizationReady
+                  ? `Category links selected: ${form.categoryIds.length}`
+                  : organizationUnavailable
+                    ? "Product organization unavailable. Save updates for identity only."
+                    : "Loading product organization..."}
+              </p>
+            </>
+          ) : null}
+        </form>
+
+        {mode === "edit" && editingProductId ? (
+          <ProductSetupGuide
+            activeVariantCount={activeVariantCount}
+            categoryCount={form.categoryIds.length}
+            hasAvailableVariant={hasAvailableVariant}
+            imageCount={images.length}
+            loadingVariants={variantLoadState === "loading"}
+          />
         ) : null}
 
         {mode === "edit" && editingProductId ? (
@@ -1478,7 +1632,7 @@ export function ProductEditor({
                 aria-live="assertive"
                 className={mergeClassNames(
                   imageFeedbackClass,
-                  feedbackToneClass[imageFeedback.tone],
+                  feedbackToneClass[imageFeedback.tone]
                 )}
                 role={imageFeedback.tone === "error" ? "alert" : "status"}
               >
@@ -1487,7 +1641,9 @@ export function ProductEditor({
             ) : null}
 
             <ImageUpload
-              disabled={!organizationReady || saving || imageBusy || mutationsBlocked}
+              disabled={
+                !organizationReady || saving || imageBusy || mutationsBlocked
+              }
               onUpload={async (input) => {
                 await handleUploadImage(input.image);
               }}
@@ -1495,7 +1651,9 @@ export function ProductEditor({
             />
 
             <ImageList
-              busy={saving || imageBusy || !organizationReady || mutationsBlocked}
+              busy={
+                saving || imageBusy || !organizationReady || mutationsBlocked
+              }
               images={images}
               loading={imageLoadState === "loading"}
               onRemove={handleRemoveImage}
@@ -1515,6 +1673,7 @@ export function ProductEditor({
                 mutationBlockReason ??
                 "You need active membership in this product brand."
               }
+              onEditorOpenChange={setVariantEditorOpen}
               productId={editingProductId}
             />
           </section>
@@ -1545,7 +1704,7 @@ export function ProductEditor({
               <section
                 className={mergeClassNames(
                   publishFeedbackClass,
-                  feedbackToneClass[inventoryFeedback.tone],
+                  feedbackToneClass[inventoryFeedback.tone]
                 )}
                 role={inventoryFeedback.tone === "error" ? "alert" : "status"}
               >
@@ -1557,11 +1716,16 @@ export function ProductEditor({
             ) : null}
 
             {variantLoadState === "loading" ? (
-              <p className="font-system text-xs text-brand-muted">Loading variants for inventory update...</p>
+              <p className="font-system text-xs text-brand-muted">
+                Loading variants for inventory update...
+              </p>
             ) : null}
 
             {variantLoadState === "failed" ? (
-              <section className="grid gap-grid-xs border border-brand-border-strong p-grid-sm font-system text-[0.8125rem] font-bold [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm border-brand-danger bg-brand-danger/6 text-brand-danger" role="alert">
+              <section
+                className="grid gap-grid-xs border border-brand-border-strong p-grid-sm font-system text-[0.8125rem] font-bold [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm border-brand-danger bg-brand-danger/6 text-brand-danger"
+                role="alert"
+              >
                 <p>Could not load variants for inventory updates.</p>
               </section>
             ) : null}
@@ -1578,7 +1742,9 @@ export function ProductEditor({
                   description="Select variant row for stock and state changes."
                   disabled={inventoryMutationDisabled}
                   label="Variant"
-                  onChange={(event) => setSelectedVariantId(event.currentTarget.value)}
+                  onChange={(event) =>
+                    setSelectedVariantId(event.currentTarget.value)
+                  }
                   value={selectedVariantId}
                 >
                   {variants.map((variant) => (
@@ -1589,7 +1755,9 @@ export function ProductEditor({
                 </Select>
 
                 <InventoryAdjuster
-                  allowedNextAction={inventoryFeedback?.allowedNextAction ?? null}
+                  allowedNextAction={
+                    inventoryFeedback?.allowedNextAction ?? null
+                  }
                   conflictMessage={
                     inventoryFeedback?.tone === "error" &&
                     inventoryFeedback.allowedNextAction
@@ -1610,7 +1778,10 @@ export function ProductEditor({
                 />
 
                 {inventoryValidation.summary ? (
-                  <p className="font-system text-xs font-bold text-brand-danger" role="alert">
+                  <p
+                    className="font-system text-xs font-bold text-brand-danger"
+                    role="alert"
+                  >
                     {inventoryValidation.summary}
                   </p>
                 ) : null}
@@ -1621,7 +1792,11 @@ export function ProductEditor({
                   onClick={async () => {
                     await handleApplyInventory();
                   }}
-                  title={mutationsBlocked ? mutationBlockReason ?? undefined : undefined}
+                  title={
+                    mutationsBlocked
+                      ? (mutationBlockReason ?? undefined)
+                      : undefined
+                  }
                   variant="primary"
                 >
                   Apply inventory update
@@ -1637,7 +1812,7 @@ export function ProductEditor({
               <section
                 className={mergeClassNames(
                   publishFeedbackClass,
-                  feedbackToneClass[statusFeedback.tone],
+                  feedbackToneClass[statusFeedback.tone]
                 )}
                 role={statusFeedback.tone === "error" ? "alert" : "status"}
               >
@@ -1671,7 +1846,7 @@ export function ProductEditor({
             />
           </section>
         ) : null}
-      </form>
+      </div>
     </Modal>
   );
 }

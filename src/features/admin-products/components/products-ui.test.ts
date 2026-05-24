@@ -131,8 +131,8 @@ describe("products UI surfaces", () => {
     expect(createMarkup).toContain("Create product");
     expect(createMarkup).toContain("Summary");
     expect(createMarkup).toContain("Description");
-    expect(createMarkup).toContain("No brand (brandless)");
-    expect(createMarkup).toContain("Categories");
+    expect(createMarkup).not.toContain("No brand (brandless)");
+    expect(createMarkup).not.toContain("Categories");
 
     const editMarkup = renderToStaticMarkup(
       createElement(ProductEditor, {
@@ -171,6 +171,8 @@ describe("products UI surfaces", () => {
     expect(editMarkup).toContain("kitchen-scale");
     expect(editMarkup).toContain("Membership status");
     expect(editMarkup).toContain("Category links selected");
+    expect(editMarkup).toContain("Next catalog steps");
+    expect(editMarkup).toContain("Optional; placeholder used");
     expect(editMarkup).toContain("Variant matrix");
     expect(editMarkup).toContain("Inventory adjuster");
     expect(editMarkup).toContain("Save changes");

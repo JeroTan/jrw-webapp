@@ -11,7 +11,7 @@ describe("publish UI surfaces", () => {
         readiness: {
           isReady: false,
           missingItems: [
-            "At least one product image is required.",
+            "At least one active variant is required.",
             "Every active variant must have price greater than zero.",
           ],
         },
@@ -21,7 +21,7 @@ describe("publish UI surfaces", () => {
 
     expect(markup).toContain("Publish readiness");
     expect(markup).toContain("Missing requirements");
-    expect(markup).toContain("At least one product image is required.");
+    expect(markup).toContain("At least one active variant is required.");
     expect(markup).toContain(
       "Every active variant must have price greater than zero."
     );
@@ -48,7 +48,7 @@ describe("publish UI surfaces", () => {
         status: "DRAFT",
         readiness: {
           isReady: false,
-          missingItems: ["At least one product image is required."],
+          missingItems: ["At least one active variant is required."],
         },
         onPublish: async () => undefined,
         onUnpublish: async () => undefined,
@@ -91,14 +91,17 @@ describe("publish UI surfaces", () => {
           missingItems: [],
         },
         mutationsBlocked: true,
-        publishBlockedReason: "You need active membership in this product brand.",
+        publishBlockedReason:
+          "You need active membership in this product brand.",
         onPublish: async () => undefined,
         onUnpublish: async () => undefined,
         onArchive: async () => undefined,
       })
     );
 
-    expect(markup).toContain("You need active membership in this product brand.");
+    expect(markup).toContain(
+      "You need active membership in this product brand."
+    );
     expect(markup).toContain("disabled");
   });
 

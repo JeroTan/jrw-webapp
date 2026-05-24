@@ -119,10 +119,12 @@ describe("products routes", () => {
       body.paths?.["/api/admin/products/{productId}/categories"]?.patch;
     const readiness =
       body.paths?.["/api/admin/products/{productId}/readiness"]?.get;
-    const publish = body.paths?.["/api/admin/products/{productId}/publish"]?.post;
+    const publish =
+      body.paths?.["/api/admin/products/{productId}/publish"]?.post;
     const unpublish =
       body.paths?.["/api/admin/products/{productId}/unpublish"]?.post;
-    const archive = body.paths?.["/api/admin/products/{productId}/archive"]?.post;
+    const archive =
+      body.paths?.["/api/admin/products/{productId}/archive"]?.post;
     const update = body.paths?.["/api/admin/products/{productId}"]?.patch;
 
     expect(list?.summary).toBe("List products");
@@ -569,7 +571,7 @@ describe("products routes", () => {
                 Result.okay({
                   readiness: {
                     isReady: false,
-                    missingItems: ["At least one product image is required."],
+                    missingItems: ["At least one active variant is required."],
                   },
                 }),
               publish: async () =>
@@ -608,7 +610,7 @@ describe("products routes", () => {
       data: {
         readiness: {
           isReady: false,
-          missingItems: ["At least one product image is required."],
+          missingItems: ["At least one active variant is required."],
         },
       },
       meta: { requestId: "req_product_readiness" },

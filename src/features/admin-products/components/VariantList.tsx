@@ -1,7 +1,12 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { DataTable, type DataTableColumn } from "@/components/data-display";
-import { EmptyState, Skeleton, StatusBadge, Toast } from "@/components/feedback";
+import {
+  EmptyState,
+  Skeleton,
+  StatusBadge,
+  Toast,
+} from "@/components/feedback";
 import { PageToolbar } from "@/components/layout";
 import { Button, ConfirmDialog, SearchInput } from "@/components/ui";
 import {
@@ -39,6 +44,7 @@ export type VariantListProps = {
   embedded?: boolean;
   allowMutations?: boolean;
   mutationDisabledReason?: string | null;
+  onEditorOpenChange?: (open: boolean) => void;
 };
 
 function sortVariants(rows: ProductVariantRecord[]): ProductVariantRecord[] {
@@ -117,7 +123,8 @@ function productActionErrorMessage(error: unknown, fallback: string): string {
     return "You do not have access to manage variants for this product.";
   }
 
-  return typeof failure.message === "string" && failure.message.trim().length > 0
+  return typeof failure.message === "string" &&
+    failure.message.trim().length > 0
     ? failure.message
     : fallback;
 }
@@ -142,7 +149,10 @@ function variationKey(options: ProductVariantOption[]): string {
   }
 
   return [...options]
-    .map((option) => `${option.group.trim().toLowerCase()}::${option.name.trim().toLowerCase()}`)
+    .map(
+      (option) =>
+        `${option.group.trim().toLowerCase()}::${option.name.trim().toLowerCase()}`
+    )
     .sort((left, right) => left.localeCompare(right))
     .join("|");
 }
@@ -173,7 +183,9 @@ function duplicateSummary(variants: ProductVariantRecord[]): string[] {
     }
 
     duplicates.push(
-      sameKeyVariants.map((variant) => `${variant.name} (${variant.sku})`).join(", ")
+      sameKeyVariants
+        .map((variant) => `${variant.name} (${variant.sku})`)
+        .join(", ")
     );
   });
 
@@ -206,6 +218,7 @@ export function VariantList({
   embedded = false,
   allowMutations = true,
   mutationDisabledReason = null,
+  onEditorOpenChange,
 }: VariantListProps) {
   const [loadState, setLoadState] = useState<LoadState>(initialLoadState);
   const [variants, setVariants] = useState<ProductVariantRecord[]>(
@@ -216,9 +229,18 @@ export function VariantList({
   const [editorState, setEditorState] = useState<EditorState | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
-  const [archiveCandidate, setArchiveCandidate] = useState<ProductVariantRecord | null>(
-    null
-  );
+  const [archiveCandidate, setArchiveCandidate] =
+    useState<ProductVariantRecord | null>(null);
+
+  useEffect(() => {
+    onEditorOpenChange?.(editorState !== null);
+  }, [editorState, onEditorOpenChange]);
+
+  useEffect(() => {
+    return () => {
+      onEditorOpenChange?.(false);
+    };
+  }, [onEditorOpenChange]);
 
   useEffect(() => {
     if (!autoLoad) {
@@ -255,8 +277,13 @@ export function VariantList({
     [variants, searchQuery]
   );
 
-  const activeCount = variants.filter((variant) => variant.status === "ACTIVE").length;
-  const duplicateWarnings = useMemo(() => duplicateSummary(variants), [variants]);
+  const activeCount = variants.filter(
+    (variant) => variant.status === "ACTIVE"
+  ).length;
+  const duplicateWarnings = useMemo(
+    () => duplicateSummary(variants),
+    [variants]
+  );
 
   const columns = useMemo<Array<DataTableColumn<ProductVariantRecord>>>(
     () => [
@@ -321,7 +348,7 @@ export function VariantList({
           const isArchived = variant.status === "ARCHIVED";
           const blocked = !allowMutations || isArchived;
           const title = !allowMutations
-            ? mutationDisabledReason ?? undefined
+            ? (mutationDisabledReason ?? undefined)
             : isArchived
               ? "Archived variants are read-only."
               : undefined;
@@ -385,7 +412,11 @@ export function VariantList({
     }
 
     try {
-      const archived = await archiveProductVariant(productId, archiveCandidate.id, {});
+      const archived = await archiveProductVariant(
+        productId,
+        archiveCandidate.id,
+        {}
+      );
       setVariants((previous) =>
         sortVariants(
           previous.map((row) => (row.id === archived.id ? archived : row))
@@ -400,7 +431,10 @@ export function VariantList({
       setToast({
         tone: "error",
         title: "Archive failed",
-        message: productActionErrorMessage(error, "Variant archive failed. Try again."),
+        message: productActionErrorMessage(
+          error,
+          "Variant archive failed. Try again."
+        ),
       });
     } finally {
       setArchiveCandidate(null);
@@ -408,7 +442,8 @@ export function VariantList({
   }
 
   async function handleSaveVariant(input: VariantEditorSaveInput) {
-    const editingId = editorState?.mode === "edit" ? editorState.variant?.id ?? null : null;
+    const editingId =
+      editorState?.mode === "edit" ? (editorState.variant?.id ?? null) : null;
     if (hasDuplicateVariation(variants, input, editingId)) {
       const message = "Variant option combination already exists.";
       setToast({
@@ -496,13 +531,18 @@ export function VariantList({
       {!embedded ? (
         <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
           <div>
-            <p className="font-system text-xs font-bold uppercase text-brand-muted">Product variants</p>
+            <p className="font-system text-xs font-bold uppercase text-brand-muted">
+              Product variants
+            </p>
             <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">Variants</h1>
             <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
               You can manage variant options, SKU, and centavos pricing here.
             </p>
           </div>
-          <dl className="m-0 grid grid-cols-2 border border-brand-border-strong bg-brand-surface max-md:grid-cols-1 [&>div]:grid [&>div]:gap-grid-xs [&>div]:border-r [&>div]:border-brand-border [&>div]:p-grid-sm [&>div:last-child]:border-r-0 max-md:[&>div]:border-r-0 max-md:[&>div]:border-b max-md:[&>div:last-child]:border-b-0 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:text-brand-muted [&_dd]:m-0 [&_dd]:font-heading [&_dd]:text-xl [&_dd]:font-bold" aria-label="Variant summary">
+          <dl
+            className="m-0 grid grid-cols-2 border border-brand-border-strong bg-brand-surface max-md:grid-cols-1 [&>div]:grid [&>div]:gap-grid-xs [&>div]:border-r [&>div]:border-brand-border [&>div]:p-grid-sm [&>div:last-child]:border-r-0 max-md:[&>div]:border-r-0 max-md:[&>div]:border-b max-md:[&>div:last-child]:border-b-0 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:text-brand-muted [&_dd]:m-0 [&_dd]:font-heading [&_dd]:text-xl [&_dd]:font-bold"
+            aria-label="Variant summary"
+          >
             <div>
               <dt>Total variants</dt>
               <dd>{loadState === "ready" ? variants.length : "-"}</dd>
@@ -544,7 +584,11 @@ export function VariantList({
                 variant: null,
               })
             }
-            title={!allowMutations ? mutationDisabledReason ?? undefined : undefined}
+            title={
+              !allowMutations
+                ? (mutationDisabledReason ?? undefined)
+                : undefined
+            }
             variant="primary"
           >
             Create variant
@@ -566,11 +610,16 @@ export function VariantList({
       />
 
       {!allowMutations && mutationDisabledReason ? (
-        <p className="font-system text-xs text-brand-muted">{mutationDisabledReason}</p>
+        <p className="font-system text-xs text-brand-muted">
+          {mutationDisabledReason}
+        </p>
       ) : null}
 
       {duplicateWarnings.length > 0 ? (
-        <section className="grid gap-grid-xs border border-brand-warning bg-brand-warning/6 p-grid-sm text-[0.8125rem] font-bold text-brand-warning [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm" role="status">
+        <section
+          className="grid gap-grid-xs border border-brand-warning bg-brand-warning/6 p-grid-sm text-[0.8125rem] font-bold text-brand-warning [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm"
+          role="status"
+        >
           <p>Duplicate option combinations detected:</p>
           <ul>
             {duplicateWarnings.map((warning) => (
@@ -582,7 +631,10 @@ export function VariantList({
 
       <section className="grid gap-grid-sm py-grid-md">
         {loadState === "loading" ? (
-          <div className="border border-brand-border-strong bg-brand-surface p-grid-sm" role="status">
+          <div
+            className="border border-brand-border-strong bg-brand-surface p-grid-sm"
+            role="status"
+          >
             <Skeleton label="Loading variant table" lines={6} />
           </div>
         ) : null}
@@ -590,7 +642,10 @@ export function VariantList({
         {loadState === "failed" ? (
           <EmptyState
             action={
-              <Button onClick={() => setRefreshToken((value) => value + 1)} size="sm">
+              <Button
+                onClick={() => setRefreshToken((value) => value + 1)}
+                size="sm"
+              >
                 Retry
               </Button>
             }
@@ -611,7 +666,11 @@ export function VariantList({
                   })
                 }
                 size="sm"
-                title={!allowMutations ? mutationDisabledReason ?? undefined : undefined}
+                title={
+                  !allowMutations
+                    ? (mutationDisabledReason ?? undefined)
+                    : undefined
+                }
                 variant="primary"
               >
                 Create first variant

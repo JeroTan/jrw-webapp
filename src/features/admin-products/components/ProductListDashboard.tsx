@@ -6,7 +6,12 @@ import {
   ResourceList,
   type DataTableColumn,
 } from "@/components/data-display";
-import { EmptyState, Skeleton, StatusBadge, Toast } from "@/components/feedback";
+import {
+  EmptyState,
+  Skeleton,
+  StatusBadge,
+  Toast,
+} from "@/components/feedback";
 import { PageToolbar } from "@/components/layout";
 import {
   Button,
@@ -132,7 +137,8 @@ function productActionErrorMessage(error: unknown, fallback: string): string {
     return "You do not have access to manage this product.";
   }
 
-  return typeof failure.message === "string" && failure.message.trim().length > 0
+  return typeof failure.message === "string" &&
+    failure.message.trim().length > 0
     ? failure.message
     : fallback;
 }
@@ -175,7 +181,9 @@ function availabilityTone(product: ProductRecord) {
     return "info" as const;
   }
 
-  return product.hasAvailableVariants ? ("success" as const) : ("warning" as const);
+  return product.hasAvailableVariants
+    ? ("success" as const)
+    : ("warning" as const);
 }
 
 function availabilityLabel(product: ProductRecord): string {
@@ -183,7 +191,9 @@ function availabilityLabel(product: ProductRecord): string {
     return "No variants";
   }
 
-  return product.hasAvailableVariants ? "Available variants" : "No available variants";
+  return product.hasAvailableVariants
+    ? "Available variants"
+    : "No available variants";
 }
 
 function priceSummaryLabel(product: ProductRecord): string {
@@ -258,16 +268,17 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [brandFilter, setBrandFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
-  const [availableBrands, setAvailableBrands] = useState<ProductAssignableBrand[]>([]);
+  const [availableBrands, setAvailableBrands] = useState<
+    ProductAssignableBrand[]
+  >([]);
   const [availableCategories, setAvailableCategories] = useState<
     ProductAssignableCategory[]
   >([]);
   const [brandScopeKnown, setBrandScopeKnown] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
-  const [archiveCandidate, setArchiveCandidate] = useState<ProductRecord | null>(
-    null
-  );
+  const [archiveCandidate, setArchiveCandidate] =
+    useState<ProductRecord | null>(null);
   const [saving, setSaving] = useState(false);
   const [refreshToken, setRefreshToken] = useState(0);
   const [page, setPage] = useState(1);
@@ -485,7 +496,9 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
         cell: (product) => (
           <div className="grid gap-0.5">
             <span>{brandLabel(product)}</span>
-            <span className="text-xs text-brand-muted">{categoryLabel(product)}</span>
+            <span className="text-xs text-brand-muted">
+              {categoryLabel(product)}
+            </span>
           </div>
         ),
       },
@@ -536,7 +549,7 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
           );
           const archiveBlocked = product.status === "ARCHIVED";
           const archiveTitle = !canMutate.allowed
-            ? canMutate.reason ?? undefined
+            ? (canMutate.reason ?? undefined)
             : archiveBlocked
               ? "Archived products are read-only."
               : undefined;
@@ -598,9 +611,12 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
         }
 
         if (input.organization.categoryIds.length > 0) {
-          const categoryMutation = await assignProductCategories(nextProduct.id, {
-            categoryIds: input.organization.categoryIds,
-          });
+          const categoryMutation = await assignProductCategories(
+            nextProduct.id,
+            {
+              categoryIds: input.organization.categoryIds,
+            }
+          );
           nextProduct = categoryMutation.product;
         }
 
@@ -608,15 +624,24 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
         setToast({
           tone: "success",
           title: "Product created",
-          message: "Product draft is ready for next catalog steps.",
+          message: "Add category and variant next. Image upload is optional.",
         });
+        openEditor({ mode: "edit", product: nextProduct });
+        setRefreshToken((value) => value + 1);
+        return;
       } else if (editorState?.product) {
-        let nextProduct = await updateProduct(editorState.product.id, input.identity);
+        let nextProduct = await updateProduct(
+          editorState.product.id,
+          input.identity
+        );
 
         if (input.organization.persist) {
-          const brandMutation = await assignProductBrand(editorState.product.id, {
-            brandId: input.organization.brandId,
-          });
+          const brandMutation = await assignProductBrand(
+            editorState.product.id,
+            {
+              brandId: input.organization.brandId,
+            }
+          );
           nextProduct = brandMutation.product;
 
           const categoryMutation = await assignProductCategories(
@@ -714,13 +739,19 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
     <main className="mx-auto w-full max-w-[1240px] p-grid-md max-md:p-grid-sm">
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
         <div>
-          <p className="font-system text-xs font-bold uppercase text-brand-muted">Catalog management</p>
+          <p className="font-system text-xs font-bold uppercase text-brand-muted">
+            Catalog management
+          </p>
           <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">Products</h1>
           <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
-            Manage product identity, variants, pricing, inventory, and publish status.
+            Manage product identity, variants, pricing, inventory, and publish
+            status.
           </p>
         </div>
-        <dl className="m-0 grid grid-cols-2 border border-brand-border-strong bg-brand-surface max-md:grid-cols-1 [&>div]:grid [&>div]:gap-grid-xs [&>div]:border-r [&>div]:border-brand-border [&>div]:p-grid-sm [&>div:last-child]:border-r-0 max-md:[&>div]:border-r-0 max-md:[&>div]:border-b max-md:[&>div:last-child]:border-b-0 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:text-brand-muted [&_dd]:m-0 [&_dd]:font-heading [&_dd]:text-xl [&_dd]:font-bold" aria-label="Product summary">
+        <dl
+          className="m-0 grid grid-cols-2 border border-brand-border-strong bg-brand-surface max-md:grid-cols-1 [&>div]:grid [&>div]:gap-grid-xs [&>div]:border-r [&>div]:border-brand-border [&>div]:p-grid-sm [&>div:last-child]:border-r-0 max-md:[&>div]:border-r-0 max-md:[&>div]:border-b max-md:[&>div:last-child]:border-b-0 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:text-brand-muted [&_dd]:m-0 [&_dd]:font-heading [&_dd]:text-xl [&_dd]:font-bold"
+          aria-label="Product summary"
+        >
           <div>
             <dt>Total items</dt>
             <dd>{loadState === "ready" ? totalItems : "-"}</dd>
@@ -734,7 +765,10 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
 
       <PageToolbar
         actions={
-          <Button onClick={() => openEditor({ mode: "create", product: null })} variant="primary">
+          <Button
+            onClick={() => openEditor({ mode: "create", product: null })}
+            variant="primary"
+          >
             Create product
           </Button>
         }
@@ -756,7 +790,9 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
               value={brandFilter}
             >
               <option value="">All brands</option>
-              <option value={BRANDLESS_FILTER_VALUE}>No brand (brandless)</option>
+              <option value={BRANDLESS_FILTER_VALUE}>
+                No brand (brandless)
+              </option>
               {availableBrands.map((brand) => (
                 <option key={brand.id} value={brand.id}>
                   {brand.name}
@@ -793,7 +829,10 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
 
       <section className="grid gap-grid-sm py-grid-md">
         {loadState === "loading" ? (
-          <div className="border border-brand-border-strong bg-brand-surface p-grid-sm" role="status">
+          <div
+            className="border border-brand-border-strong bg-brand-surface p-grid-sm"
+            role="status"
+          >
             <Skeleton label="Loading product table" lines={6} />
           </div>
         ) : null}
@@ -801,7 +840,10 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
         {loadState === "failed" ? (
           <EmptyState
             action={
-              <Button onClick={() => setRefreshToken((value) => value + 1)} size="sm">
+              <Button
+                onClick={() => setRefreshToken((value) => value + 1)}
+                size="sm"
+              >
                 Retry
               </Button>
             }
@@ -835,7 +877,9 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
                 ? "No products match current filters."
                 : "No products exist."
             }
-            title={hasActiveFilters ? "No matching products" : "No products exist"}
+            title={
+              hasActiveFilters ? "No matching products" : "No products exist"
+            }
           />
         ) : null}
 
@@ -859,7 +903,7 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
               );
               const archiveBlocked = product.status === "ARCHIVED";
               const archiveTitle = !canMutate.allowed
-                ? canMutate.reason ?? undefined
+                ? (canMutate.reason ?? undefined)
                 : archiveBlocked
                   ? "Archived products are read-only."
                   : undefined;
@@ -877,7 +921,9 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
                         Edit
                       </Button>
                       <Button
-                        disabled={!canMutate.allowed || archiveBlocked || saving}
+                        disabled={
+                          !canMutate.allowed || archiveBlocked || saving
+                        }
                         onClick={() => setArchiveCandidate(product)}
                         size="sm"
                         title={archiveTitle}
