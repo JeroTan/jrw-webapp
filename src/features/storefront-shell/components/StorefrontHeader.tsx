@@ -6,7 +6,7 @@ function CartIcon() {
   return (
     <svg
       aria-hidden="true"
-      className="jrw-storefront-icon"
+      className="size-[18px]"
       fill="none"
       viewBox="0 0 24 24"
     >
@@ -23,12 +23,12 @@ function CartIcon() {
 
 function CartAction() {
   return (
-    <form action="/cart" className="jrw-storefront-action-form" method="get">
-      <div className="jrw-storefront-cart-action">
+    <form action="/cart" className="m-0" method="get">
+      <div className="relative">
         <IconButton label="Open cart" type="submit">
           <CartIcon />
         </IconButton>
-        <span aria-hidden="true" className="jrw-storefront-cart-count">
+        <span aria-hidden="true" className="absolute -right-1.5 -top-1.5 inline-flex min-h-[18px] min-w-[18px] items-center justify-center border border-brand-border-strong bg-brand-surface px-1 font-system text-[0.625rem] font-bold leading-none max-[374px]:-right-1">
           0
         </span>
       </div>
@@ -40,18 +40,22 @@ function StorefrontNav({ mobile = false }: { mobile?: boolean }) {
   return (
     <nav
       aria-label="Storefront navigation"
-      className="jrw-storefront-nav-shell"
+      className={
+        mobile
+          ? "min-w-0"
+          : "min-w-0 md:col-span-full md:row-start-2 xl:col-auto xl:row-auto"
+      }
     >
       <ul
         className={
           mobile
-            ? "jrw-storefront-nav jrw-storefront-nav--mobile"
-            : "jrw-storefront-nav"
+            ? "m-0 grid list-none gap-grid-xs p-0"
+            : "m-0 flex list-none flex-wrap gap-grid-xs p-0 md:flex-nowrap md:justify-end md:overflow-x-auto md:pb-0.5 xl:justify-start"
         }
       >
         {storefrontNavLinks.map((link) => (
           <li key={link.href}>
-            <a className="jrw-storefront-nav__link" href={link.href}>
+            <a className="inline-flex min-h-control-md items-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase no-underline hover:border-brand-accent hover:text-brand-accent focus-visible:border-brand-accent focus-visible:text-brand-accent [overflow-wrap:anywhere] motion-safe:transition-colors motion-safe:duration-[120ms]" href={link.href}>
               {link.label}
             </a>
           </li>
@@ -65,7 +69,7 @@ function SearchForm({ id }: { id: string }) {
   return (
     <form
       action="/products"
-      className="jrw-storefront-search"
+      className="min-w-0"
       method="get"
       role="search"
     >
@@ -82,34 +86,40 @@ function SearchForm({ id }: { id: string }) {
 
 export function StorefrontHeader() {
   return (
-    <header className="jrw-storefront-header" role="banner">
-      <div className="jrw-storefront-shell__inner jrw-storefront-header__mobile">
+    <header className="border-b border-brand-border-strong bg-brand-surface" role="banner">
+      <div className="mx-auto w-[min(100%,1440px)] px-grid-sm xs:px-grid-md 3xl:px-grid-lg flex min-h-[68px] items-center justify-between gap-grid-sm py-grid-xs max-[374px]:flex-wrap max-[374px]:items-start max-[374px]:gap-1.5 md:hidden">
         <a
           aria-label="JRW. lifestyle products home"
-          className="jrw-storefront-logo"
+          className="inline-flex min-h-control-md items-center border border-transparent font-identity text-[1.6rem] font-extrabold leading-none no-underline hover:border-brand-accent focus-visible:border-brand-accent max-[374px]:px-1 max-[374px]:text-[1.45rem] motion-safe:transition-colors motion-safe:duration-[120ms]"
           href="/"
         >
           JRW.
           {/* JRW brand always have "." after the letter "W" like "JRW." */}
         </a>
 
-        <div className="jrw-storefront-header__mobile-actions">
+        <div className="flex items-center gap-grid-xs max-[374px]:justify-between max-[374px]:gap-1">
           <CartAction />
 
           <a
             aria-label="Sign in"
-            className="jrw-storefront-account-link"
+            className="inline-flex min-h-control-md items-center justify-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent max-[374px]:px-1.5 max-[374px]:text-[0.6875rem] motion-safe:transition-colors motion-safe:duration-[120ms]"
             href="/account"
           >
             Sign in
           </a>
 
-          <details className="jrw-storefront-mobile-menu">
-            <summary className="jrw-storefront-mobile-menu__toggle">
-              Menu
+          <details className="group relative">
+            <summary className="inline-flex min-h-control-md min-w-control-md list-none items-center justify-center gap-1.5 border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase marker:hidden group-open:border-brand-accent max-[374px]:px-1.5 max-[374px]:text-[0.6875rem] [&::-webkit-details-marker]:hidden">
+              <span>Menu</span>
+              <span aria-hidden="true" className="group-open:hidden">
+                +
+              </span>
+              <span aria-hidden="true" className="hidden group-open:inline">
+                -
+              </span>
             </summary>
 
-            <div className="jrw-storefront-mobile-menu__panel">
+            <div className="absolute right-0 top-[calc(100%+8px)] z-30 grid w-[min(92vw,380px)] gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm">
               <SearchForm id="storefront-mobile-search" />
               <StorefrontNav mobile />
             </div>
@@ -117,10 +127,10 @@ export function StorefrontHeader() {
         </div>
       </div>
 
-      <div className="jrw-storefront-shell__inner jrw-storefront-header__desktop">
+      <div className="mx-auto w-[min(100%,1440px)] px-grid-sm xs:px-grid-md 3xl:px-grid-lg hidden min-h-20 items-center gap-grid-sm py-grid-sm md:grid md:grid-cols-[auto_minmax(220px,1fr)_auto] lg:gap-grid-md xl:grid-cols-[auto_minmax(0,1fr)_minmax(260px,360px)_auto]">
         <a
           aria-label="JRW. lifestyle products home"
-          className="jrw-storefront-logo"
+          className="inline-flex min-h-control-md items-center border border-transparent font-identity text-[1.6rem] font-extrabold leading-none no-underline hover:border-brand-accent focus-visible:border-brand-accent max-[374px]:px-1 max-[374px]:text-[1.45rem] motion-safe:transition-colors motion-safe:duration-[120ms]"
           href="/"
         >
           JRW.
@@ -129,12 +139,12 @@ export function StorefrontHeader() {
         <StorefrontNav />
         <SearchForm id="storefront-desktop-search" />
 
-        <div className="jrw-storefront-header__desktop-actions">
+        <div className="flex items-center justify-self-end gap-grid-xs">
           <CartAction />
 
           <a
             aria-label="Sign in"
-            className="jrw-storefront-account-link"
+            className="inline-flex min-h-control-md items-center justify-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent max-[374px]:px-1.5 max-[374px]:text-[0.6875rem] motion-safe:transition-colors motion-safe:duration-[120ms]"
             href="/account"
           >
             Sign in

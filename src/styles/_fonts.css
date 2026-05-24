@@ -40,12 +40,3 @@
   --font-system: "Space Mono", "Courier New", monospace;
   --font-data: "Space Mono", "Courier New", monospace;
 }
-
-:root {
-  --jrw-font-heading: var(--font-heading);
-  --jrw-font-identity: var(--font-identity);
-  --jrw-font-body: var(--font-body);
-  --jrw-font-label: var(--font-label);
-  --jrw-font-system: var(--font-system);
-  --jrw-font-data: var(--font-data);
-}

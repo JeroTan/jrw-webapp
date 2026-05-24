@@ -19,11 +19,11 @@ export function ReadinessPanel({
   onRefresh,
 }: ReadinessPanelProps) {
   return (
-    <section className="jrw-products__readiness-panel">
-      <header className="jrw-products__readiness-head">
+    <section className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm">
+      <header className="flex flex-wrap items-start justify-between gap-grid-sm">
         <div>
-          <p className="jrw-products__publish-title">Publish readiness</p>
-          <p className="jrw-field__description">
+          <p className="m-0 text-sm font-bold">Publish readiness</p>
+          <p className="font-system text-xs text-brand-muted">
             Readiness validates required catalog data before publish.
           </p>
         </div>
@@ -40,12 +40,12 @@ export function ReadinessPanel({
       </header>
 
       {loading ? (
-        <p className="jrw-field__description">Loading publish readiness...</p>
+        <p className="font-system text-xs text-brand-muted">Loading publish readiness...</p>
       ) : null}
 
       {!loading && errorMessage ? (
         <section
-          className="jrw-products__publish-feedback jrw-products__publish-feedback--error"
+          className="grid gap-grid-xs border border-brand-border-strong p-grid-sm font-system text-[0.8125rem] font-bold [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm border-brand-danger bg-brand-danger/6 text-brand-danger"
           role="alert"
         >
           <p>{errorMessage}</p>
@@ -64,7 +64,7 @@ export function ReadinessPanel({
       readiness &&
       !readiness.isReady &&
       readiness.missingItems.length > 0 ? (
-        <section className="jrw-products__publish-feedback" role="status">
+        <section className="grid gap-grid-xs border border-brand-border-strong p-grid-sm font-system text-[0.8125rem] font-bold [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm" role="status">
           <p>Missing requirements:</p>
           <ul>
             {readiness.missingItems.map((item) => (

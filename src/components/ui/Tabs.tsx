@@ -9,6 +9,13 @@ import {
 
 import { mergeClassNames } from "../utils";
 
+const tabsClass = "grid gap-grid-sm";
+const tabListClass =
+  "flex flex-wrap gap-grid-xs border-b border-brand-border";
+const tabClass =
+  "min-h-control-sm rounded-none border border-b-0 border-brand-border-strong bg-brand-surface px-grid-xs font-system font-bold text-brand-content shadow-none filter-none hover:enabled:border-brand-accent aria-selected:bg-brand-accent aria-selected:text-brand-surface";
+const panelClass = "min-w-0";
+
 export type TabItem = {
   content: ReactNode;
   disabled?: boolean;
@@ -87,8 +94,8 @@ export function Tabs({
   }
 
   return (
-    <div className={mergeClassNames("jrw-tabs", className)}>
-      <div aria-label={label} className="jrw-tabs__list" role="tablist">
+    <div className={mergeClassNames(tabsClass, className)}>
+      <div aria-label={label} className={tabListClass} role="tablist">
         {tabs.map((tab, index) => {
           const selected = tab.id === selectedTab?.id;
           const tabId = `${baseId}-${tab.id}-tab`;
@@ -98,7 +105,7 @@ export function Tabs({
             <button
               aria-controls={panelId}
               aria-selected={selected}
-              className="jrw-tab"
+              className={tabClass}
               disabled={tab.disabled}
               id={tabId}
               key={tab.id}
@@ -124,7 +131,7 @@ export function Tabs({
       {selectedTab ? (
         <div
           aria-labelledby={`${baseId}-${selectedTab.id}-tab`}
-          className="jrw-tabs__panel"
+          className={panelClass}
           id={`${baseId}-${selectedTab.id}-panel`}
           role="tabpanel"
         >

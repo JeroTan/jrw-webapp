@@ -284,14 +284,14 @@ export function CategoryEditor({
       }
     >
       <form
-        className="jrw-categories__editor-form"
+        className="grid gap-grid-sm"
         id="category-editor-form"
         onSubmit={handleSubmit}
       >
         {validation.summary.length > 0 ? (
           <section
             aria-live="assertive"
-            className="jrw-categories__error-summary"
+            className="grid gap-grid-xs border border-brand-danger bg-brand-danger/6 p-grid-sm text-brand-danger [&_p]:font-system [&_p]:text-[0.8125rem] [&_p]:font-bold [&_ul]:m-0 [&_ul]:pl-grid-sm"
             role="alert"
           >
             <p>We found issues in this form:</p>

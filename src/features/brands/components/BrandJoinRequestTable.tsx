@@ -67,7 +67,7 @@ export function BrandJoinRequestTable({
           const submitting = pendingAdminId === row.adminId;
 
           return (
-            <div className="jrw-brands__table-actions">
+            <div className="inline-flex flex-wrap gap-grid-xs">
               <Button
                 disabled={submitting}
                 loading={submitting}

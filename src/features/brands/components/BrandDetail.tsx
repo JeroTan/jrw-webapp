@@ -404,8 +404,8 @@ export function BrandDetail({ brandId }: { brandId: string }) {
 
   if (loadState === "loading") {
     return (
-      <main className="jrw-brands">
-        <section className="jrw-brands__section">
+      <main className="mx-auto w-full max-w-[1240px] p-grid-md max-md:p-grid-sm">
+        <section className="grid gap-grid-sm py-grid-md">
           <Skeleton lines={6} label="Loading brand detail" />
         </section>
       </main>
@@ -414,8 +414,8 @@ export function BrandDetail({ brandId }: { brandId: string }) {
 
   if (loadState === "failed" || !brand) {
     return (
-      <main className="jrw-brands">
-        <section className="jrw-brands__section">
+      <main className="mx-auto w-full max-w-[1240px] p-grid-md max-md:p-grid-sm">
+        <section className="grid gap-grid-sm py-grid-md">
           <EmptyState
             title="Brand detail unavailable"
             message="We couldn't load this brand right now."
@@ -426,25 +426,25 @@ export function BrandDetail({ brandId }: { brandId: string }) {
   }
 
   return (
-    <main className="jrw-brands">
-      <header className="jrw-brands__header">
+    <main className="mx-auto w-full max-w-[1240px] p-grid-md max-md:p-grid-sm">
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
         <div>
-          <p className="jrw-page-kicker">Catalog collaboration</p>
-          <h1 className="jrw-brands__title">{brand.name}</h1>
-          <p className="jrw-page-copy">
+          <p className="font-system text-xs font-bold uppercase text-brand-muted">Catalog collaboration</p>
+          <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">{brand.name}</h1>
+          <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
             Manage people, invites, join requests, and linked products for this brand.
           </p>
         </div>
-        <div className="jrw-brands__summary">
+        <div className="grid justify-items-end gap-grid-xs max-md:justify-items-start">
           <StatusBadge label={brand.status} tone={statusTone(brand.status)} />
-          <p className="jrw-brands__cell-meta">Updated {formatDateTime(brand.updatedAt)}</p>
+          <p className="text-xs text-brand-muted">Updated {formatDateTime(brand.updatedAt)}</p>
         </div>
       </header>
 
-      <section className="jrw-brands__section">
-        <div className="jrw-brands__panel">
-          <p className="jrw-page-kicker">Brand actions</p>
-          <form className="jrw-brands__actions" onSubmit={handleInviteSubmit}>
+      <section className="grid gap-grid-sm py-grid-md">
+        <div className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm">
+          <p className="font-system text-xs font-bold uppercase text-brand-muted">Brand actions</p>
+          <form className="grid grid-cols-[minmax(260px,1fr)_auto_auto] items-end gap-grid-xs max-md:grid-cols-1" onSubmit={handleInviteSubmit}>
             <Input
               description="Invite an admin to join this brand by email."
               disabled={!permissions.canInviteMembers || sendingInvite}
@@ -473,11 +473,11 @@ export function BrandDetail({ brandId }: { brandId: string }) {
               Archive brand
             </Button>
           </form>
-          <p className="jrw-brands__action-note">{permissions.reason}</p>
+          <p className="text-xs text-brand-muted">{permissions.reason}</p>
         </div>
       </section>
 
-      <section className="jrw-brands__section">
+      <section className="grid gap-grid-sm py-grid-md">
         <Tabs
           defaultValue="members"
           label="Brand detail sections"
@@ -555,11 +555,11 @@ export function BrandDetail({ brandId }: { brandId: string }) {
       </section>
 
       {copyViolations.length > 0 ? (
-        <section className="jrw-brands__section">
+        <section className="grid gap-grid-sm py-grid-md">
           <EmptyState
             title="Language guardrails flagged"
             message={
-              <ul className="jrw-brands__violations">
+              <ul className="m-0 pl-grid-sm">
                 {copyViolations.map((violation) => (
                   <li key={violation}>{violation}</li>
                 ))}
@@ -570,7 +570,7 @@ export function BrandDetail({ brandId }: { brandId: string }) {
       ) : null}
 
       {actionToast ? (
-        <div className="jrw-brands__toast">
+        <div className="fixed bottom-grid-md right-grid-md z-[60] max-md:bottom-grid-sm max-md:left-grid-sm max-md:right-grid-sm">
           <Toast
             message={actionToast.message}
             onDismiss={() => setActionToast(null)}

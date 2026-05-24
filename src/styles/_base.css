@@ -4,18 +4,14 @@
 
 html {
   min-height: 100%;
-  background: var(--jrw-color-background);
-  color: var(--jrw-color-content);
-  font-family: var(--jrw-font-body);
+  @apply bg-brand-background text-brand-content font-body;
   text-rendering: optimizeLegibility;
 }
 
 body {
   min-height: 100vh;
   margin: 0;
-  background: var(--jrw-color-background);
-  color: var(--jrw-color-content);
-  font-family: var(--jrw-font-body);
+  @apply bg-brand-background text-brand-content font-body;
   line-height: 1.5;
 }
 
@@ -31,7 +27,7 @@ button,
 input,
 select,
 textarea {
-  border-radius: var(--jrw-radius);
+  @apply rounded-none;
 }
 
 button {
@@ -59,8 +55,7 @@ h4,
 h5,
 h6 {
   margin: 0;
-  font-family: var(--jrw-font-heading);
-  font-weight: 700;
+  @apply font-heading font-bold;
   letter-spacing: 0;
   line-height: 1.05;
 }
@@ -70,8 +65,7 @@ p {
 }
 
 ::selection {
-  background: var(--jrw-color-cobalt);
-  color: var(--jrw-color-surface);
+  @apply bg-brand-accent text-brand-surface;
 }
 
 :focus {
@@ -79,7 +73,7 @@ p {
 }
 
 :focus-visible {
-  outline: var(--jrw-focus-width) solid var(--jrw-color-cobalt);
+  @apply outline-2 outline-brand-accent;
   outline-offset: 2px;
 }
 
@@ -92,16 +86,4 @@ p {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
-}
-
-.jrw-sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
 }

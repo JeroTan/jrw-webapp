@@ -1,38 +1,25 @@
 @theme {
-  --color-jrw-surface: #ffffff;
-  --color-jrw-background: #fcf8f9;
-  --color-jrw-content: #0d1117;
-  --color-jrw-muted: #45474b;
-  --color-jrw-border: #e1e4e8;
-  --color-jrw-strong-border: #0d1117;
-  --color-jrw-cobalt: #3e96f4;
-  --color-jrw-error: #ba1a1a;
-  --color-jrw-success: #116329;
-  --color-jrw-warning: #7a4d00;
-  --color-jrw-loading: #3e96f4;
-  --color-jrw-disabled: #8b949e;
+  --color-brand-surface: #ffffff;
+  --color-brand-background: #fcf8f9;
+  --color-brand-content: #0d1117;
+  --color-brand-muted: #45474b;
+  --color-brand-border: #e1e4e8;
+  --color-brand-border-strong: #0d1117;
+  --color-brand-accent: #3e96f4;
+  --color-brand-danger: #ba1a1a;
+  --color-brand-success: #116329;
+  --color-brand-warning: #7a4d00;
+  --color-brand-disabled: #8b949e;
 
-  --color-primary: var(--color-jrw-cobalt);
-  --color-surface: var(--color-jrw-surface);
-  --color-background: var(--color-jrw-background);
-  --color-content: var(--color-jrw-content);
-  --color-muted: var(--color-jrw-muted);
-  --color-border-subtle: var(--color-jrw-border);
-  --color-strong-border: var(--color-jrw-strong-border);
+  --color-primary: var(--color-brand-accent);
+  --color-surface: var(--color-brand-surface);
+  --color-background: var(--color-brand-background);
+  --color-content: var(--color-brand-content);
+  --color-muted: var(--color-brand-muted);
+  --color-border-subtle: var(--color-brand-border);
+  --color-strong-border: var(--color-brand-border-strong);
 }
 
 :root {
   color-scheme: light;
-  --jrw-color-surface: var(--color-jrw-surface);
-  --jrw-color-background: var(--color-jrw-background);
-  --jrw-color-content: var(--color-jrw-content);
-  --jrw-color-muted: var(--color-jrw-muted);
-  --jrw-color-border: var(--color-jrw-border);
-  --jrw-color-strong-border: var(--color-jrw-strong-border);
-  --jrw-color-cobalt: var(--color-jrw-cobalt);
-  --jrw-color-error: var(--color-jrw-error);
-  --jrw-color-success: var(--color-jrw-success);
-  --jrw-color-warning: var(--color-jrw-warning);
-  --jrw-color-loading: var(--color-jrw-loading);
-  --jrw-color-disabled: var(--color-jrw-disabled);
 }

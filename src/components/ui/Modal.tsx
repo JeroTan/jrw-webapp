@@ -10,6 +10,17 @@ import {
 import { mergeClassNames } from "../utils";
 import { IconButton } from "./IconButton";
 
+const modalClass = "fixed inset-0 z-50 grid place-items-center p-grid-sm";
+const backdropClass =
+  "absolute inset-0 bg-[color-mix(in_srgb,var(--color-brand-content)_64%,transparent)]";
+const panelClass =
+  "relative z-[1] grid max-h-[min(720px,calc(100vh-48px))] w-[min(100%,560px)] gap-grid-sm overflow-auto rounded-none border border-brand-border-strong bg-brand-surface p-grid-sm shadow-none filter-none";
+const headerClass =
+  "grid grid-cols-[1fr_auto] items-start gap-grid-xs";
+const titleClass = "text-xl";
+const descriptionClass = "text-sm text-brand-muted";
+const footerClass = "flex flex-wrap justify-end gap-grid-xs";
+
 const focusableSelector = [
   "a[href]",
   "button:not([disabled])",
@@ -125,10 +136,10 @@ export function Modal({
   }
 
   return (
-    <div className="jrw-modal" role="presentation">
+    <div className={modalClass} role="presentation">
       <div
         aria-hidden="true"
-        className="jrw-modal__backdrop"
+        className={backdropClass}
         onMouseDown={onClose}
       />
       <section
@@ -136,18 +147,18 @@ export function Modal({
         aria-describedby={description ? descriptionId : undefined}
         aria-labelledby={titleId}
         aria-modal="true"
-        className={mergeClassNames("jrw-modal__panel", className)}
+        className={mergeClassNames(panelClass, className)}
         ref={dialogRef}
         role="dialog"
         tabIndex={-1}
       >
-        <header className="jrw-modal__header">
+        <header className={headerClass}>
           <div>
-            <h2 className="jrw-modal__title" id={titleId}>
+            <h2 className={titleClass} id={titleId}>
               {title}
             </h2>
             {description ? (
-              <p className="jrw-modal__description" id={descriptionId}>
+              <p className={descriptionClass} id={descriptionId}>
                 {description}
               </p>
             ) : null}
@@ -156,9 +167,9 @@ export function Modal({
             x
           </IconButton>
         </header>
-        <div className="jrw-modal__body">{children}</div>
+        <div>{children}</div>
         {footer ? (
-          <footer className="jrw-modal__footer">{footer}</footer>
+          <footer className={footerClass}>{footer}</footer>
         ) : null}
       </section>
     </div>

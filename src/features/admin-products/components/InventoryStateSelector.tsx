@@ -25,7 +25,7 @@ export function InventoryStateSelector({
   onChange,
 }: InventoryStateSelectorProps) {
   return (
-    <div className="jrw-inventory-state-selector">
+    <div className="grid gap-grid-xs">
       <Select
         description={helpText ?? "Select stock state shown in admin and customer availability."}
         disabled={disabled}

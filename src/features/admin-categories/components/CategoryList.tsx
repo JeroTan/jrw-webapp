@@ -180,9 +180,9 @@ export function CategoryList(props: CategoryListProps) {
         key: "name",
         header: "Name",
         cell: (category) => (
-          <div className="jrw-categories__cell-stack">
+          <div className="grid gap-0.5">
             <strong>{category.name}</strong>
-            <span className="jrw-categories__cell-meta">{category.slug}</span>
+            <span className="text-xs text-brand-muted">{category.slug}</span>
           </div>
         ),
       },
@@ -218,7 +218,7 @@ export function CategoryList(props: CategoryListProps) {
         header: "Actions",
         align: "right",
         cell: (category) => (
-          <div className="jrw-categories__table-actions">
+          <div className="inline-flex flex-wrap gap-grid-xs">
             <Button
               onClick={() =>
                 setEditorState({
@@ -326,16 +326,16 @@ export function CategoryList(props: CategoryListProps) {
   }
 
   return (
-    <main className="jrw-categories">
-      <header className="jrw-categories__header">
+    <main className="mx-auto w-full max-w-[1240px] p-grid-md max-md:p-grid-sm">
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
         <div>
-          <p className="jrw-page-kicker">Catalog management</p>
-          <h1 className="jrw-categories__title">Product categories</h1>
-          <p className="jrw-page-copy">
+          <p className="font-system text-xs font-bold uppercase text-brand-muted">Catalog management</p>
+          <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">Product categories</h1>
+          <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
             You can manage your list of categories here.
           </p>
         </div>
-        <dl className="jrw-categories__metrics" aria-label="Category summary">
+        <dl className="m-0 grid grid-cols-2 border border-brand-border-strong bg-brand-surface max-md:grid-cols-1 [&>div]:grid [&>div]:gap-grid-xs [&>div]:border-r [&>div]:border-brand-border [&>div]:p-grid-sm [&>div:last-child]:border-r-0 max-md:[&>div]:border-r-0 max-md:[&>div]:border-b max-md:[&>div:last-child]:border-b-0 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:text-brand-muted [&_dd]:m-0 [&_dd]:font-heading [&_dd]:text-xl [&_dd]:font-bold" aria-label="Category summary">
           <div>
             <dt>Total categories</dt>
             <dd>{loadState === "ready" ? categories.length : "-"}</dd>
@@ -366,9 +366,9 @@ export function CategoryList(props: CategoryListProps) {
         }
       />
 
-      <section className="jrw-categories__section">
+      <section className="grid gap-grid-sm py-grid-md">
         {loadState === "loading" ? (
-          <div className="jrw-categories__table-skeleton" role="status">
+          <div className="border border-brand-border-strong bg-brand-surface p-grid-sm" role="status">
             <Skeleton label="Loading category table" lines={6} />
           </div>
         ) : null}
@@ -464,7 +464,7 @@ export function CategoryList(props: CategoryListProps) {
       />
 
       {toast ? (
-        <aside className="jrw-categories__toast">
+        <aside className="fixed bottom-grid-md right-grid-md z-[60] max-md:bottom-grid-sm max-md:left-grid-sm max-md:right-grid-sm">
           <Toast
             message={toast.message}
             onDismiss={() => setToast(null)}

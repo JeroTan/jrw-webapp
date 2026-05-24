@@ -73,7 +73,7 @@ describe("brands UI surfaces", () => {
     expect(markup).toContain("Cards");
     expect(markup).toContain("List");
     expect(markup).toContain("Loading brand cards");
-    expect(markup).toContain("jrw-resource-card--skeleton");
+    expect(markup).toContain("Loading brand card 1");
     expect(markup).not.toContain(
       "Brands are optional catalog groups. JRW remains seller of record."
     );
@@ -209,7 +209,8 @@ describe("brands UI surfaces", () => {
 
     expect(markup).toContain("ACTIVE");
     expect(markup).toContain("PENDING");
-    expect(markup).toContain("status-badge");
+    expect(markup).toContain("border-brand-success");
+    expect(markup).toContain("border-brand-warning");
   });
 
   it("shows invite and join request tables with explicit status text", () => {

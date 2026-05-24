@@ -16,17 +16,17 @@ export function StorefrontBrandDetail({
   return (
     <section
       aria-labelledby="storefront-brand-detail-title"
-      className="jrw-storefront-brand-detail"
+      className="grid gap-grid-md"
     >
-      <header className="jrw-storefront-brand-detail__hero">
-        <p className="jrw-storefront-kicker">Brand</p>
+      <header className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-md">
+        <p className="font-system text-xs font-bold uppercase text-brand-muted">Brand</p>
         <h1
-          className="jrw-storefront-brand-detail__title"
+          className="max-w-[18ch] font-identity text-[clamp(2rem,8vw,4rem)] [overflow-wrap:anywhere]"
           id="storefront-brand-detail-title"
         >
           {title}
         </h1>
-        <p className="jrw-storefront-brand-detail__copy">
+        <p className="max-w-[64ch] text-[0.9375rem] text-brand-muted">
           {brand
             ? "Products grouped under this brand."
             : "Products for this brand will appear here when product browsing opens."}
@@ -34,17 +34,17 @@ export function StorefrontBrandDetail({
       </header>
 
       {hasProducts && brand ? (
-        <div className="jrw-storefront-brand-detail__products">
+        <div className="border border-brand-border-strong bg-brand-surface p-grid-sm">
           <BrandProductStrip brand={brand} />
         </div>
       ) : (
-        <div className="jrw-storefront-brand-empty">
+        <div className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm text-brand-muted [&_p]:m-0">
           <p data-brand-slug={slug}>No brand products available yet.</p>
-          <div className="jrw-storefront-inline-links">
-            <a className="jrw-storefront-link" href="/brands">
+          <div className="flex flex-wrap gap-grid-xs">
+            <a className="inline-flex min-h-control-md w-fit items-center justify-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent motion-safe:transition-colors motion-safe:duration-[120ms]" href="/brands">
               Back to brands
             </a>
-            <a className="jrw-storefront-link" href="/products">
+            <a className="inline-flex min-h-control-md w-fit items-center justify-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent motion-safe:transition-colors motion-safe:duration-[120ms]" href="/products">
               Browse all products
             </a>
           </div>

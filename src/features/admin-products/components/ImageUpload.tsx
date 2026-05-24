@@ -51,18 +51,18 @@ export function ImageUpload({
   }
 
   return (
-    <section className="jrw-images__upload" aria-label="Image upload section">
-      <div className="jrw-images__upload-header">
-        <p className="jrw-page-kicker">Product media</p>
-        <h3 className="jrw-images__upload-title">Upload image</h3>
+    <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm" aria-label="Image upload section">
+      <div className="grid gap-0.5">
+        <p className="font-system text-xs font-bold uppercase text-brand-muted">Product media</p>
+        <h3 className="m-0 text-lg">Upload image</h3>
       </div>
 
-      <p className="jrw-field__description">
+      <p className="font-system text-xs text-brand-muted">
         You can upload JPEG, PNG, or WEBP image files up to 5MB.
       </p>
 
       <div
-        className="jrw-images__dropzone"
+        className="grid gap-grid-xs border border-dashed border-brand-border bg-brand-border/25 p-grid-sm data-[active=true]:border-solid data-[active=true]:border-brand-accent data-[disabled=true]:opacity-70"
         data-active={dragActive ? "true" : undefined}
         data-disabled={disabled || uploading ? "true" : undefined}
         onDragEnter={(event) => {
@@ -88,9 +88,9 @@ export function ImageUpload({
           await uploadFile(file);
         }}
       >
-        <p className="jrw-images__dropzone-label">Drop image here</p>
-        <p className="jrw-images__dropzone-copy">or choose file from your device</p>
-        <div className="jrw-images__upload-actions">
+        <p className="m-0 font-heading text-sm">Drop image here</p>
+        <p className="m-0 text-xs text-brand-muted">or choose file from your device</p>
+        <div className="flex flex-wrap items-center gap-grid-xs">
           <Button
             disabled={disabled || uploading}
             onClick={triggerPicker}
@@ -99,19 +99,19 @@ export function ImageUpload({
             Choose image
           </Button>
           {uploading ? (
-            <span className="jrw-images__upload-progress" role="status">
+            <span className="font-system text-xs font-bold" role="status">
               Upload in progress...
             </span>
           ) : null}
         </div>
       </div>
 
-      <label className="jrw-field__label" htmlFor={inputId}>
+      <label className="font-system text-[0.8125rem] font-bold text-brand-content" htmlFor={inputId}>
         Image file picker
       </label>
       <input
         accept={acceptedTypes}
-        className="jrw-images__file-input"
+        className="max-w-full"
         disabled={disabled || uploading}
         id={inputId}
         onChange={async (event) => {

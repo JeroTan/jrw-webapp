@@ -16,6 +16,21 @@ export type IconButtonProps = Omit<
   variant?: ButtonVariant;
 };
 
+const iconButtonBaseClass =
+  "inline-flex size-control-md items-center justify-center gap-grid-xs rounded-none border border-brand-border-strong bg-brand-surface p-0 font-system font-bold leading-none text-brand-content no-underline shadow-none whitespace-nowrap filter-none enabled:hover:border-brand-accent aria-busy:border-dashed";
+
+const iconButtonSizeClass: Record<ButtonSize, string> = {
+  sm: "size-control-sm text-[0.8125rem]",
+  md: "size-control-md",
+};
+
+const iconButtonVariantClass: Record<ButtonVariant, string> = {
+  primary: "bg-brand-accent text-brand-surface",
+  secondary: "bg-brand-surface text-brand-content",
+  danger: "bg-brand-danger text-brand-surface",
+  ghost: "border-transparent bg-transparent text-brand-content",
+};
+
 export function IconButton({
   children,
   className,
@@ -37,9 +52,9 @@ export function IconButton({
       aria-busy={loading || undefined}
       aria-label={label}
       className={mergeClassNames(
-        "jrw-icon-button",
-        `jrw-icon-button--${variant}`,
-        `jrw-icon-button--${size}`,
+        iconButtonBaseClass,
+        iconButtonSizeClass[size],
+        iconButtonVariantClass[variant],
         className,
       )}
       data-loading={loading ? "true" : undefined}
@@ -47,9 +62,7 @@ export function IconButton({
       title={tooltip ?? title ?? label}
       type={type}
     >
-      <span className="jrw-icon-button__icon" aria-hidden="true">
-        {loading ? "..." : children}
-      </span>
+      <span aria-hidden="true">{loading ? "..." : children}</span>
     </button>
   );
 }

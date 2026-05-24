@@ -12,7 +12,7 @@ Contains generic, highly reusable global React components used across multiple f
 - `data-display/ResourceList`: responsive resource card/list wrapper with `role="list"`.
 - `data-display/DataTable`: dense admin list/table primitive for operational scanning.
 - `feedback/EmptyState`: states current condition plus next action. Do not use policy lectures.
-- `feedback/Skeleton`: stable loading geometry; centralized `jrw-skeleton` pulse respects reduced motion.
+- `feedback/Skeleton`: stable loading geometry; Tailwind `motion-safe:animate-pulse` respects reduced motion.
 
 ## Copy Rules
 

@@ -3,6 +3,14 @@ import { useId, type SelectHTMLAttributes } from "react";
 
 import { mergeClassNames, mergeIds } from "../utils";
 
+const fieldClass = "grid min-w-0 gap-grid-xs";
+const labelClass =
+  "font-system text-[0.8125rem] font-bold text-brand-content";
+const descriptionClass = "font-system text-xs text-brand-muted";
+const errorClass = "font-system text-xs font-bold text-brand-danger";
+const controlClass =
+  "min-h-control-md w-full rounded-none border border-brand-border-strong bg-brand-surface px-grid-xs text-brand-content shadow-none filter-none aria-[invalid=true]:border-brand-danger";
+
 export type SelectProps = SelectHTMLAttributes<HTMLSelectElement> & {
   description?: string;
   error?: string;
@@ -31,11 +39,11 @@ export function Select({
   const errorId = error ? `${selectId}-error` : undefined;
 
   return (
-    <div className={mergeClassNames("jrw-field", className)}>
+    <div className={mergeClassNames(fieldClass, className)}>
       <label
         className={mergeClassNames(
-          "jrw-field__label",
-          hideLabel && "jrw-sr-only",
+          labelClass,
+          hideLabel && "sr-only",
         )}
         htmlFor={selectId}
       >
@@ -43,7 +51,7 @@ export function Select({
         {required ? <span aria-hidden="true"> *</span> : null}
       </label>
       {description ? (
-        <p className="jrw-field__description" id={descriptionId}>
+        <p className={descriptionClass} id={descriptionId}>
           {description}
         </p>
       ) : null}
@@ -51,14 +59,14 @@ export function Select({
         {...props}
         aria-describedby={mergeIds(ariaDescribedBy, descriptionId, errorId)}
         aria-invalid={error ? true : ariaInvalid}
-        className={mergeClassNames("jrw-field__control", selectClassName)}
+        className={mergeClassNames(controlClass, selectClassName)}
         id={selectId}
         required={required}
       >
         {children}
       </select>
       {error ? (
-        <p className="jrw-field__error" id={errorId}>
+        <p className={errorClass} id={errorId}>
           {error}
         </p>
       ) : null}

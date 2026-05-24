@@ -19,7 +19,10 @@ const {
 ---
 
 <BaseLayout title={title} description={description}>
-  <a class="jrw-storefront-skip-link" href="#main-content">
+  <a
+    class="absolute left-grid-sm top-grid-xs z-61 inline-flex min-h-control-md translate-y-[-160%] items-center border border-brand-border-strong bg-brand-surface px-grid-xs font-system text-xs font-bold no-underline focus-visible:translate-y-0"
+    href="#main-content"
+  >
     Skip to main content
   </a>
 
@@ -27,7 +30,7 @@ const {
 
   <main
     aria-label={mainAriaLabel}
-    class="jrw-storefront-main"
+    class="mx-auto w-[min(100%,1440px)] p-grid-sm xs:p-grid-md lg:py-grid-lg 3xl:px-grid-lg"
     id="main-content"
     role="main"
   >

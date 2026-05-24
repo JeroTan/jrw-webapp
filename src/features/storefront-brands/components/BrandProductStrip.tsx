@@ -14,7 +14,7 @@ function ProductPreviewCard({
     <li>
       <a
         aria-label={product.imageAlt}
-        className="jrw-storefront-brand-product-card"
+        className="flex aspect-square min-w-0 items-center justify-center overflow-hidden border border-brand-border bg-brand-background no-underline hover:border-brand-accent focus-visible:border-brand-accent [&_img]:h-full [&_img]:w-full [&_img]:object-cover"
         href={product.href}
       >
         {product.imageSrc ? (
@@ -39,7 +39,7 @@ export function BrandProductStrip({ brand }: { brand: StorefrontBrandRow }) {
 
   if (totalProducts === 0) {
     return (
-      <p className="jrw-storefront-brand-row__empty">
+      <p className="m-0 border border-brand-border bg-brand-background p-grid-sm text-brand-muted">
         No products available yet.
       </p>
     );
@@ -48,7 +48,7 @@ export function BrandProductStrip({ brand }: { brand: StorefrontBrandRow }) {
   return (
     <ul
       aria-label={`${brand.name} products`}
-      className="jrw-storefront-brand-product-strip"
+      className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(88px,1fr))] gap-grid-xs p-0 md:grid-cols-6"
     >
       {visibleProducts.map((product) => (
         <ProductPreviewCard key={product.id} product={product} />
@@ -57,7 +57,7 @@ export function BrandProductStrip({ brand }: { brand: StorefrontBrandRow }) {
         <li>
           <a
             aria-label={`View ${remainingProducts} more products from ${brand.name}`}
-            className="jrw-storefront-brand-product-card jrw-storefront-brand-product-card--more"
+            className="flex aspect-square min-w-0 items-center justify-center overflow-hidden border border-brand-border bg-brand-background no-underline hover:border-brand-accent focus-visible:border-brand-accent [&_img]:h-full [&_img]:w-full [&_img]:object-cover border-brand-border-strong font-system text-[clamp(1.15rem,4vw,1.75rem)] font-bold text-brand-accent"
             href={brand.href}
           >
             +{remainingProducts}

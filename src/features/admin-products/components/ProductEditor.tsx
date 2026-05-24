@@ -1,6 +1,7 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Button, Input, Modal, Select, Textarea } from "@/components/ui";
+import { mergeClassNames } from "@/components/utils";
 import { slugifyProductText } from "@/domain/products/product";
 import {
   inventoryStateConsistent,
@@ -41,6 +42,15 @@ import { ReadinessPanel } from "./ReadinessPanel";
 import { VariantList } from "./VariantList";
 
 type ProductEditorMode = "create" | "edit";
+
+const imageFeedbackClass =
+  "border border-brand-border-strong p-grid-sm font-system text-[0.8125rem] font-bold [&_p]:m-0";
+const publishFeedbackClass =
+  "grid gap-grid-xs border border-brand-border-strong p-grid-sm font-system text-[0.8125rem] font-bold [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm";
+const feedbackToneClass = {
+  success: "border-brand-success bg-brand-success/6 text-brand-success",
+  error: "border-brand-danger bg-brand-danger/6 text-brand-danger",
+};
 
 type ProductEditorFormState = {
   name: string;
@@ -1343,14 +1353,14 @@ export function ProductEditor({
       }
     >
       <form
-        className="jrw-products__editor-form"
+        className="grid gap-grid-sm"
         id="product-editor-form"
         onSubmit={handleSubmit}
       >
         {validation.summary.length > 0 ? (
           <section
             aria-live="assertive"
-            className="jrw-products__error-summary"
+            className="grid gap-grid-xs border border-brand-danger bg-brand-danger/6 p-grid-sm text-brand-danger [&_p]:font-system [&_p]:text-[0.8125rem] [&_p]:font-bold [&_ul]:m-0 [&_ul]:pl-grid-sm"
             role="alert"
           >
             <p>We found issues in this form:</p>
@@ -1363,7 +1373,7 @@ export function ProductEditor({
         ) : null}
 
         {mode === "edit" && mutationsBlocked ? (
-          <section className="jrw-products__publish-feedback jrw-products__publish-feedback--error" role="alert">
+          <section className="grid gap-grid-xs border border-brand-border-strong p-grid-sm font-system text-[0.8125rem] font-bold [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm border-brand-danger bg-brand-danger/6 text-brand-danger" role="alert">
             <p>
               {mutationBlockReason ??
                 "You need active membership in this product brand."}
@@ -1440,7 +1450,7 @@ export function ProductEditor({
               Array.from(event.currentTarget.selectedOptions, (option) => option.value)
             )
           }
-          selectClassName="jrw-products__category-select"
+          selectClassName="min-h-[8.5rem]"
           size={Math.min(Math.max(availableCategories.length, 2), 8)}
           value={form.categoryIds}
         >
@@ -1452,7 +1462,7 @@ export function ProductEditor({
         </Select>
 
         {mode === "edit" ? (
-          <p className="jrw-field__description">
+          <p className="font-system text-xs text-brand-muted">
             {organizationReady
               ? `Category links selected: ${form.categoryIds.length}`
               : organizationUnavailable
@@ -1462,11 +1472,14 @@ export function ProductEditor({
         ) : null}
 
         {mode === "edit" && editingProductId ? (
-          <section className="jrw-products__images-section">
+          <section className="grid gap-grid-sm border-t border-brand-border pt-grid-sm">
             {imageFeedback ? (
               <section
                 aria-live="assertive"
-                className={`jrw-products__image-feedback jrw-products__image-feedback--${imageFeedback.tone}`}
+                className={mergeClassNames(
+                  imageFeedbackClass,
+                  feedbackToneClass[imageFeedback.tone],
+                )}
                 role={imageFeedback.tone === "error" ? "alert" : "status"}
               >
                 <p>{imageFeedback.message}</p>
@@ -1494,7 +1507,7 @@ export function ProductEditor({
         ) : null}
 
         {mode === "edit" && editingProductId ? (
-          <section className="jrw-products__variants-section">
+          <section className="grid gap-grid-sm border-t border-brand-border pt-grid-sm">
             <VariantList
               allowMutations={!mutationsBlocked && organizationReady}
               embedded
@@ -1508,11 +1521,11 @@ export function ProductEditor({
         ) : null}
 
         {mode === "edit" && editingProductId ? (
-          <section className="jrw-products__inventory-section">
-            <header className="jrw-products__inventory-head">
+          <section className="grid gap-grid-sm border-t border-brand-border pt-grid-sm">
+            <header className="flex flex-wrap items-start justify-between gap-grid-sm">
               <div>
-                <p className="jrw-products__publish-title">Inventory adjuster</p>
-                <p className="jrw-field__description">
+                <p className="m-0 text-sm font-bold">Inventory adjuster</p>
+                <p className="font-system text-xs text-brand-muted">
                   Apply stock and state updates for one variant at a time.
                 </p>
               </div>
@@ -1530,7 +1543,10 @@ export function ProductEditor({
 
             {inventoryFeedback ? (
               <section
-                className={`jrw-products__publish-feedback jrw-products__publish-feedback--${inventoryFeedback.tone}`}
+                className={mergeClassNames(
+                  publishFeedbackClass,
+                  feedbackToneClass[inventoryFeedback.tone],
+                )}
                 role={inventoryFeedback.tone === "error" ? "alert" : "status"}
               >
                 <p>{inventoryFeedback.message}</p>
@@ -1541,17 +1557,17 @@ export function ProductEditor({
             ) : null}
 
             {variantLoadState === "loading" ? (
-              <p className="jrw-field__description">Loading variants for inventory update...</p>
+              <p className="font-system text-xs text-brand-muted">Loading variants for inventory update...</p>
             ) : null}
 
             {variantLoadState === "failed" ? (
-              <section className="jrw-products__publish-feedback jrw-products__publish-feedback--error" role="alert">
+              <section className="grid gap-grid-xs border border-brand-border-strong p-grid-sm font-system text-[0.8125rem] font-bold [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm border-brand-danger bg-brand-danger/6 text-brand-danger" role="alert">
                 <p>Could not load variants for inventory updates.</p>
               </section>
             ) : null}
 
             {variantLoadState === "ready" && variants.length === 0 ? (
-              <p className="jrw-field__description">
+              <p className="font-system text-xs text-brand-muted">
                 Create variant first before inventory updates.
               </p>
             ) : null}
@@ -1594,7 +1610,7 @@ export function ProductEditor({
                 />
 
                 {inventoryValidation.summary ? (
-                  <p className="jrw-field__error" role="alert">
+                  <p className="font-system text-xs font-bold text-brand-danger" role="alert">
                     {inventoryValidation.summary}
                   </p>
                 ) : null}
@@ -1616,10 +1632,13 @@ export function ProductEditor({
         ) : null}
 
         {mode === "edit" && editingProductId ? (
-          <section className="jrw-products__publish-section">
+          <section className="grid gap-grid-sm border-t border-brand-border pt-grid-sm">
             {statusFeedback ? (
               <section
-                className={`jrw-products__publish-feedback jrw-products__publish-feedback--${statusFeedback.tone}`}
+                className={mergeClassNames(
+                  publishFeedbackClass,
+                  feedbackToneClass[statusFeedback.tone],
+                )}
                 role={statusFeedback.tone === "error" ? "alert" : "status"}
               >
                 <p>{statusFeedback.message}</p>

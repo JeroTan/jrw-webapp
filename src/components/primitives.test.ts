@@ -27,7 +27,7 @@ describe("shared UI primitives", () => {
     );
 
     expect(markup).toContain("Published");
-    expect(markup).toContain("jrw-status-badge__mark");
+    expect(markup).toContain("size-2");
   });
 
   it("requires icon button accessible label and tooltip metadata", () => {
@@ -86,7 +86,8 @@ describe("shared UI primitives", () => {
       createElement(DataTable<ProductRow>, tableProps)
     );
 
-    expect(markup).toContain("<caption>Products</caption>");
+    expect(markup).toContain("<caption");
+    expect(markup).toContain("Products</caption>");
     expect(markup).toContain("No products.");
   });
 
@@ -175,7 +176,7 @@ describe("shared UI primitives", () => {
       )
     );
 
-    expect(markup).toContain("jrw-page-toolbar");
+    expect(markup).toContain("border-b");
     expect(markup).toContain('role="list"');
     expect(markup).toContain('role="listitem"');
     expect(markup).toContain("JRW Studio");
@@ -202,13 +203,13 @@ describe("shared UI primitives", () => {
     expect(globalCss).not.toContain("jrw-skeleton-pulse");
   });
 
-  it("uses defined control height tokens for view toggle sizing", () => {
-    const globalCss = readFileSync(
-      join(process.cwd(), "src/styles/global.css"),
+  it("uses Tailwind theme control height tokens for component sizing", () => {
+    const tokenCss = readFileSync(
+      join(process.cwd(), "src/styles/_tokens.css"),
       "utf8"
     );
 
-    expect(globalCss).toContain("min-height: var(--jrw-control-height-md)");
-    expect(globalCss).not.toContain("var(--jrw-control-height)");
+    expect(tokenCss).toContain("--spacing-control-md: 44px");
+    expect(tokenCss).not.toContain("--jrw-control-height");
   });
 });

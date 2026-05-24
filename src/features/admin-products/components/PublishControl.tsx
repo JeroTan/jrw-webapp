@@ -63,9 +63,9 @@ export function PublishControl({
       : null);
 
   return (
-    <section className="jrw-products__publish-control">
-      <div className="jrw-products__publish-head">
-        <p className="jrw-products__publish-title">Catalog status</p>
+    <section className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm">
+      <div className="flex flex-wrap items-center justify-between gap-grid-sm">
+        <p className="m-0 text-sm font-bold">Catalog status</p>
         <StatusBadge
           aria-label={`Product status: ${statusLabel(status)}`}
           label={statusLabel(status)}
@@ -73,7 +73,7 @@ export function PublishControl({
         />
       </div>
 
-      <div className="jrw-products__publish-actions">
+      <div className="inline-flex flex-wrap gap-grid-xs">
         <Button
           aria-label="Publish product"
           disabled={busy || mutationsBlocked || !canPublish || !publishReady}
@@ -110,7 +110,7 @@ export function PublishControl({
       </div>
 
       {blockedReason ? (
-        <p className="jrw-field__description">{blockedReason}</p>
+        <p className="font-system text-xs text-brand-muted">{blockedReason}</p>
       ) : null}
 
       <ConfirmDialog

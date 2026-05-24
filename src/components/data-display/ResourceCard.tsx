@@ -3,6 +3,24 @@ import type { HTMLAttributes, ReactNode } from "react";
 
 import { mergeClassNames } from "../utils";
 
+const cardClass =
+  "grid min-h-[236px] rounded-none border border-brand-border-strong bg-brand-surface";
+const headerClass =
+  "grid grid-cols-[minmax(0,1fr)_auto] items-start gap-grid-sm border-b border-brand-border-strong p-grid-sm max-md:grid-cols-1";
+const identityClass = "grid min-w-0 gap-0.5";
+const titleClass = "text-[1.35rem] [overflow-wrap:anywhere]";
+const metaClass =
+  "m-0 font-system text-xs text-brand-muted [overflow-wrap:anywhere]";
+const statusClass = "justify-self-end max-md:justify-self-start";
+const statsClass = "m-0 grid grid-cols-2";
+const statClass =
+  "grid min-h-[70px] gap-0.5 border-r border-b border-brand-border p-grid-sm even:border-r-0";
+const statLabelClass =
+  "font-system text-[0.6875rem] font-bold uppercase text-brand-muted";
+const statValueClass =
+  "m-0 font-heading text-[1.15rem] font-bold [overflow-wrap:anywhere]";
+const actionClass = "flex items-center justify-end p-grid-sm";
+
 export type ResourceCardStat = {
   label: ReactNode;
   value: ReactNode;
@@ -28,32 +46,32 @@ export function ResourceCard({
   return (
     <article
       {...props}
-      className={mergeClassNames("jrw-resource-card", className)}
+      className={mergeClassNames(cardClass, className)}
       role="listitem"
     >
-      <header className="jrw-resource-card__header">
-        <div className="jrw-resource-card__identity">
-          <h2 className="jrw-resource-card__title">{title}</h2>
-          {meta ? <p className="jrw-resource-card__meta">{meta}</p> : null}
+      <header className={headerClass}>
+        <div className={identityClass}>
+          <h2 className={titleClass}>{title}</h2>
+          {meta ? <p className={metaClass}>{meta}</p> : null}
         </div>
         {status ? (
-          <div className="jrw-resource-card__status">{status}</div>
+          <div className={statusClass}>{status}</div>
         ) : null}
       </header>
 
       {stats.length > 0 ? (
-        <dl className="jrw-resource-card__stats">
+        <dl className={statsClass}>
           {stats.map((stat, index) => (
-            <div className="jrw-resource-card__stat" key={index}>
-              <dt>{stat.label}</dt>
-              <dd>{stat.value}</dd>
+            <div className={statClass} key={index}>
+              <dt className={statLabelClass}>{stat.label}</dt>
+              <dd className={statValueClass}>{stat.value}</dd>
             </div>
           ))}
         </dl>
       ) : null}
 
       {action ? (
-        <div className="jrw-resource-card__action">{action}</div>
+        <div className={actionClass}>{action}</div>
       ) : null}
     </article>
   );

@@ -213,9 +213,9 @@ export function BrandList() {
         key: "brand",
         header: "Brand",
         cell: (brand) => (
-          <div className="jrw-brands__cell-stack">
+          <div className="grid gap-0.5">
             <strong>{brand.name}</strong>
-            <span className="jrw-brands__cell-meta">{brand.slug}</span>
+            <span className="text-xs text-brand-muted">{brand.slug}</span>
           </div>
         ),
       },
@@ -262,7 +262,7 @@ export function BrandList() {
         align: "right",
         cell: (brand) => (
           <a
-            className="jrw-brands__table-link"
+            className="inline-flex min-h-control-sm items-center border border-brand-border-strong px-grid-xs no-underline hover:border-brand-accent focus-visible:border-brand-accent"
             href={`/admin/brands/${brand.id}`}
           >
             Open detail
@@ -280,7 +280,7 @@ export function BrandList() {
       <ResourceCard
         action={
           <a
-            className="jrw-brands__table-link"
+            className="inline-flex min-h-control-sm items-center border border-brand-border-strong px-grid-xs no-underline hover:border-brand-accent focus-visible:border-brand-accent"
             href={`/admin/brands/${brand.id}`}
           >
             Open detail
@@ -315,14 +315,14 @@ export function BrandList() {
   }
 
   return (
-    <main className="jrw-brands">
-      <header className="jrw-brands__header">
+    <main className="mx-auto w-full max-w-[1240px] p-grid-md max-md:p-grid-sm">
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
         <div>
-          <p className="jrw-page-kicker">Catalog collaboration</p>
-          <h1 className="jrw-brands__title">Brand catalog groups</h1>
-          <p className="jrw-page-copy">{brandListIntroCopy}</p>
+          <p className="font-system text-xs font-bold uppercase text-brand-muted">Catalog collaboration</p>
+          <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">Brand catalog groups</h1>
+          <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">{brandListIntroCopy}</p>
         </div>
-        <dl className="jrw-brands__metrics" aria-label="Brand status summary">
+        <dl className="m-0 grid grid-cols-2 border border-brand-border-strong bg-brand-surface max-md:grid-cols-1 [&>div]:grid [&>div]:gap-grid-xs [&>div]:border-r [&>div]:border-brand-border [&>div]:p-grid-sm [&>div:last-child]:border-r-0 max-md:[&>div]:border-r-0 max-md:[&>div]:border-b max-md:[&>div:last-child]:border-b-0 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:text-brand-muted [&_dd]:m-0 [&_dd]:font-heading [&_dd]:text-xl [&_dd]:font-bold" aria-label="Brand status summary">
           <div>
             <dt>Visible brands</dt>
             <dd>{loadState === "ready" ? brands.length : "-"}</dd>
@@ -353,20 +353,20 @@ export function BrandList() {
         }
       />
 
-      <section className="jrw-brands__section">
+      <section className="grid gap-grid-sm py-grid-md">
         {loadState === "loading" ? (
           <ResourceList
-            className="jrw-brands__card-grid"
+            className="grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))]"
             label="Loading brand cards"
           >
             {Array.from({ length: 3 }).map((_, index) => (
               <div
-                className="jrw-resource-card jrw-resource-card--skeleton"
+                className="grid min-h-[236px] rounded-none border border-brand-border-strong bg-brand-surface p-grid-sm"
                 key={index}
                 role="listitem"
               >
                 <Skeleton
-                  className="jrw-resource-card__skeleton"
+                  className="min-h-full content-start"
                   label={`Loading brand card ${index + 1}`}
                   lines={5}
                 />
@@ -403,7 +403,7 @@ export function BrandList() {
         {loadState === "ready" &&
         visibleBrands.length > 0 &&
         viewMode === "cards" ? (
-          <ResourceList className="jrw-brands__card-grid" label="Brand cards">
+          <ResourceList className="grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))]" label="Brand cards">
             {visibleBrands.map((brand) => renderBrandCard(brand))}
           </ResourceList>
         ) : null}
@@ -424,7 +424,7 @@ export function BrandList() {
           <EmptyState
             title="Language guardrails flagged"
             message={
-              <ul className="jrw-brands__violations">
+              <ul className="m-0 pl-grid-sm">
                 {copyViolations.map((violation) => (
                   <li key={violation}>{violation}</li>
                 ))}

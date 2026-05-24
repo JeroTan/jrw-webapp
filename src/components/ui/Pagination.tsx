@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Select } from "./Select";
+import { mergeClassNames } from "../utils";
 
 export type PaginationProps = {
   page: number;
@@ -11,6 +12,16 @@ export type PaginationProps = {
   onPageChange: (page: number) => void;
   onPageSizeChange: (pageSize: number) => void;
 };
+
+const paginationClass =
+  "grid grid-cols-[auto_minmax(0,1fr)_minmax(160px,220px)] items-end gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm max-md:grid-cols-1 max-md:items-stretch";
+const summaryClass =
+  "m-0 font-system text-xs font-bold uppercase text-brand-muted";
+const controlsClass = "inline-flex flex-wrap gap-grid-xs";
+const pageButtonClass =
+  "min-h-control-sm min-w-11 rounded-none border border-brand-border-strong bg-brand-surface px-grid-xs font-system text-xs font-bold text-brand-content hover:enabled:border-brand-accent";
+const pageButtonActiveClass = "bg-brand-content text-brand-surface";
+const pageSizeClass = "min-w-0";
 
 function clampPage(page: number, totalPages: number): number {
   if (totalPages <= 0) {
@@ -55,15 +66,15 @@ export function Pagination({
   return (
     <nav
       aria-label="Pagination"
-      className="jrw-pagination"
+      className={paginationClass}
     >
-      <p className="jrw-pagination__summary" role="status">
+      <p className={summaryClass} role="status">
         Page {currentPage} of {safeTotalPages} - {totalItems} items
       </p>
 
-      <div className="jrw-pagination__controls">
+      <div className={controlsClass}>
         <button
-          className="jrw-pagination__button"
+          className={pageButtonClass}
           disabled={disabled || !canGoPrevious}
           onClick={() => onPageChange(currentPage - 1)}
           type="button"
@@ -76,7 +87,10 @@ export function Pagination({
           return (
             <button
               aria-current={selected ? "page" : undefined}
-              className={`jrw-pagination__button${selected ? " jrw-pagination__button--active" : ""}`}
+              className={mergeClassNames(
+                pageButtonClass,
+                selected && pageButtonActiveClass,
+              )}
               disabled={disabled}
               key={targetPage}
               onClick={() => onPageChange(targetPage)}
@@ -88,7 +102,7 @@ export function Pagination({
         })}
 
         <button
-          className="jrw-pagination__button"
+          className={pageButtonClass}
           disabled={disabled || !canGoNext}
           onClick={() => onPageChange(currentPage + 1)}
           type="button"
@@ -98,7 +112,7 @@ export function Pagination({
       </div>
 
       <Select
-        className="jrw-pagination__page-size"
+        className={pageSizeClass}
         disabled={disabled}
         label="Rows per page"
         onChange={(event) => onPageSizeChange(Number(event.currentTarget.value))}

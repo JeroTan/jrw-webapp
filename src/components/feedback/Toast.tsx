@@ -5,6 +5,18 @@ import { mergeClassNames } from "../utils";
 import { IconButton } from "../ui/IconButton";
 import type { BadgeTone } from "./Badge";
 
+const toastBaseClass =
+  "grid max-w-[420px] gap-grid-xs rounded-none border border-brand-border-strong bg-brand-surface p-grid-sm font-system text-brand-content shadow-none filter-none";
+const toastToneClass: Record<BadgeTone, string> = {
+  neutral: "",
+  info: "border-brand-accent",
+  success: "border-brand-success",
+  warning: "border-brand-warning",
+  error: "border-brand-danger",
+};
+const toastHeaderClass = "grid grid-cols-[1fr_auto] gap-grid-xs";
+const toastTitleClass = "font-heading font-bold";
+
 export type ToastProps = {
   action?: ReactNode;
   className?: string;
@@ -29,11 +41,11 @@ export function Toast({
   return (
     <div
       aria-live={urgent ? "assertive" : "polite"}
-      className={mergeClassNames("jrw-toast", `jrw-toast--${tone}`, className)}
+      className={mergeClassNames(toastBaseClass, toastToneClass[tone], className)}
       role={urgent ? "alert" : "status"}
     >
-      <div className="jrw-toast__header">
-        <p className="jrw-toast__title">{title}</p>
+      <div className={toastHeaderClass}>
+        <p className={toastTitleClass}>{title}</p>
         {onDismiss ? (
           <IconButton
             label={dismissLabel}
@@ -45,8 +57,8 @@ export function Toast({
           </IconButton>
         ) : null}
       </div>
-      <div className="jrw-toast__message">{message}</div>
-      {action ? <div className="jrw-toast__action">{action}</div> : null}
+      <div>{message}</div>
+      {action ? <div>{action}</div> : null}
     </div>
   );
 }

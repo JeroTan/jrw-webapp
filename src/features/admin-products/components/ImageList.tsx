@@ -47,7 +47,7 @@ export function ImageList({
 
   if (loading) {
     return (
-      <section className="jrw-images__list" aria-label="Loading images">
+      <section className="grid gap-grid-sm" aria-label="Loading images">
         <Skeleton label="Loading product images" lines={5} />
       </section>
     );
@@ -55,7 +55,7 @@ export function ImageList({
 
   if (sortedImages.length === 0) {
     return (
-      <section className="jrw-images__list" aria-label="No images">
+      <section className="grid gap-grid-sm" aria-label="No images">
         <EmptyState
           message="No images are linked to this product yet."
           title="No product images"
@@ -65,15 +65,15 @@ export function ImageList({
   }
 
   return (
-    <section className="jrw-images__list" aria-label="Product images">
-      <header className="jrw-images__list-header">
-        <h3 className="jrw-images__list-title">Images</h3>
-        <p className="jrw-field__description">
+    <section className="grid gap-grid-sm" aria-label="Product images">
+      <header className="grid gap-0.5">
+        <h3 className="m-0 text-base">Images</h3>
+        <p className="font-system text-xs text-brand-muted">
           Primary image and order controls update current catalog display.
         </p>
       </header>
 
-      <div className="jrw-images__grid" role="grid" aria-label="Product image grid">
+      <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-grid-sm" role="grid" aria-label="Product image grid">
         {sortedImages.map((image, index) => {
           const previous = sortedImages[index - 1] ?? null;
           const next = sortedImages[index + 1] ?? null;
@@ -84,7 +84,7 @@ export function ImageList({
 
           return (
             <article
-              className="jrw-images__card"
+              className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-xs focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-brand-accent"
               key={image.id}
               onKeyDown={(event) => {
                 if (
@@ -109,24 +109,24 @@ export function ImageList({
               role="gridcell"
               tabIndex={0}
             >
-              <figure className="jrw-images__figure">
+              <figure className="m-0 aspect-square overflow-hidden border border-brand-border">
                 <img
                   alt={alt}
-                  className="jrw-images__thumbnail"
+                  className="h-full w-full object-cover"
                   loading="lazy"
                   src={image.url}
                 />
               </figure>
 
-              <div className="jrw-images__meta">
-                <div className="jrw-images__meta-header">
+              <div className="grid gap-0.5">
+                <div className="flex flex-wrap items-center gap-grid-xs">
                   <strong>{image.name || `Image ${index + 1}`}</strong>
                   {image.isPrimary ? <Badge tone="info">Primary image</Badge> : null}
                 </div>
-                <p className="jrw-images__meta-copy">Order #{image.sortOrder}</p>
+                <p className="m-0 text-xs text-brand-muted">Order #{image.sortOrder}</p>
               </div>
 
-              <div className="jrw-images__actions">
+              <div className="flex flex-wrap gap-grid-xs">
                 <Button
                   disabled={busy || image.isPrimary}
                   onClick={async () => {

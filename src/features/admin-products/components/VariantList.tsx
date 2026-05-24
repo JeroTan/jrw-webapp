@@ -264,9 +264,9 @@ export function VariantList({
         key: "name",
         header: "Variant",
         cell: (variant) => (
-          <div className="jrw-variants__cell-stack">
+          <div className="grid gap-0.5">
             <strong>{variant.name}</strong>
-            <span className="jrw-variants__cell-meta">{variant.sku}</span>
+            <span className="text-xs text-brand-muted">{variant.sku}</span>
           </div>
         ),
       },
@@ -275,7 +275,7 @@ export function VariantList({
         header: "Options",
         cell: (variant) =>
           variant.variationChain.length > 0 ? (
-            <span className="jrw-variants__cell-meta">
+            <span className="text-xs text-brand-muted">
               {variant.variationChain
                 .map((option) => `${option.group}: ${option.name}`)
                 .join(" - ")}
@@ -294,7 +294,7 @@ export function VariantList({
         key: "inventory",
         header: "Stock / State",
         cell: (variant) => (
-          <div className="jrw-variants__cell-stack">
+          <div className="grid gap-0.5">
             <span>{variant.stock}</span>
             <StatusBadge
               label={variant.inventoryState.replaceAll("_", " ")}
@@ -328,7 +328,7 @@ export function VariantList({
           return (
             <div
               aria-label={`Actions for ${variant.name}`}
-              className="jrw-variants__table-actions"
+              className="inline-flex flex-wrap gap-grid-xs"
               onKeyDown={(event) => {
                 if (event.target !== event.currentTarget) {
                   return;
@@ -486,17 +486,23 @@ export function VariantList({
   }
 
   return (
-    <section className={embedded ? "jrw-variants jrw-variants--embedded" : "jrw-variants"}>
+    <section
+      className={
+        embedded
+          ? "m-0 w-full p-0"
+          : "mx-auto w-full max-w-[1240px] p-grid-md max-md:p-grid-sm"
+      }
+    >
       {!embedded ? (
-        <header className="jrw-variants__header">
+        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
           <div>
-            <p className="jrw-page-kicker">Product variants</p>
-            <h1 className="jrw-variants__title">Variants</h1>
-            <p className="jrw-page-copy">
+            <p className="font-system text-xs font-bold uppercase text-brand-muted">Product variants</p>
+            <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">Variants</h1>
+            <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
               You can manage variant options, SKU, and centavos pricing here.
             </p>
           </div>
-          <dl className="jrw-variants__metrics" aria-label="Variant summary">
+          <dl className="m-0 grid grid-cols-2 border border-brand-border-strong bg-brand-surface max-md:grid-cols-1 [&>div]:grid [&>div]:gap-grid-xs [&>div]:border-r [&>div]:border-brand-border [&>div]:p-grid-sm [&>div:last-child]:border-r-0 max-md:[&>div]:border-r-0 max-md:[&>div]:border-b max-md:[&>div:last-child]:border-b-0 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:text-brand-muted [&_dd]:m-0 [&_dd]:font-heading [&_dd]:text-xl [&_dd]:font-bold" aria-label="Variant summary">
             <div>
               <dt>Total variants</dt>
               <dd>{loadState === "ready" ? variants.length : "-"}</dd>
@@ -508,14 +514,14 @@ export function VariantList({
           </dl>
         </header>
       ) : (
-        <header className="jrw-variants__embedded-header">
+        <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-grid-sm max-md:grid-cols-1 max-md:items-stretch">
           <div>
-            <p className="jrw-products__publish-title">Variant matrix</p>
-            <p className="jrw-field__description">
+            <p className="m-0 text-sm font-bold">Variant matrix</p>
+            <p className="font-system text-xs text-brand-muted">
               SKU, options, centavos price, and stock states per variant.
             </p>
           </div>
-          <dl className="jrw-variants__metrics jrw-variants__metrics--embedded">
+          <dl className="m-0 grid grid-cols-2 border border-brand-border-strong bg-brand-surface max-md:grid-cols-1 [&>div]:grid [&>div]:gap-grid-xs [&>div]:border-r [&>div]:border-brand-border [&>div]:p-grid-sm [&>div:last-child]:border-r-0 max-md:[&>div]:border-r-0 max-md:[&>div]:border-b max-md:[&>div:last-child]:border-b-0 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:text-brand-muted [&_dd]:m-0 [&_dd]:font-heading [&_dd]:text-xl [&_dd]:font-bold min-w-[220px] max-md:min-w-0">
             <div>
               <dt>Total</dt>
               <dd>{loadState === "ready" ? variants.length : "-"}</dd>
@@ -560,11 +566,11 @@ export function VariantList({
       />
 
       {!allowMutations && mutationDisabledReason ? (
-        <p className="jrw-field__description">{mutationDisabledReason}</p>
+        <p className="font-system text-xs text-brand-muted">{mutationDisabledReason}</p>
       ) : null}
 
       {duplicateWarnings.length > 0 ? (
-        <section className="jrw-variants__duplicate-warning" role="status">
+        <section className="grid gap-grid-xs border border-brand-warning bg-brand-warning/6 p-grid-sm text-[0.8125rem] font-bold text-brand-warning [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm" role="status">
           <p>Duplicate option combinations detected:</p>
           <ul>
             {duplicateWarnings.map((warning) => (
@@ -574,9 +580,9 @@ export function VariantList({
         </section>
       ) : null}
 
-      <section className="jrw-variants__section">
+      <section className="grid gap-grid-sm py-grid-md">
         {loadState === "loading" ? (
-          <div className="jrw-variants__table-skeleton" role="status">
+          <div className="border border-brand-border-strong bg-brand-surface p-grid-sm" role="status">
             <Skeleton label="Loading variant table" lines={6} />
           </div>
         ) : null}
@@ -658,7 +664,7 @@ export function VariantList({
       />
 
       {toast ? (
-        <aside className="jrw-variants__toast">
+        <aside className="fixed bottom-grid-md right-grid-md z-[60] max-md:bottom-grid-sm max-md:left-grid-sm max-md:right-grid-sm">
           <Toast
             message={toast.message}
             onDismiss={() => setToast(null)}

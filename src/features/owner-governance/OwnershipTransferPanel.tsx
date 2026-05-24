@@ -103,7 +103,7 @@ export function OwnershipTransferPanel() {
         key: "email",
         header: "Admin",
         cell: (candidate) => (
-          <span className="jrw-owner-governance__email">{candidate.email}</span>
+          <span className="font-bold">{candidate.email}</span>
         ),
       },
       {
@@ -231,14 +231,14 @@ export function OwnershipTransferPanel() {
   }
 
   return (
-    <main className="jrw-owner-governance">
-      <header className="jrw-owner-governance__header">
+    <main className="mx-auto w-full max-w-[1240px] p-grid-md max-md:p-grid-sm">
+      <header className="grid grid-cols-[minmax(0,1fr)_minmax(280px,420px)] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
         <div>
-          <p className="jrw-page-kicker">Owner-only governance</p>
-          <h1 className="jrw-owner-governance__title">Ownership Transfer</h1>
+          <p className="font-system text-xs font-bold uppercase text-brand-muted">Owner-only governance</p>
+          <h1 className="text-[clamp(2rem,6vw,4.75rem)]">Ownership Transfer</h1>
         </div>
         <dl
-          className="jrw-owner-governance__metrics"
+          className="m-0 grid grid-cols-2 border border-brand-border-strong bg-brand-surface max-md:grid-cols-1 [&>div]:grid [&>div]:gap-grid-xs [&>div]:border-r [&>div]:border-brand-border [&>div]:p-grid-sm [&>div:last-child]:border-r-0 max-md:[&>div]:border-r-0 max-md:[&>div]:border-b max-md:[&>div:last-child]:border-b-0 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:text-brand-muted [&_dd]:m-0 [&_dd]:font-heading [&_dd]:text-xl [&_dd]:font-bold"
           aria-label="Transfer status"
         >
           <div>
@@ -252,7 +252,7 @@ export function OwnershipTransferPanel() {
         </dl>
       </header>
 
-      <section className="jrw-owner-governance__section">
+      <section className="grid gap-grid-sm py-grid-md">
         {loadState === "loading" ? (
           <Skeleton lines={4} label="Loading ownership candidates" />
         ) : null}
@@ -276,7 +276,7 @@ export function OwnershipTransferPanel() {
       </section>
 
       {formSummary && dialogState === "failed" ? (
-        <div className="jrw-owner-governance__toast">
+        <div className="fixed bottom-grid-md right-grid-md z-[60] max-md:bottom-grid-sm max-md:left-grid-sm max-md:right-grid-sm">
           <Toast
             message={formSummary}
             onDismiss={() => setFormSummary(null)}
@@ -332,11 +332,11 @@ export function OwnershipTransferPanel() {
       >
         {selected ? (
           <form
-            className="jrw-owner-governance__dialog"
+            className="grid gap-grid-sm"
             id="ownership-transfer-form"
             onSubmit={handleSubmit}
           >
-            <div className="jrw-owner-governance__target">
+            <div className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm [&_span]:text-xs [&_span]:font-bold [&_span]:uppercase [&_span]:text-brand-muted [&_strong]:[overflow-wrap:anywhere]">
               <span>Target Admin</span>
               <strong>{selected.email}</strong>
               <StatusBadge
@@ -346,13 +346,13 @@ export function OwnershipTransferPanel() {
             </div>
 
             {dialogState === "ineligible" ? (
-              <p className="jrw-owner-governance__error">
+              <p className="font-system text-[0.8125rem] font-bold text-brand-danger">
                 Selected Admin is not eligible for ownership transfer.
               </p>
             ) : null}
 
             {dialogState === "complete" && result ? (
-              <div className="jrw-owner-governance__complete" role="status">
+              <div className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm" role="status">
                 <p>Ownership transferred.</p>
                 <p>
                   {result.newOwner.email} is Super Admin. Current owner session
@@ -362,7 +362,7 @@ export function OwnershipTransferPanel() {
             ) : null}
 
             {dialogState === "session-expired" ? (
-              <div className="jrw-owner-governance__complete" role="alert">
+              <div className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm" role="alert">
                 <p>Owner session expired.</p>
                 <p>Refresh session before continuing governance work.</p>
               </div>
@@ -370,12 +370,12 @@ export function OwnershipTransferPanel() {
 
             {dialogState !== "complete" && dialogState !== "session-expired" ? (
               <>
-                <div className="jrw-owner-governance__phrase">
+                <div className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm [&_span]:text-xs [&_span]:font-bold [&_span]:uppercase [&_span]:text-brand-muted [&_code]:font-system [&_code]:text-sm [&_code]:[overflow-wrap:anywhere]">
                   <span>Required phrase</span>
                   <code>{selectedPhrase}</code>
                 </div>
                 {formSummary ? (
-                  <p className="jrw-owner-governance__error" role="alert">
+                  <p className="font-system text-[0.8125rem] font-bold text-brand-danger" role="alert">
                     {formSummary}
                   </p>
                 ) : null}

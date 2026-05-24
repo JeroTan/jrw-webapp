@@ -473,9 +473,9 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
         key: "name",
         header: "Product",
         cell: (product) => (
-          <div className="jrw-products__cell-stack">
+          <div className="grid gap-0.5">
             <strong>{product.name}</strong>
-            <span className="jrw-products__cell-meta">{product.slug}</span>
+            <span className="text-xs text-brand-muted">{product.slug}</span>
           </div>
         ),
       },
@@ -483,9 +483,9 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
         key: "brandCategory",
         header: "Brand / Category",
         cell: (product) => (
-          <div className="jrw-products__cell-stack">
+          <div className="grid gap-0.5">
             <span>{brandLabel(product)}</span>
-            <span className="jrw-products__cell-meta">{categoryLabel(product)}</span>
+            <span className="text-xs text-brand-muted">{categoryLabel(product)}</span>
           </div>
         ),
       },
@@ -503,12 +503,12 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
         key: "stock",
         header: "Stock / Availability",
         cell: (product) => (
-          <div className="jrw-products__cell-stack">
+          <div className="grid gap-0.5">
             <StatusBadge
               label={availabilityLabel(product)}
               tone={availabilityTone(product)}
             />
-            <span className="jrw-products__cell-meta">
+            <span className="text-xs text-brand-muted">
               {product.variantCount} variants
             </span>
           </div>
@@ -543,7 +543,7 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
           return (
             <div
               aria-label={`Actions for ${product.name}`}
-              className="jrw-products__table-actions"
+              className="inline-flex flex-wrap gap-grid-xs"
               onKeyDown={(event) => {
                 if (event.target !== event.currentTarget) {
                   return;
@@ -711,16 +711,16 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
   }
 
   return (
-    <main className="jrw-products">
-      <header className="jrw-products__header">
+    <main className="mx-auto w-full max-w-[1240px] p-grid-md max-md:p-grid-sm">
+      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
         <div>
-          <p className="jrw-page-kicker">Catalog management</p>
-          <h1 className="jrw-products__title">Products</h1>
-          <p className="jrw-page-copy">
+          <p className="font-system text-xs font-bold uppercase text-brand-muted">Catalog management</p>
+          <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">Products</h1>
+          <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
             Manage product identity, variants, pricing, inventory, and publish status.
           </p>
         </div>
-        <dl className="jrw-products__metrics" aria-label="Product summary">
+        <dl className="m-0 grid grid-cols-2 border border-brand-border-strong bg-brand-surface max-md:grid-cols-1 [&>div]:grid [&>div]:gap-grid-xs [&>div]:border-r [&>div]:border-brand-border [&>div]:p-grid-sm [&>div:last-child]:border-r-0 max-md:[&>div]:border-r-0 max-md:[&>div]:border-b max-md:[&>div:last-child]:border-b-0 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:text-brand-muted [&_dd]:m-0 [&_dd]:font-heading [&_dd]:text-xl [&_dd]:font-bold" aria-label="Product summary">
           <div>
             <dt>Total items</dt>
             <dd>{loadState === "ready" ? totalItems : "-"}</dd>
@@ -749,7 +749,7 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
       />
       <PageToolbar
         main={
-          <div className="jrw-control-grid">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-grid-sm">
             <Select
               label="Brand filter"
               onChange={(event) => setBrandFilter(event.currentTarget.value)}
@@ -791,9 +791,9 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
         }
       />
 
-      <section className="jrw-products__section">
+      <section className="grid gap-grid-sm py-grid-md">
         {loadState === "loading" ? (
-          <div className="jrw-products__table-skeleton" role="status">
+          <div className="border border-brand-border-strong bg-brand-surface p-grid-sm" role="status">
             <Skeleton label="Loading product table" lines={6} />
           </div>
         ) : null}
@@ -866,7 +866,7 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
               return (
                 <ResourceCard
                   action={
-                    <div className="jrw-products__table-actions">
+                    <div className="inline-flex flex-wrap gap-grid-xs">
                       <Button
                         disabled={!canMutate.allowed}
                         onClick={() => openEditor({ mode: "edit", product })}
@@ -1000,7 +1000,7 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
       />
 
       {toast ? (
-        <aside className="jrw-products__toast">
+        <aside className="fixed bottom-grid-md right-grid-md z-[60] max-md:bottom-grid-sm max-md:left-grid-sm max-md:right-grid-sm">
           <Toast
             message={toast.message}
             onDismiss={() => setToast(null)}

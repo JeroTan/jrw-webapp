@@ -1,8 +1,10 @@
 import * as React from "react";
 import type { HTMLAttributes } from "react";
 
-import { mergeClassNames } from "../utils";
 import { Badge, type BadgeTone } from "./Badge";
+
+const statusMarkClass =
+  "size-2 border border-current bg-current";
 
 export type StatusBadgeProps = Omit<
   HTMLAttributes<HTMLSpanElement>,
@@ -21,10 +23,10 @@ export function StatusBadge({
   return (
     <Badge
       {...props}
-      className={mergeClassNames("jrw-status-badge", className)}
+      className={className}
       tone={tone}
     >
-      <span className="jrw-status-badge__mark" aria-hidden="true" />
+      <span className={statusMarkClass} aria-hidden="true" />
       <span>{label}</span>
     </Badge>
   );

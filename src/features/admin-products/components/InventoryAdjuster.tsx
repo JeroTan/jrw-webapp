@@ -35,7 +35,7 @@ export function InventoryAdjuster({
   onReasonChange,
 }: InventoryAdjusterProps) {
   return (
-    <div className="jrw-inventory-adjuster">
+    <div className="grid gap-grid-xs">
       <Input
         description="Non-negative integer. Quantity 0 maps to Out of stock unless state is Preorder."
         disabled={disabled}
@@ -71,10 +71,10 @@ export function InventoryAdjuster({
       ) : null}
 
       {conflictMessage ? (
-        <section className="jrw-inventory-adjuster__conflict" role="alert">
-          <p className="jrw-field__error">{conflictMessage}</p>
+        <section className="grid gap-0.5" role="alert">
+          <p className="font-system text-xs font-bold text-brand-danger">{conflictMessage}</p>
           {allowedNextAction ? (
-            <p className="jrw-field__description">Next action: {allowedNextAction}</p>
+            <p className="font-system text-xs text-brand-muted">Next action: {allowedNextAction}</p>
           ) : null}
         </section>
       ) : null}
