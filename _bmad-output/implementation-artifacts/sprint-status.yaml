@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-12T08:38:32+08:00"
-last_updated: "2026-05-24T17:25:33+08:00"
+last_updated: "2026-05-24T17:45:16+08:00"
 project: jrw-webapp
 project_key: NOKEY
 tracking_system: file-system
@@ -82,7 +82,7 @@ development_status:
   4-1-storefront-shell-design-tokens-and-public-navigation: done
   4-2-product-grid-category-browsing-search-and-filters: done
   4-3-product-detail-experience: done
-  4-4-cart-add-update-remove: backlog
+  4-4-cart-add-update-remove: ready-for-dev
   4-5-availability-blocking-before-checkout: backlog
   4-6-storefront-responsive-accessibility-and-performance-qa: backlog
   4-7-storefront-and-cart-ui-primitive-extensions: backlog
