@@ -14,7 +14,7 @@ workflowStatus: "complete"
 projectName: "jrw-webapp"
 userName: "MR. JRW"
 createdDate: "2026-05-11"
-lastUpdated: "2026-05-20"
+lastUpdated: "2026-05-24"
 completedAt: "2026-05-12"
 ---
 
@@ -181,6 +181,8 @@ FR75: Project can maintain identity-realm boundary documentation and regression 
 FR76: Admin resource pages can provide searchable, responsive browse controls with appropriate card/list/table views so records are digestible without losing dense operational scanning.
 
 FR77: Project can maintain component-level UI specifications for shared shell, navigation, footer, toolbar, view toggle, search, card/list/table, loading, empty, and permission patterns.
+
+FR78: Project can maintain Tailwind utility-first UI implementation rules so feature-specific styling stays visible in markup, uses JRW brand theme tokens, and avoids one-off `jrw-*` runtime class layers.
 
 ### NonFunctional Requirements
 
@@ -541,6 +543,8 @@ FR76: Epic 3.0 - Searchable responsive admin resource browser patterns.
 
 FR77: Epic 3.0 - Component-level UI specifications for shared shell, navigation, footer, toolbar, resource views, loading, empty, and permission patterns.
 
+FR78: Epic 1.5 / Epic 3.0 / Epic 4 - Tailwind utility-first UI implementation guardrails with JRW brand tokens and no one-off runtime class layers.
+
 ## Epic List
 
 ### Epic 1: Trusted Access, Governance, and Rebuild Guardrails
@@ -821,7 +825,7 @@ As a developer/agent,
 I want local JRW fonts, Tailwind CSS v4 tokens, and the first reusable UI primitives configured before auth/governance UI starts,
 So that Epic 1 and later features share one typography, control, state, and accessibility foundation.
 
-**Requirements covered:** UX-DR1; supports UX-DR2, UX-DR30, and Epic 1 UI flows.
+**Requirements covered:** UX-DR1, FR78; supports UX-DR2, UX-DR30, and Epic 1 UI flows.
 
 **Acceptance Criteria:**
 
@@ -843,7 +847,7 @@ So that Epic 1 and later features share one typography, control, state, and acce
 **Given** Epic 1 auth and governance UI needs repeatable controls
 **When** baseline shared primitives are implemented
 **Then** reusable components exist under `src/components/**` for `Button`, `IconButton`, `Input`, `Textarea`, `Select`, `Checkbox`, `Toggle`, `Badge`, `StatusBadge`, `Tabs`, `DataTable`, `Modal`, `Toast`, `ConfirmDialog`, `EmptyState`, and `Skeleton`
-**And** components use Tailwind CSS v4 tokens/local CSS only, without adopting a full external component library.
+**And** components use Tailwind CSS v4 utility classes and JRW theme tokens directly, without adopting a full external component library or hiding one-off element styling behind `jrw-*` selectors.
 
 **Given** primitive components render user-facing controls
 **When** keyboard, focus, status, loading, disabled, empty, and error states are reviewed
@@ -855,6 +859,11 @@ So that Epic 1 and later features share one typography, control, state, and acce
 **Then** it first reuses or extends existing `src/components/**` primitives where the behavior is generic
 **And** feature-specific components stay under `src/features/<feature>/**` until reuse across features justifies promotion to shared components.
 
+**Given** feature-specific UI needs layout, spacing, color, or responsive state
+**When** implementation adds or changes markup
+**Then** developer uses Tailwind utility classes plus JRW tokens such as `bg-brand-accent`, `text-brand-muted`, `border-brand-border-strong`, `p-grid-sm`, `gap-grid-xs`, and responsive variants directly in JSX/Astro
+**And** no new one-off `jrw-*` runtime classes or deleted `src/styles/features/**`, `src/styles/storefront/**`, or `src/styles/components/_ui.css` class layers are introduced.
+
 **Given** validation exists
 **When** story implementation finishes
 **Then** `npm run check` passes or blocker is documented
@@ -862,7 +871,7 @@ So that Epic 1 and later features share one typography, control, state, and acce
 
 **Given** story outputs are reviewed
 **When** implementation is accepted
-**Then** `src/styles/global.css`, documented Tailwind/CSS token names, one shared layout/page import, and baseline primitive component exports are present
+**Then** `src/styles/global.css`, documented Tailwind token names, one shared layout/page import, and baseline primitive component exports are present
 **And** rendered font loading plus primitive smoke checks are verified or blockers are documented.
 
 ### Story 1.6: Seed Unique Super Admin and Deprecated Role Alias
@@ -1738,7 +1747,7 @@ As an Admin,
 I want searchable resource pages with clear card/list/table patterns,
 So that brands, catalog records, and future admin resources are easy to scan and manage.
 
-**Requirements covered:** FR76, FR77; supports UX-DR10, UX-DR11, UX-DR21, UX-DR23, UX-DR29, UX-DR34.
+**Requirements covered:** FR76, FR77, FR78; supports UX-DR10, UX-DR11, UX-DR21, UX-DR23, UX-DR29, UX-DR34.
 
 **Acceptance Criteria:**
 
@@ -1765,6 +1774,7 @@ So that brands, catalog records, and future admin resources are easy to scan and
 **Given** component inventory is documented
 **When** future admin pages are built
 **Then** specs exist for DashboardShell, SidebarNav, TopBar, Footer, PageToolbar, SearchInput, ViewToggle, ResourceCard, ResourceList, DataTable, EmptyState, and Skeleton.
+**And** specs document Tailwind utility-first implementation: shared components can keep repeated class constants internally, while feature-specific admin styling stays visible in markup and does not add one-off `jrw-*` runtime selectors.
 
 **Given** accessibility QA runs
 **When** keyboard and screen-reader checks are performed
@@ -2218,7 +2228,7 @@ As a Prospect,
 I want a sharp JRW storefront shell with clear navigation,
 So that I can browse products without an account wall.
 
-**Requirements covered:** FR32, FR33; supports FR9; UX-DR1, UX-DR23, UX-DR28, UX-DR30.
+**Requirements covered:** FR32, FR33; supports FR9, FR78; UX-DR1, UX-DR23, UX-DR28, UX-DR30.
 
 **Acceptance Criteria:**
 
@@ -2230,6 +2240,7 @@ So that I can browse products without an account wall.
 **Given** design tokens are loaded
 **When** storefront UI renders
 **Then** it uses JRW Technical Brutalist tokens: 0px radius, 1px borders, no shadows/blur, cobalt accent, Satoshi headings where available, Space Mono utility text where available.
+**And** implementation uses Tailwind utilities and JRW brand tokens directly in markup instead of custom `jrw-*` storefront selectors.
 
 **Given** storefront shell is responsive
 **When** viewport is mobile, tablet, desktop, or wide desktop
@@ -2499,7 +2510,7 @@ As a Customer, Prospect, Admin, or Super Admin,
 I want storefront and cart UI to extend the shared primitive kit instead of creating duplicate controls,
 So that storefront, checkout, dashboard, and governance flows behave predictably while each epic can add only the components it needs.
 
-**Requirements covered:** UX-DR2; supports FR32-FR58 UI flows.
+**Requirements covered:** UX-DR2; supports FR32-FR58 UI flows and FR78.
 
 **Acceptance Criteria:**
 
@@ -2507,6 +2518,7 @@ So that storefront, checkout, dashboard, and governance flows behave predictably
 **When** storefront and cart UI need common controls
 **Then** they reuse or extend existing `Button`, `IconButton`, `Input`, `Select`, `Checkbox`, `Toggle`, `Badge`, `StatusBadge`, `Tabs`, `Modal`, `Toast`, `ConfirmDialog`, `EmptyState`, and `Skeleton`
 **And** duplicate feature-local versions of those base controls are not introduced.
+**And** styling composes Tailwind utilities and JRW brand tokens directly instead of recreating feature/storefront CSS class layers.
 
 **Given** storefront and cart flows need reusable UI beyond the Epic 1 baseline
 **When** missing generic primitives are implemented

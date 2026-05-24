@@ -16,7 +16,7 @@ workflowStatus: "complete"
 lastStep: 8
 status: "complete"
 completedAt: "2026-05-11"
-lastEdited: "2026-05-20"
+lastEdited: "2026-05-24"
 project_name: "jrw-webapp"
 user_name: "MR. JRW"
 date: "2026-05-11"
@@ -36,6 +36,7 @@ sourcePriority:
 notes:
   - "JRW is single-store ecommerce; brands are catalog/collaboration groups, not stores, sellers, merchants, tenants, payout owners, or PayMongo accounts."
   - "Do not add obsolete domain roles, routes, order states, tenancy rules, or operational behavior unless current PRD explicitly requires them."
+  - "UI styling correction: use Tailwind utilities and JRW theme tokens directly in markup; do not recreate one-off jrw-* runtime class layers."
 ---
 
 # Architecture Decision Document
@@ -89,7 +90,7 @@ Brownfield constraints:
 - Admin login is current real flow.
 - Authorization middleware and protected route guards are not complete.
 - Durable Object inventory safety is scaffolded only.
-- Storefront/admin UI is not implemented.
+- Storefront/admin UI is partially implemented and now uses Tailwind utility-first markup with JRW theme tokens.
 - `src/server/app.ts` contains outdated scaffold text and must be reconciled.
 - Existing `src/lib/**` and `src/utils/**` helpers must be inspected and reused when fit.
 
@@ -162,6 +163,11 @@ TypeScript on Node `>=22.12.0`, deployed to Cloudflare Workers. Astro 6 requires
 **Styling Solution:**
 Tailwind CSS v4 through Vite plugin. JRW design tokens come from `docs/design-by-google-stitch.md`, not a generic component library.
 
+**UI Styling Architecture Correction (2026-05-24):**
+JRW UI is Tailwind utility-first. Runtime JSX/Astro markup should use Tailwind classes plus project theme tokens directly, for example `bg-brand-accent`, `text-brand-muted`, `border-brand-border-strong`, `p-grid-sm`, `gap-grid-xs`, `min-h-control-md`, and responsive variants such as `xs:`, `md:`, `lg:`, and `3xl:`. Do not create one-off `jrw-*` or page/BEM selectors for feature elements.
+
+`src/styles/global.css` is only the Tailwind entrypoint plus imports for fonts, brand/theme tokens, spacing/breakpoint tokens, and global base styles. Shared primitives in `src/components/**` may hold repeated Tailwind class constants inside component files; feature-specific UI keeps utilities close to markup unless cross-feature reuse justifies promotion into a shared component.
+
 **Build Tooling:**
 Astro + Vite build pipeline, Cloudflare adapter, Wrangler deploys, and env-scoped D1/R2/Durable Object bindings in `wrangler.jsonc`.
 
@@ -196,7 +202,7 @@ Use `npm run dev` for Astro development, `npm run wrangler-dev` for Cloudflare-s
 
 **Important Decisions (Shape Architecture):**
 - Frontend uses Astro pages plus React feature islands.
-- UI uses local primitives and JRW Stitch tokens, no full component library.
+- UI uses local primitives, JRW Stitch tokens, and Tailwind utility classes in markup; no full component library and no one-off `jrw-*` runtime class layer.
 - Payment, fulfillment, return, refund, inventory, and product status remain separate.
 - Manual return/refund records are admin operations, not PayMongo refund execution.
 - Error tracking is env-gated; Cloudflare logs/request IDs are MVP baseline.
@@ -531,7 +537,7 @@ Controllers adapt transport data. Services orchestrate use cases. Domain modules
 D1 is source of truth. Durable Objects coordinate inventory reservation/release only. R2 stores product assets. PayMongo, Resend, and Google OAuth stay behind `src/lib/**` clients and `src/adapter/infrastructure/**` adapters.
 
 **Visual System Boundaries:**
-JRW UI uses `docs/design-by-google-stitch.md`: sharp 0px corners, 1px borders, no shadows, no blur, Satoshi headings, Space Mono utility text, cobalt accent, dense dashboard tables, responsive storefront parity, and product imagery as warmth.
+JRW UI uses `docs/design-by-google-stitch.md`: sharp 0px corners, 1px borders, no shadows, no blur, Satoshi headings, Space Mono utility text, cobalt accent, dense dashboard tables, responsive storefront parity, and product imagery as warmth. Implementation uses Tailwind v4 theme tokens and utility classes directly in JSX/Astro. CSS files define tokens/base only; they do not hide feature-specific layout behind `jrw-*` selectors.
 
 ### Requirements to Structure Mapping
 

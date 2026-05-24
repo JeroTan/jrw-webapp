@@ -2,6 +2,7 @@
 project_name: "jrw-webapp"
 user_name: "MR. JRW"
 date: "2026-05-11"
+lastUpdated: "2026-05-24"
 sections_completed:
   - technology_stack
   - language_rules
@@ -11,7 +12,7 @@ sections_completed:
   - workflow_rules
   - anti_patterns
 status: "complete"
-rule_count: 85
+rule_count: 89
 optimized_for_llm: true
 existing_patterns_found: 18
 ---
@@ -207,7 +208,11 @@ Tooling:
 
 - Follow `docs/design-by-google-stitch.md`: sharp 0px corners, 1px grid/borders, no shadows, no blur, no soft generic ecommerce style.
 - Use Satoshi for headings/identity and Space Mono for utility/system text when fonts are available.
-- Use `src/styles/global.css` as the Tailwind CSS v4 project style surface for `@theme`, `@utility`, and reusable component classes; extract repeated long Tailwind class chains there so feature `className` values stay short and readable.
+- Use Tailwind CSS v4 utility classes directly in JSX/Astro markup for feature-specific layout, spacing, color, and state. Do not create one-off `jrw-*` or page/BEM CSS classes for single elements.
+- Use `src/styles/global.css` only as the Tailwind entrypoint plus font imports, `@theme` brand tokens, spacing/breakpoint tokens, and global base styles. Do not reintroduce deleted `src/styles/features/**`, `src/styles/storefront/**`, or `src/styles/components/_ui.css` class layers.
+- Brand tokens live in `src/styles/_colors.css` and `src/styles/_tokens.css`; prefer classes such as `bg-brand-accent`, `text-brand-muted`, `border-brand-border-strong`, `p-grid-sm`, `gap-grid-xs`, `min-h-control-md`, and responsive variants like `xs:`, `md:`, `lg:`, `3xl:` over raw colors/spacing or custom `jrw-*` selectors.
+- Shared primitives in `src/components/**` may keep reusable Tailwind class constants inside component files. Feature-specific UI should keep utility classes close to element markup unless true cross-feature reuse belongs in a shared component.
+- Before finishing UI work, run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`; runtime UI should have no matches except legitimate brand slugs, fixture text, or tests that explicitly assert absence.
 - Use cobalt accent sparingly for focus, selected state, primary action, and live status.
 - Storefront must be responsive-first with desktop and mobile parity.
 - Admin dashboard is desktop-first, dense, table-driven, keyboard-friendly, and operation-focused.
@@ -251,7 +256,7 @@ Tooling:
 - Auth is realm-specific: Admin auth uses `/api/admin/auth/*` with `jrw_admin_session`; Customer auth uses `/api/customer/auth/*` with `jrw_customer_session`. Generic `/api/auth/*` is removed.
 - Server-side RBAC guards are implemented for completed protected Admin/Customer route groups; future protected endpoints must use the same guard pattern.
 - Durable Object inventory locking is scaffolded only.
-- Storefront and admin UI are not implemented yet.
+- Storefront/admin UI is partially implemented in current feature modules. Future UI changes must preserve Tailwind utility-first markup and avoid resurrecting deleted `jrw-*` CSS class layers.
 - Existing API response shapes are inconsistent; standardize before marking endpoints complete.
 - `src/api/**` still has outdated scaffold text and routes. Treat it as migration source only and follow Story 1.3 baseline before removal.
 - Old docs mention automated PayMongo refunds and apparel-only scope; current PRD prefers lifestyle products and manual refund/return recording for MVP.
@@ -273,4 +278,4 @@ For humans:
 - Remove rules once code structure makes them obvious.
 - Review after architecture artifact or major source reorganization.
 
-Last Updated: 2026-05-19
+Last Updated: 2026-05-24

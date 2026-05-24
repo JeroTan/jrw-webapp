@@ -36,7 +36,7 @@ projectName: "jrw-webapp"
 userName: "MR. JRW"
 createdDate: "2026-05-11"
 completedAt: "2026-05-11"
-lastEdited: "2026-05-20"
+lastEdited: "2026-05-24"
 projectContext: "brownfield_rebuild_with_existing_tangram_docs_and_partial_api_implementation"
 classification:
   projectType:
@@ -63,6 +63,8 @@ editHistory:
     changes: "Removed stale deleted-folder reference from PRD input documents; no product requirements changed."
   - date: "2026-05-20"
     changes: "Added approved admin resource browsing and component-level UI specification requirements FR76-FR77."
+  - date: "2026-05-24"
+    changes: "Added FR78 and maintainability rules for Tailwind utility-first UI implementation with JRW brand theme tokens and no one-off jrw-* runtime class layers."
 ---
 
 # Product Requirements Document - jrw-webapp
@@ -747,6 +749,7 @@ Resource risks:
 - FR75: Project can maintain identity-realm boundary documentation and regression tests that prevent customer-facing code from querying Admin account storage and prevent Admin auth code from querying Customer account storage.
 - FR76: Admin resource pages can provide searchable, responsive browse controls with appropriate card/list/table views so records are digestible without losing dense operational scanning.
 - FR77: Project can maintain component-level UI specifications for shared shell, navigation, footer, toolbar, view toggle, search, card/list/table, loading, empty, and permission patterns.
+- FR78: Project can maintain Tailwind utility-first UI implementation rules so feature-specific styling stays visible in markup, uses JRW brand theme tokens, and avoids one-off `jrw-*` runtime class layers.
 
 ## Non-Functional Requirements
 
@@ -817,3 +820,4 @@ Resource risks:
 - API contract documentation must cover 100% of implemented endpoints before release.
 - Contract drift must be caught by automated tests, generated docs diff, or manual release checklist before deployment.
 - Existing helpers and utilities must be inventoried before replacement to avoid duplicate abstractions.
+- UI implementation must use Tailwind CSS v4 utilities plus JRW brand theme tokens directly in feature markup for feature-specific styling. Runtime UI must not introduce one-off `jrw-*`/BEM CSS classes or feature/storefront CSS class layers that require debugging across JSX and CSS files.
