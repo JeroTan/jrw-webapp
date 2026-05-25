@@ -15,16 +15,16 @@ describe("storefront shell UI", () => {
     expect(markup).toContain("[&amp;:hover]:border-brand-accent");
     expect(markup).toContain("hover:text-brand-accent");
     expect(markup).toContain("Search products");
-    expect(markup).not.toContain("action=\"/cart\"");
+    expect(markup).not.toContain('action="/cart"');
   });
 
   it("uses accent text hover for the JRW home mark without hover border", () => {
     const markup = renderToStaticMarkup(createElement(StorefrontHeader));
     const homeMarkClasses = Array.from(
       markup.matchAll(
-        /<a aria-label="JRW\. lifestyle products home" class="([^"]+)"/g,
+        /<a aria-label="JRW\. lifestyle products home" class="([^"]+)"/g
       ),
-      ([, className]) => className,
+      ([, className]) => className
     );
 
     expect(homeMarkClasses).toHaveLength(2);
@@ -46,5 +46,4 @@ describe("storefront shell UI", () => {
     expect(match?.[1]).toContain("hover:text-brand-surface");
     expect(match?.[1]).not.toContain("text-brand-content");
   });
-
 });

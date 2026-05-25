@@ -91,7 +91,7 @@ export function ProductCatalogPage({
       aria-labelledby="product-catalog-title"
       className="grid gap-grid-md"
     >
-      <header className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-md">
+      <header className="grid gap-grid-sm bg-brand-surface p-grid-md">
         <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
           {hero.kicker}
         </p>

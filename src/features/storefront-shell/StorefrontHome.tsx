@@ -1,5 +1,5 @@
 import * as React from "react";
-import { storefrontHomeLinks } from "../data";
+import { storefrontHomeLinks } from "./data";
 
 export function StorefrontHome() {
   return (
@@ -8,8 +8,13 @@ export function StorefrontHome() {
       aria-labelledby="storefront-home-title"
     >
       <div className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-md">
-        <p className="font-system text-xs font-bold uppercase text-brand-muted">JRW. Storefront</p>
-        <h1 className="max-w-[16ch] font-identity text-[clamp(2rem,9vw,4.5rem)] [overflow-wrap:anywhere]" id="storefront-home-title">
+        <p className="font-system text-xs font-bold uppercase text-brand-muted">
+          JRW. Storefront
+        </p>
+        <h1
+          className="max-w-[16ch] font-identity text-[clamp(2rem,9vw,4.5rem)] [overflow-wrap:anywhere]"
+          id="storefront-home-title"
+        >
           Lifestyle products, ready to browse.
         </h1>
         <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
@@ -42,7 +47,10 @@ export function StorefrontHome() {
         <ul className="m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(min(100%,220px),1fr))] gap-grid-sm p-0 lg:grid-cols-4">
           {storefrontHomeLinks.map((link) => (
             <li key={link.href}>
-              <a className="grid min-h-[168px] gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm no-underline hover:border-brand-accent focus-visible:border-brand-accent motion-safe:transition-colors motion-safe:duration-[120ms]" href={link.href}>
+              <a
+                className="grid min-h-[168px] gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm no-underline hover:border-brand-accent focus-visible:border-brand-accent motion-safe:transition-colors motion-safe:duration-[120ms]"
+                href={link.href}
+              >
                 <span className="font-identity text-[1.15rem] font-bold">
                   {link.label}
                 </span>
