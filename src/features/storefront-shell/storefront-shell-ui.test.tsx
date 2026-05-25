@@ -9,11 +9,9 @@ describe("storefront shell UI", () => {
     const markup = renderToStaticMarkup(createElement(StorefrontHeader));
 
     expect(markup).toContain("Open cart, 0 items");
-    expect(markup).toContain("absolute -right-1.5 -top-1.5");
-    expect(markup).toContain("hover:!outline-0");
-    expect(markup).toContain("hover:border-brand-accent");
-    expect(markup).toContain("[&amp;:hover]:border-brand-accent");
-    expect(markup).toContain("hover:text-brand-accent");
+    expect(markup).toContain("-right-1.5 -top-1.5");
+    expect(markup).toContain("size-4.5");
+    expect(markup).toContain("hover:outline-2");
     expect(markup).toContain("Search products");
     expect(markup).not.toContain('action="/cart"');
   });
@@ -27,12 +25,11 @@ describe("storefront shell UI", () => {
       ([, className]) => className
     );
 
-    expect(homeMarkClasses).toHaveLength(2);
+    expect(homeMarkClasses).toHaveLength(1);
     for (const rawClassName of homeMarkClasses) {
       const className = rawClassName.replaceAll("&amp;", "&");
       expect(className).toContain("text-brand-content");
-      expect(className).toContain("hover:!text-brand-accent");
-      expect(className).toContain("[&:hover]:!text-brand-accent");
+      expect(className).toContain("hover:text-brand-accent");
       expect(className).not.toContain("hover:border-brand-accent");
       expect(className).not.toContain("hover:outline");
     }
@@ -43,7 +40,7 @@ describe("storefront shell UI", () => {
 
     expect(match?.[1]).toContain("bg-brand-accent");
     expect(match?.[1]).toContain("text-brand-surface");
-    expect(match?.[1]).toContain("hover:text-brand-surface");
+    expect(match?.[1]).toContain("hover:outline-brand-accent");
     expect(match?.[1]).not.toContain("text-brand-content");
   });
 });

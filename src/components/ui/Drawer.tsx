@@ -8,7 +8,7 @@ import {
 } from "react";
 
 import { mergeClassNames } from "../utils";
-import { IconButton } from "./IconButton";
+import { Button } from "./Button";
 
 const drawerClass =
   "fixed inset-0 z-50 grid grid-cols-[minmax(0,1fr)_minmax(320px,440px)] max-sm:grid-cols-1";
@@ -157,13 +157,17 @@ export function Drawer({
               </p>
             ) : null}
           </div>
-          <IconButton label={closeLabel} onClick={onClose} tooltip={closeLabel}>
+          <Button
+            aria-label={closeLabel}
+            onClick={onClose}
+            square
+            title={closeLabel}
+          >
             x
-          </IconButton>
+          </Button>
         </header>
         <div className="min-h-0 overflow-auto p-grid-sm">{children}</div>
       </section>
     </div>
   );
 }
-

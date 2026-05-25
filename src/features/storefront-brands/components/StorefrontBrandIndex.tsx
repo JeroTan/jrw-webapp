@@ -1,4 +1,7 @@
-import { SearchInput } from "@/components/ui";
+import * as React from "react";
+
+import { Button, ButtonLink, SearchInput } from "@/components/ui";
+import { StorefrontHero } from "@/features/storefront-shell/StorefrontHero";
 
 import type { StorefrontBrandRow } from "../types";
 import { BrandProductStrip } from "./BrandProductStrip";
@@ -46,18 +49,16 @@ export function StorefrontBrandIndex({
       aria-labelledby="storefront-brands-title"
       className="grid gap-grid-md"
     >
-      <header className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-md">
-        <p className="font-system text-xs font-bold uppercase text-brand-muted">Brands</p>
-        <h1
-          className="max-w-[18ch] font-identity text-[clamp(2rem,8vw,4rem)] [overflow-wrap:anywhere]"
-          id="storefront-brands-title"
-        >
-          Browse by brand.
-        </h1>
-        <p className="max-w-[64ch] text-[0.9375rem] text-brand-muted">
-          Browse products grouped under each brand.
-        </p>
-      </header>
+      <StorefrontHero
+        actions={[
+          { href: "/products", label: "Browse products", variant: "primary" },
+          { href: "/products?view=categories", label: "Browse categories" },
+        ]}
+        copy="Browse products grouped under each brand."
+        id="storefront-brands-title"
+        kicker="Brands"
+        title="Browse by brand."
+      />
 
       <div className="grid gap-grid-sm md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
         <aside
@@ -65,7 +66,9 @@ export function StorefrontBrandIndex({
           className="self-start border border-brand-border-strong bg-brand-surface p-grid-sm"
         >
           <form action="/brands" className="m-0 grid gap-grid-sm">
-            <p className="font-system text-xs font-bold uppercase text-brand-muted">Filters</p>
+            <p className="font-system text-xs font-bold uppercase text-brand-muted">
+              Filters
+            </p>
             <SearchInput
               defaultValue={query}
               id="brand-search"
@@ -82,12 +85,9 @@ export function StorefrontBrandIndex({
               />
               <span>Brands with products</span>
             </label>
-            <button
-              className="inline-flex min-h-control-md items-center justify-center gap-grid-xs rounded-none border border-brand-border-strong bg-brand-surface px-grid-sm font-system font-bold leading-none text-brand-content no-underline shadow-none whitespace-nowrap filter-none hover:border-brand-accent min-h-control-md px-grid-sm bg-brand-surface text-brand-content"
-              type="submit"
-            >
+            <Button textSize="xs" type="submit">
               Apply filters
-            </button>
+            </Button>
           </form>
         </aside>
 
@@ -97,7 +97,10 @@ export function StorefrontBrandIndex({
             className="m-0 grid list-none gap-grid-sm p-0"
           >
             {filteredRows.map((brand) => (
-              <li className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm" key={brand.id}>
+              <li
+                className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm"
+                key={brand.id}
+              >
                 <div className="flex flex-wrap items-center justify-between gap-grid-xs">
                   <a
                     className="font-identity text-[1.35rem] font-extrabold no-underline hover:text-brand-accent focus-visible:text-brand-accent [overflow-wrap:anywhere]"
@@ -116,9 +119,9 @@ export function StorefrontBrandIndex({
         ) : (
           <div className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm text-brand-muted [&_p]:m-0">
             <p>{emptyMessage}</p>
-            <a className="inline-flex min-h-control-md w-fit items-center justify-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent motion-safe:transition-colors motion-safe:duration-[120ms]" href="/products">
+            <ButtonLink href="/products" textSize="xs">
               Browse all products
-            </a>
+            </ButtonLink>
           </div>
         )}
       </div>

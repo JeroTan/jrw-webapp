@@ -70,6 +70,7 @@ This is medium-high complexity for MVP because payment, inventory, identity, rol
 ### Technical Constraints & Dependencies
 
 Current accepted stack from project context:
+
 - Astro server output on Cloudflare Workers
 - React islands / feature modules
 - Tailwind CSS v4 with JRW Technical Brutalist tokens
@@ -86,6 +87,7 @@ Current accepted stack from project context:
 - Vitest for domain/service tests
 
 Brownfield constraints:
+
 - Existing source has partial API foundation and many mock handlers.
 - Admin login is current real flow.
 - API authorization guards are implemented for protected endpoints; Astro page middleware must gate protected admin routes before dashboard shell rendering.
@@ -187,6 +189,7 @@ Use `npm run dev` for Astro development, `npm run wrangler-dev` for Cloudflare-s
 ### Decision Priority Analysis
 
 **Critical Decisions (Block Implementation):**
+
 - Keep the existing Cloudflare Astro foundation; no fresh scaffold.
 - Canonical API entrypoint becomes `src/server/app.ts`; Astro catch-all stays a thin bridge.
 - Use Route -> Controller -> Service -> Domain/Repository.
@@ -202,6 +205,7 @@ Use `npm run dev` for Astro development, `npm run wrangler-dev` for Cloudflare-s
 - Add Vitest tests for domain/service rules before risky provider/UI wiring.
 
 **Important Decisions (Shape Architecture):**
+
 - Frontend uses Astro pages plus React feature islands.
 - UI uses local primitives, JRW Stitch tokens, and Tailwind utility classes in markup; no full component library and no one-off `jrw-*` runtime class layer.
 - Payment, fulfillment, return, refund, inventory, and product status remain separate.
@@ -209,6 +213,7 @@ Use `npm run dev` for Astro development, `npm run wrangler-dev` for Cloudflare-s
 - Error tracking is env-gated; Cloudflare logs/request IDs are MVP baseline.
 
 **Deferred Decisions (Post-MVP):**
+
 - Automated PayMongo refunds.
 - Marketplace/multi-store/sub-merchant payout model.
 - Admin OAuth.
@@ -247,6 +252,7 @@ Cloudflare Workers hosts SSR/API. D1, R2, and Durable Objects are first-class bi
 ### Decision Impact Analysis
 
 **Implementation Sequence:**
+
 1. Reconcile `src/server/app.ts` and `src/pages/api/[...slug].ts`; remove outdated route drift.
 2. Standardize API envelopes, error codes, request IDs, and OpenAPI helpers.
 3. Add schema migrations for roles, verification, approval, brands, status separation, reservations, payments, webhooks, returns/refunds.
@@ -269,6 +275,7 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 ### Naming Patterns
 
 **Database Naming Conventions:**
+
 - Tables use plural `snake_case`: `admins`, `brand_memberships`, `payment_events`.
 - Columns use `snake_case`: `brand_id`, `created_at`, `payment_status`.
 - IDs use primary key `id`; foreign keys use `{entity}_id`.
@@ -277,6 +284,7 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 - New money fields use integer centavos: `price_centavos`, `amount_centavos`.
 
 **API Naming Conventions:**
+
 - REST paths use plural kebab-case nouns: `/api/products`, `/api/brand-memberships`.
 - Route params use Elysia syntax with camelCase names: `/:productId`.
 - Query/body/response JSON uses camelCase.
@@ -284,6 +292,7 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 - Headers use lowercase constants in code, for example `x-request-id`.
 
 **Code Naming Conventions:**
+
 - Controllers, services, containers, route modules, and class-like modules use PascalCase files/classes.
 - Utility/lib helpers use kebab-case or lowercase files matching existing local pattern.
 - React components use PascalCase `.tsx`.
@@ -293,6 +302,7 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 ### Structure Patterns
 
 **Project Organization:**
+
 - `src/server/app.ts` composes the API.
 - `src/pages/api/[...slug].ts` only bridges Astro to Elysia.
 - API flow is Route -> Controller -> Service -> Domain/Repository.
@@ -304,6 +314,7 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 - `src/utils/**` owns atomic provider-free helpers.
 
 **File Structure Patterns:**
+
 - Co-locate pure domain/service tests as `*.test.ts`.
 - Shared fixtures live in `src/test/fixtures/**`.
 - Provider mocks/fakes live near adapter tests.
@@ -312,6 +323,7 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 ### Format Patterns
 
 **API Response Formats:**
+
 - Success response is `{ data, meta }`.
 - Error response is `{ error: { code, message, details? } }`.
 - Include `meta.requestId` when available.
@@ -319,6 +331,7 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 - Do not use legacy `{ data, message, code }` for completed endpoints.
 
 **Data Exchange Formats:**
+
 - Dates/times use ISO 8601 UTC strings.
 - Money uses centavos integers in API/domain/provider boundaries.
 - Booleans use `true`/`false` in API; D1 may use integer boolean only in schema.
@@ -327,12 +340,14 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 ### Communication Patterns
 
 **Event System Patterns:**
+
 - Event names use lower dot form: `order.status_changed`, `payment.webhook_processed`.
 - Event payload base is `eventId`, `requestId`, `actor`, `target`, `occurredAt`, and `version`.
 - Webhook events require idempotency key before mutation.
 - Audit events include actor, action, entity, entityId, safe details, timestamp, and requestId.
 
 **State Management Patterns:**
+
 - Server state is authority for auth, cart checkout, inventory, payment, and order status.
 - Frontend local state only handles UI interaction, form drafts, filters, and optimistic display.
 - Do not add a global state library in MVP unless a story proves need.
@@ -341,12 +356,14 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 ### Process Patterns
 
 **Error Handling Patterns:**
+
 - Domain/services return `AppResult`/`GeneralError`.
 - Controllers adapt results to public API envelopes.
 - Provider adapters normalize provider failures before the service layer sees them.
 - Validate before provider calls, inventory mutation, payment handoff, and state transitions.
 
 **Loading State Patterns:**
+
 - Buttons show pending state for mutations.
 - Tables, grids, cards, and lists use stable skeletons.
 - Skeleton pulse behavior is centralized and reduced-motion safe.
@@ -356,6 +373,7 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 ### Enforcement Guidelines
 
 **All AI Agents MUST:**
+
 - Read `_bmad-output/project-context.md` and this architecture before coding.
 - Reuse existing helpers before adding new wrappers.
 - Keep route handlers free of business rules.
@@ -363,6 +381,7 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 - Update architecture/project-context when introducing new cross-cutting patterns.
 
 **Pattern Enforcement:**
+
 - Run `npm run check` for typed changes.
 - Run `npm run build-test` once tests exist.
 - Code review rejects new ad hoc envelopes, raw provider errors, UI-only authorization, and duplicated wrappers.
@@ -370,6 +389,7 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 ### Pattern Examples
 
 **Good Examples:**
+
 - `POST /api/products/:productId/variants`
 - `brand_memberships.brand_id`
 - `order.status_changed`
@@ -378,6 +398,7 @@ Auth gates admin/customer UI. Brand membership gates catalog edits. Inventory re
 - `{ data: product, meta: { requestId } }`
 
 **Anti-Patterns:**
+
 - Business rules inside Elysia route handlers.
 - Brands modeled as stores, tenants, sellers, or PayMongo owners.
 - API JSON leaking snake_case DB rows directly.
@@ -525,7 +546,8 @@ Routes declare TypeBox contracts, OpenAPI metadata, auth metadata, rate-limit cl
 Astro owns page routing and SEO shells. React feature modules own interactive surfaces. Shared primitives go in `src/components/**`; feature-specific UI stays in `src/features/**`.
 
 `src/components/**` is intentionally narrow:
-- `src/components/ui/**` for `Button`, `IconButton`, `Input`, `SearchInput`, `SegmentedControl`, `ViewToggle`, modal/drawer triggers, tabs, badges, and low-level interactive controls.
+
+- `src/components/ui/**` for `Button`, `ButtonLink`, `Input`, `SearchInput`, `SegmentedControl`, `ViewToggle`, modal/drawer triggers, tabs, badges, and low-level interactive controls. Icon-sized button controls use `Button` with `square`, `aria-label`, and `title`.
 - `src/components/layout/**` for `DashboardShell`, storefront shell, page frames, sidebar slots, top bars, and footer layout.
 - `src/components/feedback/**` for `Skeleton`, empty states, toasts, and error states.
 - `src/components/navigation/**` for `SidebarNav`, `TopNav`, breadcrumbs, tabs, menus, and view toggles when navigation-like.
@@ -541,17 +563,25 @@ D1 is source of truth. Durable Objects coordinate inventory reservation/release 
 JRW UI uses `docs/design-by-google-stitch.md` and `_bmad-output/planning-artifacts/ux-design-directions.html`: sharp 0px corners, 1px borders, no shadows, no blur, Satoshi headings, Space Mono utility text, cobalt accent, dense dashboard tables, responsive storefront parity, and product imagery as warmth. Implementation uses Tailwind v4 theme tokens and utility classes directly in JSX/Astro. CSS files define tokens/base only; they do not hide feature-specific layout behind `jrw-*` selectors.
 
 Approved UI fidelity boundaries from 2026-05-24:
-- `Button` and `IconButton` hover/focus must use cobalt 2px outline with 2px offset, not border-color-only feedback.
+
+- `Button` and `ButtonLink` hover/focus must use cobalt 2px outline with 2px offset, not border-color-only feedback.
 - Product cards must match Direction 01 anatomy while preserving accepted storefront page layout.
 - Admin pages must use `DashboardShell`, sidebar, top context bar, role/scope state, session/logout controls, and owner-only navigation before new admin screens expand.
 - Admin sign-in, logout, and password reset UI must use existing Admin auth routes; Admin registration UI is out of MVP scope.
+
+Storefront shell boundaries from 2026-05-25 user overhaul:
+
+- `src/features/storefront-shell/StorefrontHeader.tsx` composes the header from `NavButton`, `SearchForm`, `CartAction`, and `ButtonLink`.
+- `CartAction` uses shared `Button`, `lucide-react` `ShoppingCart`, a quantity badge, and `CartDrawer`; the separate `IconButton` primitive is removed.
+- `StorefrontHero` is the shared storefront billboard for product, brand, category, and storefront-home pages. Feature pages must not hand-roll divergent hero headers.
+- Anchor CTAs use `ButtonLink`; submit/in-page actions use `Button`.
 
 ### Requirements to Structure Mapping
 
 - Roles/accounts: `src/domain/auth`, `src/domain/admins`, `src/features/super-admin`, `src/server/routes/auth.routes.ts`
 - Brands: `src/domain/brands`, `src/features/admin-brands`, `src/server/routes/brands.routes.ts`
 - Catalog/inventory: `src/domain/catalog`, `src/domain/inventory`, `src/features/admin-products`, `src/server/routes/products.routes.ts`
-- Storefront: `src/pages/index.astro`, `src/features/storefront`, `src/features/product-catalog`
+- Storefront: `src/pages/index.astro`, `src/features/storefront-shell`, `src/features/product-catalog`, `src/features/storefront-brands`, `src/features/product-detail`, `src/features/cart-checkout`
 - Checkout/payments: `src/domain/checkout`, `src/domain/payments`, `src/features/cart-checkout`, `src/server/routes/checkout.routes.ts`, `src/server/routes/webhooks.routes.ts`
 - Orders/returns/refunds: `src/domain/orders`, `src/domain/returns-refunds`, `src/features/admin-orders`, `src/server/routes/orders.routes.ts`
 - Notifications: `src/domain/notifications`, `src/adapter/infrastructure/resend`
@@ -634,12 +664,14 @@ Major AI conflict points are covered: file placement, response shape, status enu
 None.
 
 **Important Gaps:**
+
 - Exact D1 migration plan/table-by-table schema still needed during implementation.
 - Endpoint-level API contract table still needed.
 - CI workflow commands need finalization once tests exist.
 - `src/api/**` migration/removal should be the first backend cleanup story.
 
 **Nice-to-Have Gaps:**
+
 - Deployment runbook.
 - Observability dashboard/error-tracking setup.
 - Data retention/privacy operations checklist.
@@ -654,24 +686,28 @@ None.
 ### Architecture Completeness Checklist
 
 **Requirements Analysis**
+
 - [x] Project context thoroughly analyzed
 - [x] Scale and complexity assessed
 - [x] Technical constraints identified
 - [x] Cross-cutting concerns mapped
 
 **Architectural Decisions**
+
 - [x] Critical decisions documented with versions
 - [x] Technology stack fully specified
 - [x] Integration patterns defined
 - [x] Performance considerations addressed
 
 **Implementation Patterns**
+
 - [x] Naming conventions established
 - [x] Structure patterns defined
 - [x] Communication patterns specified
 - [x] Process patterns documented
 
 **Project Structure**
+
 - [x] Complete directory structure defined
 - [x] Component boundaries established
 - [x] Integration points mapped
@@ -684,6 +720,7 @@ None.
 **Confidence Level:** High
 
 **Key Strengths:**
+
 - Clear brownfield path, no fresh scaffold confusion.
 - `src/server/**` backend ownership is explicit.
 - Strong payment/inventory/auth separation.
@@ -691,6 +728,7 @@ None.
 - AI implementation patterns are specific enough to prevent common conflicts.
 
 **Areas for Future Enhancement:**
+
 - Full endpoint catalog.
 - Detailed D1 schema/migration spec.
 - CI/deployment runbook.
@@ -699,6 +737,7 @@ None.
 ### Implementation Handoff
 
 **AI Agent Guidelines:**
+
 - Follow this architecture and `_bmad-output/project-context.md`.
 - Put new backend/API work under `src/server/**`.
 - Treat `src/api/**` as migration source only.

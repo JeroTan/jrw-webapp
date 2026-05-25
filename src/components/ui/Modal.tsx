@@ -8,15 +8,14 @@ import {
 } from "react";
 
 import { mergeClassNames } from "../utils";
-import { IconButton } from "./IconButton";
+import { Button } from "./Button";
 
 const modalClass = "fixed inset-0 z-50 grid place-items-center p-grid-sm";
 const backdropClass =
   "absolute inset-0 bg-[color-mix(in_srgb,var(--color-brand-content)_64%,transparent)]";
 const panelClass =
   "relative z-[1] grid max-h-[min(720px,calc(100vh-48px))] w-[min(100%,560px)] gap-grid-sm overflow-auto rounded-none border border-brand-border-strong bg-brand-surface p-grid-sm shadow-none filter-none";
-const headerClass =
-  "grid grid-cols-[1fr_auto] items-start gap-grid-xs";
+const headerClass = "grid grid-cols-[1fr_auto] items-start gap-grid-xs";
 const titleClass = "text-xl";
 const descriptionClass = "text-sm text-brand-muted";
 const footerClass = "flex flex-wrap justify-end gap-grid-xs";
@@ -137,11 +136,7 @@ export function Modal({
 
   return (
     <div className={modalClass} role="presentation">
-      <div
-        aria-hidden="true"
-        className={backdropClass}
-        onMouseDown={onClose}
-      />
+      <div aria-hidden="true" className={backdropClass} onMouseDown={onClose} />
       <section
         {...props}
         aria-describedby={description ? descriptionId : undefined}
@@ -163,14 +158,17 @@ export function Modal({
               </p>
             ) : null}
           </div>
-          <IconButton label={closeLabel} onClick={onClose} tooltip={closeLabel}>
+          <Button
+            aria-label={closeLabel}
+            onClick={onClose}
+            square
+            title={closeLabel}
+          >
             x
-          </IconButton>
+          </Button>
         </header>
         <div>{children}</div>
-        {footer ? (
-          <footer className={footerClass}>{footer}</footer>
-        ) : null}
+        {footer ? <footer className={footerClass}>{footer}</footer> : null}
       </section>
     </div>
   );

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { StorefrontHero } from "@/features/storefront-shell/StorefrontHero";
 import { buildCategoryHref } from "../api";
 import type {
   StorefrontCatalogPageError,
@@ -91,34 +92,16 @@ export function ProductCatalogPage({
       aria-labelledby="product-catalog-title"
       className="grid gap-grid-md"
     >
-      <header className="grid gap-grid-sm bg-brand-surface p-grid-md">
-        <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-          {hero.kicker}
-        </p>
-        <h1
-          className="max-w-[18ch] font-identity text-[clamp(2rem,8vw,4rem)] [overflow-wrap:anywhere]"
-          id="product-catalog-title"
-        >
-          {hero.title}
-        </h1>
-        <p className="max-w-[68ch] text-[0.9375rem] text-brand-muted">
-          {hero.copy}
-        </p>
-        <div className="flex flex-wrap gap-grid-xs">
-          <a
-            className="inline-flex min-h-control-md items-center justify-center border border-brand-border-strong bg-brand-accent px-grid-sm font-system text-xs font-bold uppercase text-brand-surface no-underline hover:border-brand-accent focus-visible:border-brand-accent"
-            href="/products"
-          >
-            Browse products
-          </a>
-          <a
-            className="inline-flex min-h-control-md items-center justify-center border border-brand-border-strong px-grid-sm font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent"
-            href="/products?view=categories"
-          >
-            Browse categories
-          </a>
-        </div>
-      </header>
+      <StorefrontHero
+        actions={[
+          { href: "/products", label: "Browse products", variant: "primary" },
+          { href: "/products?view=categories", label: "Browse categories" },
+        ]}
+        copy={hero.copy}
+        id="product-catalog-title"
+        kicker={hero.kicker}
+        title={hero.title}
+      />
 
       {showCategoryDirectory && categories.length > 0 ? (
         <section

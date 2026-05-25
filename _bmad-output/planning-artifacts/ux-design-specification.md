@@ -299,7 +299,6 @@ Custom system fits JRW because:
 Use token-driven primitives first:
 
 - `Button`
-- `IconButton`
 - `Input`
 - `Textarea`
 - `Select`
@@ -708,7 +707,7 @@ flowchart TD
 
 Foundation primitives:
 
-- Button / IconButton
+- Button / ButtonLink
 - Input / Textarea / Select / SearchInput
 - Checkbox / Toggle
 - Badge / StatusBadge
@@ -893,7 +892,7 @@ All primitives use JRW tokens: 0px radius, 1px borders, no shadows, visible focu
 ### Implementation Roadmap
 
 Phase 0: Fidelity correction
-Button/IconButton hover/focus contract, ProductCard/ProductGrid visual fidelity, Admin sign-in/logout/reset entry points, DashboardShell, SidebarNav, TopBar, and owner-governance shell.
+Button/ButtonLink hover/focus contract, ProductCard/ProductGrid visual fidelity, Admin sign-in/logout/reset entry points, DashboardShell, SidebarNav, TopBar, and owner-governance shell.
 
 Phase 1: Primitives and layout shell  
 Button, inputs, badges, table, modal, drawer, side panel, toast, confirm dialog, dashboard shell.

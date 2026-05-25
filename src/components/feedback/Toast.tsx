@@ -2,7 +2,7 @@ import * as React from "react";
 import type { ReactNode } from "react";
 
 import { mergeClassNames } from "../utils";
-import { IconButton } from "../ui/IconButton";
+import { Button } from "../ui/Button";
 import type { BadgeTone } from "./Badge";
 
 const toastBaseClass =
@@ -41,20 +41,25 @@ export function Toast({
   return (
     <div
       aria-live={urgent ? "assertive" : "polite"}
-      className={mergeClassNames(toastBaseClass, toastToneClass[tone], className)}
+      className={mergeClassNames(
+        toastBaseClass,
+        toastToneClass[tone],
+        className
+      )}
       role={urgent ? "alert" : "status"}
     >
       <div className={toastHeaderClass}>
         <p className={toastTitleClass}>{title}</p>
         {onDismiss ? (
-          <IconButton
-            label={dismissLabel}
+          <Button
+            aria-label={dismissLabel}
             onClick={onDismiss}
             size="sm"
-            tooltip={dismissLabel}
+            square
+            title={dismissLabel}
           >
             x
-          </IconButton>
+          </Button>
         ) : null}
       </div>
       <div>{message}</div>

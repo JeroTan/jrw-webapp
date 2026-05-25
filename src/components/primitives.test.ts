@@ -10,7 +10,6 @@ import {
   CleanLinkButton,
   DataTable,
   Drawer,
-  IconButton,
   Input,
   Modal,
   PageToolbar,
@@ -33,15 +32,6 @@ describe("shared UI primitives", () => {
     expect(markup).toContain("size-2");
   });
 
-  it("requires icon button accessible label and tooltip metadata", () => {
-    const markup = renderToStaticMarkup(
-      createElement(IconButton, { label: "Open menu" }, "+")
-    );
-
-    expect(markup).toContain('aria-label="Open menu"');
-    expect(markup).toContain('title="Open menu"');
-  });
-
   it("renders button hover and focus outline contract", () => {
     const markup = renderToStaticMarkup(createElement(Button, null, "Save"));
 
@@ -57,9 +47,28 @@ describe("shared UI primitives", () => {
     }
   });
 
-  it("renders icon button hover and focus outline contract", () => {
+  it("renders square button accessible label and tooltip metadata", () => {
     const markup = renderToStaticMarkup(
-      createElement(IconButton, { label: "Open menu" }, "+")
+      createElement(
+        Button,
+        { "aria-label": "Open menu", square: true, title: "Open menu" },
+        "+"
+      )
+    );
+
+    expect(markup).toContain('aria-label="Open menu"');
+    expect(markup).toContain('title="Open menu"');
+    expect(markup).toContain("size-control-md");
+    expect(markup).toContain("px-0");
+  });
+
+  it("renders square button hover and focus outline contract", () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        Button,
+        { "aria-label": "Open menu", square: true, title: "Open menu" },
+        "+"
+      )
     );
 
     for (const token of [

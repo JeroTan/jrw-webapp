@@ -2,7 +2,7 @@
 project_name: "jrw-webapp"
 user_name: "MR. JRW"
 date: "2026-05-11"
-lastUpdated: "2026-05-24"
+lastUpdated: "2026-05-25"
 sections_completed:
   - technology_stack
   - language_rules
@@ -12,7 +12,7 @@ sections_completed:
   - workflow_rules
   - anti_patterns
 status: "complete"
-rule_count: 91
+rule_count: 96
 optimized_for_llm: true
 existing_patterns_found: 18
 ---
@@ -214,8 +214,13 @@ Tooling:
 - Use `src/styles/global.css` only as the Tailwind entrypoint plus font imports, `@theme` brand tokens, spacing/breakpoint tokens, and global base styles. Do not reintroduce deleted `src/styles/features/**`, `src/styles/storefront/**`, or `src/styles/components/_ui.css` class layers.
 - Brand tokens live in `src/styles/_colors.css` and `src/styles/_tokens.css`; prefer classes such as `bg-brand-accent`, `text-brand-muted`, `border-brand-border-strong`, `p-grid-sm`, `gap-grid-xs`, `min-h-control-md`, and responsive variants like `xs:`, `md:`, `lg:`, `3xl:` over raw colors/spacing or custom `jrw-*` selectors.
 - Shared primitives in `src/components/**` may keep reusable Tailwind class constants inside component files. Feature-specific UI should keep utility classes close to element markup unless true cross-feature reuse belongs in a shared component.
+- Use `Button` for button actions and `ButtonLink` for anchor actions that should share the JRW button contract. Do not duplicate long anchor-button class strings in feature code.
+- `IconButton` is removed. Use `Button` with `square`, `aria-label`, and `title` for icon-sized button controls.
+- Storefront shell top-level components live at `src/features/storefront-shell/StorefrontHeader.tsx`, `StorefrontFooter.tsx`, `StorefrontHome.tsx`, and `StorefrontHero.tsx`; navigation subparts live under `src/features/storefront-shell/components/Navigation/**`.
+- Use `StorefrontHero` for product, brand, category, and storefront-home hero/billboard sections. Do not hand-roll per-feature bordered hero headers.
+- Storefront cart trigger lives in `CartAction`: shared `Button`, `lucide-react` `ShoppingCart`, quantity badge, and `CartDrawer`. Do not replace this with custom SVG or a separate icon-button primitive.
 - Approved HTML direction fidelity is mandatory for UI stories. Cite `_bmad-output/planning-artifacts/ux-design-directions.html` directions in story ACs and implementation notes before marking UI work done.
-- Button and icon button hover/focus must use cobalt outline treatment matching the HTML reference: 2px accent outline with 2px offset, not border-color-only hover.
+- Button and ButtonLink hover/focus must use cobalt outline treatment matching the HTML reference: 2px accent outline with 2px offset, not border-color-only hover.
 - Product card changes must preserve accepted storefront layout and match Direction 01 card anatomy: strict 1px modules, 220px media block, compact metadata, and no generic rounded/shadow ecommerce cards.
 - Admin UI must use Direction 05 dashboard shell and Direction 07 owner-governance composition: sidebar, top context bar, dense tables, role/scope state, owner-only nav group, and logout/session controls.
 - Before finishing UI work, run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`; runtime UI should have no matches except legitimate brand slugs, fixture text, or tests that explicitly assert absence.
@@ -263,6 +268,7 @@ Tooling:
 - Server-side RBAC guards are implemented for completed protected Admin/Customer route groups; future protected endpoints must use the same guard pattern.
 - Durable Object inventory locking is scaffolded only.
 - Storefront/admin UI is partially implemented in current feature modules. Future UI changes must preserve Tailwind utility-first markup and avoid resurrecting deleted `jrw-*` CSS class layers.
+- Storefront user overhaul from commit `6959300` is documented in `_bmad-output/implementation-artifacts/storefront-user-overhaul-2026-05-25.md`; follow its component contracts for shell, hero, cart, and button/link actions.
 - UI fidelity correction is approved as of 2026-05-24: add shared primitive contract, storefront product-card fidelity, admin shell/auth entry UI, admin dashboard console wrap, and future story UI fidelity gate before expanding checkout/admin/order UI.
 - Existing API response shapes are inconsistent; standardize before marking endpoints complete.
 - `src/api/**` still has outdated scaffold text and routes. Treat it as migration source only and follow Story 1.3 baseline before removal.
@@ -285,4 +291,4 @@ For humans:
 - Remove rules once code structure makes them obvious.
 - Review after architecture artifact or major source reorganization.
 
-Last Updated: 2026-05-24
+Last Updated: 2026-05-25

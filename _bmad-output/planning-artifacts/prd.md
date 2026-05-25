@@ -119,6 +119,7 @@ Prospect succeeds when they can browse public storefront content and product det
 MVP works when JRW can operate one real storefront safely, support lifestyle products beyond apparel, and use brands as catalog organization/collaboration rather than store tenancy.
 
 Targets:
+
 - Super Admin-created Admin account management works end-to-end with email validation where required.
 - JRW storefront can be published and browsed publicly.
 - Brands can be created, joined, skipped, and used to group products without affecting payment ownership.
@@ -133,6 +134,7 @@ Targets:
 System succeeds when the rebuild produces clear product and implementation boundaries, not only working screens or endpoints.
 
 Technical targets:
+
 - RBAC enforces `SUPER_ADMIN`, `ADMIN`, `CUSTOMER`, and `PROSPECT`.
 - `STORE_ADMIN` is treated as a deprecated alias or migration label for `ADMIN`, not an active separate role.
 - Brand membership gates brand-scoped catalog collaboration without creating store tenancy.
@@ -150,6 +152,7 @@ Technical targets:
 ### Measurable Outcomes
 
 MVP complete when:
+
 - Seed creates exactly one Super Admin.
 - Super Admin can create Admin account.
 - Super Admin can transfer ownership to another eligible Admin with confirmation and audit trail.
@@ -258,6 +261,7 @@ This journey reveals requirements for architecture documentation, project contex
 ### Journey Requirements Summary
 
 The journeys reveal these capability areas:
+
 - Roles: `SUPER_ADMIN`, `ADMIN`, `CUSTOMER`, `PROSPECT`.
 - Deprecated role alias: `STORE_ADMIN` maps to `ADMIN`.
 - Identity: email/password, email verification, Google OAuth.
@@ -277,6 +281,7 @@ The journeys reveal these capability areas:
 JRW is a single-store ecommerce merchant. JRW is seller of record for all customer payments. The product must not model third-party seller payouts in MVP.
 
 Philippines privacy requirements:
+
 - Collect only customer/admin data needed for registration, checkout, fulfillment, support, security, and audit.
 - Show privacy notice before registration and checkout.
 - Record consent where needed.
@@ -285,12 +290,14 @@ Philippines privacy requirements:
 - Define retention rules for inactive accounts, orders, audit logs, and payment metadata.
 
 Philippines ecommerce/consumer trust requirements:
+
 - Storefront must show business/contact information, return/exchange policy, payment options, shipping/fulfillment terms, and complaint/contact path.
 - Checkout must show final price, item details, fees, and policies before payment.
 - Refund/cancellation policy must be clear before purchase.
 - Production launch should verify DTI, Internet Transactions Act, and Trustmark obligations.
 
 Payment and PCI requirements:
+
 - Use PayMongo-hosted or PayMongo-controlled payment capture.
 - JRW app must never collect raw card details.
 - Webhooks must verify `Paymongo-Signature` before processing.
@@ -302,6 +309,7 @@ Payment and PCI requirements:
 Payment state must be separate from order fulfillment state.
 
 Recommended payment statuses:
+
 - `PAYMENT_PENDING`
 - `PAYMENT_PAID`
 - `PAYMENT_FAILED`
@@ -309,6 +317,7 @@ Recommended payment statuses:
 - `PAYMENT_REFUNDED`
 
 Recommended order statuses:
+
 - `ORDER_PLACED`
 - `ORDER_PROCESSING`
 - `ORDER_READY_TO_SHIP`
@@ -318,17 +327,20 @@ Recommended order statuses:
 - `ORDER_REFUNDED`
 
 Recommended product statuses:
+
 - `DRAFT`
 - `PUBLISHED`
 - `ARCHIVED`
 
 Recommended inventory states:
+
 - `IN_STOCK`
 - `LOW_STOCK`
 - `OUT_OF_STOCK`
 - `PREORDER`
 
 Manual return statuses:
+
 - `RETURN_NOT_REQUESTED`
 - `RETURN_REQUESTED`
 - `RETURN_APPROVED`
@@ -336,6 +348,7 @@ Manual return statuses:
 - `RETURN_RECEIVED`
 
 Manual refund statuses:
+
 - `REFUND_NOT_REQUESTED`
 - `REFUND_REQUESTED`
 - `REFUND_APPROVED`
@@ -343,6 +356,7 @@ Manual refund statuses:
 - `REFUND_COMPLETED`
 
 Brand membership rules:
+
 - Admin may create brand.
 - Admin may join brand if invited/approved.
 - Brand member Admin can see, add, and modify products assigned to that brand.
@@ -352,6 +366,7 @@ Brand membership rules:
 ### Integration Requirements
 
 PayMongo:
+
 - Checkout/payment creation must use the single JRW merchant account.
 - Webhook signature verification is mandatory before event processing.
 - Webhook processing must be idempotent for duplicate provider events.
@@ -359,6 +374,7 @@ PayMongo:
 - Raw provider payload may be retained only for audit/reconciliation needs and must not be exposed in customer-facing errors.
 
 Resend:
+
 - Send email verification.
 - Send password reset.
 - Send Admin invitation or approval/rejection notices when enabled.
@@ -367,6 +383,7 @@ Resend:
 - Send fulfillment status updates.
 
 Google OAuth:
+
 - Customer sign-in only for MVP unless Admin OAuth is approved later.
 - Auto-link by verified email only inside the Customer realm when safe.
 - Same email string in `admins` does not block or link Google Customer OAuth; Google OAuth must not query Admin account storage.
@@ -374,11 +391,13 @@ Google OAuth:
 - OAuth errors must map to safe user-facing messages.
 
 Product images:
+
 - Product images require stable references that remain valid for current catalog display.
 - Historical order snapshots must not break when product images change or are deleted later.
 - Public image delivery must support optimized storefront performance targets.
 
 Error tracking:
+
 - Local/dev MVP can rely on provider/platform logs plus request IDs.
 - Production MVP should enable configured error tracking before real customer payments if budget permits.
 - Error tracking must cover unhandled API exceptions, payment webhook failures, checkout/payment reconciliation failures, auth/email verification failures, and image upload failures.
@@ -387,22 +406,27 @@ Error tracking:
 ### Risk Mitigations
 
 Payment mismatch:
+
 - Treat PayMongo webhook as source of truth for payment confirmation.
 - Checkout success page must reconcile payment state from server.
 
 Overselling:
+
 - Use a documented inventory concurrency strategy before payment/order finalization.
 - Failed payment must release reserved stock.
 
 Brand permission leakage:
+
 - Enforce brand membership server-side, not only in UI.
 - Audit product changes with actor, brand, product, and safe before/after metadata.
 
 PII leakage:
+
 - Public errors never expose database/payment/OAuth details.
 - Logs omit secrets, raw tokens, and unnecessary PII.
 
 Marketplace drift:
+
 - MVP must reject multi-seller payout assumptions.
 - Future marketplace requires PayMongo Platforms or equivalent sub-merchant onboarding.
 
@@ -417,6 +441,7 @@ The product is not a marketplace or B2B SaaS in MVP. JRW is the only store and s
 ### Browser & Rendering Requirements
 
 Browser support matrix:
+
 - Customer storefront: latest two stable versions of Chrome, Safari, Edge, and Firefox on mobile and desktop.
 - Admin dashboard: latest two stable desktop versions of Chrome, Edge, Safari, and Firefox; tablet layouts must remain usable at 768px width and above.
 - Minimum customer viewport: 320px width.
@@ -424,6 +449,7 @@ Browser support matrix:
 - Unsupported browsers must receive a safe degraded experience rather than a broken checkout path.
 
 Rendering requirements:
+
 - Public storefront and product detail pages must expose crawlable product metadata.
 - Interactive cart, checkout, dashboard tables/forms, inventory controls, and order management may load as enhanced interactive surfaces.
 - Customer storefront must prioritize mobile scan, product inspection, cart update, and checkout completion.
@@ -468,6 +494,7 @@ Required route groups and endpoint expectations:
 - `audit`: sensitive action history for authorized actors.
 
 Each implemented endpoint must define:
+
 - Auth mode and allowed roles.
 - Required path/query/body fields.
 - Success response envelope.
@@ -481,6 +508,7 @@ Each implemented endpoint must define:
 Public API responses use camelCase. Persistent database naming may use implementation-specific conventions, but API contracts must stay stable for UI and external integrations.
 
 Core entity groups:
+
 - Admin account: Super Admin/Admin identity, password credential, owner flag, approval state, suspension state, admin email verification state.
 - Customer account: Customer identity, password/OAuth credential, customer email verification state, profile/contact fields, marketing preference.
 - Brand: brand profile, archived state, membership, invitation/join request, member role within brand.
@@ -492,12 +520,14 @@ Core entity groups:
 - Audit: actor, action, target type/id, safe metadata, request ID, timestamp.
 
 Required response envelopes:
+
 - Success: `{ data, meta }`
 - Error: `{ error: { code, message, details } }`
 
 ### Error Code Catalog
 
 Required error codes:
+
 - `AUTH_REQUIRED`: request needs authenticated actor.
 - `AUTH_FORBIDDEN`: actor lacks required role or permission.
 - `EMAIL_NOT_VERIFIED`: email verification required before action.
@@ -519,6 +549,7 @@ Required error codes:
 ### Rate Limits
 
 MVP rate limit classes:
+
 - Auth password attempts: max 5 failed attempts per 15 minutes per account/email and source IP.
 - Email verification/password reset requests: max 3 requests per hour per email.
 - Customer checkout/payment creation: max 10 attempts per 10 minutes per customer or source IP.
@@ -550,6 +581,7 @@ MVP rate limit classes:
 This PRD defines product requirements. Downstream architecture must translate these requirements into concrete file structure, frameworks, runtime choices, data migrations, provider wrappers, and test layout.
 
 Architecture must explicitly address:
+
 - Current source inventory, including user-added server app entrypoint, API bridge, existing helper libraries, utility helpers, validation schemas, and legacy API folders.
 - Target source tree and ownership boundaries.
 - Route -> controller -> service -> domain/repository flow or approved equivalent.
@@ -570,6 +602,7 @@ MVP approach: platform foundation plus first sellable JRW storefront.
 The goal is not every ecommerce feature. The goal is clean product boundaries, safe payments, safe inventory, working admin catalog, public storefront, checkout, order tracking, and manual return/refund records.
 
 Resource requirements:
+
 - One full-stack engineer/agent can build in story slices.
 - Extra design/QA help improves speed but is not required.
 - Payment and auth work must receive higher review/testing than UI-only work.
@@ -577,6 +610,7 @@ Resource requirements:
 ### MVP Feature Set (Phase 1)
 
 Core user journeys supported:
+
 - Admin manages JRW catalog and optional brands.
 - Brand member Admin sees, adds, and modifies products under a brand.
 - Customer browses and buys from JRW.
@@ -584,6 +618,7 @@ Core user journeys supported:
 - Developer/agent follows approved architecture and avoids drift.
 
 Must-have capabilities:
+
 - Target architecture artifact before broad coding.
 - Legacy API migration/deprecation path.
 - Unique Super Admin seed.
@@ -613,6 +648,7 @@ Must-have capabilities:
 ### Post-MVP Features
 
 Phase 2:
+
 - Automated PayMongo refund flow.
 - Customer self-service return/refund request.
 - Return shipping/courier workflow.
@@ -624,6 +660,7 @@ Phase 2:
 - Shipping fee/rate rules.
 
 Phase 3:
+
 - COD and courier integrations.
 - Multi-branch JRW operations.
 - More OAuth providers.
@@ -633,16 +670,19 @@ Phase 3:
 ### Risk Mitigation Strategy
 
 Technical risks:
+
 - Payment/order mismatch: PayMongo webhook is source of truth and reconciliation is idempotent.
 - Overselling: inventory version, reservation, or concurrency lock protects checkout.
 - Role leakage: server-side guards and tests enforce permissions.
 - Architecture drift: architecture artifact and project context must exist before implementation spreads.
 
 Market risks:
+
 - Too broad lifestyle catalog: launch with small curated product set.
 - Customer trust: show clear business information, return policy, payment status, and order tracking.
 
 Resource risks:
+
 - If scope tightens, defer customization, analytics, reviews, coupons, COD, courier integrations, and automated refund.
 - Do not defer auth, payment safety, inventory safety, order tracking, manual refund/return records, or role boundaries.
 
@@ -751,7 +791,7 @@ Resource risks:
 - FR74: Project can provide a migration or deprecation plan for legacy API behavior before broad rebuild implementation.
 - FR75: Project can maintain identity-realm boundary documentation and regression tests that prevent customer-facing code from querying Admin account storage and prevent Admin auth code from querying Customer account storage.
 - FR76: Admin resource pages can provide searchable, responsive browse controls with appropriate card/list/table views so records are digestible without losing dense operational scanning.
-- FR77: Project can maintain component-level UI specifications for shared shell, navigation, footer, toolbar, view toggle, search, card/list/table, loading, empty, and permission patterns.
+- FR77: Project can maintain component-level UI specifications for shared shell, `StorefrontHero`, navigation, footer, toolbar, view toggle, search, cart trigger, button/link actions, card/list/table, loading, empty, and permission patterns.
 - FR78: Project can maintain Tailwind utility-first UI implementation rules so feature-specific styling stays visible in markup, uses JRW brand theme tokens, and avoids one-off `jrw-*` runtime class layers.
 - FR79: Project can enforce approved UX design-direction fidelity for shared buttons, product cards, storefront layout-preserving changes, admin auth entry points, admin dashboard shell, and future UI stories before marking UI work done.
 
@@ -826,3 +866,5 @@ Resource risks:
 - Contract drift must be caught by automated tests, generated docs diff, or manual release checklist before deployment.
 - Existing helpers and utilities must be inventoried before replacement to avoid duplicate abstractions.
 - UI implementation must use Tailwind CSS v4 utilities plus JRW brand theme tokens directly in feature markup for feature-specific styling. Runtime UI must not introduce one-off `jrw-*`/BEM CSS classes or feature/storefront CSS class layers that require debugging across JSX and CSS files.
+- Storefront product, brand, category, and home hero/billboard sections must use shared `StorefrontHero`; link CTAs must use `ButtonLink`; form/in-page actions must use `Button`.
+- Icon-sized button controls must use `Button` with `square`, `aria-label`, and `title`; the separate `IconButton` primitive is not part of the active UI system.

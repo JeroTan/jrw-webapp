@@ -321,7 +321,7 @@ NFR45: Existing helpers and utilities must be inventoried before replacement to 
 
 UX-DR1: Implement JRW Technical Brutalist design tokens: white/background/content/muted/border/strong-border/cobalt/error/status colors, Satoshi identity headings, Space Mono body/system labels, 0px radius, 1px borders, no shadows, no blur, no decorative gradients, and restrained cobalt for focus/selected/primary/live states.
 
-UX-DR2: Build shared primitive components with JRW tokens: `Button`, `IconButton`, `Input`, `Textarea`, `Select`, `Checkbox`, `Toggle`, `Badge`, `StatusBadge`, `Tabs`, `SegmentedControl`, `DataTable`, `Modal`, `Drawer`, `SidePanel`, `Toast`, `ConfirmDialog`, `EmptyState`, `Skeleton`, `Pagination`, and `Stepper`.
+UX-DR2: Build shared primitive components with JRW tokens: `Button`, `ButtonLink`, `Input`, `Textarea`, `Select`, `Checkbox`, `Toggle`, `Badge`, `StatusBadge`, `Tabs`, `SegmentedControl`, `DataTable`, `Modal`, `Drawer`, `SidePanel`, `Toast`, `ConfirmDialog`, `EmptyState`, `Skeleton`, `Pagination`, and `Stepper`.
 
 UX-DR3: Implement storefront product discovery with modular product grid, strong product imagery, category/filter/search controls, product metadata, availability text, cart access, and desktop/mobile feature parity.
 
@@ -387,7 +387,7 @@ UX-DR33: Add performance UX QA requirements: storefront usable load under 2.5s p
 
 UX-DR34: Define and implement shared component-level specs for DashboardShell, SidebarNav, TopBar, Footer, PageToolbar, SearchInput, ViewToggle, ResourceCard, ResourceList, DataTable, EmptyState, and Skeleton so future admin/storefront work reuses consistent primitives.
 
-UX-DR35: Enforce approved HTML direction fidelity before UI stories are done: Button/IconButton hover and focus use 2px cobalt outline with 2px offset, storefront product cards match Direction 01 without removing accepted layout, admin shell/auth pages match Direction 05 and Direction 07, and every future UI story cites the exact UX direction reference it implements.
+UX-DR35: Enforce approved HTML direction fidelity before UI stories are done: Button/ButtonLink hover and focus use 2px cobalt outline with 2px offset, storefront product cards match Direction 01 without removing accepted layout, admin shell/auth pages match Direction 05 and Direction 07, and every future UI story cites the exact UX direction reference it implements.
 
 ### FR Coverage Map
 
@@ -852,7 +852,7 @@ So that Epic 1 and later features share one typography, control, state, and acce
 
 **Given** Epic 1 auth and governance UI needs repeatable controls
 **When** baseline shared primitives are implemented
-**Then** reusable components exist under `src/components/**` for `Button`, `IconButton`, `Input`, `Textarea`, `Select`, `Checkbox`, `Toggle`, `Badge`, `StatusBadge`, `Tabs`, `DataTable`, `Modal`, `Toast`, `ConfirmDialog`, `EmptyState`, and `Skeleton`
+**Then** reusable components exist under `src/components/**` for `Button`, `ButtonLink`, `Input`, `Textarea`, `Select`, `Checkbox`, `Toggle`, `Badge`, `StatusBadge`, `Tabs`, `DataTable`, `Modal`, `Toast`, `ConfirmDialog`, `EmptyState`, and `Skeleton`
 **And** components use Tailwind CSS v4 utility classes and JRW theme tokens directly, without adopting a full external component library or hiding one-off element styling behind `jrw-*` selectors.
 
 **Given** primitive components render user-facing controls
@@ -2478,7 +2478,7 @@ So that storefront, dashboard, and checkout interactions feel consistent.
 
 **Acceptance Criteria:**
 
-**Given** `Button` or `IconButton` renders
+**Given** `Button` or `ButtonLink` renders
 **When** hover or focus-visible state is active
 **Then** cobalt outline appears with 2px width and 2px offset
 **And** hover does not rely on border-color-only feedback.
@@ -2731,7 +2731,7 @@ So that storefront, checkout, dashboard, and governance flows behave predictably
 
 **Given** Story 1.5 baseline primitives already exist
 **When** storefront and cart UI need common controls
-**Then** they reuse or extend existing `Button`, `IconButton`, `Input`, `Select`, `Checkbox`, `Toggle`, `Badge`, `StatusBadge`, `Tabs`, `Modal`, `Toast`, `ConfirmDialog`, `EmptyState`, and `Skeleton`
+**Then** they reuse or extend existing `Button`, `ButtonLink`, `Input`, `Select`, `Checkbox`, `Toggle`, `Badge`, `StatusBadge`, `Tabs`, `Modal`, `Toast`, `ConfirmDialog`, `EmptyState`, and `Skeleton`
 **And** duplicate feature-local versions of those base controls are not introduced.
 **And** styling composes Tailwind utilities and JRW brand tokens directly instead of recreating feature/storefront CSS class layers.
 

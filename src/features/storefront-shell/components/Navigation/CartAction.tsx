@@ -1,7 +1,8 @@
+import * as React from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui";
 import { CartDrawer, useCartSummary } from "@/features/cart-checkout";
 import { ShoppingCart } from "lucide-react";
-import { useState } from "react";
 
 export default function CartAction() {
   const [drawerOpen, setDrawerOpen] = useState(false);

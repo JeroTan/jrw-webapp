@@ -1,5 +1,6 @@
 import * as React from "react";
 import { storefrontHomeLinks } from "./data";
+import { StorefrontHero } from "./StorefrontHero";
 
 export function StorefrontHome() {
   return (
@@ -7,35 +8,16 @@ export function StorefrontHome() {
       className="grid gap-grid-md"
       aria-labelledby="storefront-home-title"
     >
-      <div className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-md">
-        <p className="font-system text-xs font-bold uppercase text-brand-muted">
-          JRW. Storefront
-        </p>
-        <h1
-          className="max-w-[16ch] font-identity text-[clamp(2rem,9vw,4.5rem)] [overflow-wrap:anywhere]"
-          id="storefront-home-title"
-        >
-          Lifestyle products, ready to browse.
-        </h1>
-        <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
-          Explore products, move into category browsing, and reach cart or
-          account when needed.
-        </p>
-        <div className="flex flex-wrap gap-grid-xs">
-          <a
-            className="inline-flex min-h-control-md items-center justify-center gap-grid-xs rounded-none border border-brand-accent bg-brand-accent px-grid-sm font-system font-bold leading-none text-brand-surface no-underline shadow-none whitespace-nowrap filter-none hover:border-brand-accent hover:text-brand-surface focus-visible:text-brand-surface"
-            href="/products"
-          >
-            Browse products
-          </a>
-          <a
-            className="inline-flex min-h-control-md items-center justify-center gap-grid-xs rounded-none border border-brand-border-strong bg-brand-surface px-grid-sm font-system font-bold leading-none text-brand-content no-underline shadow-none whitespace-nowrap filter-none hover:border-brand-accent min-h-control-md px-grid-sm bg-brand-surface text-brand-content"
-            href="/products?view=categories"
-          >
-            Browse categories
-          </a>
-        </div>
-      </div>
+      <StorefrontHero
+        actions={[
+          { href: "/products", label: "Browse products", variant: "primary" },
+          { href: "/products?view=categories", label: "Browse categories" },
+        ]}
+        copy="Explore products, move into category browsing, and reach cart or account when needed."
+        id="storefront-home-title"
+        kicker="JRW. Storefront"
+        title="Lifestyle products, ready to browse."
+      />
 
       <section aria-labelledby="storefront-start-title">
         <h2

@@ -176,7 +176,7 @@ describe("product catalog UI", () => {
       })
     );
 
-    expect(markup).toContain("Lifestyle products, live in catalog.");
+    expect(markup).toContain("Lifestyle products.");
     expect(markup).toContain("Linen Shirt");
     expect(markup).not.toContain("Shop by category");
     expect(markup).not.toContain("Filters");
