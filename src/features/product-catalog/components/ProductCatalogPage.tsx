@@ -48,7 +48,7 @@ function heroContent(input: {
       return {
         copy: "Search published products, browse categories, and open product pages from one storefront view.",
         kicker: "JRW. Storefront",
-        title: "Lifestyle products, live in catalog.",
+        title: "Lifestyle products.",
       };
     case "category":
       return {

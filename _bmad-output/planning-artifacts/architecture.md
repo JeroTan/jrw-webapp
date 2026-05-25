@@ -88,7 +88,7 @@ Current accepted stack from project context:
 Brownfield constraints:
 - Existing source has partial API foundation and many mock handlers.
 - Admin login is current real flow.
-- Authorization middleware and protected route guards are not complete.
+- API authorization guards are implemented for protected endpoints; Astro page middleware must gate protected admin routes before dashboard shell rendering.
 - Durable Object inventory safety is scaffolded only.
 - Storefront/admin UI is partially implemented and now uses Tailwind utility-first markup with JRW theme tokens.
 - `src/server/app.ts` contains outdated scaffold text and must be reconciled.
@@ -194,6 +194,7 @@ Use `npm run dev` for Astro development, `npm run wrangler-dev` for Cloudflare-s
 - Use TypeBox/Elysia for API contracts and OpenAPI; Zod for forms and non-Elysia parsing.
 - Use HttpOnly secure browser sessions; keep `jose` token helpers for signed auth tokens.
 - Enforce RBAC and brand membership server-side, not UI-only.
+- Gate protected admin Astro pages with page middleware before rendering shell UI; client session checks may refresh state but must not be the first-line page guard.
 - Use Durable Object plus optimistic stock versioning for inventory reservation/release.
 - Use the single JRW PayMongo merchant account; webhooks must be signature-verified and idempotent.
 - Use R2 stable image references; order snapshots preserve purchased state.
@@ -225,7 +226,7 @@ Migrations stay remote-first: development first, production only after review. C
 
 Browser auth uses secure HttpOnly cookies backed by server-side session records. `jose` remains approved for JWT/JWE-style helpers: email verification, reset tokens, OAuth state, and signed short-lived internal tokens.
 
-Super Admin remains unique. Ownership transfer requires eligible Admin, confirmation phrase, password re-entry, and audit log. Admin dashboard access requires active account, verified email, and approval when self-registration is enabled.
+Super Admin remains unique. Ownership transfer requires eligible Admin, confirmation phrase, password re-entry, and audit log. Admin dashboard access requires a Super Admin-created active Admin account.
 
 ### API & Communication Patterns
 
@@ -543,7 +544,7 @@ Approved UI fidelity boundaries from 2026-05-24:
 - `Button` and `IconButton` hover/focus must use cobalt 2px outline with 2px offset, not border-color-only feedback.
 - Product cards must match Direction 01 anatomy while preserving accepted storefront page layout.
 - Admin pages must use `DashboardShell`, sidebar, top context bar, role/scope state, session/logout controls, and owner-only navigation before new admin screens expand.
-- Admin sign-in, logout, and password reset UI must use existing Admin auth routes; Admin registration UI appears only when enabled by product decision.
+- Admin sign-in, logout, and password reset UI must use existing Admin auth routes; Admin registration UI is out of MVP scope.
 
 ### Requirements to Structure Mapping
 

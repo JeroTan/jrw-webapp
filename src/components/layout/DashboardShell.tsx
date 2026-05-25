@@ -73,6 +73,7 @@ export function SidebarNav({
             aria-current={item.href === activeHref ? "page" : undefined}
             className={mergeClassNames(
               "justify-start px-grid-xs py-grid-xs text-xs uppercase",
+              item.href === activeHref && "text-brand-surface",
               item.href !== activeHref && "text-brand-content"
             )}
             href={item.href}
@@ -95,6 +96,7 @@ export function SidebarNav({
               aria-current={item.href === activeHref ? "page" : undefined}
               className={mergeClassNames(
                 "justify-start px-grid-xs py-grid-xs text-xs uppercase",
+                item.href === activeHref && "text-brand-surface",
                 item.href !== activeHref && "text-brand-content"
               )}
               href={item.href}

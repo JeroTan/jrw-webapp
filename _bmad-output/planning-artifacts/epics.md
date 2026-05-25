@@ -1139,15 +1139,14 @@ So that only trusted operators can access JRW dashboard.
 **Then** Admin account is created with `ADMIN` role
 **And** invitation or setup email is sent when enabled.
 
-**Given** Admin self-registration is enabled
-**When** prospective Admin verifies email
-**Then** account remains pending approval until Super Admin or authorized owner approves
-**And** dashboard access is blocked before approval.
+**Given** an Admin account needs activation after Super Admin creation or setup
+**When** activation is not complete
+**Then** dashboard access is blocked until the account is active.
 
-**Given** Super Admin approves or rejects verified Admin registration
+**Given** Super Admin activates, suspends, or reactivates Admin access
 **When** action succeeds
 **Then** Admin account status changes accordingly
-**And** approval/rejection notice is sent when enabled.
+**And** account status notice is sent when enabled.
 
 **Given** Super Admin suspends Admin
 **When** suspension succeeds
@@ -2236,8 +2235,13 @@ So that admin work starts from a real operational console instead of disconnecte
 
 **Given** unauthenticated user opens `/admin`
 **When** no valid `jrw_admin_session` exists
-**Then** Admin sign-in UI appears or the user is routed to an Admin sign-in route
+**Then** Astro page middleware routes the user to an Admin sign-in route before protected dashboard UI renders
 **And** no protected admin data is rendered.
+
+**Given** authenticated Admin opens `/admin`
+**When** the admin session cookie is valid
+**Then** the dashboard shell renders from the server-gated page entry
+**And** the primary experience does not show "Loading admin session" as a blocking page state.
 
 **Given** Admin submits valid dashboard credentials
 **When** `/api/admin/auth/sessions` succeeds
@@ -2254,13 +2258,10 @@ So that admin work starts from a real operational console instead of disconnecte
 **Then** UI consumes existing Admin password reset APIs
 **And** reset completion does not create a new session.
 
-**Given** Admin self-registration is enabled by product decision
-**When** registration UI is available
-**Then** the page states that approval is required before dashboard access.
-
-**Given** Admin self-registration is not enabled
-**When** user seeks registration
-**Then** UI points to Super Admin account creation instead of exposing unsupported signup.
+**Given** Admin sign-in UI renders
+**When** user needs an Admin account
+**Then** the page states Admin accounts are created by Super Admin
+**And** no signup or registration action is exposed.
 
 **Given** Admin dashboard shell renders
 **When** compared to Direction 05
@@ -2277,7 +2278,7 @@ So that admin work starts from a real operational console instead of disconnecte
 
 **Given** implementation finishes
 **When** tests/QA run
-**Then** checks cover sign-in, sign-out, password reset entry, disabled registration behavior, shell landmarks, sidebar/topbar rendering, forbidden state, and `npm run check`
+**Then** checks cover sign-in, sign-out, password reset entry, absence of registration affordance, shell landmarks, sidebar/topbar rendering, forbidden state, and `npm run check`
 **And** blockers are documented if any API dependency is unavailable.
 
 ### Story 3.11: Admin Dashboard Console Fidelity
@@ -2292,7 +2293,7 @@ So that product, brand, category, inventory, and owner work keeps functionality 
 
 **Given** Admin opens `/admin/products`
 **When** products load
-**Then** page renders inside dashboard shell with Direction 05 sidebar, top context bar, toolbar row, dense table-first work area, and editor/side-panel flow
+**Then** page passes through protected admin page middleware and renders inside dashboard shell with Direction 05 sidebar, top context bar, toolbar row, dense table-first work area, and editor/side-panel flow
 **And** existing product search, filters, pagination, table view, list view, editor, variant, inventory, publish, and permission behavior remains intact.
 
 **Given** Admin opens brand resources

@@ -1,3 +1,4 @@
+import * as React from "react";
 import { storefrontHomeLinks } from "../data";
 
 export function StorefrontHome() {
@@ -17,7 +18,7 @@ export function StorefrontHome() {
         </p>
         <div className="flex flex-wrap gap-grid-xs">
           <a
-            className="inline-flex min-h-control-md items-center justify-center gap-grid-xs rounded-none border border-brand-border-strong bg-brand-surface px-grid-sm font-system font-bold leading-none text-brand-content no-underline shadow-none whitespace-nowrap filter-none hover:border-brand-accent min-h-control-md px-grid-sm bg-brand-accent text-brand-surface"
+            className="inline-flex min-h-control-md items-center justify-center gap-grid-xs rounded-none border border-brand-accent bg-brand-accent px-grid-sm font-system font-bold leading-none text-brand-surface no-underline shadow-none whitespace-nowrap filter-none hover:border-brand-accent hover:text-brand-surface focus-visible:text-brand-surface"
             href="/products"
           >
             Browse products

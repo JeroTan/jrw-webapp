@@ -138,7 +138,7 @@ describe("product catalog UI", () => {
     expect(markup).toContain("PHP 19.99");
     expect(markup).toContain("hover:outline-2");
     expect(markup).toContain("hover:outline-offset-2");
-    expect(markup).toContain("hover:outline-brand-content");
+    expect(markup).toContain("hover:outline-brand-accent");
     expect(markup).toContain("focus-visible:outline-brand-accent");
     expect(markup).not.toContain("aria-disabled");
     expect(markup).not.toContain("rounded");

@@ -34,7 +34,11 @@ function CartAction() {
   return (
     <>
       <div className="relative">
-        <IconButton label={cartLabel} onClick={() => setDrawerOpen(true)}>
+        <IconButton
+          className="hover:!outline-0 hover:border-brand-accent hover:text-brand-accent focus-visible:border-brand-accent focus-visible:text-brand-accent motion-safe:transition-colors motion-safe:duration-[120ms]"
+          label={cartLabel}
+          onClick={() => setDrawerOpen(true)}
+        >
           <CartIcon />
         </IconButton>
         <span
@@ -89,6 +93,7 @@ function SearchForm({ id }: { id: string }) {
       <SearchInput
         hideLabel
         id={id}
+        inputClassName="hover:border-brand-accent [&:hover]:border-brand-accent motion-safe:transition-colors motion-safe:duration-[120ms]"
         label="Search products"
         name="q"
         placeholder="Search products"
@@ -103,7 +108,7 @@ export function StorefrontHeader() {
       <div className="mx-auto w-[min(100%,1440px)] px-grid-sm xs:px-grid-md 3xl:px-grid-lg flex min-h-[68px] items-center justify-between gap-grid-sm py-grid-xs max-[374px]:flex-wrap max-[374px]:items-start max-[374px]:gap-1.5 md:hidden">
         <a
           aria-label="JRW. lifestyle products home"
-          className="inline-flex min-h-control-md items-center border border-transparent font-identity text-[1.6rem] font-extrabold leading-none no-underline hover:border-brand-accent focus-visible:border-brand-accent max-[374px]:px-1 max-[374px]:text-[1.45rem] motion-safe:transition-colors motion-safe:duration-[120ms]"
+          className="inline-flex min-h-control-md items-center border border-transparent font-identity text-[1.6rem] font-extrabold leading-none text-brand-content no-underline hover:!text-brand-accent focus-visible:border-brand-accent max-[374px]:px-1 max-[374px]:text-[1.45rem] [&:hover]:!text-brand-accent motion-safe:transition-colors motion-safe:duration-[120ms]"
           href="/"
         >
           JRW.
@@ -143,7 +148,7 @@ export function StorefrontHeader() {
       <div className="mx-auto w-[min(100%,1440px)] px-grid-sm xs:px-grid-md 3xl:px-grid-lg hidden min-h-20 items-center gap-grid-sm py-grid-sm md:grid md:grid-cols-[auto_minmax(220px,1fr)_auto] lg:gap-grid-md xl:grid-cols-[auto_minmax(0,1fr)_minmax(260px,360px)_auto]">
         <a
           aria-label="JRW. lifestyle products home"
-          className="inline-flex min-h-control-md items-center border border-transparent font-identity text-[1.6rem] font-extrabold leading-none no-underline hover:border-brand-accent focus-visible:border-brand-accent max-[374px]:px-1 max-[374px]:text-[1.45rem] motion-safe:transition-colors motion-safe:duration-[120ms]"
+          className="inline-flex min-h-control-md items-center border border-transparent font-identity text-[1.6rem] font-extrabold leading-none text-brand-content no-underline hover:!text-brand-accent focus-visible:border-brand-accent max-[374px]:px-1 max-[374px]:text-[1.45rem] [&:hover]:!text-brand-accent motion-safe:transition-colors motion-safe:duration-[120ms]"
           href="/"
         >
           JRW.

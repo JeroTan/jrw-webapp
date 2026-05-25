@@ -12,9 +12,13 @@ interface Props {
 const {
   activeHref,
   description,
-  role = "ADMIN",
+  role,
   title,
 } = Astro.props;
+const adminActor = Astro.locals.adminActor;
+const resolvedRole = role ?? adminActor?.role ?? "ADMIN";
+const resolvedUserLabel =
+  resolvedRole === "SUPER_ADMIN" ? "Super Admin" : "Admin";
 ---
 
 <BaseLayout description={description} robots="noindex,nofollow" title={title}>
@@ -22,8 +26,8 @@ const {
     activeHref={activeHref}
     brandScopeLabel="All brands"
     client:load
-    role={role}
-    userLabel={role === "SUPER_ADMIN" ? "Super Admin" : "Admin"}
+    role={resolvedRole}
+    userLabel={resolvedUserLabel}
   >
     <slot />
   </DashboardShell>

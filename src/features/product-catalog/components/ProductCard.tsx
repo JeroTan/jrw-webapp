@@ -49,7 +49,7 @@ export function ProductCard({ product }: ProductCardProps) {
     <article className="h-full min-h-[360px] border border-brand-border bg-brand-surface">
       <a
         aria-label={`View ${product.name}`}
-        className="group grid h-full grid-rows-[auto_1fr] text-brand-content no-underline hover:outline-2 hover:outline-offset-2 hover:outline-brand-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+        className="group grid h-full grid-rows-[auto_1fr] text-brand-content no-underline hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
         href={product.href}
       >
         <ProductImage product={product} />

@@ -32,6 +32,7 @@ so that product, brand, category, inventory, and owner work keeps functionality 
   - [x] Preserve existing client hydration directives.
   - [x] Ensure active nav item is correct per route.
   - [x] Ensure owner-only page is visually in owner group and unavailable to non-owner shell state where applicable.
+  - [x] Course correction: wrapped admin resource pages now rely on shared Astro page middleware for server-side page access before shell rendering.
 
 - [x] Task 3: Refactor page-level framing out of feature dashboards where needed. (AC: 1-5)
   - [x] Remove duplicated `main mx-auto max-w-[1240px]` wrappers from feature components only if shell now owns the page frame.
@@ -152,6 +153,7 @@ GPT-5 Codex
 ### Completion Notes List
 
 - Added `src/layouts/AdminLayout.astro` using the shared `DashboardShell` from Story 3.10; wrapped products, brands, brand detail, categories, and owner transfer admin routes with correct active nav and owner role state.
+- Course correction: `AdminLayout` now reads server-inspected `Astro.locals.adminActor` from page middleware so Admin/Super Admin shell role state comes from the current admin session where available.
 - Removed duplicate feature-level `<main>`/max-width page frames from products, brands, categories, and owner governance so the shell owns page landmarks and spacing.
 - Preserved existing feature hydration, table/list/card toggles, product editor/variant/inventory/publish flows, category CRUD, brand resource browser, and ownership transfer flow.
 - Addressed local review finding: shell logout now has a default client-side session DELETE + redirect handler for wrapped admin pages.
@@ -168,6 +170,11 @@ GPT-5 Codex
 - `src/features/admin-categories/components/CategoryList.tsx`
 - `src/features/owner-governance/OwnershipTransferPanel.tsx`
 - `src/layouts/AdminLayout.astro`
+- `src/middleware/index.ts`
+- `src/middleware/auth/admin-page-guard.ts`
+- `src/middleware/auth/admin-page-guard.test.ts`
+- `src/server/auth/admin-page-session.ts`
+- `src/env.d.ts`
 - `src/pages/admin/products/index.astro`
 - `src/pages/admin/brands/index.astro`
 - `src/pages/admin/brands/[id].astro`
@@ -179,3 +186,4 @@ GPT-5 Codex
 - 2026-05-24: Created ready-for-dev story context.
 - 2026-05-24: Wrapped admin resources in dashboard console shell and moved story to review.
 - 2026-05-24: Completed local code review and marked story done.
+- 2026-05-25: Course corrected admin resource pages to use server-side Astro page middleware before rendering protected shell UI.

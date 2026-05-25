@@ -575,7 +575,7 @@ Implementation fidelity gate:
 - Storefront product-card changes must preserve accepted page layout and match Direction 01 card anatomy.
 - Button and icon-button hover/focus must use cobalt outline treatment from the HTML reference, not border-color-only hover.
 - Admin work must use Direction 05 dashboard shell and Direction 07 owner-governance composition before new admin screens are considered complete.
-- Admin auth entry points must exist for sign-in, logout, and password reset; Admin registration appears only when enabled by product decision and must state approval is required before dashboard access.
+- Admin auth entry points must exist for sign-in, logout, and password reset; Admin registration UI is out of MVP scope and sign-in must state Admin accounts are created by Super Admin.
 
 ### Design Rationale
 

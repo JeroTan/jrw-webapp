@@ -1,12 +1,21 @@
 ---
-import BaseLayout from "@/layouts/BaseLayout.astro";
-import { AdminSessionGate } from "@/features/admin-auth";
+import AdminLayout from "@/layouts/AdminLayout.astro";
 ---
 
-<BaseLayout
+<AdminLayout
+  activeHref="/admin"
   title="Admin Dashboard | JRW Admin"
   description="JRW admin dashboard entry and session state."
-  robots="noindex,nofollow"
 >
-  <AdminSessionGate client:load />
-</BaseLayout>
+  <section class="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-md">
+    <p class="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+      Operations
+    </p>
+    <h1 class="m-0 font-identity text-[clamp(2rem,6vw,3.5rem)]">
+      Admin dashboard
+    </h1>
+    <p class="m-0 max-w-[68ch] text-sm text-brand-muted">
+      Choose a dashboard area from the sidebar.
+    </p>
+  </section>
+</AdminLayout>

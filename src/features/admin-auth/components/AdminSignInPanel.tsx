@@ -1,5 +1,5 @@
 import * as React from "react";
-import { CleanButton } from "@/components/ui";
+import { Button } from "@/components/ui";
 import { createAdminSession } from "../api";
 
 export function AdminSignInPanel() {
@@ -64,15 +64,16 @@ export function AdminSignInPanel() {
             value={password}
           />
         </label>
-        <CleanButton
-          active
+        <Button
           disabled={submitting}
           fullWidth
           loading={submitting}
           loadingLabel="Signing in"
+          type="submit"
+          variant="primary"
         >
           Sign in
-        </CleanButton>
+        </Button>
       </form>
       {message ? (
         <p className="m-0 border border-brand-danger p-grid-xs text-sm text-brand-danger">

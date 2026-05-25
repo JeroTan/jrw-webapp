@@ -32,6 +32,7 @@ describe("admin dashboard shell", () => {
     expect(markup).toContain("Sign out");
     expect(markup).toContain("border-transparent");
     expect(markup).toContain("bg-brand-content");
+    expect(markup).toContain("!text-brand-surface");
     expect(markup).not.toContain("Owner-only");
     expect(markup).not.toContain("Admin Accounts");
   });
@@ -50,6 +51,7 @@ describe("admin dashboard shell", () => {
     expect(markup).toContain("Admin Accounts");
     expect(markup).toContain("Ownership Transfer");
     expect(markup).toContain("Owner Audit");
+    expect(markup).toContain("!text-brand-surface");
   });
 
   it("renders loading and safe forbidden states inside shell language", () => {

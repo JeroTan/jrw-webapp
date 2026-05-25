@@ -521,7 +521,7 @@ export function adminAccountRoutes(
         detail: routeDetail({
           summary: "Approve or reject Admin account",
           description:
-            `Approves or rejects a verified Admin registration while preserving owner invariants.
+            `Approves or rejects a pending Admin account while preserving owner invariants.
 
 **Path:** \`POST /admin-accounts/:adminAccountId/approvals\`
 

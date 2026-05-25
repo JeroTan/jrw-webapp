@@ -48,6 +48,7 @@ so that admin work starts from a real operational console instead of disconnecte
   - [x] Add Admin sign-in route and password reset routes under `src/pages/admin/**`.
   - [x] N/A `AdminLayout.astro`; route entry points use `BaseLayout` plus client shell composition for this story.
   - [x] Ensure protected admin data is not rendered for unauthenticated users. If server session inspection is not available in Astro yet, render shell-safe sign-in/forbidden states and keep real API/server RBAC authoritative.
+  - [x] Course correction: add Astro page middleware for protected `/admin/**` page requests and render `/admin` through server-gated `AdminLayout` instead of client-first session loading.
 
 - [x] Task 5: Add forbidden/loading states. (AC: 7-10)
   - [x] Add shell states for loading session, unauthenticated, forbidden, Admin, and Super Admin.
@@ -156,8 +157,9 @@ GPT-5 Codex
 ### Completion Notes List
 
 - Added `src/features/admin-auth/**` API helpers and React panels for admin sign-in, session inspection/logout, and password reset request/confirmation.
-- Added `/admin`, `/admin/sign-in`, `/admin/password-reset`, and `/admin/password-reset/confirm` routes. `/admin` renders a client session gate first, so unauthenticated SSR does not expose protected admin data.
+- Added `/admin`, `/admin/sign-in`, `/admin/password-reset`, and `/admin/password-reset/confirm` routes. `/admin` is now protected by Astro page middleware before the dashboard shell renders, so unauthenticated SSR does not expose protected admin data.
 - Course correction: Admin self-registration UI/route removed. Admin accounts are created by Super Admin.
+- Course correction: `/admin` now passes through Astro page middleware and renders the dashboard shell after server-side admin session inspection, avoiding the "Loading admin session" first-load experience.
 - Added shared `DashboardShell`, `SidebarNav`, `TopBar`, loading, and forbidden states with Direction 05/07 shell landmarks, active navigation, role badge, brand scope, owner-only navigation separation, search/action region, skip link, and logout control.
 - Existing admin resource pages remain standalone; Story 3.11 owns wrapping them in the shell.
 - Validation passed: `npx vitest run src/features/admin-auth/components/admin-auth-ui.test.tsx src/components/layout/admin-shell.test.tsx`; styling `rg` produced only fixture/test-token matches; `npm run check` returned 0 errors with existing deprecated `returnValue` hints.
@@ -176,6 +178,12 @@ GPT-5 Codex
 - `src/features/admin-auth/components/AdminSignInPanel.tsx`
 - `src/features/admin-auth/components/admin-auth-ui.test.tsx`
 - `src/features/admin-auth/index.ts`
+- `src/middleware/index.ts`
+- `src/middleware/auth/admin-page-guard.ts`
+- `src/middleware/auth/admin-page-guard.test.ts`
+- `src/server/auth/admin-page-session.ts`
+- `src/env.d.ts`
+- `src/layouts/AdminLayout.astro`
 - `src/pages/admin/index.astro`
 - `src/pages/admin/sign-in.astro`
 - `src/pages/admin/password-reset/index.astro`
@@ -186,3 +194,4 @@ GPT-5 Codex
 - 2026-05-24: Created ready-for-dev story context.
 - 2026-05-24: Implemented admin shell, navigation, and session UI; moved story to review.
 - 2026-05-24: Completed local code review and marked story done.
+- 2026-05-25: Course corrected protected admin page entry to use Astro page middleware and server-gated `/admin` shell rendering.

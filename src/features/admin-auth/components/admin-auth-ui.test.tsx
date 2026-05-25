@@ -27,7 +27,9 @@ describe("admin auth UI", () => {
     expect(signInMarkup).toContain("Sign in to JRW admin");
     expect(signInMarkup).toContain("Admin accounts are created by Super Admin.");
     expect(signInMarkup).toContain("Forgot password");
-    expect(signInMarkup).toContain("bg-brand-content");
+    expect(signInMarkup).toContain('type="submit"');
+    expect(signInMarkup).toContain("border-brand-accent");
+    expect(signInMarkup).toContain("bg-brand-accent");
     expect(signInMarkup).toContain("text-brand-surface");
     expect(signInMarkup).not.toContain("Need admin access");
     expect(signInMarkup).not.toContain("/admin/register");

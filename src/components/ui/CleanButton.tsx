@@ -42,7 +42,7 @@ const cleanVariantClass: Record<CleanButtonVariant, string> = {
 };
 
 const cleanActiveClass =
-  "bg-brand-content text-brand-surface hover:bg-brand-content";
+  "bg-brand-content !text-brand-surface hover:bg-brand-content";
 
 function cleanClassName(input: {
   active?: boolean;

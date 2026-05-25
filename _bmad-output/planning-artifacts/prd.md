@@ -119,7 +119,7 @@ Prospect succeeds when they can browse public storefront content and product det
 MVP works when JRW can operate one real storefront safely, support lifestyle products beyond apparel, and use brands as catalog organization/collaboration rather than store tenancy.
 
 Targets:
-- Admin account creation/approval works end-to-end with email validation where registration is open.
+- Super Admin-created Admin account management works end-to-end with email validation where required.
 - JRW storefront can be published and browsed publicly.
 - Brands can be created, joined, skipped, and used to group products without affecting payment ownership.
 - Brand members can see, add, and modify products inside brands they belong to.
@@ -153,7 +153,7 @@ MVP complete when:
 - Seed creates exactly one Super Admin.
 - Super Admin can create Admin account.
 - Super Admin can transfer ownership to another eligible Admin with confirmation and audit trail.
-- Super Admin or authorized Admin can approve/reject verified Admin registration if open registration is enabled.
+- Super Admin can activate, suspend, and reactivate Admin accounts without exposing Admin signup.
 - Admin can create, join, or skip brand assignment.
 - Brand member Admin can see, add, and modify products within that brand.
 - Admin can add product, variant, image, stock, and price.
@@ -172,7 +172,7 @@ MVP complete when:
 - Legacy API behavior either migrated or wrapped with a clear deprecation path.
 - Seeded unique Super Admin.
 - Admin management by Super Admin.
-- Optional Admin self-registration with email verification and approval, if enabled.
+- Admin account creation, activation, suspension, and reactivation by Super Admin.
 - Customer registration with email verification.
 - Google sign-in for customers.
 - Brand creation, brand membership, and optional brandless catalog work.
@@ -182,6 +182,7 @@ MVP complete when:
 - PayMongo payment integration for JRW customer purchases under the single JRW merchant account.
 - Resend email verification and transactional emails.
 - Role/brand authorization middleware or equivalent server-side enforcement.
+- Astro page middleware for protected admin pages, so admin dashboard routes redirect or deny before rendering protected shell/data.
 - Audit logs for sensitive account, approval, brand, inventory, payment, return/refund, and order actions.
 - Manual refund/return admin input.
 - Request IDs, structured operational logs, and production error tracking gate before real customer payments when feasible.
@@ -446,7 +447,7 @@ Rendering requirements:
 - `STORE_ADMIN`: deprecated alias migrated to `ADMIN`.
 - Admin and Customer accounts are separate even when the email string matches in both tables. Same-email records must not auto-link, promote, share password state, or imply same identity.
 - Admin auth and Customer auth use separate route groups, repositories, and cookies: `jrw_admin_session` for Admin realm and `jrw_customer_session` for Customer realm.
-- Admin dashboard access requires Super Admin creation or approved/verified Admin registration if enabled.
+- Admin dashboard access requires a Super Admin-created active Admin account.
 - Customer email verification gates trusted checkout/account flows.
 - Ownership transfer must preserve exactly one owner, require deliberate confirmation, require current Super Admin re-authentication or password confirmation, require an active eligible target Admin, record an audit trail, and demote the old owner to Admin unless explicitly disabled.
 
@@ -454,7 +455,7 @@ Rendering requirements:
 
 Required route groups and endpoint expectations:
 
-- `auth`: realm-specific Admin and Customer login/logout/session inspection, customer registration, Admin registration when enabled, email verification, password reset, and Customer-only Google OAuth callback.
+- `auth`: realm-specific Admin and Customer login/logout/session inspection, customer registration, email verification, password reset, and Customer-only Google OAuth callback.
 - `admin`: Admin account management, approval/rejection, suspension/reactivation, ownership transfer, dashboard session.
 - `brands`: brand create/read/update/archive, membership list, invitation, join request, approval/rejection, member removal.
 - `catalog`: categories, products, variants, product images, publish/archive, brand assignment.
@@ -768,6 +769,7 @@ Resource risks:
 ### Security & Privacy
 
 - All protected dashboard actions must enforce server-side role authorization with automated tests covering allowed and denied paths for each role.
+- All protected admin pages must run server-side page access checks before rendering dashboard UI; unauthenticated users must be redirected to Admin sign-in without seeing a client-side session loading gate as the primary experience.
 - Brand-scoped product actions must enforce server-side brand membership or elevated permission with automated tests for member, non-member, and elevated Admin cases.
 - Password storage must use salted hashing with a secret pepper and pass architecture-approved verification tests for correct password, wrong password, and rotated configuration failure handling.
 - Email verification tokens must expire within 24 hours; password reset tokens within 30 minutes; OAuth state values within 10 minutes; all token values must provide at least 128 bits of entropy.

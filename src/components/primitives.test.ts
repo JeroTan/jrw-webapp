@@ -100,7 +100,7 @@ describe("shared UI primitives", () => {
     expect(buttonMarkup).toContain("bg-brand-accent");
     expect(buttonMarkup).toContain("text-brand-surface");
     expect(linkMarkup).toContain("bg-brand-content");
-    expect(linkMarkup).toContain("text-brand-surface");
+    expect(linkMarkup).toContain("!text-brand-surface");
     expect(linkMarkup).toContain("focus-visible:outline-brand-accent");
   });
 

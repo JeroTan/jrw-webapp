@@ -1,89 +1,91 @@
-* {
-  box-sizing: border-box;
-}
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
 
-html {
-  min-height: 100%;
-  @apply bg-brand-background text-brand-content font-body;
-  text-rendering: optimizeLegibility;
-}
+  html {
+    min-height: 100%;
+    @apply bg-brand-background text-brand-content font-body;
+    text-rendering: optimizeLegibility;
+  }
 
-body {
-  min-height: 100vh;
-  margin: 0;
-  @apply bg-brand-background text-brand-content font-body;
-  line-height: 1.5;
-}
+  body {
+    min-height: 100vh;
+    margin: 0;
+    @apply bg-brand-background text-brand-content font-body;
+    line-height: 1.5;
+  }
 
-body,
-button,
-input,
-select,
-textarea {
-  font: inherit;
-}
+  body,
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
 
-button,
-input,
-select,
-textarea {
-  @apply rounded-none;
-}
+  button,
+  input,
+  select,
+  textarea {
+    @apply rounded-none;
+  }
 
-button {
-  cursor: pointer;
-}
+  button {
+    cursor: pointer;
+  }
 
-button:disabled,
-input:disabled,
-select:disabled,
-textarea:disabled,
-[aria-disabled="true"] {
-  cursor: not-allowed;
-  opacity: 0.62;
-}
+  button:disabled,
+  input:disabled,
+  select:disabled,
+  textarea:disabled,
+  [aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: 0.62;
+  }
 
-a {
-  color: inherit;
-  text-underline-offset: 0.2em;
-}
+  a {
+    color: inherit;
+    text-underline-offset: 0.2em;
+  }
 
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
-  margin: 0;
-  @apply font-heading font-bold;
-  letter-spacing: 0;
-  line-height: 1.05;
-}
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    margin: 0;
+    @apply font-heading font-bold;
+    letter-spacing: 0;
+    line-height: 1.05;
+  }
 
-p {
-  margin: 0;
-}
+  p {
+    margin: 0;
+  }
 
-::selection {
-  @apply bg-brand-accent text-brand-surface;
-}
+  ::selection {
+    @apply bg-brand-accent text-brand-surface;
+  }
 
-:focus {
-  outline: none;
-}
+  :focus {
+    outline: none;
+  }
 
-:focus-visible {
-  @apply outline-2 outline-brand-accent;
-  outline-offset: 2px;
-}
+  :focus-visible {
+    @apply outline-2 outline-brand-accent;
+    outline-offset: 2px;
+  }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      scroll-behavior: auto !important;
+      transition-duration: 0.01ms !important;
+    }
   }
 }
