@@ -7,12 +7,15 @@ import {
   publicCatalogUnavailableReason,
 } from "@/domain/products/public-catalog";
 import type {
+  PublicCatalogAvailability,
+  PublicCatalogBrandSummary,
   PublicCatalogBrandOption,
   PublicCatalogCategoryOption,
   PublicCatalogDetailResult,
   PublicCatalogGalleryItem,
   PublicCatalogPagination,
   PublicCatalogProductCard,
+  PublicCatalogRecommendations,
   PublicCatalogRecoveryLink,
 } from "@/domain/products/public-types";
 import type {
@@ -29,6 +32,7 @@ import {
   product_variants,
   products,
 } from "@/domain/schema/catalog";
+import { SNAPSHOT_QUANTITY_MAX } from "@/domain/snapshots/schemas";
 import {
   DrizzleCategoryRepository,
   type CategoryRepository,
@@ -129,6 +133,21 @@ function productImageSrc(r2Key: string | null): string | undefined {
   }
 
   return publicProductAssetUrl(cleanKey);
+}
+
+function maxQuantityForVariant(input: {
+  availability: PublicCatalogAvailability;
+  variant: ProductVariantRecord;
+}): number {
+  if (!input.availability.inStock) {
+    return 0;
+  }
+
+  if (input.variant.stock > 0) {
+    return Math.min(input.variant.stock, SNAPSHOT_QUANTITY_MAX);
+  }
+
+  return SNAPSHOT_QUANTITY_MAX;
 }
 
 function priceLabel(product: ProductRecord): string {
@@ -306,9 +325,11 @@ export function buildPublicCatalogDetailMetadata(input: {
 }
 
 function detailResultFromSource(input: {
+  brand: PublicCatalogBrandSummary | null;
   categories: PublicCatalogCategoryOption[];
   galleryPhotos: ProductPhotoRecord[];
   product: ProductRecord;
+  recommendations: PublicCatalogRecommendations | null;
   variants: ProductVariantRecord[];
 }): PublicCatalogDetailResult {
   const gallery = input.galleryPhotos.map((photo, index) =>
@@ -347,6 +368,7 @@ function detailResultFromSource(input: {
         name: variant.name,
         optionValues: variant.variationChain,
       }),
+      maxQuantity: maxQuantityForVariant({ availability, variant }),
       optionValues: variant.variationChain.map((option) => ({
         group: option.group,
         name: option.name,
@@ -394,6 +416,7 @@ function detailResultFromSource(input: {
           label: "Unavailable",
           reason: "Product options are unavailable right now.",
         },
+    brand: input.brand,
     gallery,
     metadata: buildPublicCatalogDetailMetadata({
       availabilityText: selectedAvailability.label,
@@ -404,6 +427,7 @@ function detailResultFromSource(input: {
       priceLabel: selectedPriceLabel,
       product: input.product,
     }),
+    recommendations: input.recommendations,
     product: {
       availability: selectedAvailability,
       brandName: input.product.brandName,
@@ -553,11 +577,19 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
       this.photoRepository.listByProductId(product.id),
       this.listAllVariants(product.id),
     ]);
+    const brand = await this.findActiveBrandSummary(product);
+    const recommendations = await this.findRecommendations({
+      brand,
+      categories: visibleCategories,
+      product,
+    });
 
     return detailResultFromSource({
+      brand,
       categories: visibleCategories,
       galleryPhotos,
       product,
+      recommendations,
       variants,
     });
   }
@@ -637,6 +669,117 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
       .from(product_variants)
       .where(inArray(product_variants.product_id, productIds))
       .groupBy(product_variants.product_id);
+  }
+
+  private async findActiveBrandSummary(
+    product: ProductRecord
+  ): Promise<PublicCatalogBrandSummary | null> {
+    if (!product.brandId) {
+      return null;
+    }
+
+    const [brand] = await this.db
+      .select({
+        id: brands.id,
+        name: brands.name,
+        slug: brands.slug,
+      })
+      .from(brands)
+      .where(and(eq(brands.id, product.brandId), eq(brands.status, "ACTIVE")))
+      .limit(1);
+
+    if (!brand) {
+      return null;
+    }
+
+    const brandProducts = await this.listPublishedProductCards({
+      brandIds: [brand.id],
+      page: 1,
+      pageSize: 4,
+    });
+    const brandImage = brandProducts.items.find((item) => item.imageSrc);
+
+    return {
+      href: brandHref(brand.slug),
+      id: brand.id,
+      ...(brandImage?.imageAlt ? { imageAlt: brandImage.imageAlt } : {}),
+      ...(brandImage?.imageSrc ? { imageSrc: brandImage.imageSrc } : {}),
+      name: brand.name,
+      productCount: brandProducts.pagination.totalItems,
+      slug: brand.slug,
+    };
+  }
+
+  private async findRecommendations(input: {
+    brand: PublicCatalogBrandSummary | null;
+    categories: PublicCatalogCategoryOption[];
+    product: ProductRecord;
+  }): Promise<PublicCatalogRecommendations | null> {
+    const limit = 4;
+    const category = input.categories[0];
+
+    if (category) {
+      const related = await this.listPublishedProductCards({
+        categoryIds: [category.id],
+        categoryName: category.name,
+        page: 1,
+        pageSize: limit + 1,
+      });
+      const items = related.items
+        .filter((item) => item.id !== input.product.id)
+        .slice(0, limit);
+
+      if (items.length > 0) {
+        return {
+          actionHref: category.href,
+          actionLabel: "View more",
+          items,
+          source: "related",
+          title: "Related products",
+        };
+      }
+    }
+
+    if (input.brand) {
+      const brandProducts = await this.listPublishedProductCards({
+        brandIds: [input.brand.id],
+        page: 1,
+        pageSize: limit + 1,
+      });
+      const items = brandProducts.items
+        .filter((item) => item.id !== input.product.id)
+        .slice(0, limit);
+
+      if (items.length > 0) {
+        return {
+          actionHref: input.brand.href,
+          actionLabel: "View more",
+          items,
+          source: "related",
+          title: "Related products",
+        };
+      }
+    }
+
+    const latest = await this.listPublishedProductCards({
+      page: 1,
+      pageSize: limit + 1,
+    });
+    const latestItems = latest.items
+      .filter((item) => item.id !== input.product.id)
+      .slice(0, limit);
+
+    if (latestItems.length === 0) {
+      return null;
+    }
+
+    return {
+      actionHref: "/products",
+      actionLabel: "View more",
+      items: latestItems,
+      source: "latest",
+      title: "Latest products",
+    };
   }
 
   private async listAvailabilityStates(

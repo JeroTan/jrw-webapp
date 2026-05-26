@@ -1,6 +1,6 @@
 # Story 4.11: Product Detail Composition, Content, and Recommendations
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Correct-course follow-up for Story 4.3 product detail refinement. -->
 

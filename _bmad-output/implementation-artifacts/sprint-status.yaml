@@ -93,7 +93,7 @@ development_status:
   4-9-storefront-product-card-and-detail-fidelity: done
   4-10-future-story-ui-fidelity-gate: done
   # Product detail correction from 2026-05-26 direct-adjustment request. Run before checkout validation/payment expansion.
-  4-11-product-detail-composition-content-and-recommendations: ready-for-dev
+  4-11-product-detail-composition-content-and-recommendations: in-progress
   epic-4-retrospective: optional
   epic-5: backlog
   5-1-checkout-identity-contact-and-delivery-validation: backlog

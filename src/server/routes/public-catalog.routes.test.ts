@@ -48,6 +48,15 @@ const detailItem = {
     label: "Add to cart",
     reason: "Availability rechecks before checkout.",
   },
+  brand: {
+    href: "/brands/jrw-studio",
+    id: "brand_jrw",
+    imageAlt: "Linen Shirt front",
+    imageSrc: "/assets/products/linen-shirt/front.jpg",
+    name: "JRW Studio",
+    productCount: 2,
+    slug: "jrw-studio",
+  },
   gallery: [
     {
       alt: "Linen Shirt front",
@@ -93,6 +102,13 @@ const detailItem = {
     slug: "linen-shirt",
     summary: "Lightweight linen shirt",
   },
+  recommendations: {
+    actionHref: "/categories/apparel",
+    actionLabel: "View more",
+    items: [catalogItem],
+    source: "related" as const,
+    title: "Related products",
+  },
   recoveryLinks: [
     { href: "/products", label: "Browse all products" },
     { href: "/categories", label: "Browse categories" },
@@ -108,6 +124,7 @@ const detailItem = {
       disabled: false,
       id: "variant_linen_small",
       label: "Size: Small",
+      maxQuantity: 12,
       optionValues: [{ group: "Size", name: "Small" }],
       priceCentavos: 1999,
       priceLabel: "PHP 19.99",
@@ -197,6 +214,9 @@ describe("public catalog routes", () => {
     expect(JSON.stringify(detail?.responses?.["200"])).toContain(
       "priceCentavos"
     );
+    expect(JSON.stringify(detail?.responses?.["200"])).toContain(
+      "recommendations"
+    );
 
     expect(categories?.summary).toBe("List public catalog categories");
     expect(categories?.tags).toContain("Public Catalog");
@@ -262,9 +282,18 @@ describe("public catalog routes", () => {
           priceLabel: "PHP 19.99",
         },
         selectedVariantId: "variant_linen_small",
+        brand: {
+          href: "/brands/jrw-studio",
+          productCount: 2,
+        },
+        recommendations: {
+          source: "related",
+          title: "Related products",
+        },
         variants: [
           {
             label: "Size: Small",
+            maxQuantity: 12,
             priceCentavos: 1999,
             selected: true,
           },

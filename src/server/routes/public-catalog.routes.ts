@@ -98,6 +98,7 @@ const tboxPublicCatalogDetailVariant = t.Object({
   id: t.String(),
   imageSrc: t.Optional(t.String()),
   label: t.String(),
+  maxQuantity: t.Number(),
   optionValues: t.Array(tboxPublicCatalogVariantOption),
   priceCentavos: t.Number(),
   priceLabel: t.String(),
@@ -134,6 +135,24 @@ const tboxPublicCatalogProductDetailSummary = t.Object({
   primaryImage: t.Union([tboxPublicCatalogGalleryItem, t.Null()]),
   slug: t.String(),
   summary: t.Union([t.String(), t.Null()]),
+});
+
+const tboxPublicCatalogBrandSummary = t.Object({
+  href: t.String(),
+  id: t.String(),
+  imageAlt: t.Optional(t.String()),
+  imageSrc: t.Optional(t.String()),
+  name: t.String(),
+  productCount: t.Number(),
+  slug: t.String(),
+});
+
+const tboxPublicCatalogRecommendations = t.Object({
+  actionHref: t.Optional(t.String()),
+  actionLabel: t.Optional(t.String()),
+  items: t.Array(tboxPublicCatalogProductCard),
+  source: t.Union([t.Literal("related"), t.Literal("latest")]),
+  title: t.String(),
 });
 
 const tboxPublicCatalogPagination = t.Object({
@@ -209,9 +228,11 @@ const tboxPublicCatalogDetailParams = t.Object({
 
 const tboxPublicCatalogDetailData = t.Object({
   action: tboxPublicCatalogActionState,
+  brand: t.Union([tboxPublicCatalogBrandSummary, t.Null()]),
   gallery: t.Array(tboxPublicCatalogGalleryItem),
   metadata: tboxPublicCatalogDetailMetadata,
   product: tboxPublicCatalogProductDetailSummary,
+  recommendations: t.Union([tboxPublicCatalogRecommendations, t.Null()]),
   recoveryLinks: t.Array(tboxPublicCatalogRecoveryLink),
   selectedVariantId: t.Union([t.String(), t.Null()]),
   variants: t.Array(tboxPublicCatalogDetailVariant),

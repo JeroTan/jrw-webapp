@@ -68,6 +68,7 @@ export type PublicCatalogDetailVariant = {
   id: string;
   imageSrc?: string;
   label: string;
+  maxQuantity: number;
   optionValues: PublicCatalogVariantOption[];
   priceCentavos: number;
   priceLabel: string;
@@ -106,11 +107,33 @@ export type PublicCatalogProductDetailSummary = {
   summary: string | null;
 };
 
+export type PublicCatalogBrandSummary = {
+  href: string;
+  id: string;
+  imageAlt?: string;
+  imageSrc?: string;
+  name: string;
+  productCount: number;
+  slug: string;
+};
+
+export type PublicCatalogRecommendationSource = "related" | "latest";
+
+export type PublicCatalogRecommendations = {
+  actionHref?: string;
+  actionLabel?: string;
+  items: PublicCatalogProductCard[];
+  source: PublicCatalogRecommendationSource;
+  title: string;
+};
+
 export type PublicCatalogDetailResult = {
   action: PublicCatalogActionState;
+  brand: PublicCatalogBrandSummary | null;
   gallery: PublicCatalogGalleryItem[];
   metadata: PublicCatalogDetailMetadata;
   product: PublicCatalogProductDetailSummary;
+  recommendations: PublicCatalogRecommendations | null;
   recoveryLinks: PublicCatalogRecoveryLink[];
   selectedVariantId: string | null;
   variants: PublicCatalogDetailVariant[];

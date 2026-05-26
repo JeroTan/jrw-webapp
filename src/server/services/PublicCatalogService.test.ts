@@ -51,6 +51,15 @@ const detail: PublicCatalogDetailResult = {
     label: "Add to cart",
     reason: "Availability rechecks before checkout.",
   },
+  brand: {
+    href: "/brands/jrw-studio",
+    id: "brand_jrw",
+    imageAlt: "Linen Shirt",
+    imageSrc: "/assets/products/linen-shirt/front.jpg",
+    name: "JRW Studio",
+    productCount: 2,
+    slug: "jrw-studio",
+  },
   gallery: [
     {
       alt: "Linen Shirt front",
@@ -105,6 +114,13 @@ const detail: PublicCatalogDetailResult = {
     slug: "linen-shirt",
     summary: "Lightweight linen shirt",
   },
+  recommendations: {
+    actionHref: "/categories/apparel",
+    actionLabel: "View more",
+    items: [product],
+    source: "related",
+    title: "Related products",
+  },
   recoveryLinks: [
     { href: "/products", label: "Browse all products" },
     { href: "/categories", label: "Browse categories" },
@@ -121,6 +137,7 @@ const detail: PublicCatalogDetailResult = {
       id: "variant_linen_small",
       imageSrc: "/assets/products/linen-shirt/front.jpg",
       label: "Size: Small",
+      maxQuantity: 12,
       optionValues: [{ group: "Size", name: "Small" }],
       priceCentavos: 1999,
       priceLabel: "PHP 19.99",
@@ -136,6 +153,7 @@ const detail: PublicCatalogDetailResult = {
       disabled: true,
       id: "variant_linen_large",
       label: "Size: Large",
+      maxQuantity: 0,
       optionValues: [{ group: "Size", name: "Large" }],
       priceCentavos: 2499,
       priceLabel: "PHP 24.99",
@@ -332,6 +350,10 @@ describe("PublicCatalogService", () => {
 
     expect(detailResult.error).toBeNull();
     expect(detailResult.content).toMatchObject({
+      brand: {
+        href: "/brands/jrw-studio",
+        productCount: 2,
+      },
       metadata: {
         canonicalPath: "/products/linen-shirt",
       },
@@ -340,9 +362,14 @@ describe("PublicCatalogService", () => {
         name: "Linen Shirt",
       },
       selectedVariantId: "variant_linen_small",
+      recommendations: {
+        source: "related",
+        title: "Related products",
+      },
       variants: [
         {
           label: "Size: Small",
+          maxQuantity: 12,
           selected: true,
         },
         {

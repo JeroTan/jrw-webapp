@@ -17,6 +17,7 @@ const detail: PublicCatalogDetailResult = {
     label: "Add to cart",
     reason: "Availability rechecks before checkout.",
   },
+  brand: null,
   gallery: [
     {
       alt: "Linen Shirt front",
@@ -62,6 +63,7 @@ const detail: PublicCatalogDetailResult = {
     slug: "linen-shirt",
     summary: "Lightweight linen shirt",
   },
+  recommendations: null,
   recoveryLinks: [],
   selectedVariantId: "variant_linen_small",
   variants: [
@@ -75,6 +77,7 @@ const detail: PublicCatalogDetailResult = {
       id: "variant_linen_small",
       imageSrc: "/assets/products/linen-shirt/front.jpg",
       label: "Size: Small",
+      maxQuantity: 12,
       optionValues: [{ group: "Size", name: "Small" }],
       priceCentavos: 1999,
       priceLabel: "PHP 19.99",
