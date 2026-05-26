@@ -44,6 +44,13 @@ so that I can choose and act on the right product without guessing.
   - [ ] Update TypeBox schemas, route docs, service/repository tests, and OpenAPI assertions if public response fields change.
 
 - [ ] Task 3: Build safe markdown description rendering. (AC: 10, 14)
+  - [ ] Create `src/features/product-detail/components/product-description/` folder if description rendering needs more than one focused file.
+  - [ ] Keep `ProductDescription.tsx` as high-level description renderer.
+  - [ ] Add `ProductDescriptionLayout.tsx` wrapper for generated markdown HTML styling so converter output does not require ad hoc classes per tag in page code.
+  - [ ] If description styling should be reused outside product detail, place wrapper at `src/components/layout/ProductDescriptionLayout.tsx`; otherwise keep it feature-local at `src/features/product-detail/components/product-description/ProductDescriptionLayout.tsx`.
+  - [ ] Do not create `src/layout/`; this repo uses `src/layouts/**` for Astro layouts and `src/components/layout/**` for shared React layout wrappers.
+  - [ ] Keep converter/sanitizer code in `src/features/product-detail/lib/renderProductDescription.ts`, not inside React markup.
+  - [ ] Keep raw markdown-to-safe-HTML conversion separate from visual layout: renderer returns safe HTML, layout owns typography, spacing, lists, links, tables, and media styling.
   - [ ] Add a small product-description renderer that converts markdown with installed `showdown`.
   - [ ] Sanitize or strictly constrain converter output before using `dangerouslySetInnerHTML` or Astro `set:html`.
   - [ ] Prefer a tested allowlist sanitizer if adding a dependency is acceptable; otherwise disable raw HTML and prove script/event handler payloads render inert.
@@ -52,13 +59,20 @@ so that I can choose and act on the right product without guessing.
 
 - [ ] Task 4: Recompose product detail top module. (AC: 1-5, 9, 14)
   - [ ] Update `ProductDetailPage.tsx` to use high-level modules: product details, optional brand details, other products, hidden review placeholder.
+  - [ ] Keep `ProductDetailPage.tsx` thin: compose modules, own selected variant/image/quantity state, and delegate UI sections to folder-local children.
   - [ ] Product details module top row uses responsive grid: desktop `minmax(0,40%) minmax(0,60%)` or equivalent, mobile one column.
   - [ ] Product name is first visible item in details/CTA.
   - [ ] Keep price and availability visible near variant/quantity controls.
   - [ ] Rating/review block is hidden with no customer-facing promise.
+  - [ ] Create `src/features/product-detail/components/product-actions/` folder if action row logic grows.
+  - [ ] Keep `ProductActions.tsx` as high-level action row orchestrator and split `BuyAction.tsx`, `AddToCartAction.tsx`, or `ShareAction.tsx` only when each action gains unique logic.
   - [ ] CTA row uses shared `Button`: wide `Buy`, smaller add-to-cart, smaller share. `Buy` should use current honest app path; if checkout route is not ready, route to cart/next available step or show honest disabled reason.
 
 - [ ] Task 5: Update gallery with square image and thumbnail carousel. (AC: 3-4, 14)
+  - [ ] Create `src/features/product-detail/components/product-gallery/` folder for gallery composition.
+  - [ ] Keep `ProductGallery.tsx` as high-level gallery orchestrator inside that folder.
+  - [ ] Extract `ProductImage.tsx` for main square image/missing-image frame.
+  - [ ] Extract `ProductCarousel.tsx` for thumbnail rail and previous/next arrows.
   - [ ] Main frame stays square with stable dimensions and no distortion.
   - [ ] Use `object-contain` when full product visibility matters; use existing approved object treatment only if it better matches Direction 02 without cropping important content.
   - [ ] Thumbnail carousel sits below main image with previous/next arrow controls on the side.
@@ -66,6 +80,10 @@ so that I can choose and act on the right product without guessing.
   - [ ] Keep alt text customer-safe and preserve keyboard/focus-visible behavior.
 
 - [ ] Task 6: Replace flat variant selector with dynamic option groups. (AC: 6-8, 14)
+  - [ ] Create `src/features/product-detail/components/product-variant-selector/` folder for variant selector composition.
+  - [ ] Keep `VariantSelector.tsx` as high-level variant selector orchestrator inside that folder.
+  - [ ] Extract `VariantWrapper.tsx` for each option-group section label, layout, and accessibility wrapper.
+  - [ ] Extract `VariantSelectorOption.tsx` for individual selectable chip/swatch option.
   - [ ] Derive groups from variant option category names and render each category in order.
   - [ ] Use wrapping selectable chips similar to `ProductCatalogFilters`, but without checkboxes.
   - [ ] Highlight selected value and keep keyboard selection accessible.
@@ -73,6 +91,8 @@ so that I can choose and act on the right product without guessing.
   - [ ] Color-like groups render square swatch affordance with text label. Detect `color`, `colour`, or future normalized metadata if present; fallback to text-only chip when color value cannot be safely mapped.
 
 - [ ] Task 7: Add availability and quantity controls. (AC: 7-9, 14)
+  - [ ] Create `src/features/product-detail/components/product-quantity-control/` folder when quantity logic is extracted.
+  - [ ] Keep `ProductQuantityControl.tsx` as high-level quantity control and split `QuantityButton.tsx` or `QuantityInput.tsx` only if behavior becomes non-trivial.
   - [ ] Availability updates when selected variant changes.
   - [ ] Quantity control uses minus button, numeric input, and plus button.
   - [ ] Clamp to min 1 and maximum from safe variant availability/cart rules; never expose internal stock fields unless DTO explicitly provides customer-safe available count.
@@ -80,16 +100,34 @@ so that I can choose and act on the right product without guessing.
   - [ ] Ensure input changes preserve prior valid quantity on invalid values.
 
 - [ ] Task 8: Add optional brand module. (AC: 11, 14)
+  - [ ] Create `src/features/product-detail/components/product-brand-summary/` folder.
+  - [ ] Keep `ProductBrandSummary.tsx` as high-level brand module.
+  - [ ] Extract `BrandSummaryImage.tsx` for optional brand image, missing-image treatment, alt text, and square/fit behavior.
+  - [ ] Extract `BrandSummaryDetails.tsx` for brand name, optional brand href, and product-count copy.
+  - [ ] Extract `BrandProductCount.tsx` if pluralization or loading/unknown count state needs focused logic.
   - [ ] Show brand module only when product has brand data.
   - [ ] Render optional brand image on left, brand name on top, total product count below.
+  - [ ] Brand module desktop layout uses image left and text right; mobile stacks only if needed for overflow.
+  - [ ] Brand image must not imply store/seller identity. It is brand/catalog context only.
+  - [ ] Brand product count should be customer-safe: use published public product count only, not admin total.
+  - [ ] If brand route exists, brand name/image can link to public brand page with accessible label. If no route/data target exists, render static summary.
   - [ ] Keep copy as brand/catalog context only; no seller/store/merchant implications.
   - [ ] Hide cleanly when no brand exists.
 
 - [ ] Task 9: Add other-products module. (AC: 12, 14)
+  - [ ] Create `src/features/product-detail/components/product-recommendations/` folder.
+  - [ ] Keep `ProductRecommendations.tsx` as high-level other-products module.
+  - [ ] Extract `RecommendationHeader.tsx` for title, source label (`Related products` / `Latest products`), and `View more` link.
+  - [ ] Extract `RecommendationGrid.tsx` for product-card layout and responsive module spacing.
+  - [ ] Extract `RecommendationViewMore.tsx` if route/link logic has category/brand/products fallback branching.
+  - [ ] Keep lightweight recommendation selection helper under `src/features/product-detail/lib/recommendations.ts` only for UI-safe ordering/labels; server remains source of real product data.
   - [ ] Reuse `ProductCard` or current product-card-compatible section component.
   - [ ] Prefer related products by same visible category or brand, excluding current product.
   - [ ] Fall back to latest published products excluding current product.
+  - [ ] Mark which source produced the section in data or view model: `related` when category/brand matched, `latest` when fallback used.
+  - [ ] Limit visible cards to a small fixed count that fits mobile and desktop without a giant page tail. Use existing grid/card responsive behavior.
   - [ ] Add `View more` link to the relevant category/brand/products route when a real filter target exists.
+  - [ ] If source is category-related, `View more` targets category when available. If source is brand-related, target brand page when public brand route exists. If fallback is latest, target products/catalog page.
   - [ ] Hide the module when no real product card data is available.
 
 - [ ] Task 10: Tests and QA. (AC: 1-14)
@@ -127,7 +165,7 @@ Complete for every new or changed endpoint. Mark non-applicable items as `N/A` w
 #### READ: `src/features/product-detail/components/ProductDetailPage.tsx`
 
 - Current state: renders header, gallery, price/availability/details card, flat variant selector, and cart action.
-- What changes: remove separate hero-like header from product-detail flow if it fights requested order; make product name first in details/CTA; add high-level modules, quantity, Buy/cart/share, markdown description, optional brand and other-products modules.
+- What changes: move page/container composition to feature root if implementation churn is acceptable; remove separate hero-like header from product-detail flow if it fights requested order; make product name first in details/CTA; add high-level modules, quantity, Buy/cart/share, markdown description, optional brand and other-products modules.
 - Preserve: selected variant/image state, cart integration from Story 4.4, safe recovery links, SSR detail data.
 
 #### READ: `src/features/product-detail/components/ProductGallery.tsx`
@@ -147,6 +185,69 @@ Complete for every new or changed endpoint. Mark non-applicable items as `N/A` w
 - Current state: accepted product card module for grid and likely other-products reuse.
 - What changes: reuse this component or product-card-compatible props for other-products section.
 - Preserve: no fake live product data, product link hrefs, compact slash metadata, sharp module styling.
+
+### Project Structure Notes
+
+Keep product detail work inside existing feature and public catalog boundaries.
+
+Recommended product-detail files:
+
+- `src/features/product-detail/ProductDetailPage.tsx` - feature page/container composition and high-level module order.
+- `src/features/product-detail/components/product-gallery/ProductGallery.tsx` - high-level gallery orchestrator.
+- `src/features/product-detail/components/product-gallery/ProductImage.tsx` - main square image and missing-image frame.
+- `src/features/product-detail/components/product-gallery/ProductCarousel.tsx` - thumbnail carousel and side arrow controls.
+- `src/features/product-detail/components/product-variant-selector/VariantSelector.tsx` - high-level variant selector orchestrator.
+- `src/features/product-detail/components/product-variant-selector/VariantWrapper.tsx` - option group wrapper, label, and accessible grouping.
+- `src/features/product-detail/components/product-variant-selector/VariantSelectorOption.tsx` - individual chip/swatch selection control.
+- `src/features/product-detail/components/product-quantity-control/ProductQuantityControl.tsx` - minus/input/plus quantity control when extracted.
+- `src/features/product-detail/components/product-description/ProductDescription.tsx` - sanitized markdown HTML rendering.
+- `src/features/product-detail/components/product-description/ProductDescriptionLayout.tsx` - feature-local markdown visual wrapper when not reused elsewhere.
+- `src/components/layout/ProductDescriptionLayout.tsx` - shared markdown visual wrapper only if other features need the same generated-description styling.
+- `src/features/product-detail/components/product-brand-summary/ProductBrandSummary.tsx` - high-level optional brand block.
+- `src/features/product-detail/components/product-brand-summary/BrandSummaryImage.tsx` - optional brand image and fallback frame.
+- `src/features/product-detail/components/product-brand-summary/BrandSummaryDetails.tsx` - brand name, public brand link, and product-count placement.
+- `src/features/product-detail/components/product-brand-summary/BrandProductCount.tsx` - count label/pluralization if needed.
+- `src/features/product-detail/components/product-recommendations/ProductRecommendations.tsx` - high-level related/latest products section.
+- `src/features/product-detail/components/product-recommendations/RecommendationHeader.tsx` - section title/source label and view-more composition.
+- `src/features/product-detail/components/product-recommendations/RecommendationGrid.tsx` - `ProductCard` grid/list layout.
+- `src/features/product-detail/components/product-recommendations/RecommendationViewMore.tsx` - category/brand/products link target logic if branching grows.
+- `src/features/product-detail/components/product-actions/ProductActions.tsx` - `Buy`, add-to-cart, and share action row if CTA logic grows.
+- `src/features/product-detail/components/ProductReviewsPlaceholder.tsx` - hidden/developer-only review placeholder only if a separate component helps tests.
+- `src/features/product-detail/lib/renderProductDescription.ts` - markdown conversion and sanitization helper.
+- `src/features/product-detail/lib/variant-options.ts` - option grouping, selected combination resolution, color-like swatch helpers.
+- `src/features/product-detail/lib/recommendations.ts` - UI-safe recommendation source labeling/ordering helpers if needed; full algorithm remains future story.
+- `src/features/product-detail/components/product-detail-ui.test.tsx` - UI and interaction coverage.
+- `src/features/product-detail/lib/renderProductDescription.test.ts` - markdown safety coverage.
+- `src/features/product-detail/lib/variant-options.test.ts` - variant grouping/selection coverage if helper is extracted.
+- `src/features/product-detail/index.ts` - public feature export for `ProductDetailPage` and only the child modules intended for reuse.
+
+Recommended server/data files only if DTO fields are missing:
+
+- `src/domain/products/public-types.ts` - add safe public fields for brand summary, quantity max, option group metadata, and related/latest card data.
+- `src/domain/products/public-catalog.ts` - add public-safe formatting helpers only if existing helpers cannot cover new fields.
+- `src/server/repositories/PublicCatalogRepository.ts` - fetch related/latest published products and public brand summary from existing catalog/image/brand sources.
+- `src/server/services/PublicCatalogService.ts` - orchestrate detail payload, selected variant defaults, and related/latest fallback.
+- `src/server/controllers/PublicCatalogController.ts` - update only if public API response shape changes.
+- `src/server/routes/public-catalog.routes.ts` - update TypeBox/OpenAPI schemas only if response fields change.
+- `src/server/loaders/PublicCatalogPageDataLoader.ts` - keep SSR page data direct; no page self-fetch.
+- `src/server/services/PublicCatalogService.test.ts` and `src/server/routes/public-catalog.routes.test.ts` - cover changed DTO and safe response contracts.
+
+Reuse boundaries:
+
+- `ProductDetailPage` should be the root feature container, matching `src/features/product-catalog/ProductCatalog.tsx`. Child modules stay under `components/**`.
+- If `ProductDetailPage.tsx` moves from `components/` to feature root, update `src/features/product-detail/index.ts` and `src/pages/products/[slug].astro` imports in the same change. A short temporary re-export is acceptable only if it reduces churn, but final structure should not keep duplicate containers.
+- Avoid god files. High-level components orchestrate; child files own focused UI pieces. If a component exceeds about one screen of mixed responsibilities, split into folder-local children before adding more branching.
+- Folder names under `components/**` should be kebab-case for grouped component families, with PascalCase component files inside.
+- Reuse `src/features/product-catalog/components/ProductCard.tsx` or a public export from `src/features/product-catalog/index.ts` for related/latest cards. Do not duplicate product-card markup in product detail.
+- If product card reuse becomes awkward across catalog/detail, extract a shared storefront product-card module in a follow-up refactor; do not do broad feature reshuffle inside this story unless needed to avoid duplication.
+- Keep generic controls in `src/components/ui/**` only when they are reusable outside product detail. Quantity control stays feature-local unless another feature needs the same behavior.
+- Keep recommendation ranking simple here. Full recommendation algorithm belongs to a separate future story.
+
+Avoid these placements:
+
+- Do not put product-detail components under `src/components/**` unless truly generic.
+- Do not add related/latest logic under admin products, legacy `src/api/**`, page-local helper files, or route-only code.
+- Do not create a new public route module if existing `public-catalog` stack can safely serve the detail payload.
 
 ### Technical Requirements
 
