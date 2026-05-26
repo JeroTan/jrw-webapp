@@ -21,6 +21,24 @@ So that I can choose a valid product option confidently.
 7. Given page metadata is generated, when product detail renders, then product name, description, price display, availability, primary image, and brand/category metadata where available are crawlable.
 8. Given implementation finishes, when QA/tests run, then checks cover published detail, missing product, unpublished/archived handling, variant selection, unavailable state, gallery, SEO metadata, keyboard access, and mobile/desktop layout and `npm run check` passes or blocker is documented.
 
+## Change Addendum 2026-05-26
+
+Story 4.3 remains historical implementation record. New product detail layout/content correction is captured in Story 4.11: Product Detail Composition, Content, and Recommendations.
+
+Reason: Story 4.3 and 4.9 were already marked done, and Story 4.4 cart behavior is also done. Reopening completed history would hide the actual sprint path. Story 4.11 directly adjusts the current product detail experience without rolling back completed work.
+
+4.11 owns these deltas:
+
+- Product detail high-level composition: product details, optional brand details, other products, hidden reviews placeholder.
+- Product details child layout: square image/gallery, 60% details/CTA, full-width markdown description; mobile stacks to 100%.
+- Thumbnail carousel with side arrows below main image, hidden for one or zero images.
+- Product name first on right side; rating/review visuals hidden for post-MVP scope.
+- Dynamic variant option groups rendered like selectable filter chips, including color-like swatch readiness.
+- Variant-specific availability, constrained quantity stepper, wide `Buy`, add-to-cart, and share controls.
+- Markdown description converted to sanitized HTML.
+- Optional brand image/name/product count block.
+- Related products excluding current product, falling back to latest products, hidden when no real products exist.
+
 ## Tasks / Subtasks
 
 - [x] Task 1: Lock scope, reuse points, and anti-patterns before coding. (AC: 1-8)

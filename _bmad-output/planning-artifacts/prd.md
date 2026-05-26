@@ -69,6 +69,8 @@ editHistory:
     changes: "Approved UI fidelity and admin shell correction; added FR79 to require exact UX design-direction fidelity before UI stories are marked done."
   - date: "2026-05-26"
     changes: "Documented manual storefront catalog cleanup: catalog components no longer own storefront hero content, shared primitives own repeated control styling, and public product cards omit missing-brand filler copy."
+  - date: "2026-05-26"
+    changes: "Added FR81 for product detail composition: image-first gallery, dynamic variants, quantity constraints, Buy/cart/share actions, markdown description rendering, optional brand details, related/latest products, and hidden review placeholder."
 ---
 
 # Product Requirements Document - jrw-webapp
@@ -453,6 +455,7 @@ Browser support matrix:
 Rendering requirements:
 
 - Public storefront and product detail pages must expose crawlable product metadata.
+- Product detail descriptions authored as markdown must render as crawlable, sanitized HTML before display.
 - Interactive cart, checkout, dashboard tables/forms, inventory controls, and order management may load as enhanced interactive surfaces.
 - Customer storefront must prioritize mobile scan, product inspection, cart update, and checkout completion.
 - Admin dashboard targets desktop/tablet work patterns and must still support critical actions on smaller screens.
@@ -742,6 +745,7 @@ Resource risks:
 - FR38: System can block unavailable variants from checkout.
 - FR39: Customer can submit checkout for cart items.
 - FR40: Customer can view order confirmation after checkout.
+- FR81: Product detail page can render an image-first detail composition with square gallery, thumbnail carousel, dynamic variant option groups, constrained quantity selector, Buy/cart/share actions, markdown description, optional brand summary, related/latest product recommendations, and hidden reviews placeholder until reviews are in scope.
 
 ### Payments & Checkout
 

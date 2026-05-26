@@ -14,7 +14,7 @@ workflowStatus: "complete"
 projectName: "jrw-webapp"
 userName: "MR. JRW"
 createdDate: "2026-05-11"
-lastUpdated: "2026-05-24"
+lastUpdated: "2026-05-26"
 completedAt: "2026-05-12"
 ---
 
@@ -186,6 +186,10 @@ FR78: Project can maintain Tailwind utility-first UI implementation rules so fea
 
 FR79: Project can enforce approved UX design-direction fidelity for shared buttons, product cards, storefront layout-preserving changes, admin auth entry points, admin dashboard shell, and future UI stories before marking UI work done.
 
+FR80: Project can preserve storefront component boundaries so catalog components render catalog content only, route/home/shell components compose hero content, shared primitives carry repeated control styling, and public product cards avoid placeholder brand filler.
+
+FR81: Product detail page can render an image-first detail composition with square gallery, thumbnail carousel, dynamic variant option groups, constrained quantity selector, Buy/cart/share actions, markdown description, optional brand summary, related/latest product recommendations, and hidden reviews placeholder until reviews are in scope.
+
 ### NonFunctional Requirements
 
 NFR1: Public storefront initial usable load must be under 2.5 seconds at p75 on typical mobile 4G as measured by Lighthouse or WebPageTest mobile profile.
@@ -327,7 +331,7 @@ UX-DR3: Implement storefront product discovery with modular product grid, strong
 
 UX-DR4: Implement `ProductCard` with image module, product name, brand/category, price, availability badge, quick action, loading image state, unavailable states, and accessible product link.
 
-UX-DR5: Implement `ProductDetailPanel` as desktop side panel or full detail page and mobile full-screen sheet/page with gallery, heading, brand/category, price, description, variants, stock, add-to-cart, selected/unavailable variant states, and keyboard-accessible variant controls.
+UX-DR5: Implement `ProductDetailPanel` as desktop side panel or full detail page and mobile full-screen sheet/page with image-first composition: 40/60 desktop media/detail split, 100% mobile stack, square primary gallery, thumbnail carousel, product name first, hidden rating/review placeholder until reviews are in scope, dynamic variant option groups, availability plus constrained quantity control, Buy/cart/share actions, markdown description, optional brand block, related/latest product section, selected/unavailable variant states, and keyboard-accessible controls.
 
 UX-DR6: Implement `CartDrawer` for desktop and sticky cart/action behavior for mobile with line items, quantity controls, price, stock warnings, subtotal, empty state, stale inventory state, checkout blocking, focus trap, and focus restoration.
 
@@ -550,6 +554,10 @@ FR77: Epic 3.0 - Component-level UI specifications for shared shell, navigation,
 FR78: Epic 1.5 / Epic 3.0 / Epic 4 - Tailwind utility-first UI implementation guardrails with JRW brand tokens and no one-off runtime class layers.
 
 FR79: Epic 3.10 / Epic 3.11 / Epic 4.8 / Epic 4.9 / Epic 4.10 - Approved UX design-direction fidelity gate for admin shell/auth, storefront product cards, shared button behavior, and future UI stories.
+
+FR80: Epic 4.1 / Epic 4.2 / Epic 4.9 - Storefront component boundary preservation and public product-card cleanup.
+
+FR81: Epic 4.11 - Product detail composition, markdown description rendering, dynamic variants, quantity controls, brand summary, related/latest products, and reviews placeholder.
 
 ## Epic List
 
@@ -2629,6 +2637,86 @@ So that I can prepare my purchase before checkout.
 **When** tests/QA run
 **Then** checks cover add, update, remove, invalid quantity, empty cart, drawer focus, mobile sticky behavior, stale inventory display, and safe price display
 **And** `npm run check` passes or blocker is documented.
+
+### Story 4.11: Product Detail Composition, Content, and Recommendations
+
+As a Prospect or Customer,
+I want a product detail page that shows images, options, availability, quantity, brand context, and nearby products in one precise layout,
+So that I can choose and act on the right product without guessing.
+
+**Requirements covered:** FR81; supports FR34, FR35, FR38, FR79, FR80; UX-DR5, UX-DR6, UX-DR25, UX-DR28.
+
+**Acceptance Criteria:**
+
+**Given** published product detail renders
+**When** desktop viewport is wide enough
+**Then** the first high-level product detail module uses a top row with image/gallery at about 40% width and details/CTA at about 60% width
+**And** mobile stacks image/gallery and details/CTA at 100% width.
+
+**Given** product detail module renders
+**When** content is organized
+**Then** it contains three child modules: image/gallery, details/CTA, and full-width markdown description
+**And** high-level modules use subtle brand border, `bg-brand-background` or approved surface tokens, and visible gaps.
+
+**Given** product has a primary image
+**When** gallery renders
+**Then** the main image sits inside a square container, remains viewable without distortion, and does not shift layout
+**And** if multiple images exist, a thumbnail carousel appears below with side arrows and keyboard-accessible selection.
+
+**Given** product has one or zero images
+**When** gallery renders
+**Then** the thumbnail carousel is hidden
+**And** missing-image state follows the approved sharp module style.
+
+**Given** details/CTA module renders
+**When** user scans top-to-bottom
+**Then** product name is first
+**And** rating/review visuals remain hidden until review scope is implemented.
+
+**Given** product has variant option categories
+**When** user selects options
+**Then** variant controls render dynamic option groups in source order, wrap like catalog filter chips, omit checkboxes, and highlight selected values
+**And** color-like groups can render square swatches with readable text fallback.
+
+**Given** selected variant changes
+**When** availability and quantity render
+**Then** availability updates for that variant
+**And** quantity minus/input/plus controls clamp to min 1 and the safe maximum for the selected variant/cart rules.
+
+**Given** selected variant is unavailable or quantity exceeds allowed maximum
+**When** user attempts Buy or add-to-cart
+**Then** action is blocked with customer-safe text
+**And** prior valid quantity is preserved.
+
+**Given** primary actions render
+**When** layout has room
+**Then** `Buy` is the wide primary action around 70% of the action row
+**And** add-to-cart and share actions use smaller shared-button controls with accessible names.
+
+**Given** product description exists as markdown
+**When** detail page renders
+**Then** markdown is converted to sanitized crawlable HTML, preferably through the installed `showdown` package plus an explicit sanitizer or safe HTML policy
+**And** unsafe raw HTML/scripts do not execute.
+
+**Given** product has brand data
+**When** detail page renders below product details
+**Then** brand module shows optional brand image, brand name, and total product count
+**And** when no brand exists, the brand module is hidden without missing-seller language.
+
+**Given** related published products exist
+**When** other-products module renders
+**Then** it reuses existing `ProductCard`-compatible product data, excludes the current product, prefers related products, and falls back to latest products
+**And** if no real products are available, the module is hidden rather than showing fake purchasable products.
+
+**Given** reviews/comments are out of current MVP scope
+**When** page renders
+**Then** reviews placeholder remains hidden or developer-only
+**And** no visible customer copy promises reviews until the review story exists.
+
+**Given** implementation finishes
+**When** tests/QA run
+**Then** checks cover desktop 40/60 and mobile 100% layout, gallery carousel hide/show, dynamic variants including color swatches, variant-specific availability, quantity clamping, Buy/cart/share actions, sanitized markdown, brand hide/show, related/latest fallback, hidden reviews placeholder, keyboard access, text overflow, and `npm run check`
+**And** blockers are documented.
 
 ### Story 4.5: Availability Blocking Before Checkout
 

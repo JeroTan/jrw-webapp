@@ -779,11 +779,19 @@ All primitives use JRW tokens: 0px radius, 1px borders, no shadows, visible focu
 
 **Usage:** Desktop side panel or product page; mobile full-screen sheet/page.
 
-**Anatomy:** Gallery, product heading, brand/category, price, description, variants, stock, add-to-cart.
+**Anatomy:** Product detail page uses four high-level modules with visible gaps: product details, brand details when brand exists, other products when related/latest products exist, and hidden reviews placeholder for future scope. Product details contains three child modules: image/gallery, details/CTA, and full-width description. Desktop uses about 40% width for the media module and 60% for detail/CTA; mobile stacks media and detail at 100%.
+
+**Gallery:** Primary image sits in a square module. Image should remain viewable inside the square with object-fit treatment that avoids distortion. Thumbnail carousel sits below with side arrows and is hidden when the product has one or zero images.
+
+**Detail/CTA:** Product name is first. Rating/review visuals stay hidden until review scope exists. Variants render as dynamic option groups; each group wraps selectable chips similar to catalog filters, without checkboxes, with selected state highlighted. Color-like option groups can render square color swatches with text fallback. Availability sits with quantity control in one row where space allows. Quantity uses minus/input/plus and clamps to selected variant availability and cart maximum. CTA row uses wide `Buy` primary action plus smaller add-to-cart and share actions.
+
+**Description:** Product description renders markdown as sanitized HTML in the full-width description module.
+
+**Brand and related products:** Brand detail module appears only when brand exists and shows optional image, brand name, and product count. Other products module shows related products excluding current product, falling back to latest products, and hides when no real product cards are available.
 
 **States:** Loading, available, unavailable variant, cart pending, error.
 
-**Accessibility:** Variant buttons keyboard accessible and announce selected/unavailable state.
+**Accessibility:** Variant chips, carousel arrows, quantity controls, Buy/cart/share actions, and hidden review placeholder gate must be keyboard accessible or hidden from assistive tech when inactive. Selected/unavailable variant state must be announced.
 
 ### CartDrawer
 

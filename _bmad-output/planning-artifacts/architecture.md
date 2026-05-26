@@ -38,6 +38,7 @@ notes:
   - "Do not add obsolete domain roles, routes, order states, tenancy rules, or operational behavior unless current PRD explicitly requires them."
   - "UI styling correction: use Tailwind utilities and JRW theme tokens directly in markup; do not recreate one-off jrw-* runtime class layers."
   - "2026-05-26 storefront catalog cleanup: ProductCatalog owns catalog layout only; route/home/shell components own hero composition; shared UI primitives own repeated control visual props."
+  - "2026-05-26 product detail correction: markdown descriptions render through a safe product-detail renderer; never inject converter output as trusted HTML without sanitizer policy."
 ---
 
 # Architecture Decision Document
@@ -245,6 +246,8 @@ OpenAPI is generated from Elysia route contracts. Each completed endpoint needs 
 Astro owns routing and SEO pages. React owns interactive storefront, checkout, admin dashboard, and governance surfaces. Feature code lives under `src/features/<feature>/**`; shared primitives live under `src/components/**`.
 
 State approach: URL/server data for browsable catalog, local React state for UI interactions, server validation before checkout, and server state as authority for cart checkout, payment, orders, inventory, and auth.
+
+Product detail description rendering belongs in the product-detail feature or a small shared content-rendering helper. The installed `showdown` package may convert markdown to HTML, but rendered output must be sanitized or constrained before React/Astro insertion. Tests should include unsafe markdown/HTML examples before the page ships.
 
 ### Infrastructure & Deployment
 
