@@ -11,7 +11,7 @@ export default function StorefrontHomeHero() {
         actions={[
           { href: "/products", label: "Check products", variant: "primary" },
           {
-            href: "/products?view=categories",
+            href: "/categories",
             label: "Categories",
             variant: "ghost",
           },

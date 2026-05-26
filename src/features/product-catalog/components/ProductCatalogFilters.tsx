@@ -1,7 +1,8 @@
 import * as React from "react";
-import { Button, ButtonLink, SearchInput, Select } from "@/components/ui";
-import { buildCatalogHref, buildCategoryHref } from "../api";
+import { Button, ButtonLink, CheckboxGroup, Input } from "@/components/ui";
+import { buildCatalogHref } from "../api";
 import type {
+  StorefrontCatalogBrandOption,
   StorefrontCatalogCategoryOption,
   StorefrontCatalogQuery,
   StorefrontCatalogView,
@@ -10,6 +11,7 @@ import type {
 
 type ProductCatalogFiltersProps = {
   basePath: string;
+  brands: StorefrontCatalogBrandOption[];
   categories: StorefrontCatalogCategoryOption[];
   categoryNavigationMode: StorefrontCategoryNavigationMode;
   query: StorefrontCatalogQuery;
@@ -18,62 +20,43 @@ type ProductCatalogFiltersProps = {
 
 function clearHref(
   basePath: string,
-  categoryNavigationMode: StorefrontCategoryNavigationMode,
+  query: StorefrontCatalogQuery,
   view: StorefrontCatalogView
 ) {
-  if (categoryNavigationMode === "route") {
-    return buildCatalogHref(
-      "/products",
-      {
-        page: 1,
-        pageSize: 20,
-        q: "",
-        sort: "new",
-      },
-      view
-    );
-  }
-
-  return buildCatalogHref(
-    basePath,
-    {
-      page: 1,
-      pageSize: 20,
-      q: "",
-      sort: "new",
-    },
-    view
-  );
+  return buildCatalogHref(basePath, query, view, {
+    brands: [],
+    categories: [],
+    category: undefined,
+    maxPriceCentavos: undefined,
+    minPriceCentavos: undefined,
+    page: 1,
+    pageSize: 20,
+    stock: [],
+  });
 }
 
-function categoryHref(input: {
-  basePath: string;
-  categoryNavigationMode: StorefrontCategoryNavigationMode;
-  categorySlug: string;
-  query: StorefrontCatalogQuery;
-  view: StorefrontCatalogView;
-}) {
-  if (input.categoryNavigationMode === "route") {
-    return buildCategoryHref(input.categorySlug, input.query, input.view);
+function priceValue(value: number | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
   }
 
-  return buildCatalogHref(input.basePath, input.query, input.view, {
-    category: input.categorySlug,
-    page: 1,
-  });
+  const pesos = value / 100;
+  return Number.isInteger(pesos) ? String(pesos) : pesos.toFixed(2);
 }
 
 export function ProductCatalogFilters({
   basePath,
+  brands,
   categories,
-  categoryNavigationMode,
   query,
   view,
 }: ProductCatalogFiltersProps) {
   const hasActiveFilters =
-    query.q.trim().length > 0 ||
-    Boolean(query.category) ||
-    query.pageSize !== 20;
+    query.categories.length > 0 ||
+    query.brands.length > 0 ||
+    query.stock.length > 0 ||
+    query.minPriceCentavos !== undefined ||
+    query.maxPriceCentavos !== undefined;
 
   return (
     <div className="grid gap-grid-sm">
@@ -82,26 +65,81 @@ export function ProductCatalogFilters({
           Filters
         </p>
 
-        <SearchInput
-          defaultValue={query.q}
-          id={`catalog-search-${basePath.replace(/[^a-z0-9]+/gi, "-")}`}
-          label="Search products"
-          name="q"
-          placeholder="Search products"
-          borderTone="subtle"
+        {categories.length > 0 ? (
+          <CheckboxGroup
+            defaultValues={query.categories}
+            description="No selection means every category is included."
+            legend="Categories"
+            name="category"
+            options={categories.map((category) => ({
+              label: category.name,
+              value: category.slug,
+            }))}
+            size="xs"
+          />
+        ) : null}
+
+        {brands.length > 0 ? (
+          <CheckboxGroup
+            defaultValues={query.brands}
+            description="No selection means every brand is included."
+            legend="Brands"
+            name="brand"
+            options={brands.map((brand) => ({
+              label: brand.name,
+              value: brand.slug,
+            }))}
+            size="xs"
+          />
+        ) : null}
+
+        <CheckboxGroup
+          defaultValues={query.stock}
+          description="No selection means every stock level is included."
+          legend="Stock level"
+          name="stock"
+          options={[
+            { label: "Available", value: "available" },
+            { label: "Low stock", value: "low-stock" },
+            { label: "Preorder", value: "preorder" },
+            { label: "Unavailable", value: "unavailable" },
+          ]}
+          size="xs"
         />
 
-        <Select
-          defaultValue={String(query.pageSize)}
-          label="Items per page"
-          name="pageSize"
-          borderTone="subtle"
-          textSize="xs"
-        >
-          <option value="20">20</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-        </Select>
+        <fieldset className="m-0 grid gap-grid-xs border-0 p-0">
+          <legend className="font-system text-xs font-bold uppercase text-brand-muted">
+            Price range
+          </legend>
+          <div className="grid gap-grid-xs sm:grid-cols-2 md:grid-cols-1">
+            <Input
+              borderTone="subtle"
+              defaultValue={priceValue(query.minPriceCentavos)}
+              inputMode="decimal"
+              label="Min price"
+              min="0"
+              name="minPrice"
+              placeholder="PHP min"
+              step="0.01"
+              type="number"
+            />
+            <Input
+              borderTone="subtle"
+              defaultValue={priceValue(query.maxPriceCentavos)}
+              inputMode="decimal"
+              label="Max price"
+              min="0"
+              name="maxPrice"
+              placeholder="PHP max"
+              step="0.01"
+              type="number"
+            />
+          </div>
+        </fieldset>
+
+        {query.q.trim().length > 0 ? (
+          <input name="q" type="hidden" value={query.q.trim()} />
+        ) : null}
 
         <input name="sort" type="hidden" value="new" />
 
@@ -109,73 +147,20 @@ export function ProductCatalogFilters({
           <input name="view" type="hidden" value="categories" />
         ) : null}
 
-        {categoryNavigationMode === "query" && query.category ? (
-          <input name="category" type="hidden" value={query.category} />
-        ) : null}
-
         <Button borderTone="subtle" textSize="sm" type="submit">
           Apply filters
         </Button>
 
         {hasActiveFilters ? (
-          <a
-            className="inline-flex min-h-control-md items-center justify-center border border-brand-border-strong px-grid-sm font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent"
-            href={clearHref(basePath, categoryNavigationMode, view)}
+          <ButtonLink
+            borderTone="subtle"
+            href={clearHref(basePath, query, view)}
+            textSize="xs"
           >
             Clear filters
-          </a>
+          </ButtonLink>
         ) : null}
       </form>
-
-      <div className="grid gap-grid-xs">
-        <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-          Categories
-        </p>
-        <div className="flex flex-wrap gap-grid-xs">
-          <ButtonLink
-            aria-current={query.category ? undefined : "page"}
-            borderTone="subtle"
-            size="sm"
-            textSize="xs"
-            href={
-              categoryNavigationMode === "route"
-                ? buildCatalogHref("/products", query, view, {
-                    category: undefined,
-                    page: 1,
-                  })
-                : buildCatalogHref(basePath, query, view, {
-                    category: undefined,
-                    page: 1,
-                  })
-            }
-          >
-            All Products
-          </ButtonLink>
-
-          {categories.map((category) => {
-            const selected = query.category === category.slug;
-
-            return (
-              <ButtonLink
-                aria-current={selected ? "page" : undefined}
-                borderTone="subtle"
-                size="sm"
-                textSize="xs"
-                href={categoryHref({
-                  basePath,
-                  categoryNavigationMode,
-                  categorySlug: category.slug,
-                  query,
-                  view,
-                })}
-                key={category.id}
-              >
-                {category.name}
-              </ButtonLink>
-            );
-          })}
-        </div>
-      </div>
     </div>
   );
 }

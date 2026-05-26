@@ -1,0 +1,72 @@
+---
+import { ButtonLink } from "@/components/ui";
+import { ProductCollectionSection } from "@/features/product-catalog";
+import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+import { loadStorefrontCategoryIndexPageData } from "@/server/loaders/PublicCatalogPageDataLoader";
+import { env } from "cloudflare:workers";
+
+export const prerender = false;
+
+const pageData = await loadStorefrontCategoryIndexPageData({
+  baseUrl: Astro.url,
+  runtimeEnv: env as Partial<Env> & Record<string, unknown>,
+});
+---
+
+<StorefrontLayout
+  title="Categories | JRW"
+  description="Browse JRW products by category."
+  mainAriaLabel="Category browsing"
+>
+  <section class="grid gap-grid-lg" aria-labelledby="categories-title">
+    <div class="flex flex-wrap items-start justify-between gap-grid-sm">
+      <div class="grid gap-grid-xs">
+        <p class="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+          Browse
+        </p>
+        <h1
+          class="m-0 font-identity text-[clamp(2rem,7vw,4rem)] font-extrabold leading-none"
+          id="categories-title"
+        >
+          Categories
+        </h1>
+      </div>
+      <ButtonLink href="/products" size="sm" textSize="xs">
+        All products
+      </ButtonLink>
+    </div>
+
+    {
+      pageData.error ? (
+        <div class="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm text-brand-muted">
+          <h2 class="m-0 font-identity text-2xl text-brand-content">
+            {pageData.error.title}
+          </h2>
+          <p class="m-0">{pageData.error.message}</p>
+        </div>
+      ) : pageData.sections.length > 0 ? (
+        <div class="grid gap-grid-xl">
+          {pageData.sections.map((section) => (
+            <ProductCollectionSection
+              actionHref={section.category.href}
+              actionLabel="View more"
+              emptyMessage="No products in this category yet."
+              meta={`${section.productCount} products`}
+              products={section.products}
+              title={section.category.name}
+            />
+          ))}
+        </div>
+      ) : (
+        <div class="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm text-brand-muted">
+          <p class="m-0">
+            Categories will appear here when product browsing opens.
+          </p>
+          <ButtonLink href="/products" size="sm" textSize="xs">
+            Browse products
+          </ButtonLink>
+        </div>
+      )
+    }
+  </section>
+</StorefrontLayout>

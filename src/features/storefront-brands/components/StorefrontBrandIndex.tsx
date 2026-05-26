@@ -1,45 +1,36 @@
 import * as React from "react";
 
-import { Button, ButtonLink, SearchInput } from "@/components/ui";
-import { StorefrontHero } from "@/features/storefront-shell/StorefrontHero";
-
+import { Button, ButtonLink, CheckboxGroup } from "@/components/ui";
+import { ProductCollectionSection } from "@/features/product-catalog";
 import type { StorefrontBrandRow } from "../types";
-import { BrandProductStrip } from "./BrandProductStrip";
 
 type StorefrontBrandIndexProps = {
-  query?: string;
   rows?: StorefrontBrandRow[];
-  withProductsOnly?: boolean;
+  selectedBrands?: string[];
 };
 
-function normalizeSearch(value: string) {
-  return value.trim().toLowerCase();
+function selectedBrandSet(values: string[]): Set<string> {
+  return new Set(
+    values.map((value) => value.trim()).filter((value) => value.length > 0)
+  );
 }
 
-function filterRows(
-  rows: StorefrontBrandRow[],
-  query: string,
-  withProductsOnly: boolean
-) {
-  const normalizedQuery = normalizeSearch(query);
+function filterRows(rows: StorefrontBrandRow[], selectedBrands: string[]) {
+  const selected = selectedBrandSet(selectedBrands);
 
-  return rows.filter((row) => {
-    const matchesQuery =
-      normalizedQuery.length === 0 ||
-      row.name.toLowerCase().includes(normalizedQuery);
-    const matchesProductFilter = !withProductsOnly || row.productCount > 0;
+  if (selected.size === 0) {
+    return rows;
+  }
 
-    return matchesQuery && matchesProductFilter;
-  });
+  return rows.filter((row) => selected.has(row.slug));
 }
 
 export function StorefrontBrandIndex({
-  query = "",
   rows = [],
-  withProductsOnly = false,
+  selectedBrands = [],
 }: StorefrontBrandIndexProps) {
-  const filteredRows = filterRows(rows, query, withProductsOnly);
-  const hasFilters = query.trim().length > 0 || withProductsOnly;
+  const filteredRows = filterRows(rows, selectedBrands);
+  const hasFilters = selectedBrandSet(selectedBrands).size > 0;
   const emptyMessage = hasFilters
     ? "No brands match current filters."
     : "Brand product rows will appear here when product browsing opens.";
@@ -47,75 +38,72 @@ export function StorefrontBrandIndex({
   return (
     <section
       aria-labelledby="storefront-brands-title"
-      className="grid gap-grid-md"
+      className="grid gap-grid-lg"
     >
-      <StorefrontHero
-        actions={[
-          { href: "/products", label: "Browse products", variant: "primary" },
-          { href: "/products?view=categories", label: "Browse categories" },
-        ]}
-        copy="Browse products grouped under each brand."
-        id="storefront-brands-title"
-        kicker="Brands"
-        title="Browse by brand."
-      />
+      <div className="flex flex-wrap items-start justify-between gap-grid-sm">
+        <div className="grid gap-grid-xs">
+          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+            Browse
+          </p>
+          <h1
+            className="m-0 font-identity text-[clamp(2rem,7vw,4rem)] font-extrabold leading-none"
+            id="storefront-brands-title"
+          >
+            Brands
+          </h1>
+        </div>
+        <ButtonLink href="/products" size="sm" textSize="xs">
+          All products
+        </ButtonLink>
+      </div>
 
-      <div className="grid gap-grid-sm md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
+      <div className="grid gap-grid-md md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
         <aside
           aria-label="Brand filters"
-          className="self-start border border-brand-border-strong bg-brand-surface p-grid-sm"
+          className="self-start border border-brand-border bg-background p-grid-sm"
         >
-          <form action="/brands" className="m-0 grid gap-grid-sm">
-            <p className="font-system text-xs font-bold uppercase text-brand-muted">
+          <form action="/brands" className="m-0 grid gap-grid-sm" method="get">
+            <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
               Filters
             </p>
-            <SearchInput
-              defaultValue={query}
-              id="brand-search"
-              label="Search brands"
-              name="q"
-              placeholder="Search brands"
+            <CheckboxGroup
+              defaultValues={selectedBrands}
+              description="No selection means every brand is included."
+              legend="Brands"
+              name="brand"
+              options={rows.map((row) => ({
+                label: row.name,
+                value: row.slug,
+              }))}
+              size="xs"
             />
-            <label className="flex min-h-control-md items-center gap-grid-xs border border-brand-border bg-brand-background px-grid-xs font-system text-xs font-bold [&_input]:size-[18px] [&_input]:accent-brand-accent">
-              <input
-                defaultChecked={withProductsOnly}
-                name="withProducts"
-                type="checkbox"
-                value="1"
-              />
-              <span>Brands with products</span>
-            </label>
-            <Button textSize="xs" type="submit">
+            <Button borderTone="subtle" textSize="sm" type="submit">
               Apply filters
             </Button>
+            {hasFilters ? (
+              <ButtonLink borderTone="subtle" href="/brands" textSize="xs">
+                Clear filters
+              </ButtonLink>
+            ) : null}
           </form>
         </aside>
 
         {filteredRows.length > 0 ? (
-          <ul
-            aria-label="Brand product rows"
-            className="m-0 grid list-none gap-grid-sm p-0"
-          >
+          <div aria-label="Brand product rows" className="grid gap-grid-xl">
             {filteredRows.map((brand) => (
-              <li
-                className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm"
+              <ProductCollectionSection
+                actionHref={brand.href}
+                actionLabel="View more"
+                emptyMessage="No products from this brand yet."
+                imageAlt={brand.imageAlt}
+                imageSrc={brand.imageSrc}
                 key={brand.id}
-              >
-                <div className="flex flex-wrap items-center justify-between gap-grid-xs">
-                  <a
-                    className="font-identity text-[1.35rem] font-extrabold no-underline hover:text-brand-accent focus-visible:text-brand-accent [overflow-wrap:anywhere]"
-                    href={brand.href}
-                  >
-                    {brand.name}
-                  </a>
-                  <span className="border border-brand-border bg-brand-background px-2 py-[0.35rem] font-system text-xs font-bold uppercase text-brand-muted">
-                    {brand.productCount} products
-                  </span>
-                </div>
-                <BrandProductStrip brand={brand} />
-              </li>
+                meta={`${brand.productCount} products`}
+                products={brand.products}
+                title={brand.name}
+              />
             ))}
-          </ul>
+          </div>
         ) : (
           <div className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm text-brand-muted [&_p]:m-0">
             <p>{emptyMessage}</p>

@@ -5,8 +5,7 @@ import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
 
 export const prerender = false;
 
-const query = Astro.url.searchParams.get("q") ?? "";
-const withProductsOnly = Astro.url.searchParams.get("withProducts") === "1";
+const selectedBrands = Astro.url.searchParams.getAll("brand");
 const brandRows = await fetchStorefrontBrandRows(Astro.url);
 ---
 
@@ -15,9 +14,5 @@ const brandRows = await fetchStorefrontBrandRows(Astro.url);
   description="Browse JRW products grouped by brand."
   mainAriaLabel="Brand browsing"
 >
-  <StorefrontBrandIndex
-    query={query}
-    rows={brandRows}
-    withProductsOnly={withProductsOnly}
-  />
+  <StorefrontBrandIndex rows={brandRows} selectedBrands={selectedBrands} />
 </StorefrontLayout>

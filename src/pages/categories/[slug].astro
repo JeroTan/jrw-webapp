@@ -1,4 +1,5 @@
 ---
+import { ButtonLink } from "@/components/ui";
 import ProductCatalog from "@/features/product-catalog/ProductCatalog";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
 import { loadStorefrontCatalogPageData } from "@/server/loaders/PublicCatalogPageDataLoader";
@@ -9,7 +10,7 @@ export const prerender = false;
 const slug = (Astro.params.slug ?? "").trim();
 
 if (slug.length === 0) {
-  return Astro.redirect("/products?view=categories");
+  return Astro.redirect("/categories");
 }
 
 const pageData = await loadStorefrontCatalogPageData({
@@ -26,14 +27,34 @@ const categoryTitle = pageData.catalog?.selectedCategory?.name || "Category";
   description={`Browse ${categoryTitle} products from JRW.`}
   mainAriaLabel="Category browsing"
 >
+  <section
+    class="mb-grid-md flex flex-wrap items-start justify-between gap-grid-sm"
+  >
+    <div class="grid gap-grid-xs">
+      <p class="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+        Category
+      </p>
+      <h1
+        class="m-0 font-identity text-[clamp(2rem,7vw,4rem)] font-extrabold leading-none"
+      >
+        {categoryTitle}
+      </h1>
+    </div>
+    <ButtonLink href="/categories" size="sm" textSize="xs">
+      View all categories
+    </ButtonLink>
+  </section>
+
   <ProductCatalog
     basePath={`/categories/${encodeURIComponent(slug)}`}
+    brands={pageData.brands}
     catalog={pageData.catalog}
     categories={pageData.categories}
     categoryNavigationMode="route"
     error={pageData.error}
     query={pageData.query}
-    showCategoryDirectory
+    showCategoryDirectory={false}
+    showFilters={false}
     view={pageData.view}
   />
 </StorefrontLayout>

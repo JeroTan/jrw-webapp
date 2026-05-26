@@ -7,6 +7,7 @@ import {
   publicCatalogUnavailableReason,
 } from "@/domain/products/public-catalog";
 import type {
+  PublicCatalogBrandOption,
   PublicCatalogCategoryOption,
   PublicCatalogDetailResult,
   PublicCatalogGalleryItem,
@@ -22,6 +23,7 @@ import type {
 } from "@/domain/products/types";
 import {
   categories,
+  brands,
   product_categories,
   product_photos,
   product_variants,
@@ -46,8 +48,13 @@ import {
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 type PublicCatalogBrowseInput = {
+  brandIds?: string[];
   categoryId?: string;
+  categoryIds?: string[];
   categoryName?: string;
+  inventoryStates?: InventoryState[];
+  maxPriceCentavos?: number;
+  minPriceCentavos?: number;
   page: number;
   pageSize: number;
   search?: string;
@@ -78,6 +85,7 @@ export type PublicCatalogBrowseResult = {
 };
 
 export type PublicCatalogRepository = {
+  findActiveBrandBySlug(slug: string): Promise<PublicCatalogBrandOption | null>;
   findActiveVisibleCategoryBySlug(
     slug: string
   ): Promise<PublicCatalogCategoryOption | null>;
@@ -85,6 +93,7 @@ export type PublicCatalogRepository = {
     slug: string
   ): Promise<PublicCatalogDetailResult | null>;
   findPublishedProductExistsBySlug(slug: string): Promise<boolean>;
+  listActiveBrandOptions(): Promise<PublicCatalogBrandOption[]>;
   listActiveVisibleCategoryOptions(): Promise<PublicCatalogCategoryOption[]>;
   listPublishedProductCards(
     input: PublicCatalogBrowseInput
@@ -93,6 +102,10 @@ export type PublicCatalogRepository = {
 
 function categoryHref(slug: string): string {
   return `/categories/${encodeURIComponent(slug)}`;
+}
+
+function brandHref(slug: string): string {
+  return `/brands/${encodeURIComponent(slug)}`;
 }
 
 function productHref(slug: string): string {
@@ -133,6 +146,19 @@ function toCategoryOption(input: {
 }): PublicCatalogCategoryOption {
   return {
     href: categoryHref(input.slug),
+    id: input.id,
+    name: input.name,
+    slug: input.slug,
+  };
+}
+
+function toBrandOption(input: {
+  id: string;
+  name: string;
+  slug: string;
+}): PublicCatalogBrandOption {
+  return {
+    href: brandHref(input.slug),
     id: input.id,
     name: input.name,
     slug: input.slug,
@@ -215,7 +241,7 @@ function detailRecoveryLinks(
       label: "Browse all products",
     },
     {
-      href: "/products?view=categories",
+      href: "/categories",
       label: "Browse categories",
     },
   ];
@@ -292,7 +318,8 @@ function detailResultFromSource(input: {
       productName: input.product.name,
     })
   );
-  const primaryImage = gallery.find((item) => item.isPrimary) ?? gallery[0] ?? null;
+  const primaryImage =
+    gallery.find((item) => item.isPrimary) ?? gallery[0] ?? null;
   const photoByImageReference = new Map(
     input.galleryPhotos.map((photo) => [photo.imageId, photo.url])
   );
@@ -344,7 +371,8 @@ function detailResultFromSource(input: {
   const selectedVariant = variants.find((variant) => variant.selected) ?? null;
   const selectedAvailability =
     selectedVariant?.availability ?? publicCatalogAvailabilityFromStates([]);
-  const selectedPriceLabel = selectedVariant?.priceLabel ?? priceLabel(input.product);
+  const selectedPriceLabel =
+    selectedVariant?.priceLabel ?? priceLabel(input.product);
 
   return {
     action: selectedVariant
@@ -383,7 +411,8 @@ function detailResultFromSource(input: {
       description: input.product.description,
       id: input.product.id,
       name: input.product.name,
-      priceCentavos: selectedVariant?.priceCentavos ?? input.product.lowestPrice,
+      priceCentavos:
+        selectedVariant?.priceCentavos ?? input.product.lowestPrice,
       priceLabel: selectedPriceLabel,
       primaryImage,
       slug: input.product.slug,
@@ -414,6 +443,47 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
     }
 
     return toCategoryOption(category);
+  }
+
+  async findActiveBrandBySlug(
+    slug: string
+  ): Promise<PublicCatalogBrandOption | null> {
+    const cleanSlug = slug.trim();
+
+    if (!cleanSlug) {
+      return null;
+    }
+
+    const [brand] = await this.db
+      .select({
+        id: brands.id,
+        name: brands.name,
+        slug: brands.slug,
+      })
+      .from(brands)
+      .where(
+        and(
+          eq(brands.status, "ACTIVE"),
+          sql`lower(${brands.slug}) = ${cleanSlug.toLowerCase()}`
+        )
+      )
+      .limit(1);
+
+    return brand ? toBrandOption(brand) : null;
+  }
+
+  async listActiveBrandOptions(): Promise<PublicCatalogBrandOption[]> {
+    const rows = await this.db
+      .select({
+        id: brands.id,
+        name: brands.name,
+        slug: brands.slug,
+      })
+      .from(brands)
+      .where(eq(brands.status, "ACTIVE"))
+      .orderBy(sql`lower(${brands.name})`, asc(brands.id));
+
+    return rows.map(toBrandOption);
   }
 
   async listActiveVisibleCategoryOptions(): Promise<
@@ -496,7 +566,18 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
     input: PublicCatalogBrowseInput
   ): Promise<PublicCatalogBrowseResult> {
     const result = await this.productRepository.list({
+      ...(input.brandIds ? { brandIds: input.brandIds } : {}),
       ...(input.categoryId ? { categoryId: input.categoryId } : {}),
+      ...(input.categoryIds ? { categoryIds: input.categoryIds } : {}),
+      ...(input.inventoryStates
+        ? { inventoryStates: input.inventoryStates }
+        : {}),
+      ...(input.maxPriceCentavos !== undefined
+        ? { maxPriceCentavos: input.maxPriceCentavos }
+        : {}),
+      ...(input.minPriceCentavos !== undefined
+        ? { minPriceCentavos: input.minPriceCentavos }
+        : {}),
       page: input.page,
       pageSize: input.pageSize,
       ...(input.search ? { search: input.search } : {}),
@@ -589,7 +670,9 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
     return states;
   }
 
-  private async listAllVariants(productId: string): Promise<ProductVariantRecord[]> {
+  private async listAllVariants(
+    productId: string
+  ): Promise<ProductVariantRecord[]> {
     const items: ProductVariantRecord[] = [];
     let page = 1;
 

@@ -11,7 +11,7 @@ const defaultLinks = [
     label: "Browse all products",
   },
   {
-    href: "/products?view=categories",
+    href: "/categories",
     label: "Browse categories",
   },
 ];

@@ -11,8 +11,29 @@ const brandRow = {
   href: "/brands/bongalow",
   id: "brand_bong",
   name: "Bong",
-  productCount: 0,
-  products: [],
+  productCount: 1,
+  products: [
+    {
+      availability: {
+        inStock: true,
+        label: "Available" as const,
+        tone: "success" as const,
+      },
+      brandName: "Bong",
+      categoryName: "Apparel",
+      href: "/products/linen-shirt",
+      id: "prod_linen",
+      imageAlt: "Linen Shirt",
+      name: "Linen Shirt",
+      priceLabel: "PHP 19.99",
+      quickAction: {
+        disabled: false,
+        href: "/products/linen-shirt",
+        label: "View product",
+      },
+    },
+  ],
+  slug: "bongalow",
 };
 
 function publicBrandController(
@@ -95,7 +116,16 @@ describe("public brand routes", () => {
             href: "/brands/bongalow",
             id: "brand_bong",
             name: "Bong",
-            productCount: 0,
+            productCount: 1,
+            products: [
+              {
+                availability: { label: "Available" },
+                href: "/products/linen-shirt",
+                name: "Linen Shirt",
+                priceLabel: "PHP 19.99",
+              },
+            ],
+            slug: "bongalow",
           },
         ],
       },
@@ -137,6 +167,7 @@ describe("public brand routes", () => {
         brand: {
           href: "/brands/bongalow",
           name: "Bong",
+          slug: "bongalow",
         },
       },
       meta: { requestId: "req_storefront_brand_detail" },

@@ -1,13 +1,23 @@
 import { createDb, type AppDb } from "@/adapter/infrastructure/db/client";
-import { brands, product_photos, products } from "@/domain/schema/catalog";
-import type {
-  PublicBrandProductPreview,
-  PublicBrandRow,
-} from "@/domain/brands/public-types";
+import type { PublicBrandRow } from "@/domain/brands/public-types";
+import {
+  formatCatalogPriceLabel,
+  publicCatalogAvailabilityFromStates,
+} from "@/domain/products/public-catalog";
+import type { PublicCatalogProductCard } from "@/domain/products/public-types";
+import type { InventoryState } from "@/domain/products/types";
+import {
+  brands,
+  categories,
+  product_categories,
+  product_photos,
+  product_variants,
+  products,
+} from "@/domain/schema/catalog";
 import { and, asc, desc, eq, or, sql } from "drizzle-orm";
 
 const BRAND_LIST_LIMIT = 50;
-const BRAND_PRODUCT_PREVIEW_LIMIT = 5;
+const BRAND_PRODUCT_PREVIEW_LIMIT = 4;
 
 type BrandSummaryLookup = {
   id: string;
@@ -20,10 +30,19 @@ type BrandSummaryRow = BrandSummaryLookup & {
 };
 
 type BrandProductPreviewRow = {
+  brandName: string | null;
+  categoryName: string | null;
+  fallbackBrandName: string | null;
+  hasAnyActiveVariant: number;
+  hasInStock: number;
+  hasLowStock: number;
+  hasPreorder: number;
   id: string;
   imageAlt: string | null;
   productName: string;
   productSlug: string;
+  priceRangeMax: number | null;
+  priceRangeMin: number | null;
   r2Key: string | null;
 };
 
@@ -57,6 +76,28 @@ function productImageSrc(r2Key: string | null): string | undefined {
     .join("/")}`;
 }
 
+function availabilityStates(row: BrandProductPreviewRow): InventoryState[] {
+  const states: InventoryState[] = [];
+
+  if (Number(row.hasInStock) > 0) {
+    states.push("IN_STOCK");
+  }
+
+  if (Number(row.hasLowStock) > 0) {
+    states.push("LOW_STOCK");
+  }
+
+  if (Number(row.hasPreorder) > 0) {
+    states.push("PREORDER");
+  }
+
+  if (Number(row.hasAnyActiveVariant) > 0 && states.length === 0) {
+    states.push("OUT_OF_STOCK");
+  }
+
+  return states;
+}
+
 function productBrandScopeClause(brand: BrandSummaryLookup) {
   return (
     or(
@@ -72,20 +113,50 @@ function productBrandScopeClause(brand: BrandSummaryLookup) {
   );
 }
 
-function productPreviewFromRow(
+function productCardFromRow(
   row: BrandProductPreviewRow
-): PublicBrandProductPreview {
+): PublicCatalogProductCard {
+  const availability = publicCatalogAvailabilityFromStates(
+    availabilityStates(row)
+  );
+  const href = productHref(row.productSlug);
+  const brandName =
+    row.brandName?.trim() || row.fallbackBrandName?.trim() || null;
+
   return {
-    href: productHref(row.productSlug),
+    availability,
+    brandName,
+    ...(row.categoryName ? { categoryName: row.categoryName } : {}),
+    href,
     id: row.id,
     imageAlt: row.imageAlt?.trim() || row.productName,
-    imageSrc: productImageSrc(row.r2Key),
+    ...(productImageSrc(row.r2Key)
+      ? { imageSrc: productImageSrc(row.r2Key) }
+      : {}),
+    name: row.productName,
+    priceLabel: formatCatalogPriceLabel({
+      lowestPrice: row.priceRangeMin,
+      priceRangeMax: row.priceRangeMax,
+      priceRangeMin: row.priceRangeMin,
+    }),
+    quickAction: availability.inStock
+      ? {
+          disabled: false,
+          href,
+          label: "View product",
+        }
+      : {
+          disabled: true,
+          hint: "Currently unavailable",
+          href,
+          label: "Unavailable",
+        },
   };
 }
 
 function brandRowFromSummary(
   row: BrandSummaryRow,
-  productPreviews: PublicBrandProductPreview[]
+  productPreviews: PublicCatalogProductCard[]
 ): PublicBrandRow {
   return {
     href: brandHref(row.slug),
@@ -93,6 +164,7 @@ function brandRowFromSummary(
     name: row.name,
     productCount: Number(row.productCount ?? 0),
     products: productPreviews,
+    slug: row.slug,
   };
 }
 
@@ -191,12 +263,37 @@ export class DrizzlePublicBrandRepository implements PublicBrandRepository {
 
   private async listBrandProductPreviews(
     brand: BrandSummaryLookup
-  ): Promise<PublicBrandProductPreview[]> {
+  ): Promise<PublicCatalogProductCard[]> {
     const previewRows = await this.db
       .select({
+        brandName: brands.name,
+        categoryName: sql<string | null>`(
+          select ${categories.name}
+          from ${product_categories}
+          inner join ${categories}
+            on ${categories.id} = ${product_categories.category_id}
+          where ${product_categories.product_id} = ${products.id}
+            and ${categories.status} = 'ACTIVE'
+            and ${categories.is_visible} = 1
+          order by ${categories.sort_order} asc,
+            ${categories.name} asc,
+            ${categories.id} asc
+          limit 1
+        )`,
+        fallbackBrandName: products.brand,
+        hasAnyActiveVariant: sql<number>`cast((select case when exists(select 1 from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) then 1 else 0 end) as integer)`,
+        hasInStock: sql<number>`cast((select case when exists(select 1 from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and ${product_variants.inventory_state} = 'IN_STOCK') then 1 else 0 end) as integer)`,
+        hasLowStock: sql<number>`cast((select case when exists(select 1 from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and ${product_variants.inventory_state} = 'LOW_STOCK') then 1 else 0 end) as integer)`,
+        hasPreorder: sql<number>`cast((select case when exists(select 1 from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and ${product_variants.inventory_state} = 'PREORDER') then 1 else 0 end) as integer)`,
         id: products.id,
         productName: products.name,
         productSlug: products.slug,
+        priceRangeMax: sql<
+          number | null
+        >`cast((select max(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        priceRangeMin: sql<
+          number | null
+        >`cast((select min(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
         r2Key: sql<string | null>`(
           select ${product_photos.r2_key}
           from ${product_photos}
@@ -217,13 +314,14 @@ export class DrizzlePublicBrandRepository implements PublicBrandRepository {
         )`,
       })
       .from(products)
+      .leftJoin(brands, eq(brands.id, products.brand_id))
       .where(
         and(productBrandScopeClause(brand), eq(products.status, "PUBLISHED"))
       )
       .orderBy(desc(products.updated_at), desc(products.id))
       .limit(BRAND_PRODUCT_PREVIEW_LIMIT);
 
-    return previewRows.map(productPreviewFromRow);
+    return previewRows.map(productCardFromRow);
   }
 }
 

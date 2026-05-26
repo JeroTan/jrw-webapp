@@ -20,19 +20,48 @@ export type PublicBrandRoutesOptions = {
   ) => PublicBrandController;
 };
 
-const tboxPublicBrandProductPreview = t.Object({
+const tboxPublicCatalogTone = t.Union([
+  t.Literal("info"),
+  t.Literal("success"),
+  t.Literal("warning"),
+  t.Literal("error"),
+]);
+
+const tboxPublicCatalogAvailability = t.Object({
+  inStock: t.Boolean(),
+  label: t.String(),
+  tone: tboxPublicCatalogTone,
+});
+
+const tboxPublicCatalogQuickAction = t.Object({
+  disabled: t.Boolean(),
+  hint: t.Optional(t.String()),
+  href: t.String(),
+  label: t.String(),
+});
+
+const tboxPublicCatalogProductCard = t.Object({
+  availability: tboxPublicCatalogAvailability,
+  brandName: t.Union([t.String(), t.Null()]),
+  categoryName: t.Optional(t.String()),
   href: t.String(),
   id: t.String(),
   imageAlt: t.String(),
   imageSrc: t.Optional(t.String()),
+  name: t.String(),
+  priceLabel: t.String(),
+  quickAction: tboxPublicCatalogQuickAction,
 });
 
 const tboxPublicBrandRow = t.Object({
   href: t.String(),
   id: t.String(),
+  imageAlt: t.Optional(t.String()),
+  imageSrc: t.Optional(t.String()),
   name: t.String(),
   productCount: t.Number(),
-  products: t.Array(tboxPublicBrandProductPreview),
+  products: t.Array(tboxPublicCatalogProductCard),
+  slug: t.String(),
 });
 
 const tboxPublicBrandListData = t.Object({

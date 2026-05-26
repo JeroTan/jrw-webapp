@@ -56,10 +56,7 @@ describe("storefront shell UI", () => {
       createElement(StorefrontHeader, { currentUrl: "/categories/chairs" })
     );
 
-    expect(activeNavHrefs(markup)).toEqual([
-      "/products?view=categories",
-      "/products?view=categories",
-    ]);
+    expect(activeNavHrefs(markup)).toEqual(["/categories", "/categories"]);
   });
 
   it("marks new arrivals active without also marking all products active", () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type {
+  PublicCatalogBrandOption,
   PublicCatalogCategoryOption,
   PublicCatalogDetailResult,
   PublicCatalogProductCard,
@@ -15,6 +16,13 @@ const category: PublicCatalogCategoryOption = {
   id: "cat_apparel",
   name: "Apparel",
   slug: "apparel",
+};
+
+const brand: PublicCatalogBrandOption = {
+  href: "/brands/jrw-studio",
+  id: "brand_jrw",
+  name: "JRW Studio",
+  slug: "jrw-studio",
 };
 
 const product: PublicCatalogProductCard = {
@@ -99,7 +107,7 @@ const detail: PublicCatalogDetailResult = {
   },
   recoveryLinks: [
     { href: "/products", label: "Browse all products" },
-    { href: "/products?view=categories", label: "Browse categories" },
+    { href: "/categories", label: "Browse categories" },
   ],
   selectedVariantId: "variant_linen_small",
   variants: [
@@ -157,9 +165,11 @@ function repositoryDouble(
   overrides: Partial<PublicCatalogRepository> = {}
 ): PublicCatalogRepository {
   return {
+    findActiveBrandBySlug: async () => brand,
     findActiveVisibleCategoryBySlug: async () => category,
     findPublishedProductDetailBySlug: async () => detail,
     findPublishedProductExistsBySlug: async () => true,
+    listActiveBrandOptions: async () => [brand],
     listActiveVisibleCategoryOptions: async () => [category],
     listPublishedProductCards: async () => browseResult({ items: [product] }),
     ...overrides,
@@ -264,6 +274,46 @@ describe("PublicCatalogService", () => {
 
     expect(result.error).toBeNull();
     expect(receivedCategoryName).toBe("Apparel");
+  });
+
+  it("passes checklist filters and price range into repository browse", async () => {
+    let receivedInput:
+      | Parameters<PublicCatalogRepository["listPublishedProductCards"]>[0]
+      | undefined;
+    const service = new PublicCatalogService({
+      repository: repositoryDouble({
+        listPublishedProductCards: async (input) => {
+          receivedInput = input;
+          return browseResult({ items: [product] });
+        },
+      }),
+    });
+
+    const result = await service.listCatalog({
+      query: {
+        brand: ["jrw-studio"],
+        category: ["apparel"],
+        maxPrice: "500",
+        minPrice: "100",
+        stock: ["available", "preorder"],
+        sort: "new",
+      },
+      requestId: "req_catalog_filters",
+    });
+
+    expect(result.error).toBeNull();
+    expect(receivedInput).toMatchObject({
+      brandIds: ["brand_jrw"],
+      categoryIds: ["cat_apparel"],
+      inventoryStates: ["IN_STOCK", "PREORDER"],
+      maxPriceCentavos: 50000,
+      minPriceCentavos: 10000,
+    });
+    expect(result.content?.query).toMatchObject({
+      brands: ["jrw-studio"],
+      categories: ["apparel"],
+      stock: ["available", "preorder"],
+    });
   });
 
   it("returns customer-safe product detail and rejects blank slugs", async () => {

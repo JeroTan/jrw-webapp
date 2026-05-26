@@ -15,6 +15,7 @@ import {
   products,
 } from "@/domain/schema/catalog";
 import type {
+  InventoryState,
   ProductListResult,
   ProductOrganizationRecord,
   ProductPublishReadinessSnapshot,
@@ -90,8 +91,13 @@ export type ListProductOptions = {
   pageSize?: number;
   status?: ProductStatus;
   brandId?: string;
+  brandIds?: string[];
   brandless?: boolean;
   categoryId?: string;
+  categoryIds?: string[];
+  inventoryStates?: InventoryState[];
+  maxPriceCentavos?: number;
+  minPriceCentavos?: number;
   search?: string;
   includeArchived?: boolean;
   viewerAdminId?: string;
@@ -139,7 +145,9 @@ export type ProductRepository = {
     updatedAt: string
   ): Promise<void>;
   findCategoriesByIds(categoryIds: string[]): Promise<ProductCategoryRecord[]>;
-  findOrganization(productId: string): Promise<ProductOrganizationRecord | null>;
+  findOrganization(
+    productId: string
+  ): Promise<ProductOrganizationRecord | null>;
   findBrandById(brandId: string): Promise<ProductBrandRecord | null>;
   findBrandMembership(
     brandId: string,
@@ -167,6 +175,23 @@ function normalizePage(value: number | undefined): number {
 function normalizePageSize(value: number | undefined): number {
   const pageSize = validPositiveInteger(value) ? value : DEFAULT_PAGE_SIZE;
   return Math.min(pageSize, MAX_PAGE_SIZE);
+}
+
+function nonEmptyStrings(values: string[] | undefined): string[] {
+  return Array.from(
+    new Set(
+      (values ?? [])
+        .map((value) => value.trim())
+        .filter((value) => value.length > 0)
+    )
+  );
+}
+
+function sqlStringList(values: string[]) {
+  return sql.join(
+    values.map((value) => sql`${value}`),
+    sql`, `
+  );
 }
 
 function toProductRecord(input: {
@@ -288,26 +313,29 @@ export class DrizzleProductRepository implements ProductRepository {
       .select({
         product: products,
         brandName: brands.name,
-        linkedCategoryCount:
-          sql<number>`cast(count(${product_categories.category_id}) as integer)`,
-        variantCount:
-          sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
-        lowestPrice:
-          sql<number | null>`cast((select min(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
-        priceRangeMin:
-          sql<number | null>`cast((select min(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
-        priceRangeMax:
-          sql<number | null>`cast((select max(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
-        hasAvailableVariants:
-          sql<number>`cast((select case when exists(select 1 from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and (${product_variants.stock} > 0 or ${product_variants.is_preorder} = 1)) then 1 else 0 end) as integer)`,
-        imageCount:
-          sql<number>`cast((select count(*) from ${product_photos} where ${product_photos.product_id} = ${products.id}) as integer)`,
-        primaryImageUrl:
-          sql<string | null>`(select ${product_photos.image_id} from ${product_photos} where ${product_photos.product_id} = ${products.id} order by ${product_photos.is_primary} desc, ${product_photos.sort_order} asc, ${product_photos.id} asc limit 1)`,
+        linkedCategoryCount: sql<number>`cast(count(${product_categories.category_id}) as integer)`,
+        variantCount: sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        lowestPrice: sql<
+          number | null
+        >`cast((select min(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        priceRangeMin: sql<
+          number | null
+        >`cast((select min(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        priceRangeMax: sql<
+          number | null
+        >`cast((select max(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        hasAvailableVariants: sql<number>`cast((select case when exists(select 1 from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and (${product_variants.stock} > 0 or ${product_variants.is_preorder} = 1)) then 1 else 0 end) as integer)`,
+        imageCount: sql<number>`cast((select count(*) from ${product_photos} where ${product_photos.product_id} = ${products.id}) as integer)`,
+        primaryImageUrl: sql<
+          string | null
+        >`(select ${product_photos.image_id} from ${product_photos} where ${product_photos.product_id} = ${products.id} order by ${product_photos.is_primary} desc, ${product_photos.sort_order} asc, ${product_photos.id} asc limit 1)`,
       })
       .from(products)
       .leftJoin(brands, eq(brands.id, products.brand_id))
-      .leftJoin(product_categories, eq(product_categories.product_id, products.id))
+      .leftJoin(
+        product_categories,
+        eq(product_categories.product_id, products.id)
+      )
       .where(eq(products.id, productId))
       .groupBy(products.id, brands.name)
       .limit(1);
@@ -357,22 +385,14 @@ export class DrizzleProductRepository implements ProductRepository {
       .select({
         id: products.id,
         status: products.status,
-        hasName:
-          sql<number>`cast(case when length(trim(${products.name})) > 0 then 1 else 0 end as integer)`,
-        hasSlug:
-          sql<number>`cast(case when length(trim(${products.slug})) > 0 then 1 else 0 end as integer)`,
-        categoryCount:
-          sql<number>`cast((select count(*) from ${product_categories} inner join ${categories} on ${categories.id} = ${product_categories.category_id} where ${product_categories.product_id} = ${products.id} and ${categories.status} = 'ACTIVE' and ${categories.is_visible} = 1) as integer)`,
-        variantCount:
-          sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
-        imageCount:
-          sql<number>`cast((select count(*) from ${product_photos} where ${product_photos.product_id} = ${products.id}) as integer)`,
-        availableVariantCount:
-          sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and (${product_variants.stock} > 0 or ${product_variants.is_preorder} = 1)) as integer)`,
-        variantsMissingSkuCount:
-          sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and trim(coalesce(${product_variants.sku}, '')) = '') as integer)`,
-        variantsMissingPriceCount:
-          sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and ${product_variants.price} <= 0) as integer)`,
+        hasName: sql<number>`cast(case when length(trim(${products.name})) > 0 then 1 else 0 end as integer)`,
+        hasSlug: sql<number>`cast(case when length(trim(${products.slug})) > 0 then 1 else 0 end as integer)`,
+        categoryCount: sql<number>`cast((select count(*) from ${product_categories} inner join ${categories} on ${categories.id} = ${product_categories.category_id} where ${product_categories.product_id} = ${products.id} and ${categories.status} = 'ACTIVE' and ${categories.is_visible} = 1) as integer)`,
+        variantCount: sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        imageCount: sql<number>`cast((select count(*) from ${product_photos} where ${product_photos.product_id} = ${products.id}) as integer)`,
+        availableVariantCount: sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and (${product_variants.stock} > 0 or ${product_variants.is_preorder} = 1)) as integer)`,
+        variantsMissingSkuCount: sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and trim(coalesce(${product_variants.sku}, '')) = '') as integer)`,
+        variantsMissingPriceCount: sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and ${product_variants.price} <= 0) as integer)`,
       })
       .from(products)
       .where(eq(products.id, productId))
@@ -403,6 +423,19 @@ export class DrizzleProductRepository implements ProductRepository {
     const normalizedSearch = options.search
       ? `%${normalizeLookup(options.search)}%`
       : undefined;
+    const brandIds = nonEmptyStrings(options.brandIds);
+    const categoryIds = nonEmptyStrings(options.categoryIds);
+    const inventoryStates = nonEmptyStrings(options.inventoryStates);
+    const minPriceCentavos =
+      typeof options.minPriceCentavos === "number" &&
+      Number.isFinite(options.minPriceCentavos)
+        ? options.minPriceCentavos
+        : undefined;
+    const maxPriceCentavos =
+      typeof options.maxPriceCentavos === "number" &&
+      Number.isFinite(options.maxPriceCentavos)
+        ? options.maxPriceCentavos
+        : undefined;
 
     const filters = [
       ...(options.status ? [eq(products.status, options.status)] : []),
@@ -428,6 +461,7 @@ export class DrizzleProductRepository implements ProductRepository {
           ]
         : []),
       ...(options.brandId ? [eq(products.brand_id, options.brandId)] : []),
+      ...(brandIds.length > 0 ? [inArray(products.brand_id, brandIds)] : []),
       ...(options.brandless ? [isNull(products.brand_id)] : []),
       ...(normalizedSearch
         ? [
@@ -447,11 +481,58 @@ export class DrizzleProductRepository implements ProductRepository {
             )`,
           ]
         : []),
+      ...(categoryIds.length > 0
+        ? [
+            sql`exists (
+              select 1
+              from ${product_categories}
+              where ${product_categories.product_id} = ${products.id}
+                and ${product_categories.category_id} in (${sqlStringList(
+                  categoryIds
+                )})
+            )`,
+          ]
+        : []),
+      ...(inventoryStates.length > 0
+        ? [
+            sql`exists (
+              select 1
+              from ${product_variants}
+              where ${product_variants.product_id} = ${products.id}
+                and ${product_variants.stock_lock_version} >= 0
+                and ${product_variants.inventory_state} in (${sqlStringList(
+                  inventoryStates
+                )})
+            )`,
+          ]
+        : []),
+      ...(minPriceCentavos !== undefined || maxPriceCentavos !== undefined
+        ? [
+            sql`exists (
+              select 1
+              from ${product_variants}
+              where ${product_variants.product_id} = ${products.id}
+                and ${product_variants.stock_lock_version} >= 0
+                ${
+                  minPriceCentavos !== undefined
+                    ? sql`and ${product_variants.price} >= ${minPriceCentavos}`
+                    : sql``
+                }
+                ${
+                  maxPriceCentavos !== undefined
+                    ? sql`and ${product_variants.price} <= ${maxPriceCentavos}`
+                    : sql``
+                }
+            )`,
+          ]
+        : []),
     ];
     const whereClause = filters.length > 0 ? and(...filters) : undefined;
 
     const [totalResult] = await this.db
-      .select({ count: sql<number>`cast(count(distinct ${products.id}) as integer)` })
+      .select({
+        count: sql<number>`cast(count(distinct ${products.id}) as integer)`,
+      })
       .from(products)
       .where(whereClause);
     const totalItems = Number(totalResult?.count ?? 0);
@@ -460,26 +541,29 @@ export class DrizzleProductRepository implements ProductRepository {
       .select({
         product: products,
         brandName: brands.name,
-        linkedCategoryCount:
-          sql<number>`cast(count(${product_categories.category_id}) as integer)`,
-        variantCount:
-          sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
-        lowestPrice:
-          sql<number | null>`cast((select min(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
-        priceRangeMin:
-          sql<number | null>`cast((select min(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
-        priceRangeMax:
-          sql<number | null>`cast((select max(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
-        hasAvailableVariants:
-          sql<number>`cast((select case when exists(select 1 from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and (${product_variants.stock} > 0 or ${product_variants.is_preorder} = 1)) then 1 else 0 end) as integer)`,
-        imageCount:
-          sql<number>`cast((select count(*) from ${product_photos} where ${product_photos.product_id} = ${products.id}) as integer)`,
-        primaryImageUrl:
-          sql<string | null>`(select ${product_photos.image_id} from ${product_photos} where ${product_photos.product_id} = ${products.id} order by ${product_photos.is_primary} desc, ${product_photos.sort_order} asc, ${product_photos.id} asc limit 1)`,
+        linkedCategoryCount: sql<number>`cast(count(${product_categories.category_id}) as integer)`,
+        variantCount: sql<number>`cast((select count(*) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        lowestPrice: sql<
+          number | null
+        >`cast((select min(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        priceRangeMin: sql<
+          number | null
+        >`cast((select min(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        priceRangeMax: sql<
+          number | null
+        >`cast((select max(${product_variants.price}) from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0) as integer)`,
+        hasAvailableVariants: sql<number>`cast((select case when exists(select 1 from ${product_variants} where ${product_variants.product_id} = ${products.id} and ${product_variants.stock_lock_version} >= 0 and (${product_variants.stock} > 0 or ${product_variants.is_preorder} = 1)) then 1 else 0 end) as integer)`,
+        imageCount: sql<number>`cast((select count(*) from ${product_photos} where ${product_photos.product_id} = ${products.id}) as integer)`,
+        primaryImageUrl: sql<
+          string | null
+        >`(select ${product_photos.image_id} from ${product_photos} where ${product_photos.product_id} = ${products.id} order by ${product_photos.is_primary} desc, ${product_photos.sort_order} asc, ${product_photos.id} asc limit 1)`,
       })
       .from(products)
       .leftJoin(brands, eq(brands.id, products.brand_id))
-      .leftJoin(product_categories, eq(product_categories.product_id, products.id))
+      .leftJoin(
+        product_categories,
+        eq(product_categories.product_id, products.id)
+      )
       .where(whereClause)
       .groupBy(products.id, brands.name)
       .orderBy(desc(products.updated_at), desc(products.id))
@@ -642,7 +726,10 @@ export class DrizzleProductRepository implements ProductRepository {
     return product;
   }
 
-  async removeBrand(productId: string, updatedAt: string): Promise<ProductRecord> {
+  async removeBrand(
+    productId: string,
+    updatedAt: string
+  ): Promise<ProductRecord> {
     const [updated] = await this.db
       .update(products)
       .set({
@@ -740,7 +827,9 @@ export class DrizzleProductRepository implements ProductRepository {
     ]);
   }
 
-  async findCategoriesByIds(categoryIds: string[]): Promise<ProductCategoryRecord[]> {
+  async findCategoriesByIds(
+    categoryIds: string[]
+  ): Promise<ProductCategoryRecord[]> {
     const normalizedCategoryIds = Array.from(
       new Set(
         categoryIds

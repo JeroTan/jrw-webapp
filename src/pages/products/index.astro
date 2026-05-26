@@ -6,6 +6,10 @@ import { env } from "cloudflare:workers";
 
 export const prerender = false;
 
+if (Astro.url.searchParams.get("view") === "categories") {
+  return Astro.redirect("/categories");
+}
+
 const pageData = await loadStorefrontCatalogPageData({
   baseUrl: Astro.url,
   runtimeEnv: env as Partial<Env> & Record<string, unknown>,
@@ -19,6 +23,7 @@ const pageData = await loadStorefrontCatalogPageData({
 >
   <ProductCatalog
     basePath="/products"
+    brands={pageData.brands}
     catalog={pageData.catalog}
     categories={pageData.categories}
     categoryNavigationMode="query"

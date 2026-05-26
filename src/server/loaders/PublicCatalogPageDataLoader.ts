@@ -4,6 +4,7 @@ import type {
   PublicCatalogQueryInput,
 } from "@/domain/products/public-types";
 import type {
+  StorefrontCategoryIndexPageData,
   StorefrontCatalogPageData,
   StorefrontCatalogPageError,
   StorefrontCatalogView,
@@ -17,10 +18,13 @@ import { PublicCatalogService } from "@/server/services/PublicCatalogService";
 import type { GeneralError } from "@/utils/general/error";
 
 const defaultQuery: PublicCatalogQuery = {
+  brands: [],
+  categories: [],
   page: 1,
   pageSize: 20,
   q: "",
   sort: "new",
+  stock: [],
 };
 
 type RuntimeEnv = Partial<Env> & Record<string, unknown>;
@@ -33,24 +37,43 @@ function rawParam(params: URLSearchParams, name: string): string | undefined {
   return params.has(name) ? (params.get(name) ?? "") : undefined;
 }
 
+function rawParams(
+  params: URLSearchParams,
+  name: string
+): string[] | undefined {
+  return params.has(name) ? params.getAll(name) : undefined;
+}
+
 function requestedQuery(
   baseUrl: URL,
   categorySlug?: string
 ): PublicCatalogQueryInput {
-  const categoryFromQuery = baseUrl.searchParams.get("category")?.trim();
   const cleanCategorySlug = categorySlug?.trim();
 
   return {
     ...(cleanCategorySlug
-      ? { category: cleanCategorySlug }
-      : categoryFromQuery
-        ? { category: categoryFromQuery }
+      ? { category: [cleanCategorySlug] }
+      : rawParams(baseUrl.searchParams, "category")
+        ? { category: rawParams(baseUrl.searchParams, "category") }
         : {}),
+    ...(rawParams(baseUrl.searchParams, "brand")
+      ? { brand: rawParams(baseUrl.searchParams, "brand") }
+      : {}),
+    maxPrice: rawParam(baseUrl.searchParams, "maxPrice"),
+    minPrice: rawParam(baseUrl.searchParams, "minPrice"),
     page: rawParam(baseUrl.searchParams, "page"),
     pageSize: rawParam(baseUrl.searchParams, "pageSize"),
     q: baseUrl.searchParams.get("q")?.trim() ?? "",
     sort: rawParam(baseUrl.searchParams, "sort"),
+    ...(rawParams(baseUrl.searchParams, "stock")
+      ? { stock: rawParams(baseUrl.searchParams, "stock") }
+      : {}),
   };
+}
+
+function displayList(value: string | string[] | undefined): string[] {
+  const values = Array.isArray(value) ? value : value ? [value] : [];
+  return values.map((item) => item.trim()).filter((item) => item.length > 0);
 }
 
 function displayQueryFromInput(
@@ -62,12 +85,16 @@ function displayQueryFromInput(
     return normalized.content;
   }
 
-  const category = input.category?.trim();
+  const categories = displayList(input.category);
+  const brands = displayList(input.brand);
 
   return {
-    ...(category ? { category } : {}),
     ...defaultQuery,
+    brands,
+    categories,
+    ...(categories[0] ? { category: categories[0] } : {}),
     q: input.q?.trim() ?? "",
+    stock: [],
   };
 }
 
@@ -134,6 +161,7 @@ export async function loadStorefrontCatalogPageData(input: {
 
   if (!db) {
     return {
+      brands: [],
       catalog: null,
       categories: [],
       error: catalogError({ message: "Catalog is unavailable right now." }),
@@ -147,7 +175,7 @@ export async function loadStorefrontCatalogPageData(input: {
     ...repositories,
   });
 
-  const [catalogResult, categoryResult] = await Promise.all([
+  const [catalogResult, categoryResult, brandResult] = await Promise.all([
     service.listCatalog({
       query: queryInput,
       requestId: "storefront_catalog_page",
@@ -155,11 +183,16 @@ export async function loadStorefrontCatalogPageData(input: {
     service.listCategories({
       requestId: "storefront_catalog_categories",
     }),
+    service.listBrands({
+      requestId: "storefront_catalog_brands",
+    }),
   ]);
   const categories = categoryResult.error ? [] : categoryResult.content.items;
+  const brands = brandResult.error ? [] : brandResult.content.items;
 
   if (catalogResult.error) {
     return {
+      brands,
       catalog: null,
       categories,
       error: catalogError({
@@ -172,11 +205,71 @@ export async function loadStorefrontCatalogPageData(input: {
   }
 
   return {
+    brands,
     catalog: catalogResult.content,
     categories,
     error: null,
     query: catalogResult.content.query,
     view,
+  };
+}
+
+export async function loadStorefrontCategoryIndexPageData(input: {
+  baseUrl: URL;
+  runtimeEnv?: RuntimeEnv;
+}): Promise<StorefrontCategoryIndexPageData> {
+  const db = input.runtimeEnv?.DB;
+
+  if (!db) {
+    return {
+      categories: [],
+      error: catalogError({ message: "Categories are unavailable right now." }),
+      sections: [],
+    };
+  }
+
+  const repositories = createPublicCatalogRepositories(db as D1Database);
+  const service = new PublicCatalogService({
+    ...repositories,
+  });
+  const categoryResult = await service.listCategories({
+    requestId: "storefront_category_index_categories",
+  });
+
+  if (categoryResult.error) {
+    return {
+      categories: [],
+      error: catalogError({ error: categoryResult.error }),
+      sections: [],
+    };
+  }
+
+  const sections = await Promise.all(
+    categoryResult.content.items.map(async (category) => {
+      const catalogResult = await service.listCatalog({
+        query: {
+          category: [category.slug],
+          page: 1,
+          pageSize: 4,
+          sort: "new",
+        },
+        requestId: `storefront_category_index_${category.slug}`,
+      });
+
+      return {
+        category,
+        productCount: catalogResult.error
+          ? 0
+          : catalogResult.content.pagination.totalItems,
+        products: catalogResult.error ? [] : catalogResult.content.items,
+      };
+    })
+  );
+
+  return {
+    categories: categoryResult.content.items,
+    error: null,
+    sections,
   };
 }
 

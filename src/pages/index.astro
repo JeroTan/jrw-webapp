@@ -21,6 +21,7 @@ const pageData = await loadStorefrontCatalogPageData({
   <StorefrontHomeHero />
   <ProductCatalog
     basePath="/"
+    brands={pageData.brands}
     catalog={pageData.catalog}
     categories={pageData.categories}
     categoryNavigationMode="route"

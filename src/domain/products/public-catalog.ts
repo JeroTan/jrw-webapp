@@ -7,6 +7,7 @@ import type {
   PublicCatalogAvailability,
   PublicCatalogQuery,
   PublicCatalogQueryInput,
+  PublicCatalogStockFilter,
 } from "./public-types";
 
 export const PUBLIC_CATALOG_DEFAULT_SORT = "new" as const;
@@ -18,13 +19,49 @@ function validationError(reasons: string[]) {
   return Result.error(new GeneralError({ reasons }, "VALIDATION_FAILED"));
 }
 
-function normalizeCategory(value: unknown): string | undefined {
+const PUBLIC_CATALOG_STOCK_FILTERS = [
+  "available",
+  "low-stock",
+  "preorder",
+  "unavailable",
+] as const satisfies readonly PublicCatalogStockFilter[];
+
+function normalizeText(value: unknown): string | undefined {
   if (typeof value !== "string") {
     return undefined;
   }
 
   const trimmed = value.trim();
   return trimmed.length > 0 ? trimmed : undefined;
+}
+
+function normalizeTextList(value: unknown): string[] {
+  const values = Array.isArray(value) ? value : [value];
+  const normalized = values
+    .map(normalizeText)
+    .filter((item): item is string => Boolean(item));
+
+  return Array.from(new Set(normalized));
+}
+
+function normalizeStockFilters(
+  value: unknown,
+  reasons: string[]
+): PublicCatalogStockFilter[] {
+  const filters = normalizeTextList(value);
+  const validFilters = new Set<string>(PUBLIC_CATALOG_STOCK_FILTERS);
+  const accepted: PublicCatalogStockFilter[] = [];
+
+  for (const filter of filters) {
+    if (!validFilters.has(filter)) {
+      reasons.push("stock:invalid_value");
+      continue;
+    }
+
+    accepted.push(filter as PublicCatalogStockFilter);
+  }
+
+  return Array.from(new Set(accepted));
 }
 
 function strictPositiveInteger(
@@ -59,12 +96,50 @@ function strictPositiveInteger(
   return parsed;
 }
 
+function strictPriceCentavos(
+  value: number | string | undefined,
+  field: "minPrice" | "maxPrice",
+  reasons: string[]
+): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const raw = typeof value === "string" ? value.trim() : value;
+
+  if (raw === "") {
+    return undefined;
+  }
+
+  const parsed = typeof raw === "string" ? Number(raw) : raw;
+
+  if (typeof parsed !== "number" || !Number.isFinite(parsed) || parsed < 0) {
+    reasons.push(`${field}:invalid_value`);
+    return undefined;
+  }
+
+  return Math.round(parsed * 100);
+}
+
 export function normalizePublicCatalogQuery(
   query: PublicCatalogQueryInput
 ): AppResult<PublicCatalogQuery, { reasons: string[] }> {
   const reasons: string[] = [];
   const page = strictPositiveInteger(query.page, "page", reasons);
   const pageSize = strictPositiveInteger(query.pageSize, "pageSize", reasons);
+  const minPriceCentavos = strictPriceCentavos(
+    query.minPrice,
+    "minPrice",
+    reasons
+  );
+  const maxPriceCentavos = strictPriceCentavos(
+    query.maxPrice,
+    "maxPrice",
+    reasons
+  );
+  const brands = normalizeTextList(query.brand);
+  const categories = normalizeTextList(query.category);
+  const stock = normalizeStockFilters(query.stock, reasons);
   const normalizedQuery = normalizeProductListQuery({
     page: page ?? PUBLIC_CATALOG_DEFAULT_PAGE,
     pageSize: pageSize ?? PUBLIC_CATALOG_DEFAULT_PAGE_SIZE,
@@ -82,18 +157,31 @@ export function normalizePublicCatalogQuery(
     reasons.push("sort:invalid_value");
   }
 
+  if (
+    minPriceCentavos !== undefined &&
+    maxPriceCentavos !== undefined &&
+    minPriceCentavos > maxPriceCentavos
+  ) {
+    reasons.push("price:invalid_range");
+  }
+
   if (reasons.length > 0) {
     return validationError(reasons);
   }
 
-  const category = normalizeCategory(query.category);
+  const category = categories[0];
 
   return Result.okay({
+    brands,
+    categories,
     ...(category ? { category } : {}),
+    ...(maxPriceCentavos !== undefined ? { maxPriceCentavos } : {}),
+    ...(minPriceCentavos !== undefined ? { minPriceCentavos } : {}),
     page: normalizedQuery.content.page,
     pageSize: normalizedQuery.content.pageSize,
     q: normalizedQuery.content.search ?? "",
     sort: PUBLIC_CATALOG_DEFAULT_SORT,
+    stock,
   });
 }
 

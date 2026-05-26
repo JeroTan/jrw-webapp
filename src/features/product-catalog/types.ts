@@ -1,4 +1,6 @@
 import type {
+  PublicCatalogBrandListResult,
+  PublicCatalogBrandOption,
   PublicCatalogCategoryListResult,
   PublicCatalogCategoryOption,
   PublicCatalogEmptyState,
@@ -10,6 +12,8 @@ import type {
 
 export type StorefrontCatalogCategoryListResult =
   PublicCatalogCategoryListResult;
+export type StorefrontCatalogBrandListResult = PublicCatalogBrandListResult;
+export type StorefrontCatalogBrandOption = PublicCatalogBrandOption;
 export type StorefrontCatalogCategoryOption = PublicCatalogCategoryOption;
 export type StorefrontCatalogEmptyState = PublicCatalogEmptyState;
 export type StorefrontCatalogPagination = PublicCatalogPagination;
@@ -27,9 +31,22 @@ export type StorefrontCatalogPageError = {
 };
 
 export type StorefrontCatalogPageData = {
+  brands: StorefrontCatalogBrandOption[];
   catalog: StorefrontCatalogResult | null;
   categories: StorefrontCatalogCategoryOption[];
   error: StorefrontCatalogPageError | null;
   query: StorefrontCatalogQuery;
   view: StorefrontCatalogView;
+};
+
+export type StorefrontCategorySection = {
+  category: StorefrontCatalogCategoryOption;
+  productCount: number;
+  products: StorefrontCatalogProductCard[];
+};
+
+export type StorefrontCategoryIndexPageData = {
+  categories: StorefrontCatalogCategoryOption[];
+  error: StorefrontCatalogPageError | null;
+  sections: StorefrontCategorySection[];
 };

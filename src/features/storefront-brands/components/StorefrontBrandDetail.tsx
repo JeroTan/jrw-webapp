@@ -1,7 +1,6 @@
 import * as React from "react";
 
 import { ButtonLink } from "@/components/ui";
-import { StorefrontHero } from "@/features/storefront-shell/StorefrontHero";
 import type { StorefrontBrandRow } from "../types";
 import { BrandProductStrip } from "./BrandProductStrip";
 
@@ -15,32 +14,52 @@ export function StorefrontBrandDetail({
   slug,
 }: StorefrontBrandDetailProps) {
   const title = brand?.name ?? "Brand products";
-  const hasProducts = Boolean(brand && brand.productCount > 0);
+  const hasProducts = Boolean(brand && brand.products.length > 0);
 
   return (
     <section
       aria-labelledby="storefront-brand-detail-title"
       className="grid gap-grid-md"
     >
-      <StorefrontHero
-        actions={[
-          { href: "/brands", label: "Back to brands" },
-          { href: "/products", label: "Browse products", variant: "primary" },
-        ]}
-        copy={
-          brand
-            ? "Products grouped under this brand."
-            : "Products for this brand will appear here when product browsing opens."
-        }
-        id="storefront-brand-detail-title"
-        kicker="Brand"
-        title={title}
-      />
+      <div className="flex flex-wrap items-start justify-between gap-grid-sm">
+        <div className="grid gap-grid-xs">
+          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+            Brand
+          </p>
+          <h1
+            className="m-0 font-identity text-[clamp(2rem,7vw,4rem)] font-extrabold leading-none"
+            id="storefront-brand-detail-title"
+          >
+            {title}
+          </h1>
+          {brand ? (
+            <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+              {brand.productCount} products
+            </p>
+          ) : null}
+          {brand?.imageSrc ? (
+            <img
+              alt={brand.imageAlt ?? `${brand.name} brand image`}
+              className="h-14 w-fit max-w-48 object-contain"
+              decoding="async"
+              loading="lazy"
+              src={brand.imageSrc}
+            />
+          ) : null}
+        </div>
+
+        <div className="flex flex-wrap gap-grid-xs">
+          <ButtonLink href="/brands" size="sm" textSize="xs">
+            Back to brands
+          </ButtonLink>
+          <ButtonLink href="/products" size="sm" textSize="xs">
+            All products
+          </ButtonLink>
+        </div>
+      </div>
 
       {hasProducts && brand ? (
-        <div className="border border-brand-border-strong bg-brand-surface p-grid-sm">
-          <BrandProductStrip brand={brand} />
-        </div>
+        <BrandProductStrip brand={brand} />
       ) : (
         <div className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm text-brand-muted [&_p]:m-0">
           <p data-brand-slug={slug}>No brand products available yet.</p>

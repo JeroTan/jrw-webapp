@@ -12,10 +12,11 @@ if (brandSlug.length === 0) {
 }
 
 const brand = await fetchStorefrontBrandRow(Astro.url, brandSlug);
+const brandTitle = brand?.name ?? "Brand Products";
 ---
 
 <StorefrontLayout
-  title="Brand Products | JRW"
+  title={`${brandTitle} | JRW Brands`}
   description="Browse JRW products from this brand."
   mainAriaLabel="Brand products"
 >

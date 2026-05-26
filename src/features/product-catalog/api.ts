@@ -1,10 +1,35 @@
 import type { StorefrontCatalogQuery, StorefrontCatalogView } from "./types";
 
+type CatalogHrefOverrides = Partial<StorefrontCatalogQuery>;
+
+function appendValues(
+  params: URLSearchParams,
+  name: string,
+  values: string[] | undefined
+) {
+  for (const value of values ?? []) {
+    const cleanValue = value.trim();
+
+    if (cleanValue.length > 0) {
+      params.append(name, cleanValue);
+    }
+  }
+}
+
+function priceInputValue(value: number | undefined): string | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const pesos = value / 100;
+  return Number.isInteger(pesos) ? String(pesos) : pesos.toFixed(2);
+}
+
 export function buildCatalogHref(
   basePath: string,
   query: StorefrontCatalogQuery,
   view: StorefrontCatalogView,
-  overrides: Partial<StorefrontCatalogQuery> = {}
+  overrides: CatalogHrefOverrides = {}
 ): string {
   const next = {
     ...query,
@@ -24,14 +49,33 @@ export function buildCatalogHref(
     params.set("pageSize", String(next.pageSize));
   }
 
+  appendValues(
+    params,
+    "category",
+    next.categories.length > 0
+      ? next.categories
+      : next.category
+        ? [next.category]
+        : []
+  );
+  appendValues(params, "brand", next.brands);
+  appendValues(params, "stock", next.stock);
+
+  const minPrice = priceInputValue(next.minPriceCentavos);
+  const maxPrice = priceInputValue(next.maxPriceCentavos);
+
+  if (minPrice !== undefined) {
+    params.set("minPrice", minPrice);
+  }
+
+  if (maxPrice !== undefined) {
+    params.set("maxPrice", maxPrice);
+  }
+
   params.set("sort", "new");
 
   if (view === "categories") {
     params.set("view", "categories");
-  }
-
-  if (next.category?.trim()) {
-    params.set("category", next.category.trim());
   }
 
   const search = params.toString();
@@ -47,10 +91,6 @@ export function buildCategoryHref(
 
   if (query.q.trim().length > 0) {
     params.set("q", query.q.trim());
-  }
-
-  if (query.pageSize !== 20) {
-    params.set("pageSize", String(query.pageSize));
   }
 
   params.set("sort", "new");

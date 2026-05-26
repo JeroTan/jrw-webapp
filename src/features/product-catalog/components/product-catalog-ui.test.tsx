@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type {
+  PublicCatalogBrandOption,
   PublicCatalogCategoryOption,
   PublicCatalogResult,
 } from "@/domain/products/public-types";
@@ -23,6 +24,21 @@ const categories: PublicCatalogCategoryOption[] = [
     id: "cat_home",
     name: "Home Goods",
     slug: "home-goods",
+  },
+];
+
+const brands: PublicCatalogBrandOption[] = [
+  {
+    href: "/brands/jrw-studio",
+    id: "brand_jrw",
+    name: "JRW Studio",
+    slug: "jrw-studio",
+  },
+  {
+    href: "/brands/partner-label",
+    id: "brand_partner",
+    name: "Partner Label",
+    slug: "partner-label",
   },
 ];
 
@@ -78,19 +94,26 @@ const catalog: PublicCatalogResult = {
     totalPages: 1,
   },
   query: {
+    brands: ["jrw-studio"],
+    categories: ["apparel"],
+    category: "apparel",
+    maxPriceCentavos: 500000,
+    minPriceCentavos: 100000,
     page: 1,
     pageSize: 20,
     q: "linen",
     sort: "new",
+    stock: ["available"],
   },
   selectedCategory: null,
 };
 
 describe("product catalog UI", () => {
-  it("renders live product browsing with search, categories, availability labels, and clickable cards", () => {
+  it("renders live product browsing with checklist filters, availability labels, and clickable cards", () => {
     const markup = renderToStaticMarkup(
       createElement(ProductCatalog, {
         basePath: "/products",
+        brands,
         categories,
         catalog,
         categoryNavigationMode: "query",
@@ -100,15 +123,25 @@ describe("product catalog UI", () => {
     );
 
     expect(markup).toContain('aria-label="Product catalog"');
-    expect(markup).toContain("Search products");
+    expect(markup).not.toContain("Search products");
+    expect(markup).not.toContain("Items per page");
+    expect(markup).toContain("Categories");
+    expect(markup).toContain("Brands");
+    expect(markup).toContain("Stock level");
+    expect(markup).toContain("Price range");
+    expect(markup).toContain('name="category"');
+    expect(markup).toContain('value="apparel"');
+    expect(markup).toContain('name="brand"');
+    expect(markup).toContain('value="jrw-studio"');
     expect(markup).toContain("Shop by category");
     expect(markup).toContain("Linen Shirt");
     expect(markup).toContain("Ceramic Vase");
     expect(markup).toContain("Available");
     expect(markup).toContain("Unavailable");
     expect(markup).toContain("PHP 19.99");
-    expect(markup).toContain("category=apparel");
     expect(markup).toContain("grid-cols-1");
+    expect(markup).toContain("items-start");
+    expect(markup).toContain("content-start");
     expect(markup).toContain("xs:grid-cols-2");
     expect(markup).toContain("md:grid-cols-4");
     expect(markup).toContain("lg:grid-cols-12");
@@ -167,6 +200,7 @@ describe("product catalog UI", () => {
     const markup = renderToStaticMarkup(
       createElement(ProductCatalog, {
         basePath: "/",
+        brands,
         categories,
         catalog,
         categoryNavigationMode: "route",
@@ -188,6 +222,7 @@ describe("product catalog UI", () => {
     const markup = renderToStaticMarkup(
       createElement(ProductCatalog, {
         basePath: "/categories/apparel",
+        brands,
         categories,
         catalog: {
           ...catalog,
@@ -202,14 +237,15 @@ describe("product catalog UI", () => {
         },
         categoryNavigationMode: "route",
         error: null,
-        showCategoryDirectory: true,
+        showCategoryDirectory: false,
+        showFilters: false,
       })
     );
 
     expect(markup).toContain("Category empty");
     expect(markup).toContain("Browse all products");
-    expect(markup).toContain("/products?sort=new");
-    expect(markup).toContain("/categories/home-goods");
+    expect(markup).not.toContain("Shop by category");
+    expect(markup).not.toContain("Filters");
     expect(markup).not.toContain("seller of record");
   });
 
@@ -217,6 +253,7 @@ describe("product catalog UI", () => {
     const errorMarkup = renderToStaticMarkup(
       createElement(ProductCatalog, {
         basePath: "/products",
+        brands,
         categories,
         catalog: null,
         categoryNavigationMode: "query",

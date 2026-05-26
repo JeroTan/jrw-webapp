@@ -1,6 +1,7 @@
 export * from "./Button";
 export * from "./ButtonLink";
 export * from "./Checkbox";
+export * from "./CheckboxGroup";
 export * from "./ConfirmDialog";
 export * from "./CleanButton";
 export * from "./Drawer";

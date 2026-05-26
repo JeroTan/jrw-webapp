@@ -6,4 +6,5 @@ export * from "./components/ProductCatalogEmptyState";
 export * from "./components/ProductCatalogErrorState";
 export * from "./components/ProductCatalogFilters";
 export * from "./components/ProductCatalogSkeleton";
+export * from "./components/ProductCollectionSection";
 export * from "./components/ProductGrid";

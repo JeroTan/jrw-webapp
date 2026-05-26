@@ -35,6 +35,13 @@ export type PublicCatalogCategoryOption = {
   slug: string;
 };
 
+export type PublicCatalogBrandOption = {
+  href: string;
+  id: string;
+  name: string;
+  slug: string;
+};
+
 export type PublicCatalogRecoveryLink = {
   href: string;
   label: string;
@@ -117,21 +124,37 @@ export type PublicCatalogPagination = {
 };
 
 export type PublicCatalogSort = "new";
+export type PublicCatalogStockFilter =
+  | "available"
+  | "low-stock"
+  | "preorder"
+  | "unavailable";
+
+type PublicCatalogStringListInput = string | string[];
 
 export type PublicCatalogQueryInput = {
-  category?: string;
+  brand?: PublicCatalogStringListInput;
+  category?: PublicCatalogStringListInput;
+  maxPrice?: number | string;
+  minPrice?: number | string;
   page?: number | string;
   pageSize?: number | string;
   q?: string;
   sort?: string;
+  stock?: PublicCatalogStringListInput;
 };
 
 export type PublicCatalogQuery = {
+  brands: string[];
+  categories: string[];
   category?: string;
+  maxPriceCentavos?: number;
+  minPriceCentavos?: number;
   page: number;
   pageSize: number;
   q: string;
   sort: PublicCatalogSort;
+  stock: PublicCatalogStockFilter[];
 };
 
 export type PublicCatalogEmptyState = {
@@ -151,4 +174,8 @@ export type PublicCatalogResult = {
 
 export type PublicCatalogCategoryListResult = {
   items: PublicCatalogCategoryOption[];
+};
+
+export type PublicCatalogBrandListResult = {
+  items: PublicCatalogBrandOption[];
 };

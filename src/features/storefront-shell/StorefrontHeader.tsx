@@ -25,7 +25,7 @@ function getActiveNavHref(currentUrl: string) {
     currentRoute.pathname === "/products" &&
     currentRoute.searchParams.get("view") === "categories"
   ) {
-    return "/products?view=categories";
+    return "/categories";
   }
 
   if (
@@ -35,8 +35,11 @@ function getActiveNavHref(currentUrl: string) {
     return "/products?sort=new";
   }
 
-  if (currentRoute.pathname.startsWith("/categories/")) {
-    return "/products?view=categories";
+  if (
+    currentRoute.pathname === "/categories" ||
+    currentRoute.pathname.startsWith("/categories/")
+  ) {
+    return "/categories";
   }
 
   if (

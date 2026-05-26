@@ -77,7 +77,7 @@ const detail: PublicCatalogDetailResult = {
   },
   recoveryLinks: [
     { href: "/products", label: "Browse all products" },
-    { href: "/products?view=categories", label: "Browse categories" },
+    { href: "/categories", label: "Browse categories" },
   ],
   selectedVariantId: "variant_linen_small",
   variants: [
@@ -134,9 +134,11 @@ describe("product detail UI", () => {
     expect(markup).toContain("hover:outline-2");
     expect(markup).toContain("hover:outline-offset-2");
     expect(markup).toContain("focus-visible:outline-brand-accent");
-    expect(markup).toContain("border-brand-accent bg-brand-accent text-brand-surface");
+    expect(markup).toContain(
+      "border-brand-accent bg-brand-accent text-brand-surface"
+    );
     expect(markup).not.toContain("Cart actions are not active");
-    expect(markup).toContain("aria-pressed=\"true\"");
+    expect(markup).toContain('aria-pressed="true"');
     expect(markup).not.toContain("seller of record");
     expect(markup).not.toContain("rounded-md");
     expect(markup).not.toContain("rounded-lg");
@@ -164,7 +166,9 @@ describe("product detail UI", () => {
       })
     );
 
-    expect(unavailableMarkup).toContain("Selected option is unavailable right now.");
+    expect(unavailableMarkup).toContain(
+      "Selected option is unavailable right now."
+    );
     expect(unavailableMarkup).toContain("Unavailable");
     expect(unavailableMarkup).not.toContain("missing seller");
     expect(unavailableMarkup).not.toContain("seller of record");

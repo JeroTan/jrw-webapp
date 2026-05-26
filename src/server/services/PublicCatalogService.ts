@@ -1,25 +1,29 @@
 import { normalizePublicCatalogQuery } from "@/domain/products/public-catalog";
 import type {
+  PublicCatalogBrandListResult,
+  PublicCatalogBrandOption,
   PublicCatalogCategoryListResult,
+  PublicCatalogCategoryOption,
   PublicCatalogDetailResult,
+  PublicCatalogQueryInput,
   PublicCatalogResult,
+  PublicCatalogStockFilter,
 } from "@/domain/products/public-types";
+import type { InventoryState } from "@/domain/products/types";
 import type { PublicCatalogRepository } from "@/server/repositories/PublicCatalogRepository";
 import { GeneralError } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
 
 export type PublicCatalogListServiceInput = {
-  query: {
-    category?: string;
-    page?: number | string;
-    pageSize?: number | string;
-    q?: string;
-    sort?: string;
-  };
+  query: PublicCatalogQueryInput;
   requestId: string;
 };
 
 export type PublicCatalogCategoryListServiceInput = {
+  requestId: string;
+};
+
+export type PublicCatalogBrandListServiceInput = {
   requestId: string;
 };
 
@@ -50,6 +54,7 @@ function providerFailure(error: unknown): boolean {
 
 function buildEmptyState(input: {
   category?: { name: string } | null;
+  hasFilters: boolean;
   page: number;
   q: string;
   totalItems: number;
@@ -86,6 +91,15 @@ function buildEmptyState(input: {
     };
   }
 
+  if (input.hasFilters) {
+    return {
+      actionHref: "/products",
+      actionLabel: "Clear filters",
+      message: "Try fewer filters or browse all products.",
+      title: "No products match these filters",
+    };
+  }
+
   if (input.category) {
     return {
       actionHref: "/products",
@@ -96,11 +110,26 @@ function buildEmptyState(input: {
   }
 
   return {
-    actionHref: "/products?view=categories",
+    actionHref: "/categories",
     actionLabel: "Browse categories",
     message: "Published JRW products will appear here when ready.",
     title: "Products coming soon",
   };
+}
+
+const stockFilterStateMap: Record<PublicCatalogStockFilter, InventoryState> = {
+  available: "IN_STOCK",
+  "low-stock": "LOW_STOCK",
+  preorder: "PREORDER",
+  unavailable: "OUT_OF_STOCK",
+};
+
+function inventoryStatesFromStockFilters(
+  filters: PublicCatalogStockFilter[]
+): InventoryState[] {
+  return Array.from(
+    new Set(filters.map((filter) => stockFilterStateMap[filter]))
+  );
 }
 
 export class PublicCatalogService {
@@ -127,18 +156,72 @@ export class PublicCatalogService {
             normalizedQuery.content.category
           )
         : null;
+      const selectedCategories =
+        normalizedQuery.content.categories.length > 0
+          ? await Promise.all(
+              normalizedQuery.content.categories.map((category) =>
+                this.repository.findActiveVisibleCategoryBySlug(category)
+              )
+            )
+          : [];
+      const selectedBrands =
+        normalizedQuery.content.brands.length > 0
+          ? await Promise.all(
+              normalizedQuery.content.brands.map((brand) =>
+                this.repository.findActiveBrandBySlug(brand)
+              )
+            )
+          : [];
+      const missingCategoryIndex = selectedCategories.findIndex(
+        (category) => !category
+      );
+      const missingBrandIndex = selectedBrands.findIndex((brand) => !brand);
 
-      if (normalizedQuery.content.category && !selectedCategory) {
+      if (missingCategoryIndex >= 0) {
         return Result.error(
           serviceError("RESOURCE_NOT_FOUND", {
-            category: normalizedQuery.content.category,
+            category: normalizedQuery.content.categories[missingCategoryIndex],
           })
         );
       }
 
+      if (missingBrandIndex >= 0) {
+        return Result.error(
+          serviceError("RESOURCE_NOT_FOUND", {
+            brand: normalizedQuery.content.brands[missingBrandIndex],
+          })
+        );
+      }
+
+      const validCategories = selectedCategories.filter(
+        (category): category is PublicCatalogCategoryOption => Boolean(category)
+      );
+      const validBrands = selectedBrands.filter(
+        (brand): brand is PublicCatalogBrandOption => Boolean(brand)
+      );
+      const categoryForContext =
+        validCategories.length === 1 ? validCategories[0] : selectedCategory;
+      const inventoryStates = inventoryStatesFromStockFilters(
+        normalizedQuery.content.stock
+      );
+
       const browseResult = await this.repository.listPublishedProductCards({
-        ...(selectedCategory ? { categoryId: selectedCategory.id } : {}),
-        ...(selectedCategory ? { categoryName: selectedCategory.name } : {}),
+        ...(validBrands.length > 0
+          ? { brandIds: validBrands.map((brand) => brand.id) }
+          : {}),
+        ...(validCategories.length > 0
+          ? { categoryIds: validCategories.map((category) => category.id) }
+          : {}),
+        ...(categoryForContext
+          ? { categoryName: categoryForContext.name }
+          : {}),
+        ...(inventoryStates.length > 0 ? { inventoryStates } : {}),
+        ...(normalizedQuery.content.maxPriceCentavos !== undefined
+          ? { maxPriceCentavos: normalizedQuery.content.maxPriceCentavos }
+          : {}),
+        ...(normalizedQuery.content.minPriceCentavos !== undefined
+          ? { minPriceCentavos: normalizedQuery.content.minPriceCentavos }
+          : {}),
         page: normalizedQuery.content.page,
         pageSize: normalizedQuery.content.pageSize,
         ...(normalizedQuery.content.q
@@ -151,6 +234,12 @@ export class PublicCatalogService {
           browseResult.items.length === 0
             ? buildEmptyState({
                 category: selectedCategory,
+                hasFilters:
+                  normalizedQuery.content.brands.length > 0 ||
+                  normalizedQuery.content.categories.length > 0 ||
+                  normalizedQuery.content.stock.length > 0 ||
+                  normalizedQuery.content.minPriceCentavos !== undefined ||
+                  normalizedQuery.content.maxPriceCentavos !== undefined,
                 page: browseResult.pagination.page,
                 q: normalizedQuery.content.q,
                 totalItems: browseResult.pagination.totalItems,
@@ -160,8 +249,24 @@ export class PublicCatalogService {
         items: browseResult.items,
         pagination: browseResult.pagination,
         query: normalizedQuery.content,
-        selectedCategory,
+        selectedCategory: categoryForContext ?? null,
       });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async listBrands(
+    _input: PublicCatalogBrandListServiceInput
+  ): Promise<AppResult<PublicCatalogBrandListResult>> {
+    try {
+      const items = await this.repository.listActiveBrandOptions();
+
+      return Result.okay({ items });
     } catch (error) {
       if (providerFailure(error)) {
         return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
@@ -201,7 +306,8 @@ export class PublicCatalogService {
     }
 
     try {
-      const detail = await this.repository.findPublishedProductDetailBySlug(slug);
+      const detail =
+        await this.repository.findPublishedProductDetailBySlug(slug);
 
       if (!detail) {
         return Result.error(

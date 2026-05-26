@@ -60,6 +60,18 @@ const tboxPublicCatalogCategoryOption = t.Object({
   slug: t.String(),
 });
 
+const tboxPublicCatalogBrandOption = t.Object({
+  href: t.String(),
+  id: t.String(),
+  name: t.String(),
+  slug: t.String(),
+});
+
+const tboxPublicCatalogStringListQuery = t.Union([
+  t.String(),
+  t.Array(t.String()),
+]);
+
 const tboxPublicCatalogRecoveryLink = t.Object({
   href: t.String(),
   label: t.String(),
@@ -133,23 +145,39 @@ const tboxPublicCatalogPagination = t.Object({
 
 const tboxPublicCatalogQuery = t.Object(
   {
-    category: t.Optional(t.String()),
+    brand: t.Optional(tboxPublicCatalogStringListQuery),
+    category: t.Optional(tboxPublicCatalogStringListQuery),
+    maxPrice: t.Optional(t.Numeric({ minimum: 0 })),
+    minPrice: t.Optional(t.Numeric({ minimum: 0 })),
     page: t.Optional(t.Numeric({ minimum: 1, multipleOf: 1, default: 1 })),
     pageSize: t.Optional(
       t.Numeric({ minimum: 1, maximum: 100, multipleOf: 1, default: 20 })
     ),
     q: t.Optional(t.String()),
     sort: t.Optional(t.Literal("new")),
+    stock: t.Optional(tboxPublicCatalogStringListQuery),
   },
   { additionalProperties: false }
 );
 
 const tboxPublicCatalogQueryData = t.Object({
+  brands: t.Array(t.String()),
+  categories: t.Array(t.String()),
   category: t.Optional(t.String()),
+  maxPriceCentavos: t.Optional(t.Number()),
+  minPriceCentavos: t.Optional(t.Number()),
   page: t.Number(),
   pageSize: t.Number(),
   q: t.String(),
   sort: t.Literal("new"),
+  stock: t.Array(
+    t.Union([
+      t.Literal("available"),
+      t.Literal("low-stock"),
+      t.Literal("preorder"),
+      t.Literal("unavailable"),
+    ])
+  ),
 });
 
 const tboxPublicCatalogEmptyState = t.Object({
@@ -169,6 +197,10 @@ const tboxPublicCatalogData = t.Object({
 
 const tboxPublicCatalogCategoryListData = t.Object({
   items: t.Array(tboxPublicCatalogCategoryOption),
+});
+
+const tboxPublicCatalogBrandListData = t.Object({
+  items: t.Array(tboxPublicCatalogBrandOption),
 });
 
 const tboxPublicCatalogDetailParams = t.Object({
@@ -236,11 +268,15 @@ export function publicCatalogRoutes(
           ctx as typeof ctx &
             RequestContextDecorations & {
               query: {
-                category?: string;
+                category?: string | string[];
+                brand?: string | string[];
+                maxPrice?: number | string;
+                minPrice?: number | string;
                 page?: number | string;
                 pageSize?: number | string;
                 q?: string;
                 sort?: "new";
+                stock?: string | string[];
               };
               runtimeEnv?: Partial<Env> & Record<string, unknown>;
             };
@@ -310,6 +346,40 @@ export function publicCatalogRoutes(
         response: {
           200: tboxApiSuccess(tboxPublicCatalogDetailData),
           ...openApiErrorResponses([400, 404, 500, 503]),
+        },
+      }
+    )
+    .get(
+      "/storefront/catalog/brands",
+      async (ctx) => {
+        const { request, requestId, runtimeEnv, set } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+          };
+        const controller = getController(
+          { request, requestId, runtimeEnv },
+          options
+        );
+        const result = await controller.listBrands({
+          requestId,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        detail: routeDetail({
+          summary: "List public catalog brands",
+          description:
+            "Lists active brands for storefront catalog filtering and recovery flows.",
+          tags: ["Public Catalog"],
+          auth: publicCatalogAuth,
+          rateLimitClass: "public-read",
+          errorCodes: ["PROVIDER_UNAVAILABLE", "INTERNAL_ERROR"],
+        }),
+        response: {
+          200: tboxApiSuccess(tboxPublicCatalogBrandListData),
+          ...openApiErrorResponses([500, 503]),
         },
       }
     )

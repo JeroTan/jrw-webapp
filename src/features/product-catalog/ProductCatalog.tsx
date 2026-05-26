@@ -17,6 +17,12 @@ import { ProductGrid } from "./components/ProductGrid";
 type ProductCatalogPageProps = {
   basePath: string;
   catalog: StorefrontCatalogResult | null;
+  brands: Array<{
+    href: string;
+    id: string;
+    name: string;
+    slug: string;
+  }>;
   categories: Array<{
     href: string;
     id: string;
@@ -33,14 +39,18 @@ type ProductCatalogPageProps = {
 };
 
 const defaultQuery: StorefrontCatalogQuery = {
+  brands: [],
+  categories: [],
   page: 1,
   pageSize: 20,
   q: "",
   sort: "new",
+  stock: [],
 };
 
 export default function ProductCatalog({
   basePath,
+  brands,
   catalog,
   categories,
   categoryNavigationMode,
@@ -72,7 +82,7 @@ export default function ProductCatalog({
             </h2>
             <a
               className="inline-flex min-h-control-md items-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent"
-              href="/products?view=categories"
+              href="/categories"
             >
               View all categories
             </a>
@@ -100,14 +110,15 @@ export default function ProductCatalog({
       <div
         className={
           showFilters
-            ? "grid md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]"
+            ? "grid items-start md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]"
             : "grid"
         }
       >
         {showFilters ? (
-          <aside className="self-start border-l border-t border-b border-brand-border bg-background p-grid-sm">
+          <aside className="self-start border border-brand-border bg-background p-grid-sm">
             <ProductCatalogFilters
               basePath={basePath}
+              brands={brands}
               categories={categories}
               categoryNavigationMode={categoryNavigationMode}
               query={resolvedQuery}
@@ -116,7 +127,7 @@ export default function ProductCatalog({
           </aside>
         ) : null}
 
-        <div className="grid gap-grid-sm">
+        <div className="grid content-start gap-grid-sm self-start">
           {error ? (
             <ProductCatalogErrorState categories={categories} error={error} />
           ) : catalog?.items.length ? (

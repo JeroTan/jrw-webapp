@@ -14,6 +14,13 @@ const categoryOption = {
   slug: "apparel",
 };
 
+const brandOption = {
+  href: "/brands/jrw-studio",
+  id: "brand_jrw",
+  name: "JRW Studio",
+  slug: "jrw-studio",
+};
+
 const catalogItem = {
   availability: {
     inStock: true,
@@ -88,7 +95,7 @@ const detailItem = {
   },
   recoveryLinks: [
     { href: "/products", label: "Browse all products" },
-    { href: "/products?view=categories", label: "Browse categories" },
+    { href: "/categories", label: "Browse categories" },
   ],
   selectedVariantId: "variant_linen_small",
   variants: [
@@ -125,14 +132,18 @@ function publicCatalogController(
           totalPages: 0,
         },
         query: {
+          brands: [],
+          categories: [],
           page: 1,
           pageSize: 20,
           q: "",
           sort: "new",
+          stock: [],
         },
         selectedCategory: null,
       }),
     listCategories: async () => Result.okay({ items: [] }),
+    listBrands: async () => Result.okay({ items: [] }),
     getProductDetail: async () => Result.okay(detailItem),
     ...overrides,
   });
@@ -163,6 +174,7 @@ describe("public catalog routes", () => {
     const catalog = body.paths?.["/api/storefront/catalog"]?.get;
     const detail = body.paths?.["/api/storefront/catalog/products/{slug}"]?.get;
     const categories = body.paths?.["/api/storefront/catalog/categories"]?.get;
+    const brands = body.paths?.["/api/storefront/catalog/brands"]?.get;
 
     expect(catalog?.summary).toBe("Browse public catalog");
     expect(catalog?.tags).toContain("Public Catalog");
@@ -193,6 +205,14 @@ describe("public catalog routes", () => {
       roles: ["PROSPECT"],
     });
     expect(categories?.responses).toHaveProperty("200");
+
+    expect(brands?.summary).toBe("List public catalog brands");
+    expect(brands?.tags).toContain("Public Catalog");
+    expect(brands?.["x-auth"]).toEqual({
+      mode: "public",
+      roles: ["PROSPECT"],
+    });
+    expect(brands?.responses).toHaveProperty("200");
   });
 
   it("reads published product detail without auth and preserves slug params", async () => {
@@ -277,11 +297,16 @@ describe("public catalog routes", () => {
                     totalPages: 3,
                   },
                   query: {
+                    brands: ["jrw-studio"],
+                    categories: ["apparel"],
                     category: "apparel",
+                    maxPriceCentavos: 50000,
+                    minPriceCentavos: 10000,
                     page: 2,
                     pageSize: 50,
                     q: "linen",
                     sort: "new",
+                    stock: ["available"],
                   },
                   selectedCategory: categoryOption,
                 });
@@ -293,7 +318,7 @@ describe("public catalog routes", () => {
 
     const response = await app.handle(
       new Request(
-        "https://jrw.test/api/storefront/catalog?q=linen&page=2&pageSize=50&category=apparel&sort=new",
+        "https://jrw.test/api/storefront/catalog?q=linen&page=2&pageSize=50&category=apparel&brand=jrw-studio&stock=available&minPrice=100&maxPrice=500&sort=new",
         {
           headers: { "x-request-id": "req_storefront_catalog" },
         }
@@ -302,11 +327,15 @@ describe("public catalog routes", () => {
 
     expect(receivedInput).toMatchObject({
       query: {
+        brand: "jrw-studio",
         category: "apparel",
+        maxPrice: 500,
+        minPrice: 100,
         page: 2,
         pageSize: 50,
         q: "linen",
         sort: "new",
+        stock: "available",
       },
       requestId: "req_storefront_catalog",
     });
@@ -337,11 +366,16 @@ describe("public catalog routes", () => {
           totalPages: 3,
         },
         query: {
+          brands: ["jrw-studio"],
+          categories: ["apparel"],
           category: "apparel",
+          maxPriceCentavos: 50000,
+          minPriceCentavos: 10000,
           page: 2,
           pageSize: 50,
           q: "linen",
           sort: "new",
+          stock: ["available"],
         },
         selectedCategory: {
           href: "/categories/apparel",
@@ -386,6 +420,43 @@ describe("public catalog routes", () => {
         ],
       },
       meta: { requestId: "req_storefront_categories" },
+    });
+  });
+
+  it("lists public brand options without auth", async () => {
+    const app = createApp({
+      routes: {
+        publicCatalog: {
+          controllerFactory: () =>
+            publicCatalogController({
+              listBrands: async () =>
+                Result.okay({
+                  items: [brandOption],
+                }),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/storefront/catalog/brands", {
+        headers: { "x-request-id": "req_storefront_catalog_brands" },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        items: [
+          {
+            href: "/brands/jrw-studio",
+            id: "brand_jrw",
+            name: "JRW Studio",
+            slug: "jrw-studio",
+          },
+        ],
+      },
+      meta: { requestId: "req_storefront_catalog_brands" },
     });
   });
 

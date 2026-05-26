@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   Button,
+  Checkbox,
   CleanButton,
   CleanLinkButton,
   DataTable,
@@ -125,6 +126,36 @@ describe("shared UI primitives", () => {
     expect(markup).toContain('for="email"');
     expect(markup).toContain('aria-invalid="true"');
     expect(markup).toContain("email-error");
+  });
+
+  it("renders checkbox size variants", () => {
+    const extraSmallMarkup = renderToStaticMarkup(
+      createElement(Checkbox, {
+        id: "extra-small-checkbox",
+        label: "Extra small",
+        size: "xs",
+      })
+    );
+    const smallMarkup = renderToStaticMarkup(
+      createElement(Checkbox, {
+        id: "small-checkbox",
+        label: "Small",
+        size: "sm",
+      })
+    );
+    const mediumMarkup = renderToStaticMarkup(
+      createElement(Checkbox, {
+        id: "medium-checkbox",
+        label: "Medium",
+      })
+    );
+
+    expect(extraSmallMarkup).toContain("size-[14px]");
+    expect(extraSmallMarkup).toContain("gap-1");
+    expect(smallMarkup).toContain("size-4");
+    expect(smallMarkup).toContain("text-[0.625rem]");
+    expect(mediumMarkup).toContain("size-5");
+    expect(mediumMarkup).toContain("text-xs");
   });
 
   it("renders loading button state without changing control role", () => {
