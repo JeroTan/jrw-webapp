@@ -7,9 +7,11 @@ export type ButtonLinkVariant = "primary" | "secondary" | "danger" | "ghost";
 export type ButtonLinkSize = "sm" | "md";
 export type ButtonLinkPaddingX = "none" | "xs" | "sm" | "md" | "lg";
 export type ButtonLinkTextSize = "xs" | "sm" | "md" | "lg";
+export type ButtonLinkBorderTone = "subtle" | "strong";
 
 export type ButtonLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
   children?: ReactNode;
+  borderTone?: ButtonLinkBorderTone;
   disabled?: boolean;
   fullWidth?: boolean;
   loading?: boolean;
@@ -49,15 +51,23 @@ const buttonLinkTextSizeClass: Record<ButtonLinkTextSize, string> = {
   lg: "text-lg",
 };
 
-const buttonLinkVariantClass: Record<ButtonLinkVariant, string> = {
+const buttonLinkBorderToneClass: Record<ButtonLinkBorderTone, string> = {
+  subtle: "border-brand-border",
+  strong: "border-brand-border-strong",
+};
+
+const buttonLinkVariantClass: Record<
+  Exclude<ButtonLinkVariant, "secondary">,
+  string
+> = {
   primary: "border-brand-accent bg-brand-accent text-brand-surface",
-  secondary: "border-brand-border-strong bg-brand-surface text-brand-content",
   danger: "border-brand-danger bg-brand-danger text-brand-surface",
   ghost: "border-transparent bg-transparent text-brand-content",
 };
 
 export function ButtonLink({
   children,
+  borderTone = "strong",
   className,
   disabled = false,
   fullWidth = false,
@@ -86,7 +96,9 @@ export function ButtonLink({
           ? buttonLinkPaddingXClass.none
           : buttonLinkPaddingXClass[paddingX],
         buttonLinkTextSizeClass[textSize],
-        buttonLinkVariantClass[variant],
+        variant === "secondary"
+          ? `${buttonLinkBorderToneClass[borderTone]} bg-brand-surface text-brand-content`
+          : buttonLinkVariantClass[variant],
         fullWidth && !square && "w-full",
         className
       )}

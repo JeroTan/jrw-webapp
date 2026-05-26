@@ -16,7 +16,7 @@ workflowStatus: "complete"
 lastStep: 8
 status: "complete"
 completedAt: "2026-05-11"
-lastEdited: "2026-05-24"
+lastEdited: "2026-05-26"
 project_name: "jrw-webapp"
 user_name: "MR. JRW"
 date: "2026-05-11"
@@ -37,6 +37,7 @@ notes:
   - "JRW is single-store ecommerce; brands are catalog/collaboration groups, not stores, sellers, merchants, tenants, payout owners, or PayMongo accounts."
   - "Do not add obsolete domain roles, routes, order states, tenancy rules, or operational behavior unless current PRD explicitly requires them."
   - "UI styling correction: use Tailwind utilities and JRW theme tokens directly in markup; do not recreate one-off jrw-* runtime class layers."
+  - "2026-05-26 storefront catalog cleanup: ProductCatalog owns catalog layout only; route/home/shell components own hero composition; shared UI primitives own repeated control visual props."
 ---
 
 # Architecture Decision Document
@@ -547,7 +548,7 @@ Astro owns page routing and SEO shells. React feature modules own interactive su
 
 `src/components/**` is intentionally narrow:
 
-- `src/components/ui/**` for `Button`, `ButtonLink`, `Input`, `SearchInput`, `SegmentedControl`, `ViewToggle`, modal/drawer triggers, tabs, badges, and low-level interactive controls. Icon-sized button controls use `Button` with `square`, `aria-label`, and `title`.
+- `src/components/ui/**` for `Button`, `ButtonLink`, `Input`, `SearchInput`, `Select`, `SegmentedControl`, `ViewToggle`, modal/drawer triggers, tabs, badges, and low-level interactive controls. Icon-sized button controls use `Button` with `square`, `aria-label`, and `title`. Repeated control differences such as border tone, text size, and control size belong as primitive props before feature code duplicates class strings.
 - `src/components/layout/**` for `DashboardShell`, storefront shell, page frames, sidebar slots, top bars, and footer layout.
 - `src/components/feedback/**` for `Skeleton`, empty states, toasts, and error states.
 - `src/components/navigation/**` for `SidebarNav`, `TopNav`, breadcrumbs, tabs, menus, and view toggles when navigation-like.
@@ -565,7 +566,8 @@ JRW UI uses `docs/design-by-google-stitch.md` and `_bmad-output/planning-artifac
 Approved UI fidelity boundaries from 2026-05-24:
 
 - `Button` and `ButtonLink` hover/focus must use cobalt 2px outline with 2px offset, not border-color-only feedback.
-- Product cards must match Direction 01 anatomy while preserving accepted storefront page layout.
+- `Button` defaults to `type="button"`; every submitting form must pass `type="submit"` explicitly when using the shared `Button`.
+- Product cards must match Direction 01 anatomy while preserving accepted storefront page layout: `ProductGrid` owns top/left grid borders, `ProductCard` owns right/bottom module borders, media uses `h-55`, price remains a compact inline tag, and public metadata omits missing-brand filler copy.
 - Admin pages must use `DashboardShell`, sidebar, top context bar, role/scope state, session/logout controls, and owner-only navigation before new admin screens expand.
 - Admin sign-in, logout, and password reset UI must use existing Admin auth routes; Admin registration UI is out of MVP scope.
 
@@ -573,8 +575,9 @@ Storefront shell boundaries from 2026-05-25 user overhaul:
 
 - `src/features/storefront-shell/StorefrontHeader.tsx` composes the header from `NavButton`, `SearchForm`, `CartAction`, and `ButtonLink`.
 - `CartAction` uses shared `Button`, `lucide-react` `ShoppingCart`, a quantity badge, and `CartDrawer`; the separate `IconButton` primitive is removed.
-- `StorefrontHero` is the shared storefront billboard for product, brand, category, and storefront-home pages. Feature pages must not hand-roll divergent hero headers.
+- `StorefrontHero` is shared billboard infrastructure, but ownership matters: routes, shell/home components, or the feature that owns a hero compose it. `src/features/product-catalog/ProductCatalog.tsx` must not import storefront-shell hero content or switch hero copy by mode.
 - Anchor CTAs use `ButtonLink`; submit/in-page actions use `Button`.
+- `ProductCatalog` is the storefront catalog container. It owns category directory, filter rail, grid, pagination, empty, and error states. `ProductCatalogFilters` uses `SearchInput`, `Select`, `Button`, and `ButtonLink` instead of bespoke anchor/button class strings.
 
 ### Requirements to Structure Mapping
 

@@ -18,7 +18,6 @@ export type StorefrontCatalogQuery = PublicCatalogQuery;
 export type StorefrontCatalogResult = PublicCatalogResult;
 
 export type StorefrontCatalogView = "grid" | "categories";
-export type StorefrontCatalogPageMode = "home" | "products" | "category";
 export type StorefrontCategoryNavigationMode = "route" | "query";
 
 export type StorefrontCatalogPageError = {

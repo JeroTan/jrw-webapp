@@ -7,9 +7,9 @@ import type {
 } from "@/domain/products/public-types";
 import {
   ProductCard,
-  ProductCatalogPage,
   ProductCatalogSkeleton,
 } from "@/features/product-catalog";
+import ProductCatalog from "../ProductCatalog";
 
 const categories: PublicCatalogCategoryOption[] = [
   {
@@ -89,18 +89,17 @@ const catalog: PublicCatalogResult = {
 describe("product catalog UI", () => {
   it("renders live product browsing with search, categories, availability labels, and clickable cards", () => {
     const markup = renderToStaticMarkup(
-      createElement(ProductCatalogPage, {
+      createElement(ProductCatalog, {
         basePath: "/products",
         categories,
         catalog,
         categoryNavigationMode: "query",
         error: null,
-        mode: "products",
         showCategoryDirectory: true,
       })
     );
 
-    expect(markup).toContain("Browse products.");
+    expect(markup).toContain('aria-label="Product catalog"');
     expect(markup).toContain("Search products");
     expect(markup).toContain("Shop by category");
     expect(markup).toContain("Linen Shirt");
@@ -115,9 +114,10 @@ describe("product catalog UI", () => {
     expect(markup).toContain("lg:grid-cols-12");
     expect(markup).toContain("lg:col-span-4");
     expect(markup).toContain("xl:col-span-3");
-    expect(markup).toContain("h-[220px]");
+    expect(markup).toContain("h-55");
     expect(markup).toContain("JRW Studio / Apparel / Available");
     expect(markup).toContain('aria-label="View Linen Shirt"');
+    expect(markup).toContain('type="submit"');
     expect(markup).not.toContain("View product");
     expect(markup).not.toContain("missing seller or store");
   });
@@ -127,18 +127,17 @@ describe("product catalog UI", () => {
       createElement(ProductCard, { product: catalog.items[0] })
     );
 
-    expect(markup).toContain("min-h-[360px]");
-    expect(markup).toContain("border-brand-border bg-brand-surface");
-    expect(markup).toContain("h-[220px]");
+    expect(markup).toContain("min-h-90");
+    expect(markup).toContain("border-r border-b");
+    expect(markup).toContain("bg-brand-surface");
+    expect(markup).toContain("h-55");
     expect(markup).toContain("object-cover");
     expect(markup).toContain("JRW Studio / Apparel / Available");
     expect(markup).toContain("text-[0.6875rem]");
     expect(markup).toContain("border border-brand-content px-2.5");
     expect(markup).not.toContain("bg-brand-accent");
     expect(markup).toContain("PHP 19.99");
-    expect(markup).toContain("hover:outline-2");
-    expect(markup).toContain("hover:outline-offset-2");
-    expect(markup).toContain("hover:outline-brand-accent");
+    expect(markup).toContain("hover:border-brand-border-strong");
     expect(markup).toContain("focus-visible:outline-brand-accent");
     expect(markup).not.toContain("aria-disabled");
     expect(markup).not.toContain("rounded");
@@ -152,11 +151,12 @@ describe("product catalog UI", () => {
     );
 
     expect(markup).toContain("bg-[linear-gradient(135deg");
-    expect(markup).toContain("bg-[length:28px_28px]");
+    expect(markup).toContain("bg-size-[28px_28px]");
     expect(markup).toContain('aria-label="Ceramic Vase image coming soon"');
-    expect(markup).toContain("size-[112px]");
+    expect(markup).toContain("size-28");
     expect(markup).toContain(">CV</span>");
-    expect(markup).toContain("Brandless / Home Goods / Unavailable");
+    expect(markup).toContain("Home Goods / Unavailable");
+    expect(markup).not.toContain("Brandless /");
     expect(markup).toContain('aria-label="View Ceramic Vase"');
     expect(markup).not.toContain('aria-disabled="true"');
     expect(markup).not.toContain("rounded");
@@ -165,18 +165,17 @@ describe("product catalog UI", () => {
 
   it("keeps the landing page focused on products without category directory or filter rail", () => {
     const markup = renderToStaticMarkup(
-      createElement(ProductCatalogPage, {
+      createElement(ProductCatalog, {
         basePath: "/",
         categories,
         catalog,
         categoryNavigationMode: "route",
         error: null,
-        mode: "home",
         showFilters: false,
       })
     );
 
-    expect(markup).toContain("Lifestyle products.");
+    expect(markup).toContain('aria-label="Product catalog"');
     expect(markup).toContain("Linen Shirt");
     expect(markup).not.toContain("Shop by category");
     expect(markup).not.toContain("Filters");
@@ -187,7 +186,7 @@ describe("product catalog UI", () => {
 
   it("renders category recovery empty state without fake seller language", () => {
     const markup = renderToStaticMarkup(
-      createElement(ProductCatalogPage, {
+      createElement(ProductCatalog, {
         basePath: "/categories/apparel",
         categories,
         catalog: {
@@ -203,7 +202,6 @@ describe("product catalog UI", () => {
         },
         categoryNavigationMode: "route",
         error: null,
-        mode: "category",
         showCategoryDirectory: true,
       })
     );
@@ -217,7 +215,7 @@ describe("product catalog UI", () => {
 
   it("renders safe error and loading surfaces with stable catalog dimensions", () => {
     const errorMarkup = renderToStaticMarkup(
-      createElement(ProductCatalogPage, {
+      createElement(ProductCatalog, {
         basePath: "/products",
         categories,
         catalog: null,
@@ -228,7 +226,6 @@ describe("product catalog UI", () => {
             "Category not found. Browse another category or all products.",
           title: "Category not found",
         },
-        mode: "products",
         showCategoryDirectory: true,
       })
     );

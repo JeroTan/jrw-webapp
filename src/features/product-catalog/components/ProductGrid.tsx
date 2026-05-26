@@ -10,7 +10,7 @@ export function ProductGrid({ products }: ProductGridProps) {
   return (
     <ul
       aria-label="Published products"
-      className="m-0 grid list-none grid-cols-1 gap-grid-sm p-0 xs:grid-cols-2 md:grid-cols-4 lg:grid-cols-12"
+      className="w-fit m-0 grid list-none grid-cols-1 p-0 xs:grid-cols-2 md:grid-cols-4 lg:grid-cols-12 border-t border-l border-brand-border"
     >
       {products.map((product) => (
         <li

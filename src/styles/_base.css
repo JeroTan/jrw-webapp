@@ -5,14 +5,14 @@
 
   html {
     min-height: 100%;
-    @apply bg-brand-background text-brand-content font-body;
+    @apply text-brand-content font-body;
     text-rendering: optimizeLegibility;
   }
 
   body {
     min-height: 100vh;
     margin: 0;
-    @apply bg-brand-background text-brand-content font-body;
+    @apply text-brand-content font-body;
     line-height: 1.5;
   }
 

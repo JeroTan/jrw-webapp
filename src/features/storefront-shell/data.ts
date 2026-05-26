@@ -6,21 +6,3 @@ export const storefrontNavLinks: StorefrontNavLink[] = [
   { href: "/brands", label: "Brands" },
   { href: "/products", label: "All Products" },
 ];
-
-export const storefrontHomeLinks: StorefrontNavLink[] = [
-  {
-    href: "/products?sort=new",
-    description: "Latest products appear here when browsing opens.",
-    label: "New Arrivals",
-  },
-  {
-    href: "/products?view=categories",
-    description: "Category browsing appears here when product listings open.",
-    label: "Categories",
-  },
-  {
-    href: "/brands",
-    description: "Browse products grouped by brand.",
-    label: "Brands",
-  },
-];

@@ -5,6 +5,5 @@ export * from "./components/ProductCard";
 export * from "./components/ProductCatalogEmptyState";
 export * from "./components/ProductCatalogErrorState";
 export * from "./components/ProductCatalogFilters";
-export * from "./components/ProductCatalogPage";
 export * from "./components/ProductCatalogSkeleton";
 export * from "./components/ProductGrid";

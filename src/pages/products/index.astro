@@ -1,5 +1,5 @@
 ---
-import { ProductCatalogPage } from "@/features/product-catalog";
+import ProductCatalog from "@/features/product-catalog/ProductCatalog";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
 import { loadStorefrontCatalogPageData } from "@/server/loaders/PublicCatalogPageDataLoader";
 import { env } from "cloudflare:workers";
@@ -17,13 +17,12 @@ const pageData = await loadStorefrontCatalogPageData({
   description="Browse JRW. lifestyle products."
   mainAriaLabel="Product browsing"
 >
-  <ProductCatalogPage
+  <ProductCatalog
     basePath="/products"
     catalog={pageData.catalog}
     categories={pageData.categories}
     categoryNavigationMode="query"
     error={pageData.error}
-    mode="products"
     query={pageData.query}
     showCategoryDirectory={pageData.view === "categories"}
     view={pageData.view}

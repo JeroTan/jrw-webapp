@@ -2,7 +2,7 @@
 stepsCompleted: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
 workflowStatus: "complete"
 completedAt: "2026-05-11"
-lastEdited: "2026-05-20"
+lastEdited: "2026-05-26"
 lastStep: 14
 inputDocuments:
   - "_bmad-output/planning-artifacts/prd.md"
@@ -719,7 +719,7 @@ Foundation primitives:
 - EmptyState / Skeleton
 - Stepper
 
-All primitives use JRW tokens: 0px radius, 1px borders, no shadows, visible focus, text-first status.
+All primitives use JRW tokens: 0px radius, 1px borders, no shadows, visible focus, text-first status. Small repeated visual differences belong as primitive props, for example `borderTone`, `textSize`, and `controlSize`, rather than repeated feature-level class strings.
 
 ### Custom Components
 
@@ -741,11 +741,37 @@ All primitives use JRW tokens: 0px radius, 1px borders, no shadows, visible focu
 
 **Usage:** Storefront grid, related products, admin product previews.
 
-**Anatomy:** Image module, product name, brand/category, price, availability badge, quick action.
+**Anatomy:** Image module, product name, optional brand, category, availability, and price tag. Public cards omit missing-brand filler copy instead of showing "Brandless".
 
-**States:** Default, hover/focus, loading image, out of stock, low stock, preorder, archived admin-only.
+**States:** Default, hover/focus, loading image, missing image initials module, out of stock, low stock, preorder, archived admin-only.
 
 **Accessibility:** Product link has clear label. Availability is text, not color only.
+
+**Visual contract:** Product grid owns top/left border lines. Each card owns right/bottom module borders. Media uses `h-55`; fallback image uses diagonal token pattern plus centered initials. No rounded corners, shadows, blur, or decorative ecommerce softness.
+
+### ProductCatalog
+
+**Purpose:** Render storefront catalog browsing without owning page hero copy or shell composition.
+
+**Usage:** Home route product section, `/products`, and category routes.
+
+**Anatomy:** Optional category directory, optional filter rail, product grid, pagination, empty state, error state.
+
+**States:** Grid, category directory, filtered results, empty category, safe error, loading handled by `ProductCatalogSkeleton`.
+
+**Boundary:** `ProductCatalog` must not import `StorefrontHero` or switch hero content by page mode. The owning Astro route or home/shell component composes hero content separately.
+
+### ProductCatalogFilters
+
+**Purpose:** Provide catalog search, page-size control, apply action, clear action, and category links.
+
+**Usage:** Product and category catalog side rail.
+
+**Anatomy:** `SearchInput`, `Select`, hidden query inputs, `Button type="submit"`, clear link, category `ButtonLink` chips.
+
+**States:** No active filters, active filters, selected category, route navigation mode, query navigation mode.
+
+**Accessibility:** Search and select keep visible labels; selected category uses `aria-current`; submit action is a real form submit.
 
 ### ProductDetailPanel
 
@@ -892,13 +918,13 @@ All primitives use JRW tokens: 0px radius, 1px borders, no shadows, visible focu
 ### Implementation Roadmap
 
 Phase 0: Fidelity correction
-Button/ButtonLink hover/focus contract, ProductCard/ProductGrid visual fidelity, Admin sign-in/logout/reset entry points, DashboardShell, SidebarNav, TopBar, and owner-governance shell.
+Button/ButtonLink hover/focus contract, primitive border/text/size props, ProductCard/ProductGrid visual fidelity, ProductCatalog/ProductCatalogFilters boundary cleanup, Admin sign-in/logout/reset entry points, DashboardShell, SidebarNav, TopBar, and owner-governance shell.
 
 Phase 1: Primitives and layout shell  
 Button, inputs, badges, table, modal, drawer, side panel, toast, confirm dialog, dashboard shell.
 
 Phase 2: Storefront  
-ProductCard, ProductGrid, ProductDetailPanel, CartDrawer, mobile sticky cart.
+StorefrontHomeHero, ProductCatalog, ProductCatalogFilters, ProductCard, ProductGrid, ProductDetailPanel, CartDrawer, mobile sticky cart.
 
 Phase 3: Checkout and customer order  
 CheckoutSteps, OrderReceipt, OrderTimeline.
@@ -923,6 +949,12 @@ Primary buttons trigger main next action:
 Secondary buttons support navigation or low-risk alternatives:
 
 - Continue Shopping, View Details, Save Draft, Cancel, Back.
+
+Button implementation rules:
+
+- Use `Button` for real button actions and `ButtonLink` for links styled as actions.
+- Pass `type="submit"` on `Button` inside submitting forms.
+- Use subtle border tone for dense catalog rails and strong border tone for default standalone actions.
 
 Danger buttons handle destructive or authority-changing actions:
 

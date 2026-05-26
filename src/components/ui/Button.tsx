@@ -7,9 +7,11 @@ export type ButtonVariant = "primary" | "secondary" | "danger" | "ghost";
 export type ButtonSize = "sm" | "md";
 export type ButtonPaddingX = "none" | "xs" | "sm" | "md" | "lg";
 export type ButtonTextSize = "xs" | "sm" | "md" | "lg";
+export type ButtonBorderTone = "subtle" | "strong";
 
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children?: ReactNode;
+  borderTone?: ButtonBorderTone;
   fullWidth?: boolean;
   loading?: boolean;
   loadingLabel?: string;
@@ -48,15 +50,23 @@ const buttonTextSizeClass: Record<ButtonTextSize, string> = {
   lg: "text-lg",
 };
 
-const buttonVariantClass: Record<ButtonVariant, string> = {
+const buttonBorderToneClass: Record<ButtonBorderTone, string> = {
+  subtle: "border-brand-border",
+  strong: "border-brand-border-strong",
+};
+
+const buttonVariantClass: Record<
+  Exclude<ButtonVariant, "secondary">,
+  string
+> = {
   primary: "border-brand-accent bg-brand-accent text-brand-surface",
-  secondary: "border-brand-border-strong bg-brand-surface text-brand-content",
   danger: "border-brand-danger bg-brand-danger text-brand-surface",
   ghost: "border-transparent bg-transparent text-brand-content",
 };
 
 export function Button({
   children,
+  borderTone = "strong",
   className,
   disabled,
   fullWidth = false,
@@ -81,7 +91,9 @@ export function Button({
         square ? buttonSquareSizeClass[size] : buttonSizeClass[size],
         square ? buttonPaddingXClass.none : buttonPaddingXClass[paddingX],
         buttonTextSizeClass[textSize],
-        buttonVariantClass[variant],
+        variant === "secondary"
+          ? `${buttonBorderToneClass[borderTone]} bg-brand-surface text-brand-content`
+          : buttonVariantClass[variant],
         fullWidth && !square && "w-full",
         className
       )}

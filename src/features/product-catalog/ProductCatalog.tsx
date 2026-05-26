@@ -1,19 +1,18 @@
 import * as React from "react";
-import { StorefrontHero } from "@/features/storefront-shell/StorefrontHero";
-import { buildCategoryHref } from "../api";
+
+import { buildCategoryHref } from "./api";
 import type {
   StorefrontCatalogPageError,
-  StorefrontCatalogPageMode,
   StorefrontCatalogQuery,
   StorefrontCatalogResult,
   StorefrontCatalogView,
   StorefrontCategoryNavigationMode,
-} from "../types";
-import { CatalogPagination } from "./CatalogPagination";
-import { ProductCatalogEmptyState } from "./ProductCatalogEmptyState";
-import { ProductCatalogErrorState } from "./ProductCatalogErrorState";
-import { ProductCatalogFilters } from "./ProductCatalogFilters";
-import { ProductGrid } from "./ProductGrid";
+} from "./types";
+import { CatalogPagination } from "./components/CatalogPagination";
+import { ProductCatalogEmptyState } from "./components/ProductCatalogEmptyState";
+import { ProductCatalogErrorState } from "./components/ProductCatalogErrorState";
+import { ProductCatalogFilters } from "./components/ProductCatalogFilters";
+import { ProductGrid } from "./components/ProductGrid";
 
 type ProductCatalogPageProps = {
   basePath: string;
@@ -26,11 +25,11 @@ type ProductCatalogPageProps = {
   }>;
   categoryNavigationMode: StorefrontCategoryNavigationMode;
   error?: StorefrontCatalogPageError | null;
-  mode: StorefrontCatalogPageMode;
   query?: StorefrontCatalogQuery;
   showCategoryDirectory?: boolean;
   showFilters?: boolean;
   view?: StorefrontCatalogView;
+  baseClassname?: string;
 };
 
 const defaultQuery: StorefrontCatalogQuery = {
@@ -40,69 +39,25 @@ const defaultQuery: StorefrontCatalogQuery = {
   sort: "new",
 };
 
-function heroContent(input: {
-  mode: StorefrontCatalogPageMode;
-  selectedCategoryName?: string;
-}) {
-  switch (input.mode) {
-    case "home":
-      return {
-        copy: "Search published products, browse categories, and open product pages from one storefront view.",
-        kicker: "JRW. Storefront",
-        title: "Lifestyle products.",
-      };
-    case "category":
-      return {
-        copy: input.selectedCategoryName
-          ? `Browse published products in ${input.selectedCategoryName}.`
-          : "Browse published products by category.",
-        kicker: "Category",
-        title: input.selectedCategoryName || "Category browsing",
-      };
-    default:
-      return {
-        copy: "Search published products, move through categories, and keep browsing JRW products.",
-        kicker: "Products",
-        title: "Browse products.",
-      };
-  }
-}
-
-export function ProductCatalogPage({
+export default function ProductCatalog({
   basePath,
   catalog,
   categories,
   categoryNavigationMode,
   error = null,
-  mode,
   query,
   showCategoryDirectory = false,
   showFilters = true,
   view = "grid",
+  baseClassname = "",
 }: ProductCatalogPageProps) {
   const resolvedQuery = query ?? catalog?.query ?? defaultQuery;
-  const selectedCategoryName = catalog?.selectedCategory?.name;
-  const hero = heroContent({
-    mode,
-    ...(selectedCategoryName ? { selectedCategoryName } : {}),
-  });
 
   return (
     <section
-      aria-labelledby="product-catalog-title"
-      className="grid gap-grid-md"
+      aria-label="Product catalog"
+      className={`grid gap-grid-md ${baseClassname}`}
     >
-      <StorefrontHero
-        actions={[
-          { href: "/products", label: "Browse products", variant: "primary" },
-          { href: "/products?view=categories", label: "Browse categories" },
-        ]}
-        copy={hero.copy}
-        id="product-catalog-title"
-        kicker={hero.kicker}
-        title={hero.title}
-      />
-
       {showCategoryDirectory && categories.length > 0 ? (
         <section
           className="grid gap-grid-sm"
@@ -126,7 +81,7 @@ export function ProductCatalogPage({
             {categories.map((category) => (
               <li key={category.id}>
                 <a
-                  className="grid min-h-[132px] gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm no-underline hover:border-brand-accent focus-visible:border-brand-accent"
+                  className="grid min-h-33 gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm no-underline hover:border-brand-accent focus-visible:border-brand-accent"
                   href={buildCategoryHref(category.slug, resolvedQuery, view)}
                 >
                   <span className="font-identity text-[1.15rem] font-bold">
@@ -145,12 +100,12 @@ export function ProductCatalogPage({
       <div
         className={
           showFilters
-            ? "grid gap-grid-sm md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]"
-            : "grid gap-grid-sm"
+            ? "grid md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]"
+            : "grid"
         }
       >
         {showFilters ? (
-          <aside className="self-start border border-brand-border-strong bg-brand-surface p-grid-sm">
+          <aside className="self-start border-l border-t border-b border-brand-border bg-background p-grid-sm">
             <ProductCatalogFilters
               basePath={basePath}
               categories={categories}
@@ -197,5 +152,3 @@ export function ProductCatalogPage({
     </section>
   );
 }
-
-export default ProductCatalogPage;

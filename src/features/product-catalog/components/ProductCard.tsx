@@ -20,7 +20,7 @@ function productInitials(name: string): string {
 function ProductImage({ product }: ProductCardProps) {
   if (product.imageSrc) {
     return (
-      <div className="grid h-[220px] place-items-center overflow-hidden border-b border-brand-border bg-brand-background">
+      <div className="grid h-55 place-items-center overflow-hidden border-b border-brand-border bg-brand-background">
         <img
           alt={product.imageAlt}
           className="h-full w-full object-cover"
@@ -34,10 +34,10 @@ function ProductImage({ product }: ProductCardProps) {
   return (
     <div
       aria-label={`${product.name} image coming soon`}
-      className="grid h-[220px] place-items-center border-b border-brand-border bg-[linear-gradient(135deg,var(--color-brand-background)_0_25%,var(--color-brand-surface)_25%_50%,var(--color-brand-border)_50%_75%,var(--color-brand-surface)_75%)] bg-[length:28px_28px] p-grid-sm text-center font-system text-xs font-bold uppercase text-brand-muted"
+      className="grid h-55 place-items-center border-b border-brand-border bg-[linear-gradient(135deg,var(--color-brand-background)_0_25%,var(--color-brand-surface)_25%_50%,var(--color-brand-border)_50%_75%,var(--color-brand-surface)_75%)] bg-size-[28px_28px] p-grid-sm text-center font-system text-xs font-bold uppercase text-brand-muted"
       role="img"
     >
-      <span className="grid size-[112px] place-items-center border border-brand-border bg-brand-surface font-identity text-[2.375rem] font-black text-brand-content">
+      <span className="grid size-28 place-items-center border border-brand-border bg-brand-surface font-identity text-[2.375rem] font-black text-brand-content">
         {productInitials(product.name)}
       </span>
     </div>
@@ -46,23 +46,23 @@ function ProductImage({ product }: ProductCardProps) {
 
 export function ProductCard({ product }: ProductCardProps) {
   return (
-    <article className="h-full min-h-[360px] border border-brand-border bg-brand-surface">
+    <article className="group h-full min-h-90 border-r border-b hover:border border-brand-border hover:border-brand-border-strong -outline-offset-2 bg-brand-surface">
       <a
         aria-label={`View ${product.name}`}
-        className="group grid h-full grid-rows-[auto_1fr] text-brand-content no-underline hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+        className="grid h-full grid-rows-[auto_1fr] text-brand-content no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
         href={product.href}
       >
         <ProductImage product={product} />
 
         <div className="grid content-start gap-grid-xs p-grid-sm">
           <div className="grid gap-grid-xs">
-            <h3 className="m-0 font-identity text-[1.05rem] font-extrabold leading-tight [overflow-wrap:anywhere] group-hover:text-brand-accent">
+            <h3 className="m-0 font-identity text-[1.05rem] font-extrabold leading-tight wrap-anywhere ">
               {product.name}
             </h3>
 
             <p className="m-0 font-system text-xs text-brand-muted">
               {[
-                product.brandName ?? "Brandless",
+                ...(product.brandName ? [product.brandName] : []),
                 product.categoryName,
                 product.availability.label,
               ]
@@ -71,7 +71,7 @@ export function ProductCard({ product }: ProductCardProps) {
             </p>
           </div>
 
-          <span className="inline-flex min-h-[28px] w-fit items-center border border-brand-content px-2.5 font-system text-[0.6875rem] font-bold uppercase leading-none text-brand-content">
+          <span className="mt-2 inline-flex min-h-7 w-fit items-center border border-brand-content px-2.5 font-system text-[0.6875rem] uppercase leading-none text-brand-content">
             {product.priceLabel}
           </span>
         </div>

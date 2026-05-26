@@ -14,6 +14,7 @@ type StorefrontHeroProps = {
   id: string;
   kicker: string;
   title: string;
+  className?: string;
 };
 
 export function StorefrontHero({
@@ -22,19 +23,22 @@ export function StorefrontHero({
   id,
   kicker,
   title,
+  className = "",
 }: StorefrontHeroProps) {
   return (
-    <header className="grid gap-grid-sm bg-brand-surface p-grid-md">
+    <header
+      className={`grid gap-grid-sm bg-brand-surface p-grid-md ${className}`}
+    >
       <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
         {kicker}
       </p>
       <h1
-        className="max-w-[18ch] font-identity text-[clamp(2rem,8vw,4rem)] [overflow-wrap:anywhere]"
+        className="max-w-[18ch] font-identity text-[clamp(2rem,8vw,4rem)] wrap-anywhere"
         id={id}
       >
         {title}
       </h1>
-      <p className="max-w-[68ch] text-[0.9375rem] text-brand-muted">{copy}</p>
+      <p className="max-w-[100ch] text-[0.9375rem] text-brand-muted">{copy}</p>
       {actions.length > 0 ? (
         <div className="flex flex-wrap gap-grid-xs">
           {actions.map((action) => (

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { SearchInput, Select } from "@/components/ui";
+import { Button, ButtonLink, SearchInput, Select } from "@/components/ui";
 import { buildCatalogHref, buildCategoryHref } from "../api";
 import type {
   StorefrontCatalogCategoryOption,
@@ -88,12 +88,15 @@ export function ProductCatalogFilters({
           label="Search products"
           name="q"
           placeholder="Search products"
+          borderTone="subtle"
         />
 
         <Select
           defaultValue={String(query.pageSize)}
           label="Items per page"
           name="pageSize"
+          borderTone="subtle"
+          textSize="xs"
         >
           <option value="20">20</option>
           <option value="50">50</option>
@@ -110,12 +113,9 @@ export function ProductCatalogFilters({
           <input name="category" type="hidden" value={query.category} />
         ) : null}
 
-        <button
-          className="inline-flex min-h-control-md items-center justify-center border border-brand-border-strong px-grid-sm font-system text-xs font-bold uppercase hover:border-brand-accent focus-visible:border-brand-accent"
-          type="submit"
-        >
+        <Button borderTone="subtle" textSize="sm" type="submit">
           Apply filters
-        </button>
+        </Button>
 
         {hasActiveFilters ? (
           <a
@@ -132,9 +132,11 @@ export function ProductCatalogFilters({
           Categories
         </p>
         <div className="flex flex-wrap gap-grid-xs">
-          <a
+          <ButtonLink
             aria-current={query.category ? undefined : "page"}
-            className="inline-flex min-h-control-md items-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent"
+            borderTone="subtle"
+            size="sm"
+            textSize="xs"
             href={
               categoryNavigationMode === "route"
                 ? buildCatalogHref("/products", query, view, {
@@ -147,16 +149,18 @@ export function ProductCatalogFilters({
                   })
             }
           >
-            All products
-          </a>
+            All Products
+          </ButtonLink>
 
           {categories.map((category) => {
             const selected = query.category === category.slug;
 
             return (
-              <a
+              <ButtonLink
                 aria-current={selected ? "page" : undefined}
-                className="inline-flex min-h-control-md items-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase no-underline hover:border-brand-accent focus-visible:border-brand-accent"
+                borderTone="subtle"
+                size="sm"
+                textSize="xs"
                 href={categoryHref({
                   basePath,
                   categoryNavigationMode,
@@ -167,7 +171,7 @@ export function ProductCatalogFilters({
                 key={category.id}
               >
                 {category.name}
-              </a>
+              </ButtonLink>
             );
           })}
         </div>

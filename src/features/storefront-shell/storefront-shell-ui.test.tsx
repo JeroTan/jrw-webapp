@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { StorefrontHeader } from "./StorefrontHeader";
-import { StorefrontHome } from "./StorefrontHome";
+import StorefrontHomeHero from "./StorefrontHomeHero";
 
 function activeNavHrefs(markup: string) {
   return Array.from(
@@ -82,7 +82,7 @@ describe("storefront shell UI", () => {
   });
 
   it("keeps the homepage primary browse link readable on accent fill", () => {
-    const markup = renderToStaticMarkup(createElement(StorefrontHome));
+    const markup = renderToStaticMarkup(createElement(StorefrontHomeHero));
     const match = markup.match(/class="([^"]+)" href="\/products"/);
 
     expect(match?.[1]).toContain("bg-brand-accent");

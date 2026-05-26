@@ -36,7 +36,7 @@ projectName: "jrw-webapp"
 userName: "MR. JRW"
 createdDate: "2026-05-11"
 completedAt: "2026-05-11"
-lastEdited: "2026-05-24"
+lastEdited: "2026-05-26"
 projectContext: "brownfield_rebuild_with_existing_tangram_docs_and_partial_api_implementation"
 classification:
   projectType:
@@ -67,6 +67,8 @@ editHistory:
     changes: "Added FR78 and maintainability rules for Tailwind utility-first UI implementation with JRW brand theme tokens and no one-off jrw-* runtime class layers."
   - date: "2026-05-24"
     changes: "Approved UI fidelity and admin shell correction; added FR79 to require exact UX design-direction fidelity before UI stories are marked done."
+  - date: "2026-05-26"
+    changes: "Documented manual storefront catalog cleanup: catalog components no longer own storefront hero content, shared primitives own repeated control styling, and public product cards omit missing-brand filler copy."
 ---
 
 # Product Requirements Document - jrw-webapp
@@ -794,6 +796,7 @@ Resource risks:
 - FR77: Project can maintain component-level UI specifications for shared shell, `StorefrontHero`, navigation, footer, toolbar, view toggle, search, cart trigger, button/link actions, card/list/table, loading, empty, and permission patterns.
 - FR78: Project can maintain Tailwind utility-first UI implementation rules so feature-specific styling stays visible in markup, uses JRW brand theme tokens, and avoids one-off `jrw-*` runtime class layers.
 - FR79: Project can enforce approved UX design-direction fidelity for shared buttons, product cards, storefront layout-preserving changes, admin auth entry points, admin dashboard shell, and future UI stories before marking UI work done.
+- FR80: Project can preserve storefront component boundaries so catalog components render catalog content only, route/home/shell components compose hero content, shared primitives carry repeated control styling, and public product cards avoid placeholder brand filler.
 
 ## Non-Functional Requirements
 
@@ -866,5 +869,6 @@ Resource risks:
 - Contract drift must be caught by automated tests, generated docs diff, or manual release checklist before deployment.
 - Existing helpers and utilities must be inventoried before replacement to avoid duplicate abstractions.
 - UI implementation must use Tailwind CSS v4 utilities plus JRW brand theme tokens directly in feature markup for feature-specific styling. Runtime UI must not introduce one-off `jrw-*`/BEM CSS classes or feature/storefront CSS class layers that require debugging across JSX and CSS files.
-- Storefront product, brand, category, and home hero/billboard sections must use shared `StorefrontHero`; link CTAs must use `ButtonLink`; form/in-page actions must use `Button`.
+- Storefront hero/billboard sections must be composed by the owning route, shell, or home component using shared `StorefrontHero`; product-catalog components must not import or decide storefront-shell hero content. Link CTAs must use `ButtonLink`; form/in-page actions must use `Button`.
 - Icon-sized button controls must use `Button` with `square`, `aria-label`, and `title`; the separate `IconButton` primitive is not part of the active UI system.
+- Shared primitives should expose small visual props before features duplicate one-off utility strings. `Button` remains non-submit by default, so submitting forms must pass `type="submit"`.
