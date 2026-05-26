@@ -5,7 +5,66 @@ import { ButtonLink } from "@/components/ui/ButtonLink";
 import CartAction from "./components/Navigation/CartAction";
 import SearchForm from "./components/Navigation/SearchForm";
 
-function StorefrontNav({ mobile = false }: { mobile?: boolean }) {
+const NAV_MATCH_BASE = "https://jrw.local";
+
+function parseRoute(route: string) {
+  const parsed = new URL(route, NAV_MATCH_BASE);
+  const pathname =
+    parsed.pathname.length > 1 ? parsed.pathname.replace(/\/$/, "") : "/";
+
+  return {
+    pathname,
+    searchParams: parsed.searchParams,
+  };
+}
+
+function getActiveNavHref(currentUrl: string) {
+  const currentRoute = parseRoute(currentUrl);
+
+  if (
+    currentRoute.pathname === "/products" &&
+    currentRoute.searchParams.get("view") === "categories"
+  ) {
+    return "/products?view=categories";
+  }
+
+  if (
+    currentRoute.pathname === "/products" &&
+    currentRoute.searchParams.get("sort") === "new"
+  ) {
+    return "/products?sort=new";
+  }
+
+  if (currentRoute.pathname.startsWith("/categories/")) {
+    return "/products?view=categories";
+  }
+
+  if (
+    currentRoute.pathname === "/brands" ||
+    currentRoute.pathname.startsWith("/brands/")
+  ) {
+    return "/brands";
+  }
+
+  if (
+    currentRoute.pathname === "/products" ||
+    currentRoute.pathname.startsWith("/products/")
+  ) {
+    return "/products";
+  }
+
+  return undefined;
+}
+
+function StorefrontNav({
+  currentUrl = "/",
+  mobile = false,
+}: {
+  currentUrl?: string;
+  mobile?: boolean;
+}) {
+  const activeNavHref = getActiveNavHref(currentUrl);
+
   return (
     <nav aria-label="Storefront navigation" className={"h-full"}>
       <ul
@@ -18,6 +77,7 @@ function StorefrontNav({ mobile = false }: { mobile?: boolean }) {
         {storefrontNavLinks.map((link, index) => (
           <li className="xl:basis-auto basis-full h-full" key={link.href}>
             <NavButton
+              active={link.href === activeNavHref}
               href={link.href}
               singleBorder={index !== storefrontNavLinks.length - 1}
               dividerDirection={mobile ? "horizontal" : "vertical"}
@@ -31,7 +91,11 @@ function StorefrontNav({ mobile = false }: { mobile?: boolean }) {
   );
 }
 
-export function StorefrontHeader() {
+export function StorefrontHeader({
+  currentUrl = "/",
+}: {
+  currentUrl?: string;
+}) {
   return (
     <header
       className="border-b border-brand-border-strong bg-brand-surface"
@@ -57,7 +121,7 @@ export function StorefrontHeader() {
           JRW.
         </a>
         <div className="h-full md:block hidden  xl:col-auto md:col-span-full xl:row-auto md:row-start-2">
-          <StorefrontNav />
+          <StorefrontNav currentUrl={currentUrl} />
         </div>
 
         <div className="md:block hidden xl:my-0 my-2 ">
@@ -82,7 +146,7 @@ export function StorefrontHeader() {
 
             <div className="absolute right-0 top-[calc(100%+8px)] z-30 grid w-[min(92vw,380px)] gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm">
               <SearchForm id="storefront-mobile-search" />
-              <StorefrontNav mobile />
+              <StorefrontNav currentUrl={currentUrl} mobile />
             </div>
           </details>
         </div>

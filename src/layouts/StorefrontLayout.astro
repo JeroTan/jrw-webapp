@@ -41,7 +41,7 @@ const {
     Skip to main content
   </a>
 
-  <StorefrontHeader client:load />
+  <StorefrontHeader client:load currentUrl={`${Astro.url.pathname}${Astro.url.search}`} />
 
   <main
     aria-label={mainAriaLabel}

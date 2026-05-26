@@ -4,6 +4,13 @@ import { describe, expect, it } from "vitest";
 import { StorefrontHeader } from "./StorefrontHeader";
 import { StorefrontHome } from "./StorefrontHome";
 
+function activeNavHrefs(markup: string) {
+  return Array.from(
+    markup.matchAll(/<a aria-current="page"[^>]*href="([^"]+)"/g),
+    ([, href]) => href
+  );
+}
+
 describe("storefront shell UI", () => {
   it("renders hydrated cart trigger label and badge shell", () => {
     const markup = renderToStaticMarkup(createElement(StorefrontHeader));
@@ -34,6 +41,46 @@ describe("storefront shell UI", () => {
       expect(className).not.toContain("hover:outline");
     }
   });
+
+  it("marks the brand section nav link active on brand pages", () => {
+    const markup = renderToStaticMarkup(
+      createElement(StorefrontHeader, { currentUrl: "/brands/outdoor" })
+    );
+
+    expect(activeNavHrefs(markup)).toEqual(["/brands", "/brands"]);
+    expect(markup).toContain("bg-brand-accent text-brand-surface");
+  });
+
+  it("marks the category section nav link active for category browsing", () => {
+    const markup = renderToStaticMarkup(
+      createElement(StorefrontHeader, { currentUrl: "/categories/chairs" })
+    );
+
+    expect(activeNavHrefs(markup)).toEqual([
+      "/products?view=categories",
+      "/products?view=categories",
+    ]);
+  });
+
+  it("marks new arrivals active without also marking all products active", () => {
+    const markup = renderToStaticMarkup(
+      createElement(StorefrontHeader, { currentUrl: "/products?sort=new" })
+    );
+
+    expect(activeNavHrefs(markup)).toEqual([
+      "/products?sort=new",
+      "/products?sort=new",
+    ]);
+  });
+
+  it("marks all products nav link active on product detail pages", () => {
+    const markup = renderToStaticMarkup(
+      createElement(StorefrontHeader, { currentUrl: "/products/lounge-chair" })
+    );
+
+    expect(activeNavHrefs(markup)).toEqual(["/products", "/products"]);
+  });
+
   it("keeps the homepage primary browse link readable on accent fill", () => {
     const markup = renderToStaticMarkup(createElement(StorefrontHome));
     const match = markup.match(/class="([^"]+)" href="\/products"/);
