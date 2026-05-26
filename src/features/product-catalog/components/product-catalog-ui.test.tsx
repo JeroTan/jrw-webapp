@@ -8,6 +8,7 @@ import type {
 } from "@/domain/products/public-types";
 import {
   ProductCard,
+  ProductCollectionSection,
   ProductCatalogSkeleton,
 } from "@/features/product-catalog";
 import ProductCatalog from "../ProductCatalog";
@@ -123,6 +124,15 @@ describe("product catalog UI", () => {
     );
 
     expect(markup).toContain('aria-label="Product catalog"');
+    expect(markup).toContain('aria-label="Product filters"');
+    expect(markup).toContain(
+      'class="filter-panel-body mt-grid-sm hidden md:mt-0 md:grid"'
+    );
+    expect(markup).toContain('class="filter-panel-plus"');
+    expect(markup).not.toContain("mb-grid-sm flex min-h-control-sm");
+    expect(markup.match(/<form[^>]*action="\/products"/g) ?? []).toHaveLength(
+      1
+    );
     expect(markup).not.toContain("Search products");
     expect(markup).not.toContain("Items per page");
     expect(markup).toContain("Categories");
@@ -247,6 +257,21 @@ describe("product catalog UI", () => {
     expect(markup).not.toContain("Shop by category");
     expect(markup).not.toContain("Filters");
     expect(markup).not.toContain("seller of record");
+  });
+
+  it("hides collection action when category section has no products", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ProductCollectionSection, {
+        actionHref: "/categories/empty-category",
+        emptyMessage: "No products in this category yet.",
+        products: [],
+        title: "Empty Category",
+      })
+    );
+
+    expect(markup).toContain("No products in this category yet.");
+    expect(markup).not.toContain("View more");
+    expect(markup).not.toContain('href="/categories/empty-category"');
   });
 
   it("renders safe error and loading surfaces with stable catalog dimensions", () => {

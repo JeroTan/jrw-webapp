@@ -44,6 +44,18 @@ function priceValue(value: number | undefined): string | undefined {
   return Number.isInteger(pesos) ? String(pesos) : pesos.toFixed(2);
 }
 
+export function hasActiveCatalogFilters(
+  query: StorefrontCatalogQuery
+): boolean {
+  return (
+    query.categories.length > 0 ||
+    query.brands.length > 0 ||
+    query.stock.length > 0 ||
+    query.minPriceCentavos !== undefined ||
+    query.maxPriceCentavos !== undefined
+  );
+}
+
 export function ProductCatalogFilters({
   basePath,
   brands,
@@ -51,17 +63,12 @@ export function ProductCatalogFilters({
   query,
   view,
 }: ProductCatalogFiltersProps) {
-  const hasActiveFilters =
-    query.categories.length > 0 ||
-    query.brands.length > 0 ||
-    query.stock.length > 0 ||
-    query.minPriceCentavos !== undefined ||
-    query.maxPriceCentavos !== undefined;
+  const hasActiveFilters = hasActiveCatalogFilters(query);
 
   return (
     <div className="grid gap-grid-sm">
       <form action={basePath} className="m-0 grid gap-grid-sm" method="get">
-        <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+        <p className="m-0 hidden font-system text-xs font-bold uppercase text-brand-muted md:block">
           Filters
         </p>
 

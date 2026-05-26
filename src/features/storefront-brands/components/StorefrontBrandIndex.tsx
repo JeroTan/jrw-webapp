@@ -1,6 +1,11 @@
 import * as React from "react";
 
-import { Button, ButtonLink, CheckboxGroup } from "@/components/ui";
+import {
+  Button,
+  ButtonLink,
+  CheckboxGroup,
+  ResponsiveFilterPanel,
+} from "@/components/ui";
 import { ProductCollectionSection } from "@/features/product-catalog";
 import type { StorefrontBrandRow } from "../types";
 
@@ -58,12 +63,12 @@ export function StorefrontBrandIndex({
       </div>
 
       <div className="grid gap-grid-md md:grid-cols-[minmax(0,16rem)_minmax(0,1fr)]">
-        <aside
-          aria-label="Brand filters"
-          className="self-start border border-brand-border bg-background p-grid-sm"
+        <ResponsiveFilterPanel
+          ariaLabel="Brand filters"
+          defaultExpanded={hasFilters}
         >
           <form action="/brands" className="m-0 grid gap-grid-sm" method="get">
-            <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+            <p className="m-0 hidden font-system text-xs font-bold uppercase text-brand-muted md:block">
               Filters
             </p>
             <CheckboxGroup
@@ -86,7 +91,7 @@ export function StorefrontBrandIndex({
               </ButtonLink>
             ) : null}
           </form>
-        </aside>
+        </ResponsiveFilterPanel>
 
         {filteredRows.length > 0 ? (
           <div aria-label="Brand product rows" className="grid gap-grid-xl">

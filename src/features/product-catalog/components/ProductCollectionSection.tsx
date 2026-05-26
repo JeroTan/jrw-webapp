@@ -33,6 +33,7 @@ export function ProductCollectionSection({
   title,
 }: ProductCollectionSectionProps) {
   const titleId = sectionId(title);
+  const hasProducts = products.length > 0;
 
   return (
     <section className="grid gap-grid-sm" aria-labelledby={titleId}>
@@ -60,7 +61,7 @@ export function ProductCollectionSection({
           ) : null}
         </div>
 
-        {actionHref ? (
+        {actionHref && hasProducts ? (
           <ButtonLink
             borderTone="subtle"
             href={actionHref}
@@ -72,7 +73,7 @@ export function ProductCollectionSection({
         ) : null}
       </div>
 
-      {products.length > 0 ? (
+      {hasProducts ? (
         <ProductGrid products={products} />
       ) : (
         <p className="m-0 border border-brand-border bg-brand-surface p-grid-sm text-brand-muted">

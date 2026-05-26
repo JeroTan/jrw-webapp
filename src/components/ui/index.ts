@@ -8,6 +8,7 @@ export * from "./Drawer";
 export * from "./Input";
 export * from "./Modal";
 export * from "./Pagination";
+export * from "./ResponsiveFilterPanel";
 export * from "./Select";
 export * from "./SearchInput";
 export * from "./Tabs";

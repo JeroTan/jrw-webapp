@@ -1,5 +1,6 @@
 import * as React from "react";
 
+import { ResponsiveFilterPanel } from "@/components/ui";
 import { buildCategoryHref } from "./api";
 import type {
   StorefrontCatalogPageError,
@@ -11,7 +12,10 @@ import type {
 import { CatalogPagination } from "./components/CatalogPagination";
 import { ProductCatalogEmptyState } from "./components/ProductCatalogEmptyState";
 import { ProductCatalogErrorState } from "./components/ProductCatalogErrorState";
-import { ProductCatalogFilters } from "./components/ProductCatalogFilters";
+import {
+  hasActiveCatalogFilters,
+  ProductCatalogFilters,
+} from "./components/ProductCatalogFilters";
 import { ProductGrid } from "./components/ProductGrid";
 
 type ProductCatalogPageProps = {
@@ -115,7 +119,10 @@ export default function ProductCatalog({
         }
       >
         {showFilters ? (
-          <aside className="self-start border border-brand-border bg-background p-grid-sm">
+          <ResponsiveFilterPanel
+            ariaLabel="Product filters"
+            defaultExpanded={hasActiveCatalogFilters(resolvedQuery)}
+          >
             <ProductCatalogFilters
               basePath={basePath}
               brands={brands}
@@ -124,7 +131,7 @@ export default function ProductCatalog({
               query={resolvedQuery}
               view={view}
             />
-          </aside>
+          </ResponsiveFilterPanel>
         ) : null}
 
         <div className="grid content-start gap-grid-sm self-start">
