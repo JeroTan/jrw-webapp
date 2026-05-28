@@ -28,7 +28,7 @@ const boxSizeClass: Record<CheckboxSize, string> = {
 
 export type CheckboxProps = Omit<
   InputHTMLAttributes<HTMLInputElement>,
-  "type"
+  "size" | "type"
 > & {
   description?: string;
   error?: string;

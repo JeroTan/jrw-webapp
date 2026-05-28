@@ -20,9 +20,9 @@ export function ProductActions({
   onShare,
 }: ProductActionsProps) {
   return (
-    <div className="grid grid-cols-[minmax(0,7fr)_auto_auto] gap-grid-xs">
+    <div className="grid grid-cols-1 gap-grid-xs xs:grid-cols-2 md:grid-cols-[minmax(0,7fr)_auto_auto]">
       <Button
-        className="uppercase disabled:cursor-not-allowed disabled:opacity-70"
+        className="uppercase disabled:cursor-not-allowed disabled:opacity-70 xs:col-span-2 md:col-span-1"
         disabled={disabled}
         fullWidth
         onClick={onBuy}
@@ -32,19 +32,29 @@ export function ProductActions({
       </Button>
       <Button
         aria-label="Add to cart"
-        className="uppercase disabled:cursor-not-allowed disabled:opacity-70"
+        className="w-full uppercase disabled:cursor-not-allowed disabled:opacity-70"
         disabled={disabled}
+        fullWidth
         loading={loading}
         loadingLabel="Adding"
         onClick={onAddToCart}
         variant="secondary"
       >
-        <ShoppingCart aria-hidden="true" className="size-4" />
-        {addToCartLabel}
+        <span className="inline-flex min-w-0 items-center justify-center gap-grid-xs">
+          <ShoppingCart aria-hidden="true" className="size-4 shrink-0" />
+          <span>{addToCartLabel}</span>
+        </span>
       </Button>
-      <Button aria-label="Share" className="uppercase" onClick={onShare}>
-        <Share2 aria-hidden="true" className="size-4" />
-        Share
+      <Button
+        aria-label="Share"
+        className="w-full uppercase"
+        fullWidth
+        onClick={onShare}
+      >
+        <span className="inline-flex min-w-0 items-center justify-center gap-grid-xs">
+          <Share2 aria-hidden="true" className="size-4 shrink-0" />
+          <span>Share</span>
+        </span>
       </Button>
     </div>
   );

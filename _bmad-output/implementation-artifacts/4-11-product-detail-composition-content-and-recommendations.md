@@ -1,6 +1,6 @@
 # Story 4.11: Product Detail Composition, Content, and Recommendations
 
-Status: in-progress
+Status: review
 
 <!-- Correct-course follow-up for Story 4.3 product detail refinement. -->
 
@@ -29,128 +29,128 @@ so that I can choose and act on the right product without guessing.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock scope, reuse points, and anti-patterns. (AC: 1-14)
-  - [ ] Treat this as direct adjustment after Stories 4.3, 4.4, and 4.9; do not roll back completed product detail/cart work.
-  - [ ] Preserve `/products/[slug]` SSR route, public detail loader, SEO metadata, and existing cart store behavior.
-  - [ ] Use `_bmad-output/planning-artifacts/ux-design-directions.html` Direction 02 plus Story 4.9 sharp 1px module language.
-  - [ ] Do not use admin routes, `src/api/**`, fake purchasable products, raw stock internals, stock versions, R2 keys, archived admin language, or provider/internal errors in public UI.
-  - [ ] Do not surface visible reviews/comments copy until a review story exists.
+- [x] Task 1: Lock scope, reuse points, and anti-patterns. (AC: 1-14)
+  - [x] Treat this as direct adjustment after Stories 4.3, 4.4, and 4.9; do not roll back completed product detail/cart work.
+  - [x] Preserve `/products/[slug]` SSR route, public detail loader, SEO metadata, and existing cart store behavior.
+  - [x] Use `_bmad-output/planning-artifacts/ux-design-directions.html` Direction 02 plus Story 4.9 sharp 1px module language.
+  - [x] Do not use admin routes, `src/api/**`, fake purchasable products, raw stock internals, stock versions, R2 keys, archived admin language, or provider/internal errors in public UI.
+  - [x] Do not surface visible reviews/comments copy until a review story exists.
 
-- [ ] Task 2: Extend public detail/page data only where needed. (AC: 6-12, 14)
-  - [ ] Confirm current public detail DTO has enough variant `optionValues` to group options by category and resolve selected variant from selected option values.
-  - [ ] If needed, extend public detail DTO with safe fields only: variant option group order, optional color value metadata, safe max quantity, brand image URL/alt, brand product count, and related/latest product cards.
-  - [ ] Related products must exclude current product and prefer same visible category or brand when available; latest fallback uses existing public catalog ordering.
-  - [ ] If no real related/latest products exist, hide the module. Mock ProductCard data may be used in tests/dev examples only, not live storefront.
-  - [ ] Update TypeBox schemas, route docs, service/repository tests, and OpenAPI assertions if public response fields change.
+- [x] Task 2: Extend public detail/page data only where needed. (AC: 6-12, 14)
+  - [x] Confirm current public detail DTO has enough variant `optionValues` to group options by category and resolve selected variant from selected option values.
+  - [x] If needed, extend public detail DTO with safe fields only: variant option group order, optional color value metadata, safe max quantity, brand image URL/alt, brand product count, and related/latest product cards.
+  - [x] Related products must exclude current product and prefer same visible category or brand when available; latest fallback uses existing public catalog ordering.
+  - [x] If no real related/latest products exist, hide the module. Mock ProductCard data may be used in tests/dev examples only, not live storefront.
+  - [x] Update TypeBox schemas, route docs, service/repository tests, and OpenAPI assertions if public response fields change.
 
-- [ ] Task 3: Build safe markdown description rendering. (AC: 10, 14)
-  - [ ] Create `src/features/product-detail/components/product-description/` folder if description rendering needs more than one focused file.
-  - [ ] Keep `ProductDescription.tsx` as high-level description renderer.
-  - [ ] Add `ProductDescriptionLayout.tsx` wrapper for generated markdown HTML styling so converter output does not require ad hoc classes per tag in page code.
-  - [ ] If description styling should be reused outside product detail, place wrapper at `src/components/layout/ProductDescriptionLayout.tsx`; otherwise keep it feature-local at `src/features/product-detail/components/product-description/ProductDescriptionLayout.tsx`.
-  - [ ] Do not create `src/layout/`; this repo uses `src/layouts/**` for Astro layouts and `src/components/layout/**` for shared React layout wrappers.
-  - [ ] Keep converter/sanitizer code in `src/features/product-detail/lib/renderProductDescription.ts`, not inside React markup.
-  - [ ] Keep raw markdown-to-safe-HTML conversion separate from visual layout: renderer returns safe HTML, layout owns typography, spacing, lists, links, tables, and media styling.
-  - [ ] Add a small product-description renderer that converts markdown with installed `showdown`.
-  - [ ] Sanitize or strictly constrain converter output before using `dangerouslySetInnerHTML` or Astro `set:html`.
-  - [ ] Prefer a tested allowlist sanitizer if adding a dependency is acceptable; otherwise disable raw HTML and prove script/event handler payloads render inert.
-  - [ ] Keep description crawlable in SSR output and styled through Tailwind typography-compatible utility classes or local product-detail markup.
-  - [ ] Add tests for headings, lists, links, paragraphs, and malicious markdown/HTML.
+- [x] Task 3: Build safe markdown description rendering. (AC: 10, 14)
+  - [x] Create `src/features/product-detail/components/product-description/` folder if description rendering needs more than one focused file.
+  - [x] Keep `ProductDescription.tsx` as high-level description renderer.
+  - [x] Add `ProductDescriptionLayout.tsx` wrapper for generated markdown HTML styling so converter output does not require ad hoc classes per tag in page code.
+  - [x] If description styling should be reused outside product detail, place wrapper at `src/components/layout/ProductDescriptionLayout.tsx`; otherwise keep it feature-local at `src/features/product-detail/components/product-description/ProductDescriptionLayout.tsx`.
+  - [x] Do not create `src/layout/`; this repo uses `src/layouts/**` for Astro layouts and `src/components/layout/**` for shared React layout wrappers.
+  - [x] Keep converter/sanitizer code in `src/features/product-detail/lib/renderProductDescription.ts`, not inside React markup.
+  - [x] Keep raw markdown-to-safe-HTML conversion separate from visual layout: renderer returns safe HTML, layout owns typography, spacing, lists, links, tables, and media styling.
+  - [x] Add a small product-description renderer that converts markdown with installed `showdown`.
+  - [x] Sanitize or strictly constrain converter output before using `dangerouslySetInnerHTML` or Astro `set:html`.
+  - [x] Prefer a tested allowlist sanitizer if adding a dependency is acceptable; otherwise disable raw HTML and prove script/event handler payloads render inert.
+  - [x] Keep description crawlable in SSR output and styled through Tailwind typography-compatible utility classes or local product-detail markup.
+  - [x] Add tests for headings, lists, links, paragraphs, and malicious markdown/HTML.
 
-- [ ] Task 4: Recompose product detail top module. (AC: 1-5, 9, 14)
-  - [ ] Update `ProductDetailPage.tsx` to use high-level modules: product details, optional brand details, other products, hidden review placeholder.
-  - [ ] Keep `ProductDetailPage.tsx` thin: compose modules, own selected variant/image/quantity state, and delegate UI sections to folder-local children.
-  - [ ] Product details module top row uses responsive grid: desktop `minmax(0,40%) minmax(0,60%)` or equivalent, mobile one column.
-  - [ ] Product name is first visible item in details/CTA.
-  - [ ] Keep price and availability visible near variant/quantity controls.
-  - [ ] Rating/review block is hidden with no customer-facing promise.
-  - [ ] Create `src/features/product-detail/components/product-actions/` folder if action row logic grows.
-  - [ ] Keep `ProductActions.tsx` as high-level action row orchestrator and split `BuyAction.tsx`, `AddToCartAction.tsx`, or `ShareAction.tsx` only when each action gains unique logic.
-  - [ ] CTA row uses shared `Button`: wide `Buy`, smaller add-to-cart, smaller share. `Buy` should use current honest app path; if checkout route is not ready, route to cart/next available step or show honest disabled reason.
+- [x] Task 4: Recompose product detail top module. (AC: 1-5, 9, 14)
+  - [x] Update `ProductDetailPage.tsx` to use high-level modules: product details, optional brand details, other products, hidden review placeholder.
+  - [x] Keep `ProductDetailPage.tsx` thin: compose modules, own selected variant/image/quantity state, and delegate UI sections to folder-local children.
+  - [x] Product details module top row uses responsive grid: desktop `minmax(0,40%) minmax(0,60%)` or equivalent, mobile one column.
+  - [x] Product name is first visible item in details/CTA.
+  - [x] Keep price and availability visible near variant/quantity controls.
+  - [x] Rating/review block is hidden with no customer-facing promise.
+  - [x] Create `src/features/product-detail/components/product-actions/` folder if action row logic grows.
+  - [x] Keep `ProductActions.tsx` as high-level action row orchestrator and split `BuyAction.tsx`, `AddToCartAction.tsx`, or `ShareAction.tsx` only when each action gains unique logic.
+  - [x] CTA row uses shared `Button`: wide `Buy`, smaller add-to-cart, smaller share. `Buy` should use current honest app path; if checkout route is not ready, route to cart/next available step or show honest disabled reason.
 
-- [ ] Task 5: Update gallery with square image and thumbnail carousel. (AC: 3-4, 14)
-  - [ ] Create `src/features/product-detail/components/product-gallery/` folder for gallery composition.
-  - [ ] Keep `ProductGallery.tsx` as high-level gallery orchestrator inside that folder.
-  - [ ] Extract `ProductImage.tsx` for main square image/missing-image frame.
-  - [ ] Extract `ProductCarousel.tsx` for thumbnail rail and previous/next arrows.
-  - [ ] Main frame stays square with stable dimensions and no distortion.
-  - [ ] Use `object-contain` when full product visibility matters; use existing approved object treatment only if it better matches Direction 02 without cropping important content.
-  - [ ] Thumbnail carousel sits below main image with previous/next arrow controls on the side.
-  - [ ] Hide carousel when `gallery.length <= 1`.
-  - [ ] Keep alt text customer-safe and preserve keyboard/focus-visible behavior.
+- [x] Task 5: Update gallery with square image and thumbnail carousel. (AC: 3-4, 14)
+  - [x] Create `src/features/product-detail/components/product-gallery/` folder for gallery composition.
+  - [x] Keep `ProductGallery.tsx` as high-level gallery orchestrator inside that folder.
+  - [x] Extract `ProductImage.tsx` for main square image/missing-image frame.
+  - [x] Extract `ProductCarousel.tsx` for thumbnail rail and previous/next arrows.
+  - [x] Main frame stays square with stable dimensions and no distortion.
+  - [x] Use `object-contain` when full product visibility matters; use existing approved object treatment only if it better matches Direction 02 without cropping important content.
+  - [x] Thumbnail carousel sits below main image with previous/next arrow controls on the side.
+  - [x] Hide carousel when `gallery.length <= 1`.
+  - [x] Keep alt text customer-safe and preserve keyboard/focus-visible behavior.
 
-- [ ] Task 6: Replace flat variant selector with dynamic option groups. (AC: 6-8, 14)
-  - [ ] Create `src/features/product-detail/components/product-variant-selector/` folder for variant selector composition.
-  - [ ] Keep `VariantSelector.tsx` as high-level variant selector orchestrator inside that folder.
-  - [ ] Extract `VariantWrapper.tsx` for each option-group section label, layout, and accessibility wrapper.
-  - [ ] Extract `VariantSelectorOption.tsx` for individual selectable chip/swatch option.
-  - [ ] Derive groups from variant option category names and render each category in order.
-  - [ ] Use wrapping selectable chips similar to `ProductCatalogFilters`, but without checkboxes.
-  - [ ] Highlight selected value and keep keyboard selection accessible.
-  - [ ] Resolve selected variant after option changes. If combination is unavailable or missing, show safe unavailable text and block Buy/add-to-cart.
-  - [ ] Color-like groups render square swatch affordance with text label. Detect `color`, `colour`, or future normalized metadata if present; fallback to text-only chip when color value cannot be safely mapped.
+- [x] Task 6: Replace flat variant selector with dynamic option groups. (AC: 6-8, 14)
+  - [x] Create `src/features/product-detail/components/product-variant-selector/` folder for variant selector composition.
+  - [x] Keep `VariantSelector.tsx` as high-level variant selector orchestrator inside that folder.
+  - [x] Extract `VariantWrapper.tsx` for each option-group section label, layout, and accessibility wrapper.
+  - [x] Extract `VariantSelectorOption.tsx` for individual selectable chip/swatch option.
+  - [x] Derive groups from variant option category names and render each category in order.
+  - [x] Use wrapping selectable chips similar to `ProductCatalogFilters`, but without checkboxes.
+  - [x] Highlight selected value and keep keyboard selection accessible.
+  - [x] Resolve selected variant after option changes. If combination is unavailable or missing, show safe unavailable text and block Buy/add-to-cart.
+  - [x] Color-like groups render square swatch affordance with text label. Detect `color`, `colour`, or future normalized metadata if present; fallback to text-only chip when color value cannot be safely mapped.
 
-- [ ] Task 7: Add availability and quantity controls. (AC: 7-9, 14)
-  - [ ] Create `src/features/product-detail/components/product-quantity-control/` folder when quantity logic is extracted.
-  - [ ] Keep `ProductQuantityControl.tsx` as high-level quantity control and split `QuantityButton.tsx` or `QuantityInput.tsx` only if behavior becomes non-trivial.
-  - [ ] Availability updates when selected variant changes.
-  - [ ] Quantity control uses minus button, numeric input, and plus button.
-  - [ ] Clamp to min 1 and maximum from safe variant availability/cart rules; never expose internal stock fields unless DTO explicitly provides customer-safe available count.
-  - [ ] Disable or explain controls for unavailable variants.
-  - [ ] Ensure input changes preserve prior valid quantity on invalid values.
+- [x] Task 7: Add availability and quantity controls. (AC: 7-9, 14)
+  - [x] Create `src/features/product-detail/components/product-quantity-control/` folder when quantity logic is extracted.
+  - [x] Keep `ProductQuantityControl.tsx` as high-level quantity control and split `QuantityButton.tsx` or `QuantityInput.tsx` only if behavior becomes non-trivial.
+  - [x] Availability updates when selected variant changes.
+  - [x] Quantity control uses minus button, numeric input, and plus button.
+  - [x] Clamp to min 1 and maximum from safe variant availability/cart rules; never expose internal stock fields unless DTO explicitly provides customer-safe available count.
+  - [x] Disable or explain controls for unavailable variants.
+  - [x] Ensure input changes preserve prior valid quantity on invalid values.
 
-- [ ] Task 8: Add optional brand module. (AC: 11, 14)
-  - [ ] Create `src/features/product-detail/components/product-brand-summary/` folder.
-  - [ ] Keep `ProductBrandSummary.tsx` as high-level brand module.
-  - [ ] Extract `BrandSummaryImage.tsx` for optional brand image, missing-image treatment, alt text, and square/fit behavior.
-  - [ ] Extract `BrandSummaryDetails.tsx` for brand name, optional brand href, and product-count copy.
-  - [ ] Extract `BrandProductCount.tsx` if pluralization or loading/unknown count state needs focused logic.
-  - [ ] Show brand module only when product has brand data.
-  - [ ] Render optional brand image on left, brand name on top, total product count below.
-  - [ ] Brand module desktop layout uses image left and text right; mobile stacks only if needed for overflow.
-  - [ ] Brand image must not imply store/seller identity. It is brand/catalog context only.
-  - [ ] Brand product count should be customer-safe: use published public product count only, not admin total.
-  - [ ] If brand route exists, brand name/image can link to public brand page with accessible label. If no route/data target exists, render static summary.
-  - [ ] Keep copy as brand/catalog context only; no seller/store/merchant implications.
-  - [ ] Hide cleanly when no brand exists.
+- [x] Task 8: Add optional brand module. (AC: 11, 14)
+  - [x] Create `src/features/product-detail/components/product-brand-summary/` folder.
+  - [x] Keep `ProductBrandSummary.tsx` as high-level brand module.
+  - [x] Extract `BrandSummaryImage.tsx` for optional brand image, missing-image treatment, alt text, and square/fit behavior.
+  - [x] Extract `BrandSummaryDetails.tsx` for brand name, optional brand href, and product-count copy.
+  - [x] Extract `BrandProductCount.tsx` if pluralization or loading/unknown count state needs focused logic.
+  - [x] Show brand module only when product has brand data.
+  - [x] Render optional brand image on left, brand name on top, total product count below.
+  - [x] Brand module desktop layout uses image left and text right; mobile stacks only if needed for overflow.
+  - [x] Brand image must not imply store/seller identity. It is brand/catalog context only.
+  - [x] Brand product count should be customer-safe: use published public product count only, not admin total.
+  - [x] If brand route exists, brand name/image can link to public brand page with accessible label. If no route/data target exists, render static summary.
+  - [x] Keep copy as brand/catalog context only; no seller/store/merchant implications.
+  - [x] Hide cleanly when no brand exists.
 
-- [ ] Task 9: Add other-products module. (AC: 12, 14)
-  - [ ] Create `src/features/product-detail/components/product-recommendations/` folder.
-  - [ ] Keep `ProductRecommendations.tsx` as high-level other-products module.
-  - [ ] Extract `RecommendationHeader.tsx` for title, source label (`Related products` / `Latest products`), and `View more` link.
-  - [ ] Extract `RecommendationGrid.tsx` for product-card layout and responsive module spacing.
-  - [ ] Extract `RecommendationViewMore.tsx` if route/link logic has category/brand/products fallback branching.
-  - [ ] Keep lightweight recommendation selection helper under `src/features/product-detail/lib/recommendations.ts` only for UI-safe ordering/labels; server remains source of real product data.
-  - [ ] Reuse `ProductCard` or current product-card-compatible section component.
-  - [ ] Prefer related products by same visible category or brand, excluding current product.
-  - [ ] Fall back to latest published products excluding current product.
-  - [ ] Mark which source produced the section in data or view model: `related` when category/brand matched, `latest` when fallback used.
-  - [ ] Limit visible cards to a small fixed count that fits mobile and desktop without a giant page tail. Use existing grid/card responsive behavior.
-  - [ ] Add `View more` link to the relevant category/brand/products route when a real filter target exists.
-  - [ ] If source is category-related, `View more` targets category when available. If source is brand-related, target brand page when public brand route exists. If fallback is latest, target products/catalog page.
-  - [ ] Hide the module when no real product card data is available.
+- [x] Task 9: Add other-products module. (AC: 12, 14)
+  - [x] Create `src/features/product-detail/components/product-recommendations/` folder.
+  - [x] Keep `ProductRecommendations.tsx` as high-level other-products module.
+  - [x] Extract `RecommendationHeader.tsx` for title, source label (`Related products` / `Latest products`), and `View more` link.
+  - [x] Extract `RecommendationGrid.tsx` for product-card layout and responsive module spacing.
+  - [x] Extract `RecommendationViewMore.tsx` if route/link logic has category/brand/products fallback branching.
+  - [x] Keep lightweight recommendation selection helper under `src/features/product-detail/lib/recommendations.ts` only for UI-safe ordering/labels; server remains source of real product data.
+  - [x] Reuse `ProductCard` or current product-card-compatible section component.
+  - [x] Prefer related products by same visible category or brand, excluding current product.
+  - [x] Fall back to latest published products excluding current product.
+  - [x] Mark which source produced the section in data or view model: `related` when category/brand matched, `latest` when fallback used.
+  - [x] Limit visible cards to a small fixed count that fits mobile and desktop without a giant page tail. Use existing grid/card responsive behavior.
+  - [x] Add `View more` link to the relevant category/brand/products route when a real filter target exists.
+  - [x] If source is category-related, `View more` targets category when available. If source is brand-related, target brand page when public brand route exists. If fallback is latest, target products/catalog page.
+  - [x] Hide the module when no real product card data is available.
 
-- [ ] Task 10: Tests and QA. (AC: 1-14)
-  - [ ] Update product detail UI tests for 40/60 desktop classes, mobile stack classes, module order, carousel hide/show, arrow controls, variant groups, color swatches, availability updates, quantity clamp, CTA labels, brand hide/show, related/latest fallback, and hidden reviews placeholder.
-  - [ ] Add markdown renderer tests, including unsafe HTML/script payloads.
-  - [ ] Extend service/repository/route tests if DTO changes.
-  - [ ] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
-  - [ ] Run targeted Vitest suites for product detail and any changed public catalog service/route files.
-  - [ ] Run `npm run check`.
-  - [ ] Manual QA at 320, 375, 390, 430, 768, 1024, and 1440px for layout, carousel, variant chips, quantity, CTA row, markdown, brand module, related products, keyboard-only flow, and text overflow.
+- [x] Task 10: Tests and QA. (AC: 1-14)
+  - [x] Update product detail UI tests for 40/60 desktop classes, mobile stack classes, module order, carousel hide/show, arrow controls, variant groups, color swatches, availability updates, quantity clamp, CTA labels, brand hide/show, related/latest fallback, and hidden reviews placeholder.
+  - [x] Add markdown renderer tests, including unsafe HTML/script payloads.
+  - [x] Extend service/repository/route tests if DTO changes.
+  - [x] Run `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
+  - [x] Run targeted Vitest suites for product detail and any changed public catalog service/route files.
+  - [x] Run `npm run check`.
+  - [x] Manual QA at 320, 375, 390, 430, 768, 1024, and 1440px for layout, carousel, variant chips, quantity, CTA row, markdown, brand module, related products, keyboard-only flow, and text overflow.
 
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint. Mark non-applicable items as `N/A` with reason.
 
-- [ ] Route auth metadata declares public/optional/required auth, roles, and rate-limit class if product detail or related/latest endpoint contracts change.
+- [x] Route auth metadata declares public/optional/required auth, roles, and rate-limit class if product detail or related/latest endpoint contracts change.
 - N/A Route-level RBAC guard runs before validation or side effects for protected endpoints. This story should only use public read endpoints.
 - N/A Service/controller enforces actor state before mutation. Product detail and related/latest reads are public, cart remains browser-local until checkout validation stories.
 - N/A Brand-scoped reads or writes enforce active brand membership or elevated permission server-side. Public storefront reads use published products only.
-- [ ] Public/customer endpoints explicitly document why brand membership is not required if related/latest product data is added.
+- [x] Public/customer endpoints explicitly document why brand membership is not required if related/latest product data is added.
 - N/A Denial tests cover protected auth/role/brand paths. No protected endpoint expected.
-- [ ] Error response uses safe envelope codes and does not leak provider/internal inventory details if response contracts change.
-- [ ] OpenAPI/endpoint catalog reflects any changed public detail or related/latest fields.
+- [x] Error response uses safe envelope codes and does not leak provider/internal inventory details if response contracts change.
+- [x] OpenAPI/endpoint catalog reflects any changed public detail or related/latest fields.
 
 ## Dev Notes
 
@@ -287,20 +287,74 @@ Run service/route tests only when DTO/API data changes.
 
 ### Agent Model Used
 
-TBD
+GPT-5 Codex
 
 ### Debug Log References
 
-TBD
+- `npx vitest run src/features/product-detail/components/product-detail-ui.test.tsx`
+- `npx vitest run src/features/product-detail/lib/renderProductDescription.test.ts src/features/product-detail/lib/variant-options.test.ts src/server/services/PublicCatalogService.test.ts src/server/routes/public-catalog.routes.test.ts src/server/loaders/PublicCatalogPageDataLoader.test.ts src/server/repositories/PublicCatalogRepository.test.ts`
+- `npx vitest run src/features/product-detail/components/product-detail-ui.test.tsx src/features/product-detail/lib/variant-options.test.ts src/features/cart-checkout/components/cart-ui.test.tsx src/features/cart-checkout/store.test.ts`
+- `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`
+- `npm run check`
+- `npx vitest run`
+- `npm exec --yes playwright -- screenshot --channel chrome --full-page --viewport-size "<width>,1000" --wait-for-selector "[data-product-detail-module=product-details]" http://127.0.0.1:4321/products/example "C:\Users\jerow\AppData\Local\Temp\jrw-4-11-qa\product-detail-<width>-full.png"`
+- `npm exec --yes playwright -- screenshot --channel chrome --full-page --viewport-size "<width>,1000" --wait-for-selector "[data-product-detail-module=product-details]" http://127.0.0.1:4321/products/example "C:\Users\jerow\AppData\Local\Temp\jrw-4-11-qa\product-detail-<width>-final.png"`
+- `npm exec --yes playwright -- test product-detail.interaction.spec.ts --workers=1 --reporter=line` blocked: `Cannot find package '@playwright/test' imported from F:\dev\website\jrw-webapp\product-detail.interaction.spec.ts`
 
 ### Completion Notes List
 
-TBD
+- Rebuilt product detail into sharp high-level modules: 40/60 desktop top row, mobile stack, square gallery with carousel controls, details/CTA, full-width sanitized markdown description, optional brand summary, recommendations, and hidden reviews placeholder.
+- Extended public product detail data with customer-safe variant max quantities, option values, brand summary/product count, related/latest recommendation payloads, TypeBox route contracts, and public OpenAPI notes.
+- Added dynamic option group selection, color swatches, missing-combination blocking copy, variant-specific availability, quantity clamp/preserve behavior, Buy-to-cart handoff, add-to-cart, and share actions using shared `Button`.
+- Fixed mobile CTA wrapping after screenshot QA caught clipped button text at 320/375px.
+- Fixed shared `Checkbox` prop typing collision (`size`) so `npm run check` passes.
+- Verified product detail screenshots at 320, 375, 390, 430, 768, 1024, and 1440px against local dev product `/products/example`; live dev product has no brand/recommendations, so automated fixtures cover brand/recommendation show states.
+- Applied MR. JRW correction pass after initial over-check: removed main image border, removed outer detail module `bg-brand-background`, switched product details/description/variant sections to `bg-brand-background` with non-strong borders, removed the availability separator, reduced price type size, fixed add-to-cart/share icon+text flex, made selected variant chips visually obvious, and showed remaining/in-cart quantity when cart already contains selected variant.
+- Final QA after correction: screenshots rechecked at 320, 1024, and 1440px; targeted product/cart tests passed 19 tests; full `npx vitest run` passed 95 files / 586 tests; `npm run check` passed with 0 errors and 2 existing deprecated `returnValue` hints.
 
 ### File List
 
-TBD
+- `_bmad-output/implementation-artifacts/4-11-product-detail-composition-content-and-recommendations.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/components/ui/Checkbox.tsx`
+- `src/domain/products/public-types.ts`
+- `src/features/product-detail/ProductDetailPage.tsx`
+- `src/features/product-detail/components/product-actions/ProductActions.tsx`
+- `src/features/product-detail/components/product-brand-summary/BrandProductCount.tsx`
+- `src/features/product-detail/components/product-brand-summary/BrandSummaryDetails.tsx`
+- `src/features/product-detail/components/product-brand-summary/BrandSummaryImage.tsx`
+- `src/features/product-detail/components/product-brand-summary/ProductBrandSummary.tsx`
+- `src/features/product-detail/components/product-description/ProductDescription.tsx`
+- `src/features/product-detail/components/product-description/ProductDescriptionLayout.tsx`
+- `src/features/product-detail/components/product-detail-ui.test.tsx`
+- `src/features/product-detail/components/product-gallery/ProductCarousel.tsx`
+- `src/features/product-detail/components/product-gallery/ProductGallery.tsx`
+- `src/features/product-detail/components/product-gallery/ProductImage.tsx`
+- `src/features/product-detail/components/product-quantity-control/ProductQuantityControl.tsx`
+- `src/features/product-detail/components/product-recommendations/ProductRecommendations.tsx`
+- `src/features/product-detail/components/product-recommendations/RecommendationGrid.tsx`
+- `src/features/product-detail/components/product-recommendations/RecommendationHeader.tsx`
+- `src/features/product-detail/components/product-recommendations/RecommendationViewMore.tsx`
+- `src/features/product-detail/components/product-variant-selector/VariantSelector.tsx`
+- `src/features/product-detail/components/product-variant-selector/VariantSelectorOption.tsx`
+- `src/features/product-detail/components/product-variant-selector/VariantWrapper.tsx`
+- `src/features/product-detail/index.ts`
+- `src/features/product-detail/lib/renderProductDescription.test.ts`
+- `src/features/product-detail/lib/renderProductDescription.ts`
+- `src/features/product-detail/lib/variant-options.test.ts`
+- `src/features/product-detail/lib/variant-options.ts`
+- `src/pages/products/[slug].astro`
+- `src/server/loaders/PublicCatalogPageDataLoader.test.ts`
+- `src/server/loaders/PublicCatalogPageDataLoader.ts`
+- `src/server/repositories/PublicCatalogRepository.test.ts`
+- `src/server/repositories/PublicCatalogRepository.ts`
+- `src/server/routes/public-catalog.routes.test.ts`
+- `src/server/routes/public-catalog.routes.ts`
+- `src/server/services/PublicCatalogService.test.ts`
+- `src/server/services/PublicCatalogService.ts`
 
 ### Change Log
 
 - 2026-05-26: Created ready-for-dev product detail composition correction story from MR. JRW request.
+- 2026-05-27: Implemented product detail composition, public-safe DTO additions, sanitized markdown, variant/quantity/action modules, brand/recommendation modules, tests, and responsive QA. Status moved to review.
+- 2026-05-27: Applied MR. JRW correction pass for image border, container backgrounds, non-strong detail/description borders, price sizing, variant visibility, cart capacity, CTA flex, and price-detail separator removal.

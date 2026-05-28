@@ -21,7 +21,7 @@ export function ProductBrandSummary({ brand }: ProductBrandSummaryProps) {
       <h2 className="m-0 text-[clamp(1.4rem,4vw,2rem)]" id="product-brand-title">
         Brand details
       </h2>
-      <div className="flex items-center gap-grid-sm">
+      <div className="grid gap-grid-sm sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">
         <BrandSummaryImage brand={brand} />
         <BrandSummaryDetails brand={brand} />
       </div>

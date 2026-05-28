@@ -16,6 +16,26 @@ function clampQuantity(value: number, maxQuantity: number): number {
   return Math.min(Math.max(quantity, 1), max);
 }
 
+export function nextQuantityFromInputValue(
+  value: string,
+  currentQuantity: number,
+  maxQuantity: number
+): number {
+  const cleanValue = value.trim();
+
+  if (!cleanValue) {
+    return currentQuantity;
+  }
+
+  const parsed = Number(cleanValue);
+
+  if (!Number.isFinite(parsed)) {
+    return currentQuantity;
+  }
+
+  return clampQuantity(parsed, maxQuantity);
+}
+
 export function ProductQuantityControl({
   disabled = false,
   maxQuantity,
@@ -44,14 +64,20 @@ export function ProductQuantityControl({
         </Button>
         <input
           aria-label="Quantity"
-          className="min-h-control-md border-y border-brand-border-strong bg-brand-surface px-grid-xs text-center font-system text-sm font-bold text-brand-content"
+          className="min-h-control-md border-y border-brand-border bg-brand-background px-grid-xs text-center font-system text-sm font-bold text-brand-content"
           disabled={disabled}
           id="product-quantity"
           inputMode="numeric"
           max={max}
           min={1}
           onChange={(event) =>
-            onQuantityChange(clampQuantity(Number(event.currentTarget.value), max))
+            onQuantityChange(
+              nextQuantityFromInputValue(
+                event.currentTarget.value,
+                quantity,
+                max
+              )
+            )
           }
           type="number"
           value={quantity}

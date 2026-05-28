@@ -23,8 +23,8 @@ export function VariantSelectorOption({
       className={mergeClassNames(
         "inline-flex min-h-control-md items-center gap-grid-xs border px-grid-sm font-system text-sm font-bold uppercase text-brand-content shadow-none filter-none hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent",
         isSelected
-          ? "border-brand-accent bg-brand-background"
-          : "border-brand-border-strong bg-brand-surface"
+          ? "border-brand-accent bg-brand-accent text-brand-surface"
+          : "border-brand-border bg-brand-background"
       )}
       onClick={onSelect}
       type="button"
@@ -32,7 +32,7 @@ export function VariantSelectorOption({
       {swatchColor ? (
         <span
           aria-hidden="true"
-          className="size-4 border border-brand-border-strong"
+          className="size-4 border border-brand-border"
           data-variant-swatch="true"
           style={{ backgroundColor: swatchColor }}
         />

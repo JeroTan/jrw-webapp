@@ -3,11 +3,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import type { PublicCatalogDetailResult } from "@/domain/products/public-types";
 import {
+  availabilityLabelForCartCapacity,
   ProductDetailErrorState,
   ProductDetailPage,
   ProductGallery,
   VariantSelector,
 } from "@/features/product-detail";
+import { nextQuantityFromInputValue } from "@/features/product-detail/components/product-quantity-control/ProductQuantityControl";
 
 const baseProductCard = {
   availability: {
@@ -171,7 +173,7 @@ describe("product detail UI", () => {
       })
     );
 
-    expect(markup).toContain("data-product-detail-module=\"product-details\"");
+    expect(markup).toContain('data-product-detail-module="product-details"');
     expect(markup).toContain("lg:grid-cols-[minmax(0,40%)_minmax(0,60%)]");
     expect(markup.indexOf("Linen Shirt")).toBeLessThan(
       markup.indexOf("Selected price")
@@ -186,6 +188,9 @@ describe("product detail UI", () => {
     expect(markup).toContain("Buy");
     expect(markup).toContain("Add to cart");
     expect(markup).toContain("Share");
+    expect(markup).toContain("md:grid-cols-[minmax(0,7fr)_auto_auto]");
+    expect(markup).toContain("grid-cols-1");
+    expect(markup).toContain("xs:col-span-2");
     expect(markup).not.toContain("Reviews");
     expect(markup).not.toContain("seller of record");
     expect(markup).not.toContain("rounded-md");
@@ -232,10 +237,41 @@ describe("product detail UI", () => {
     expect(markup).toContain("Size");
     expect(markup).toContain("Blue");
     expect(markup).toContain("Small");
-    expect(markup).toContain("data-variant-swatch=\"true\"");
-    expect(markup).toContain("aria-pressed=\"true\"");
-    expect(markup).not.toContain("type=\"checkbox\"");
-    expect(markup).not.toContain("type=\"radio\"");
+    expect(markup).toContain('data-variant-swatch="true"');
+    expect(markup).toContain('aria-pressed="true"');
+    expect(markup).not.toContain('type="checkbox"');
+    expect(markup).not.toContain('type="radio"');
+  });
+
+  it("can render a missing option combination as selected without picking a purchasable variant", () => {
+    const markup = renderToStaticMarkup(
+      createElement(VariantSelector, {
+        onSelectOptions: () => undefined,
+        selectedSelection: { Color: "Red", Size: "Small" },
+        selectedVariantId: null,
+        variants: [
+          detail.variants[0],
+          {
+            ...detail.variants[1],
+            id: "variant_linen_red_large",
+            label: "Color: Red / Size: Large",
+            optionValues: [
+              { group: "Color", name: "Red" },
+              { group: "Size", name: "Large" },
+            ],
+          },
+        ],
+      })
+    );
+
+    expect(markup).toContain("Color: Red");
+    expect(markup).toContain("Size: Small");
+    expect(markup).toContain('aria-label="Color: Red" aria-pressed="true"');
+    expect(markup).toContain('aria-label="Size: Small" aria-pressed="true"');
+    expect(markup).not.toContain(
+      'aria-label="Color: Blue" aria-pressed="true"'
+    );
+    expect(markup.match(/aria-pressed="true"/g)).toHaveLength(2);
   });
 
   it("renders unavailable variant text and keeps brandless product copy safe", () => {
@@ -267,6 +303,25 @@ describe("product detail UI", () => {
     expect(unavailableMarkup).not.toContain("seller of record");
     expect(unavailableMarkup).not.toContain("Brand details");
     expect(unavailableMarkup).not.toContain("Related products");
+  });
+
+  it("preserves prior valid quantity on blank or nonnumeric input", () => {
+    expect(nextQuantityFromInputValue("", 3, 12)).toBe(3);
+    expect(nextQuantityFromInputValue("e", 3, 12)).toBe(3);
+    expect(nextQuantityFromInputValue("99", 3, 12)).toBe(12);
+    expect(nextQuantityFromInputValue("0", 3, 12)).toBe(1);
+  });
+
+  it("shows remaining add-to-cart capacity when item already exists in cart", () => {
+    expect(availabilityLabelForCartCapacity("Available", 12, 0)).toBe(
+      "Available (12 available)"
+    );
+    expect(availabilityLabelForCartCapacity("Available", 12, 5)).toBe(
+      "Available (7 left, 5 in cart)"
+    );
+    expect(availabilityLabelForCartCapacity("Available", 12, 12)).toBe(
+      "Available (0 left, 12 in cart)"
+    );
   });
 
   it("renders safe recovery state for missing or unavailable products", () => {

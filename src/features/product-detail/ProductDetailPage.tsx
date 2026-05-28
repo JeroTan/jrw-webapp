@@ -4,6 +4,7 @@ import type { PublicCatalogDetailVariant } from "@/domain/products/public-types"
 import {
   addCartItemToStore,
   cartItemInputFromDetail,
+  useCartStore,
 } from "@/features/cart-checkout";
 import type { StorefrontProductDetailResult } from "./types";
 import { ProductActions } from "./components/product-actions/ProductActions";
@@ -13,6 +14,10 @@ import { ProductGallery } from "./components/product-gallery/ProductGallery";
 import { ProductQuantityControl } from "./components/product-quantity-control/ProductQuantityControl";
 import { ProductRecommendations } from "./components/product-recommendations/ProductRecommendations";
 import { VariantSelector } from "./components/product-variant-selector/VariantSelector";
+import {
+  selectionFromVariant,
+  type VariantSelection,
+} from "./lib/variant-options";
 
 type ProductDetailPageProps = {
   detail: StorefrontProductDetailResult;
@@ -21,16 +26,34 @@ type ProductDetailPageProps = {
 const linkOutlineClass =
   "hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
 
-function selectedVariantFromDetail(
-  detail: StorefrontProductDetailResult,
-  variantId: string | null
+const unavailableSelectionAvailability = {
+  inStock: false,
+  label: "Unavailable",
+  tone: "error",
+} as const;
+
+function defaultVariantFromDetail(
+  detail: StorefrontProductDetailResult
 ): PublicCatalogDetailVariant | null {
   return (
-    detail.variants.find((variant) => variant.id === variantId) ??
+    detail.variants.find(
+      (variant) => variant.id === detail.selectedVariantId
+    ) ??
     detail.variants.find((variant) => variant.selected) ??
     detail.variants[0] ??
     null
   );
+}
+
+function variantFromDetail(
+  detail: StorefrontProductDetailResult,
+  variantId: string | null
+): PublicCatalogDetailVariant | null {
+  if (!variantId) {
+    return null;
+  }
+
+  return detail.variants.find((variant) => variant.id === variantId) ?? null;
 }
 
 function selectedImageIdFromDetail(
@@ -71,11 +94,34 @@ function clampQuantity(quantity: number, maxQuantity: number): number {
   return Math.min(Math.max(cleanQuantity, 1), max);
 }
 
+export function availabilityLabelForCartCapacity(
+  label: string,
+  maxQuantity: number,
+  existingCartQuantity: number
+): string {
+  if (maxQuantity <= 0) {
+    return label;
+  }
+
+  if (existingCartQuantity > 0) {
+    const remainingQuantity = Math.max(0, maxQuantity - existingCartQuantity);
+
+    return `${label} (${remainingQuantity} left, ${existingCartQuantity} in cart)`;
+  }
+
+  return `${label} (${maxQuantity} available)`;
+}
+
 export function ProductDetailPage({ detail }: ProductDetailPageProps) {
-  const [selectedVariantId, setSelectedVariantId] = React.useState<string | null>(
-    detail.selectedVariantId
-  );
-  const initialVariant = selectedVariantFromDetail(detail, detail.selectedVariantId);
+  const cart = useCartStore();
+  const initialVariant = defaultVariantFromDetail(detail);
+  const [selectedVariantId, setSelectedVariantId] = React.useState<
+    string | null
+  >(initialVariant?.id ?? null);
+  const [selectedSelection, setSelectedSelection] =
+    React.useState<VariantSelection>(() =>
+      selectionFromVariant(initialVariant)
+    );
   const [selectedImageId, setSelectedImageId] = React.useState<string | null>(
     selectedImageIdFromDetail(detail, initialVariant, null)
   );
@@ -84,35 +130,66 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
     "idle" | "pending" | "success" | "error"
   >("idle");
   const [cartMessage, setCartMessage] = React.useState<string | null>(null);
-  const selectedVariant = selectedVariantFromDetail(detail, selectedVariantId);
+  const selectedVariant = variantFromDetail(detail, selectedVariantId);
   const selectedImage = selectedImageIdFromDetail(
     detail,
     selectedVariant,
     selectedImageId
   );
-  const availability = selectedVariant?.availability ?? detail.product.availability;
+  const availability =
+    selectedVariant?.availability ?? unavailableSelectionAvailability;
   const maxQuantity = maxQuantityFromVariant(selectedVariant);
-  const displayQuantity = clampQuantity(quantity, maxQuantity);
+  const existingCartQuantity = selectedVariant
+    ? (cart.items.find(
+        (item) =>
+          item.productId === detail.product.id &&
+          item.variantId === selectedVariant.id
+      )?.quantity ?? 0)
+    : 0;
+  const remainingQuantity = Math.max(0, maxQuantity - existingCartQuantity);
+  const displayQuantity = clampQuantity(quantity, remainingQuantity);
   const priceLabel = selectedVariant?.priceLabel ?? detail.product.priceLabel;
-  const actionLabel = selectedVariant?.disabled ? "Unavailable" : detail.action.label;
-  const actionReason = selectedVariant?.disabled
-    ? selectedVariant.unavailableReason ?? detail.action.reason
-    : detail.action.reason;
   const canAddToCart = Boolean(
-    selectedVariant && !selectedVariant.disabled && maxQuantity > 0
+    selectedVariant && !selectedVariant.disabled && remainingQuantity > 0
   );
-  const availabilityLabel =
-    maxQuantity > 0 ? `${availability.label} (${maxQuantity} available)` : availability.label;
+  const actionLabel =
+    selectedVariant && !selectedVariant.disabled
+      ? detail.action.label
+      : "Unavailable";
+  const actionReason = selectedVariant
+    ? selectedVariant.disabled
+      ? (selectedVariant.unavailableReason ?? detail.action.reason)
+      : detail.action.reason
+    : detail.variants.length === 0
+      ? "Product options are unavailable right now."
+      : "Selected option combination is unavailable right now.";
+  const cartLimitReason =
+    selectedVariant && !selectedVariant.disabled && remainingQuantity <= 0
+      ? "Selected option is already at the cart limit."
+      : null;
+  const visibleActionReason = cartLimitReason ?? actionReason;
+  const availabilityLabel = availabilityLabelForCartCapacity(
+    availability.label,
+    maxQuantity,
+    existingCartQuantity
+  );
 
-  function handleSelectVariant(variantId: string) {
-    const nextVariant = selectedVariantFromDetail(detail, variantId);
+  function handleSelectOptions(
+    selection: VariantSelection,
+    nextVariant: PublicCatalogDetailVariant | null
+  ) {
     const nextMaxQuantity = maxQuantityFromVariant(nextVariant);
 
-    setSelectedVariantId(variantId);
-    setSelectedImageId(selectedImageIdFromDetail(detail, nextVariant, null));
-    setQuantity((currentQuantity) =>
-      clampQuantity(currentQuantity, nextMaxQuantity)
-    );
+    setSelectedSelection(selection);
+    setSelectedVariantId(nextVariant?.id ?? null);
+
+    if (nextVariant) {
+      setSelectedImageId(selectedImageIdFromDetail(detail, nextVariant, null));
+      setQuantity((currentQuantity) =>
+        clampQuantity(currentQuantity, nextMaxQuantity)
+      );
+    }
+
     setCartMessage(null);
     setCartStatus("idle");
   }
@@ -168,7 +245,7 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
       className="grid gap-grid-lg"
     >
       <section
-        className="grid gap-grid-md border border-brand-border-strong bg-brand-background p-grid-sm md:p-grid-md"
+        className="grid gap-grid-md border border-brand-border p-grid-sm md:p-grid-md"
         data-product-detail-module="product-details"
       >
         <div className="grid gap-grid-md lg:grid-cols-[minmax(0,40%)_minmax(0,60%)]">
@@ -179,7 +256,7 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
             selectedImageId={selectedImage}
           />
 
-          <section className="grid content-start gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-md">
+          <section className="grid content-start gap-grid-sm border border-brand-border bg-brand-background p-grid-md">
             <h1
               className="m-0 max-w-[18ch] font-identity text-[clamp(2rem,6vw,4rem)] [overflow-wrap:anywhere]"
               id="product-detail-title"
@@ -195,7 +272,7 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
               ) : null}
               {detail.product.categories.map((category) => (
                 <a
-                  className={`inline-flex min-h-control-md items-center border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase text-brand-muted no-underline ${linkOutlineClass}`}
+                  className={`inline-flex min-h-control-md items-center border border-brand-border px-grid-xs font-system text-xs font-bold uppercase text-brand-muted no-underline ${linkOutlineClass}`}
                   href={category.href}
                   key={category.id}
                 >
@@ -210,28 +287,32 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
               </p>
             ) : null}
 
-            <div className="grid gap-[0.2rem] border-t border-brand-border-strong pt-grid-sm">
+            <div className="grid gap-[0.2rem] pt-grid-xs">
               <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
                 Selected price
               </p>
-              <p className="m-0 font-identity text-[clamp(1.8rem,5vw,2.75rem)] font-bold">
+              <p className="m-0 font-identity text-[clamp(1.35rem,4vw,2rem)] font-bold">
                 {priceLabel}
               </p>
             </div>
 
             <VariantSelector
-              onSelectVariant={handleSelectVariant}
+              onSelectOptions={handleSelectOptions}
+              selectedSelection={selectedSelection}
               selectedVariantId={selectedVariant?.id ?? null}
               variants={detail.variants}
             />
 
-            <div className="grid gap-grid-sm border-t border-brand-border-strong pt-grid-sm sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+            <div className="grid gap-grid-sm pt-grid-xs sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
               <div className="grid gap-grid-xs">
                 <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
                   Availability
                 </p>
                 <div className="flex flex-wrap items-center gap-grid-xs">
-                  <StatusBadge label={availabilityLabel} tone={availability.tone} />
+                  <StatusBadge
+                    label={availabilityLabel}
+                    tone={availability.tone}
+                  />
                   {selectedVariant ? (
                     <span className="font-system text-xs font-bold uppercase text-brand-muted">
                       {selectedVariant.label}
@@ -241,7 +322,7 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
               </div>
               <ProductQuantityControl
                 disabled={!canAddToCart}
-                maxQuantity={maxQuantity}
+                maxQuantity={remainingQuantity}
                 onQuantityChange={setQuantity}
                 quantity={displayQuantity}
               />
@@ -269,8 +350,10 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
                 >
                   {cartMessage}
                 </p>
-              ) : actionReason ? (
-                <p className="m-0 text-sm text-brand-muted">{actionReason}</p>
+              ) : visibleActionReason ? (
+                <p className="m-0 text-sm text-brand-muted">
+                  {visibleActionReason}
+                </p>
               ) : null}
             </div>
           </section>
