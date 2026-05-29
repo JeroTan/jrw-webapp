@@ -99,7 +99,7 @@ export function availabilityLabelForCartCapacity(
   maxQuantity: number,
   existingCartQuantity: number
 ): string {
-  if (maxQuantity <= 0) {
+  if (maxQuantity <= 0 || label === "Preorder") {
     return label;
   }
 
@@ -235,8 +235,13 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
       return;
     }
 
-    await navigator.clipboard?.writeText(shareUrl);
-    setCartMessage("Product link copied.");
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(shareUrl);
+      setCartMessage("Product link copied.");
+      return;
+    }
+
+    setCartMessage("Copy product link from address bar.");
   }
 
   return (
