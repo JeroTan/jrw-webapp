@@ -4,10 +4,12 @@ import type { InputHTMLAttributes } from "react";
 import { mergeClassNames } from "../utils";
 
 export type InputBorderTone = "subtle" | "strong";
+export type InputTextSize = "xs" | "sm" | "md" | "lg";
 
 export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   borderTone?: InputBorderTone;
   inputClassName?: string;
+  textSize?: InputTextSize;
 };
 
 const inputBaseClass =
@@ -18,22 +20,32 @@ const inputBorderToneClass: Record<InputBorderTone, string> = {
   strong: "border-brand-border-strong",
 };
 
+const inputTextSizeClass: Record<InputTextSize, string> = {
+  xs: "text-xs",
+  sm: "text-[0.8125rem]",
+  md: "text-base",
+  lg: "text-lg",
+};
+
 export function Input({
   borderTone = "strong",
   className,
   inputClassName,
+  textSize = "md",
   type,
   ...props
 }: InputProps) {
   return (
     <input
       {...props}
+      type={type}
       className={mergeClassNames(
         inputBaseClass,
         inputBorderToneClass[borderTone],
+        inputTextSizeClass[textSize],
         inputClassName,
         className,
-        type && type == "number"
+        type === "number"
           ? "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           : ""
       )}

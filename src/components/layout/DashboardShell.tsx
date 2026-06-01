@@ -1,5 +1,10 @@
 import * as React from "react";
-import { CleanButton, CleanLinkButton } from "@/components/ui";
+import {
+  Button,
+  CleanButton,
+  CleanLinkButton,
+  SearchInput,
+} from "@/components/ui";
 import { mergeClassNames } from "../utils";
 
 export type DashboardRole = "ADMIN" | "SUPER_ADMIN";
@@ -43,9 +48,11 @@ async function defaultLogout() {
 export function SidebarNav({
   activeHref = "/admin",
   role,
+  userLabel,
 }: {
   activeHref?: string;
   role: DashboardRole;
+  userLabel?: string;
 }) {
   const isOwner = role === "SUPER_ADMIN";
 
@@ -55,18 +62,24 @@ export function SidebarNav({
       className="grid content-start gap-grid-sm border-r border-brand-border bg-brand-surface p-grid-sm"
     >
       <a
-        className="grid gap-[0.15rem] no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+        className="relative grid gap-[0.15rem] no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
         href="/admin"
       >
         <span className="font-identity text-[1.6rem] font-black leading-none">
           JRW.
+        </span>
+        <span className="absolute top-0 right-0  inline-flex items-center bg-brand-surface px-1 text-xs font-medium text-brand-content inset-ring inset-ring-gray-400/20">
+          {userLabel ?? roleLabel(role)}
         </span>
         <span className="font-system text-[0.65rem] font-bold uppercase text-brand-muted">
           Admin console
         </span>
       </a>
 
-      <div className="grid gap-1 border-t border-brand-border pt-grid-xs" role="list">
+      <div
+        className="grid gap-1 border-t border-brand-border pt-grid-xs"
+        role="list"
+      >
         {dailyNav.map((item) => (
           <CleanLinkButton
             active={item.href === activeHref}
@@ -86,8 +99,14 @@ export function SidebarNav({
       </div>
 
       {isOwner ? (
-        <section aria-labelledby="owner-nav-title" className="grid gap-1 border-t border-brand-border pt-grid-sm">
-          <h2 className="m-0 font-system text-[0.65rem] font-bold uppercase text-brand-muted" id="owner-nav-title">
+        <section
+          aria-labelledby="owner-nav-title"
+          className="grid gap-1 border-t border-brand-border pt-grid-sm"
+        >
+          <h2
+            className="m-0 font-system text-[0.65rem] font-bold uppercase text-brand-muted"
+            id="owner-nav-title"
+          >
             Owner-only
           </h2>
           {ownerNav.map((item) => (
@@ -117,14 +136,12 @@ export function TopBar({
   onLogout,
   role,
   searchSlot,
-  userLabel,
 }: {
   actionSlot?: React.ReactNode;
   brandScopeLabel?: string;
   onLogout?: () => void | Promise<void>;
   role: DashboardRole;
   searchSlot?: React.ReactNode;
-  userLabel?: string;
 }) {
   const logoutHandler = onLogout ?? defaultLogout;
 
@@ -137,28 +154,26 @@ export function TopBar({
         <span className="bg-brand-border px-grid-xs py-[0.3rem] font-system text-xs font-bold uppercase">
           {brandScopeLabel}
         </span>
-        <span className="font-system text-xs text-brand-muted">
-          {userLabel ?? roleLabel(role)}
-        </span>
       </div>
       <div className="flex flex-wrap items-center justify-start gap-grid-xs lg:justify-end">
         {searchSlot ?? (
           <label className="sr-only" htmlFor="admin-shell-search">
-            Search admin
+            Search
           </label>
         )}
         {searchSlot ? null : (
-          <input
-            className="min-h-control-md border border-brand-border bg-brand-background px-grid-sm font-system text-xs focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+          <SearchInput
             id="admin-shell-search"
+            name="admin-shell-search"
             placeholder="Search admin"
-            type="search"
+            textSize="sm"
+            borderTone="subtle"
           />
         )}
         {actionSlot ?? null}
-        <CleanButton onClick={logoutHandler} size="sm">
+        <Button onClick={logoutHandler} textSize="sm" size="sm" variant="ghost">
           Sign out
-        </CleanButton>
+        </Button>
       </div>
     </header>
   );
@@ -194,7 +209,7 @@ export function DashboardShell({
         Skip to admin content
       </a>
       <div className="grid min-h-screen lg:grid-cols-[240px_minmax(0,1fr)]">
-        <SidebarNav activeHref={activeHref} role={role} />
+        <SidebarNav activeHref={activeHref} role={role} userLabel={userLabel} />
         <div className="grid min-w-0 grid-rows-[auto_1fr]">
           <TopBar
             actionSlot={actionSlot}
@@ -202,9 +217,12 @@ export function DashboardShell({
             onLogout={onLogout}
             role={role}
             searchSlot={searchSlot}
-            userLabel={userLabel}
           />
-          <main aria-label={mainLabel} className="min-w-0 p-grid-sm" id="admin-main">
+          <main
+            aria-label={mainLabel}
+            className="min-w-0 p-grid-sm"
+            id="admin-main"
+          >
             {children}
           </main>
         </div>
@@ -241,7 +259,10 @@ export function AdminShellForbidden({
         <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
           Forbidden
         </p>
-        <h1 className="m-0 font-identity text-[clamp(2rem,6vw,3.5rem)]" id="admin-forbidden-title">
+        <h1
+          className="m-0 font-identity text-[clamp(2rem,6vw,3.5rem)]"
+          id="admin-forbidden-title"
+        >
           Permission needed
         </h1>
         <p className="m-0 max-w-[64ch] text-sm text-brand-muted">{message}</p>

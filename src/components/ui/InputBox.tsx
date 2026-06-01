@@ -3,7 +3,7 @@ import { useId, type InputHTMLAttributes } from "react";
 
 import { mergeClassNames, mergeIds } from "../utils";
 import { ErrorLabel } from "./ErrorLabel";
-import { Input, type InputBorderTone } from "./Input";
+import { Input, type InputBorderTone, type InputProps } from "./Input";
 import { Label } from "./Label";
 
 const inputBoxClass = "grid min-w-0 gap-grid-xs";
@@ -15,8 +15,8 @@ export type InputBoxProps = InputHTMLAttributes<HTMLInputElement> & {
   error?: string;
   hideLabel?: boolean;
   inputClassName?: string;
-  label: string;
-};
+  label?: string;
+} & InputProps;
 
 export function InputBox({
   "aria-describedby": ariaDescribedBy,
@@ -39,9 +39,11 @@ export function InputBox({
 
   return (
     <div className={mergeClassNames(inputBoxClass, className)}>
-      <Label htmlFor={inputId} hideLabel={hideLabel} required={required}>
-        {label}
-      </Label>
+      {label ? (
+        <Label htmlFor={inputId} hideLabel={hideLabel} required={required}>
+          {label}
+        </Label>
+      ) : null}
 
       {description ? (
         <p className={descriptionClass} id={descriptionId}>
