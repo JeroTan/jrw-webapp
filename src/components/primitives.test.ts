@@ -22,6 +22,7 @@ import {
   ViewToggle,
 } from "./index";
 import type { DataTableProps } from "./index";
+import { InputBox } from "./ui/InputBox";
 
 describe("shared UI primitives", () => {
   it("renders status labels as text", () => {
@@ -116,7 +117,7 @@ describe("shared UI primitives", () => {
 
   it("associates input errors with fields", () => {
     const markup = renderToStaticMarkup(
-      createElement(Input, {
+      createElement(InputBox, {
         error: "Email is required.",
         id: "email",
         label: "Email",

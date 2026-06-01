@@ -1,6 +1,6 @@
 import * as React from "react";
 import { Minus, Plus } from "lucide-react";
-import { Button } from "@/components/ui";
+import { Button, Input } from "@/components/ui";
 
 type ProductQuantityControlProps = {
   disabled?: boolean;
@@ -62,14 +62,12 @@ export function ProductQuantityControl({
         >
           <Minus aria-hidden="true" className="size-4" />
         </Button>
-        <input
+        <Input
           aria-label="Quantity"
-          className="min-h-control-md border-y border-brand-border bg-brand-background px-grid-xs text-center font-system text-sm font-bold text-brand-content"
           disabled={disabled}
           id="product-quantity"
           inputMode="numeric"
           max={max}
-          min={1}
           onChange={(event) =>
             onQuantityChange(
               nextQuantityFromInputValue(

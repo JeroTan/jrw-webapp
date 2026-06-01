@@ -8,6 +8,7 @@ import type {
   StorefrontCatalogView,
   StorefrontCategoryNavigationMode,
 } from "../types";
+import { InputBox } from "@/components/ui/InputBox";
 
 type ProductCatalogFiltersProps = {
   basePath: string;
@@ -68,14 +69,11 @@ export function ProductCatalogFilters({
   return (
     <div className="grid gap-grid-sm">
       <form action={basePath} className="m-0 grid gap-grid-sm" method="get">
-        <p className="m-0 hidden font-system text-xs font-bold uppercase text-brand-muted md:block">
-          Filters
-        </p>
+        <p className="brand-title">Filters</p>
 
         {categories.length > 0 ? (
           <CheckboxGroup
             defaultValues={query.categories}
-            description="No selection means every category is included."
             legend="Categories"
             name="category"
             options={categories.map((category) => ({
@@ -89,7 +87,6 @@ export function ProductCatalogFilters({
         {brands.length > 0 ? (
           <CheckboxGroup
             defaultValues={query.brands}
-            description="No selection means every brand is included."
             legend="Brands"
             name="brand"
             options={brands.map((brand) => ({
@@ -102,7 +99,6 @@ export function ProductCatalogFilters({
 
         <CheckboxGroup
           defaultValues={query.stock}
-          description="No selection means every stock level is included."
           legend="Stock level"
           name="stock"
           options={[
@@ -115,18 +111,15 @@ export function ProductCatalogFilters({
         />
 
         <fieldset className="m-0 grid gap-grid-xs border-0 p-0">
-          <legend className="font-system text-xs font-bold uppercase text-brand-muted">
-            Price range
-          </legend>
-          <div className="grid gap-grid-xs sm:grid-cols-2 md:grid-cols-1">
+          <legend className="brand-title-secondary">Price range</legend>
+          <div className="grid gap-grid-xs grid-cols-2  ">
             <Input
               borderTone="subtle"
               defaultValue={priceValue(query.minPriceCentavos)}
               inputMode="decimal"
-              label="Min price"
               min="0"
               name="minPrice"
-              placeholder="PHP min"
+              placeholder="Min"
               step="0.01"
               type="number"
             />
@@ -134,10 +127,9 @@ export function ProductCatalogFilters({
               borderTone="subtle"
               defaultValue={priceValue(query.maxPriceCentavos)}
               inputMode="decimal"
-              label="Max price"
               min="0"
               name="maxPrice"
-              placeholder="PHP max"
+              placeholder="Max"
               step="0.01"
               type="number"
             />

@@ -24,6 +24,7 @@ import {
   type OwnerGovernanceCandidate,
   type TransferFormErrors,
 } from "./ownership-transfer";
+import { InputBox } from "@/components/ui/InputBox";
 
 type LoadState = "loading" | "ready" | "failed";
 type DialogState =
@@ -234,7 +235,9 @@ export function OwnershipTransferPanel() {
     <section className="grid gap-grid-sm">
       <header className="grid grid-cols-[minmax(0,1fr)_minmax(280px,420px)] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
         <div>
-          <p className="font-system text-xs font-bold uppercase text-brand-muted">Owner-only governance</p>
+          <p className="font-system text-xs font-bold uppercase text-brand-muted">
+            Owner-only governance
+          </p>
           <h1 className="text-[clamp(2rem,6vw,4.75rem)]">Ownership Transfer</h1>
         </div>
         <dl
@@ -352,7 +355,10 @@ export function OwnershipTransferPanel() {
             ) : null}
 
             {dialogState === "complete" && result ? (
-              <div className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm" role="status">
+              <div
+                className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm"
+                role="status"
+              >
                 <p>Ownership transferred.</p>
                 <p>
                   {result.newOwner.email} is Super Admin. Current owner session
@@ -362,7 +368,10 @@ export function OwnershipTransferPanel() {
             ) : null}
 
             {dialogState === "session-expired" ? (
-              <div className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm" role="alert">
+              <div
+                className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm"
+                role="alert"
+              >
                 <p>Owner session expired.</p>
                 <p>Refresh session before continuing governance work.</p>
               </div>
@@ -375,11 +384,14 @@ export function OwnershipTransferPanel() {
                   <code>{selectedPhrase}</code>
                 </div>
                 {formSummary ? (
-                  <p className="font-system text-[0.8125rem] font-bold text-brand-danger" role="alert">
+                  <p
+                    className="font-system text-[0.8125rem] font-bold text-brand-danger"
+                    role="alert"
+                  >
                     {formSummary}
                   </p>
                 ) : null}
-                <Input
+                <InputBox
                   autoComplete="off"
                   disabled={dialogState === "confirming"}
                   error={errors.confirmationPhrase}
@@ -390,7 +402,7 @@ export function OwnershipTransferPanel() {
                   required
                   value={confirmationPhrase}
                 />
-                <Input
+                <InputBox
                   autoComplete="off"
                   disabled={dialogState === "confirming"}
                   error={errors.password}

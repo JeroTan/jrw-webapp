@@ -4,6 +4,7 @@ import { Button, Input, Modal, Textarea, Toggle } from "@/components/ui";
 import { slugifyCategoryText } from "@/domain/categories/category";
 import { zodCreateCategoryInput } from "@/domain/categories/schemas";
 import type { CategoryMutationInput, CategoryRecord } from "../types";
+import { InputBox } from "@/components/ui/InputBox";
 
 type CategoryEditorMode = "create" | "edit";
 
@@ -303,7 +304,7 @@ export function CategoryEditor({
           </section>
         ) : null}
 
-        <Input
+        <InputBox
           error={validation.fields.name}
           label="Category name"
           onChange={(event) => updateName(event.currentTarget.value)}
@@ -311,7 +312,7 @@ export function CategoryEditor({
           value={form.name}
         />
 
-        <Input
+        <InputBox
           error={validation.fields.slug}
           label="Slug"
           onChange={(event) => updateSlug(event.currentTarget.value)}
@@ -329,7 +330,7 @@ export function CategoryEditor({
           value={form.description}
         />
 
-        <Input
+        <InputBox
           error={validation.fields.sortOrder}
           label="Sort order"
           min={0}

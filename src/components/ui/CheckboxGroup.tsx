@@ -52,9 +52,7 @@ export function CheckboxGroup({
         className
       )}
     >
-      <legend className="font-system text-xs font-bold uppercase text-brand-muted">
-        {legend}
-      </legend>
+      <legend className="brand-title-secondary">{legend}</legend>
 
       {description ? (
         <p

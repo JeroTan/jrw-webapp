@@ -2,6 +2,7 @@ import * as React from "react";
 import { Input, Textarea } from "@/components/ui";
 import type { InventoryState } from "../types";
 import { InventoryStateSelector } from "./InventoryStateSelector";
+import { InputBox } from "@/components/ui/InputBox";
 
 export type InventoryAdjusterProps = {
   quantity: string;
@@ -36,8 +37,8 @@ export function InventoryAdjuster({
 }: InventoryAdjusterProps) {
   return (
     <div className="grid gap-grid-xs">
-      <Input
-        description="Non-negative integer. Quantity 0 maps to Out of stock unless state is Preorder."
+      <InputBox
+        description="Quantity 0 maps to Out of stock unless state is Preorder."
         disabled={disabled}
         error={error}
         inputMode="numeric"
@@ -72,9 +73,13 @@ export function InventoryAdjuster({
 
       {conflictMessage ? (
         <section className="grid gap-0.5" role="alert">
-          <p className="font-system text-xs font-bold text-brand-danger">{conflictMessage}</p>
+          <p className="font-system text-xs font-bold text-brand-danger">
+            {conflictMessage}
+          </p>
           {allowedNextAction ? (
-            <p className="font-system text-xs text-brand-muted">Next action: {allowedNextAction}</p>
+            <p className="font-system text-xs text-brand-muted">
+              Next action: {allowedNextAction}
+            </p>
           ) : null}
         </section>
       ) : null}

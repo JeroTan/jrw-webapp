@@ -32,7 +32,7 @@ export type CheckboxProps = Omit<
 > & {
   description?: string;
   error?: string;
-  label: string;
+  label: string | React.ReactNode;
   size?: CheckboxSize;
 };
 

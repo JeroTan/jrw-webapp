@@ -14,6 +14,7 @@ import type {
 } from "../types";
 import { InventoryAdjuster } from "./InventoryAdjuster";
 import { InventoryStateSelector } from "./InventoryStateSelector";
+import { InputBox } from "@/components/ui/InputBox";
 
 type VariantEditorMode = "create" | "edit";
 
@@ -185,9 +186,7 @@ function serializeForm(form: VariantEditorFormState): string {
   return JSON.stringify(form);
 }
 
-function validateVariantInput(
-  form: VariantEditorFormState
-):
+function validateVariantInput(form: VariantEditorFormState):
   | {
       okay: true;
       value: VariantEditorSaveInput;
@@ -210,7 +209,9 @@ function validateVariantInput(
     stock,
     isPreorder: form.inventoryState === "PREORDER",
     expectedRelease:
-      form.expectedRelease.trim().length > 0 ? form.expectedRelease.trim() : null,
+      form.expectedRelease.trim().length > 0
+        ? form.expectedRelease.trim()
+        : null,
     variationChain,
   });
 
@@ -266,7 +267,9 @@ function validateVariantInput(
     return {
       okay: false,
       validation: {
-        summary: ["inventoryState: Inventory state conflicts with stock quantity."],
+        summary: [
+          "inventoryState: Inventory state conflicts with stock quantity.",
+        ],
         fields: {
           inventoryState:
             "Inventory state conflicts with quantity. Use Out of stock for 0, Low stock for threshold, In stock above threshold, or Preorder.",
@@ -424,7 +427,8 @@ export function VariantEditor({
   }
 
   const priceHint =
-    form.priceCentavos.trim().length === 0 || Number.isNaN(Number(form.priceCentavos))
+    form.priceCentavos.trim().length === 0 ||
+    Number.isNaN(Number(form.priceCentavos))
       ? "Enter integer centavos. Example: 1999 for PHP 19.99."
       : `Display price: ${formatPriceCentavos(Number(form.priceCentavos))}`;
 
@@ -470,7 +474,7 @@ export function VariantEditor({
           </section>
         ) : null}
 
-        <Input
+        <InputBox
           error={validation.fields.name}
           label="Variant name"
           onChange={(event) => updateField("name", event.currentTarget.value)}
@@ -478,7 +482,7 @@ export function VariantEditor({
           value={form.name}
         />
 
-        <Input
+        <InputBox
           error={validation.fields.sku}
           label="SKU"
           onChange={(event) => updateField("sku", event.currentTarget.value)}
@@ -486,7 +490,7 @@ export function VariantEditor({
           value={form.sku}
         />
 
-        <Input
+        <InputBox
           description={priceHint}
           error={validation.fields.priceCentavos}
           inputMode="numeric"
@@ -518,7 +522,9 @@ export function VariantEditor({
           checked={form.isPreorder}
           error={validation.fields.isPreorder}
           label="Preorder"
-          onChange={(event) => handlePreorderToggle(event.currentTarget.checked)}
+          onChange={(event) =>
+            handlePreorderToggle(event.currentTarget.checked)
+          }
         />
 
         <InventoryStateSelector
@@ -528,7 +534,7 @@ export function VariantEditor({
           state={form.inventoryState}
         />
 
-        <Input
+        <InputBox
           description="Optional release date when preorder is on."
           disabled={form.inventoryState !== "PREORDER"}
           error={validation.fields.expectedRelease}

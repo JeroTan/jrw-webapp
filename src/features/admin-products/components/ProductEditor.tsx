@@ -40,6 +40,7 @@ import { InventoryAdjuster } from "./InventoryAdjuster";
 import { PublishControl } from "./PublishControl";
 import { ReadinessPanel } from "./ReadinessPanel";
 import { VariantList } from "./VariantList";
+import { InputBox } from "@/components/ui/InputBox";
 
 type ProductEditorMode = "create" | "edit";
 
@@ -1517,7 +1518,7 @@ export function ProductEditor({
             </section>
           ) : null}
 
-          <Input
+          <InputBox
             disabled={saving || (mode === "edit" && mutationsBlocked)}
             error={validation.fields.name}
             label="Product name"
@@ -1526,7 +1527,7 @@ export function ProductEditor({
             value={form.name}
           />
 
-          <Input
+          <InputBox
             disabled={saving || (mode === "edit" && mutationsBlocked)}
             error={validation.fields.slug}
             label="Slug"

@@ -40,3 +40,11 @@
   --font-system: "Space Mono", "Courier New", monospace;
   --font-data: "Space Mono", "Courier New", monospace;
 }
+
+.brand-title {
+  @apply font-identity text-lg font-extrabold leading-tight wrap-anywhere;
+}
+
+.brand-title-secondary {
+  @apply font-system text-xs font-bold uppercase text-brand-muted;
+}

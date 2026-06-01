@@ -1,6 +1,9 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { DataTable, type DataTableColumn } from "@/components/data-display/DataTable";
+import {
+  DataTable,
+  type DataTableColumn,
+} from "@/components/data-display/DataTable";
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { Skeleton } from "@/components/feedback/Skeleton";
 import { StatusBadge } from "@/components/feedback/StatusBadge";
@@ -36,6 +39,7 @@ import type {
 import { BrandInviteTable } from "./BrandInviteTable";
 import { BrandJoinRequestTable } from "./BrandJoinRequestTable";
 import { BrandMembershipTable } from "./BrandMembershipTable";
+import { InputBox } from "@/components/ui/InputBox";
 
 type LoadState = "loading" | "ready" | "failed";
 
@@ -73,10 +77,7 @@ function statusTone(status: BrandRecord["status"]) {
   return status === "ACTIVE" ? ("success" as const) : ("warning" as const);
 }
 
-function brandActionErrorMessage(
-  error: unknown,
-  fallback: string
-): string {
+function brandActionErrorMessage(error: unknown, fallback: string): string {
   if (
     typeof error !== "object" ||
     error === null ||
@@ -117,7 +118,8 @@ function brandActionErrorMessage(
     return "We couldn't complete that right now. Try again soon.";
   }
 
-  return typeof failure.message === "string" && failure.message.trim().length > 0
+  return typeof failure.message === "string" &&
+    failure.message.trim().length > 0
     ? failure.message
     : fallback;
 }
@@ -150,12 +152,13 @@ export function resolveBrandActionPermissions(input: {
       canApproveJoinRequests: false,
       canArchiveBrand: false,
       canInviteMembers: false,
-      reason: "We couldn't confirm your access right now. Refresh and try again.",
+      reason:
+        "We couldn't confirm your access right now. Refresh and try again.",
     };
   }
 
   const actorMembership = input.members.find(
-    (member) => member.adminId === input.actor?.id && member.status === "ACTIVE",
+    (member) => member.adminId === input.actor?.id && member.status === "ACTIVE"
   );
 
   if (!actorMembership) {
@@ -176,7 +179,7 @@ export function resolveBrandActionPermissions(input: {
 }
 
 async function loadCollection<T>(
-  loader: () => Promise<T[]>,
+  loader: () => Promise<T[]>
 ): Promise<CollectionState<T>> {
   try {
     const items = await loader();
@@ -204,7 +207,9 @@ export function BrandDetail({ brandId }: { brandId: string }) {
     useState<CollectionState<BrandProductRecord>>(emptyCollection());
   const [inviteEmail, setInviteEmail] = useState("");
   const [actionToast, setActionToast] = useState<ToastState | null>(null);
-  const [pendingJoinAdminId, setPendingJoinAdminId] = useState<string | null>(null);
+  const [pendingJoinAdminId, setPendingJoinAdminId] = useState<string | null>(
+    null
+  );
   const [sendingInvite, setSendingInvite] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [archiving, setArchiving] = useState(false);
@@ -217,7 +222,7 @@ export function BrandDetail({ brandId }: { brandId: string }) {
         members: members.items,
         membersUnavailable: members.unavailable,
       }),
-    [actor, members.items, members.unavailable],
+    [actor, members.items, members.unavailable]
   );
 
   const productColumns = useMemo<Array<DataTableColumn<BrandProductRecord>>>(
@@ -238,7 +243,7 @@ export function BrandDetail({ brandId }: { brandId: string }) {
         cell: (row) => formatDateTime(row.updatedAt),
       },
     ],
-    [],
+    []
   );
 
   async function refreshMembershipTables(targetBrandId: string) {
@@ -265,29 +270,38 @@ export function BrandDetail({ brandId }: { brandId: string }) {
       loadCollection(() => fetchBrandInvites(brandId)),
       loadCollection(() => fetchBrandJoinRequests(brandId)),
     ])
-      .then(([nextActor, nextBrand, nextProducts, nextMembers, nextInvites, nextJoinRequests]) => {
-        if (!active) return;
+      .then(
+        ([
+          nextActor,
+          nextBrand,
+          nextProducts,
+          nextMembers,
+          nextInvites,
+          nextJoinRequests,
+        ]) => {
+          if (!active) return;
 
-        setActor(nextActor);
-        setBrand(nextBrand);
-        setProducts({
-          items: nextProducts.items,
-          unavailable: false,
-        });
-        setMembers(nextMembers);
-        setInvites(nextInvites);
-        setJoinRequests(nextJoinRequests);
-        setLoadState("ready");
+          setActor(nextActor);
+          setBrand(nextBrand);
+          setProducts({
+            items: nextProducts.items,
+            unavailable: false,
+          });
+          setMembers(nextMembers);
+          setInvites(nextInvites);
+          setJoinRequests(nextJoinRequests);
+          setLoadState("ready");
 
-        const violationSource = [
-          "Brand detail",
-          "brand members",
-          "catalog group",
-          "Join requests",
-          "Invites",
-        ].join(" ");
-        setCopyViolations(validateBrandCopy(violationSource, "BrandDetail"));
-      })
+          const violationSource = [
+            "Brand detail",
+            "brand members",
+            "catalog group",
+            "Join requests",
+            "Invites",
+          ].join(" ");
+          setCopyViolations(validateBrandCopy(violationSource, "BrandDetail"));
+        }
+      )
       .catch(() => {
         if (!active) return;
         setLoadState("failed");
@@ -299,7 +313,7 @@ export function BrandDetail({ brandId }: { brandId: string }) {
   }, [brandId]);
 
   async function handleInviteSubmit(
-    event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>,
+    event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>
   ) {
     event.preventDefault();
     if (!brand) return;
@@ -340,7 +354,7 @@ export function BrandDetail({ brandId }: { brandId: string }) {
 
   async function handleJoinDecision(
     action: "approve" | "reject",
-    adminId: string,
+    adminId: string
   ) {
     if (!brand) return;
 
@@ -429,23 +443,33 @@ export function BrandDetail({ brandId }: { brandId: string }) {
     <main className="mx-auto w-full max-w-[1240px] p-grid-md max-md:p-grid-sm">
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
         <div>
-          <p className="font-system text-xs font-bold uppercase text-brand-muted">Catalog collaboration</p>
+          <p className="font-system text-xs font-bold uppercase text-brand-muted">
+            Catalog collaboration
+          </p>
           <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">{brand.name}</h1>
           <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
-            Manage people, invites, join requests, and linked products for this brand.
+            Manage people, invites, join requests, and linked products for this
+            brand.
           </p>
         </div>
         <div className="grid justify-items-end gap-grid-xs max-md:justify-items-start">
           <StatusBadge label={brand.status} tone={statusTone(brand.status)} />
-          <p className="text-xs text-brand-muted">Updated {formatDateTime(brand.updatedAt)}</p>
+          <p className="text-xs text-brand-muted">
+            Updated {formatDateTime(brand.updatedAt)}
+          </p>
         </div>
       </header>
 
       <section className="grid gap-grid-sm py-grid-md">
         <div className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm">
-          <p className="font-system text-xs font-bold uppercase text-brand-muted">Brand actions</p>
-          <form className="grid grid-cols-[minmax(260px,1fr)_auto_auto] items-end gap-grid-xs max-md:grid-cols-1" onSubmit={handleInviteSubmit}>
-            <Input
+          <p className="font-system text-xs font-bold uppercase text-brand-muted">
+            Brand actions
+          </p>
+          <form
+            className="grid grid-cols-[minmax(260px,1fr)_auto_auto] items-end gap-grid-xs max-md:grid-cols-1"
+            onSubmit={handleInviteSubmit}
+          >
+            <InputBox
               description="Invite an admin to join this brand by email."
               disabled={!permissions.canInviteMembers || sendingInvite}
               label="Invite admin email"
@@ -524,7 +548,9 @@ export function BrandDetail({ brandId }: { brandId: string }) {
               ) : (
                 <BrandJoinRequestTable
                   canManageJoinRequests={permissions.canApproveJoinRequests}
-                  onApprove={(adminId) => handleJoinDecision("approve", adminId)}
+                  onApprove={(adminId) =>
+                    handleJoinDecision("approve", adminId)
+                  }
                   onReject={(adminId) => handleJoinDecision("reject", adminId)}
                   pendingAdminId={pendingJoinAdminId}
                   permissionReason={permissions.reason}

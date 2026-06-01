@@ -1,8 +1,9 @@
 import * as React from "react";
 
 import { Input, type InputProps } from "./Input";
+import { InputBox, type InputBoxProps } from "./InputBox";
 
-export type SearchInputProps = Omit<InputProps, "type">;
+export type SearchInputProps = Omit<InputBoxProps, "type">;
 
 export function SearchInput({
   autoComplete = "off",
@@ -11,7 +12,7 @@ export function SearchInput({
   ...props
 }: SearchInputProps) {
   return (
-    <Input
+    <InputBox
       {...props}
       autoComplete={autoComplete}
       inputClassName={inputClassName}

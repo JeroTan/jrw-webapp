@@ -38,7 +38,7 @@ export function StorefrontBrandIndex({
   const hasFilters = selectedBrandSet(selectedBrands).size > 0;
   const emptyMessage = hasFilters
     ? "No brands match current filters."
-    : "Brand product rows will appear here when product browsing opens.";
+    : "It's empty here! Check back later for brands to be added.";
 
   return (
     <section
@@ -73,7 +73,6 @@ export function StorefrontBrandIndex({
             </p>
             <CheckboxGroup
               defaultValues={selectedBrands}
-              description="No selection means every brand is included."
               legend="Brands"
               name="brand"
               options={rows.map((row) => ({
@@ -110,7 +109,7 @@ export function StorefrontBrandIndex({
             ))}
           </div>
         ) : (
-          <div className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm text-brand-muted [&_p]:m-0">
+          <div className="grid gap-grid-sm border border-brand-border bg-brand-surface p-grid-sm text-brand-muted [&_p]:m-0">
             <p>{emptyMessage}</p>
             <ButtonLink href="/products" textSize="xs">
               Browse all products

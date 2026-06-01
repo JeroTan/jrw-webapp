@@ -22,6 +22,7 @@ const workerServerOptimizeIncludes = [
   "resend",
   "svix",
   "postal-mime",
+  "showdown",
   "zod",
   "@sinclair/typebox",
 ];
