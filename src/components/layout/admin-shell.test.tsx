@@ -27,6 +27,7 @@ describe("admin dashboard shell", () => {
     expect(markup).toContain('id="admin-main"');
     expect(markup).toContain('aria-current="page"');
     expect(markup).toContain("Products");
+    expect(markup).toContain('href="/admin/inventory"');
     expect(markup).toContain("All brands");
     expect(markup).toContain("Search admin");
     expect(markup).toContain("Sign out");
@@ -55,7 +56,9 @@ describe("admin dashboard shell", () => {
   });
 
   it("renders loading and safe forbidden states inside shell language", () => {
-    const loadingMarkup = renderToStaticMarkup(createElement(AdminShellLoading));
+    const loadingMarkup = renderToStaticMarkup(
+      createElement(AdminShellLoading)
+    );
     const forbiddenMarkup = renderToStaticMarkup(
       createElement(AdminShellForbidden, {
         message: "Super Admin permission required.",

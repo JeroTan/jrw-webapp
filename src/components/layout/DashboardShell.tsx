@@ -1,10 +1,5 @@
 import * as React from "react";
-import {
-  Button,
-  CleanButton,
-  CleanLinkButton,
-  SearchInput,
-} from "@/components/ui";
+import { Button, CleanLinkButton, SearchInput } from "@/components/ui";
 import { mergeClassNames } from "../utils";
 
 export type DashboardRole = "ADMIN" | "SUPER_ADMIN";
@@ -18,7 +13,7 @@ const dailyNav: NavItem[] = [
   { href: "/admin", label: "Dashboard" },
   { href: "/admin/products", label: "Products" },
   { href: "/admin/brands", label: "Brands" },
-  { href: "/admin/products?focus=inventory", label: "Inventory" },
+  { href: "/admin/inventory", label: "Inventory" },
   { href: "/admin/orders", label: "Orders" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/audit", label: "Audit" },

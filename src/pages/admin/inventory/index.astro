@@ -1,0 +1,12 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { AdminInventoryDashboard } from "@/features/admin-products/components/AdminInventoryDashboard";
+---
+
+<AdminLayout
+  activeHref="/admin/inventory"
+  title="Inventory | JRW Admin"
+  description="Variant stock, availability, and inventory state."
+>
+  <AdminInventoryDashboard client:load />
+</AdminLayout>
