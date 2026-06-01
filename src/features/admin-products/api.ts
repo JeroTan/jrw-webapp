@@ -23,6 +23,7 @@ import type {
   UpdateInventoryStateInput,
   UpdateStockInput,
 } from "./types";
+import { adminProductFetch } from "./adminProductFetch";
 
 export type ApiFailure = {
   code: string;
@@ -136,7 +137,7 @@ async function readApiEnvelope<T>(response: Response): Promise<T> {
 }
 
 export async function fetchProductList(): Promise<ProductListResult> {
-  const response = await fetch(buildProductListUrl(), {
+  const response = await adminProductFetch(buildProductListUrl(), {
     headers: { accept: "application/json" },
   });
 
@@ -172,15 +173,17 @@ function buildProductListUrl(query: ProductListQueryInput = {}): string {
 export async function fetchProductListWithQuery(
   query: ProductListQueryInput
 ): Promise<ProductListResult> {
-  const response = await fetch(buildProductListUrl(query), {
+  const response = await adminProductFetch(buildProductListUrl(query), {
     headers: { accept: "application/json" },
   });
 
   return readApiEnvelope<ProductListResult>(response);
 }
 
-export async function fetchProductDetail(productId: string): Promise<ProductRecord> {
-  const response = await fetch(`/api/admin/products/${productId}`, {
+export async function fetchProductDetail(
+  productId: string
+): Promise<ProductRecord> {
+  const response = await adminProductFetch(`/api/admin/products/${productId}`, {
     headers: { accept: "application/json" },
   });
   const payload = await readApiEnvelope<{ product: ProductRecord }>(response);
@@ -190,32 +193,43 @@ export async function fetchProductDetail(productId: string): Promise<ProductReco
 export async function fetchProductOrganization(
   productId: string
 ): Promise<ProductOrganizationRecord> {
-  const response = await fetch(`/api/admin/products/${productId}/organization`, {
-    headers: { accept: "application/json" },
-  });
-  const payload = await readApiEnvelope<{ organization: ProductOrganizationRecord }>(
-    response
+  const response = await adminProductFetch(
+    `/api/admin/products/${productId}/organization`,
+    {
+      headers: { accept: "application/json" },
+    }
   );
+  const payload = await readApiEnvelope<{
+    organization: ProductOrganizationRecord;
+  }>(response);
   return payload.organization;
 }
 
 export async function fetchProductReadiness(
   productId: string
 ): Promise<ProductReadinessResult> {
-  const response = await fetch(`/api/admin/products/${productId}/readiness`, {
-    headers: { accept: "application/json" },
-  });
+  const response = await adminProductFetch(
+    `/api/admin/products/${productId}/readiness`,
+    {
+      headers: { accept: "application/json" },
+    }
+  );
   const payload = await readApiEnvelope<{ readiness: ProductReadinessResult }>(
     response
   );
   return payload.readiness;
 }
 
-export async function publishProduct(productId: string): Promise<ProductRecord> {
-  const response = await fetch(`/api/admin/products/${productId}/publish`, {
-    method: "POST",
-    headers: { accept: "application/json" },
-  });
+export async function publishProduct(
+  productId: string
+): Promise<ProductRecord> {
+  const response = await adminProductFetch(
+    `/api/admin/products/${productId}/publish`,
+    {
+      method: "POST",
+      headers: { accept: "application/json" },
+    }
+  );
   const payload = await readApiEnvelope<{ product: ProductRecord }>(response);
   return payload.product;
 }
@@ -223,19 +237,27 @@ export async function publishProduct(productId: string): Promise<ProductRecord> 
 export async function unpublishProduct(
   productId: string
 ): Promise<ProductRecord> {
-  const response = await fetch(`/api/admin/products/${productId}/unpublish`, {
-    method: "POST",
-    headers: { accept: "application/json" },
-  });
+  const response = await adminProductFetch(
+    `/api/admin/products/${productId}/unpublish`,
+    {
+      method: "POST",
+      headers: { accept: "application/json" },
+    }
+  );
   const payload = await readApiEnvelope<{ product: ProductRecord }>(response);
   return payload.product;
 }
 
-export async function archiveProduct(productId: string): Promise<ProductRecord> {
-  const response = await fetch(`/api/admin/products/${productId}/archive`, {
-    method: "POST",
-    headers: { accept: "application/json" },
-  });
+export async function archiveProduct(
+  productId: string
+): Promise<ProductRecord> {
+  const response = await adminProductFetch(
+    `/api/admin/products/${productId}/archive`,
+    {
+      method: "POST",
+      headers: { accept: "application/json" },
+    }
+  );
   const payload = await readApiEnvelope<{ product: ProductRecord }>(response);
   return payload.product;
 }
@@ -243,7 +265,7 @@ export async function archiveProduct(productId: string): Promise<ProductRecord> 
 export async function createProduct(
   input: ProductMutationInput
 ): Promise<ProductRecord> {
-  const response = await fetch("/api/admin/products", {
+  const response = await adminProductFetch("/api/admin/products", {
     method: "POST",
     headers: {
       accept: "application/json",
@@ -259,7 +281,7 @@ export async function updateProduct(
   productId: string,
   input: Partial<ProductMutationInput>
 ): Promise<ProductRecord> {
-  const response = await fetch(`/api/admin/products/${productId}`, {
+  const response = await adminProductFetch(`/api/admin/products/${productId}`, {
     method: "PATCH",
     headers: {
       accept: "application/json",
@@ -275,14 +297,17 @@ export async function assignProductBrand(
   productId: string,
   input: ProductBrandAssignmentInput
 ): Promise<ProductOrganizationMutationResult> {
-  const response = await fetch(`/api/admin/products/${productId}/brand`, {
-    method: "PATCH",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
+  const response = await adminProductFetch(
+    `/api/admin/products/${productId}/brand`,
+    {
+      method: "PATCH",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(input),
+    }
+  );
   return readApiEnvelope<ProductOrganizationMutationResult>(response);
 }
 
@@ -290,19 +315,24 @@ export async function assignProductCategories(
   productId: string,
   input: ProductCategoryAssignmentInput
 ): Promise<ProductOrganizationMutationResult> {
-  const response = await fetch(`/api/admin/products/${productId}/categories`, {
-    method: "PATCH",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
+  const response = await adminProductFetch(
+    `/api/admin/products/${productId}/categories`,
+    {
+      method: "PATCH",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(input),
+    }
+  );
   return readApiEnvelope<ProductOrganizationMutationResult>(response);
 }
 
-export async function fetchAssignableBrands(): Promise<ProductAssignableBrand[]> {
-  const response = await fetch(
+export async function fetchAssignableBrands(): Promise<
+  ProductAssignableBrand[]
+> {
+  const response = await adminProductFetch(
     `/api/brands/me?page=1&pageSize=${DEFAULT_ASSIGNABLE_PAGE_SIZE}`,
     {
       headers: { accept: "application/json" },
@@ -319,7 +349,7 @@ export async function fetchAssignableBrands(): Promise<ProductAssignableBrand[]>
 export async function fetchAssignableCategories(): Promise<
   ProductAssignableCategory[]
 > {
-  const response = await fetch(
+  const response = await adminProductFetch(
     `/api/admin/categories?page=1&pageSize=${DEFAULT_ASSIGNABLE_PAGE_SIZE}&status=ACTIVE`,
     {
       headers: { accept: "application/json" },
@@ -342,7 +372,7 @@ export async function fetchProductVariants(
   params.set("page", String(query.page ?? 1));
   params.set("pageSize", String(query.pageSize ?? DEFAULT_PRODUCT_PAGE_SIZE));
 
-  const response = await fetch(
+  const response = await adminProductFetch(
     `/api/admin/products/${productId}/variants?${params.toString()}`,
     {
       headers: { accept: "application/json" },
@@ -355,13 +385,15 @@ export async function fetchProductVariantDetail(
   productId: string,
   variantId: string
 ): Promise<ProductVariantRecord> {
-  const response = await fetch(
+  const response = await adminProductFetch(
     `/api/admin/products/${productId}/variants/${variantId}`,
     {
       headers: { accept: "application/json" },
     }
   );
-  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
+  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(
+    response
+  );
   return payload.variant;
 }
 
@@ -369,15 +401,20 @@ export async function createProductVariant(
   productId: string,
   input: CreateVariantInput
 ): Promise<ProductVariantRecord> {
-  const response = await fetch(`/api/admin/products/${productId}/variants`, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-    },
-    body: JSON.stringify(input),
-  });
-  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
+  const response = await adminProductFetch(
+    `/api/admin/products/${productId}/variants`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(input),
+    }
+  );
+  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(
+    response
+  );
   return payload.variant;
 }
 
@@ -386,7 +423,7 @@ export async function updateProductVariant(
   variantId: string,
   input: UpdateVariantInput
 ): Promise<ProductVariantRecord> {
-  const response = await fetch(
+  const response = await adminProductFetch(
     `/api/admin/products/${productId}/variants/${variantId}`,
     {
       method: "PATCH",
@@ -397,7 +434,9 @@ export async function updateProductVariant(
       body: JSON.stringify(input),
     }
   );
-  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
+  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(
+    response
+  );
   return payload.variant;
 }
 
@@ -406,7 +445,7 @@ export async function archiveProductVariant(
   variantId: string,
   input: ArchiveVariantInput = {}
 ): Promise<ProductVariantRecord> {
-  const response = await fetch(
+  const response = await adminProductFetch(
     `/api/admin/products/${productId}/variants/${variantId}/archive`,
     {
       method: "POST",
@@ -417,7 +456,9 @@ export async function archiveProductVariant(
       body: JSON.stringify(input),
     }
   );
-  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
+  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(
+    response
+  );
   return payload.variant;
 }
 
@@ -426,7 +467,7 @@ export async function updateVariantStockQuantity(
   variantId: string,
   input: UpdateStockInput
 ): Promise<ProductVariantRecord> {
-  const response = await fetch(
+  const response = await adminProductFetch(
     `/api/admin/products/${productId}/variants/${variantId}/stock`,
     {
       method: "PATCH",
@@ -438,7 +479,9 @@ export async function updateVariantStockQuantity(
     }
   );
 
-  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
+  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(
+    response
+  );
   return payload.variant;
 }
 
@@ -447,7 +490,7 @@ export async function updateVariantInventoryState(
   variantId: string,
   input: UpdateInventoryStateInput
 ): Promise<ProductVariantRecord> {
-  const response = await fetch(
+  const response = await adminProductFetch(
     `/api/admin/products/${productId}/variants/${variantId}/inventory-state`,
     {
       method: "PATCH",
@@ -459,7 +502,9 @@ export async function updateVariantInventoryState(
     }
   );
 
-  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(response);
+  const payload = await readApiEnvelope<{ variant: ProductVariantRecord }>(
+    response
+  );
   return payload.variant;
 }
 
@@ -467,7 +512,7 @@ export async function fetchVariantAvailability(
   productId: string,
   variantId: string
 ): Promise<AvailabilityRecord> {
-  const response = await fetch(
+  const response = await adminProductFetch(
     `/api/products/${productId}/variants/${variantId}/availability`,
     {
       headers: { accept: "application/json" },
@@ -483,9 +528,12 @@ export async function fetchVariantAvailability(
 export async function fetchProductImages(
   productId: string
 ): Promise<ProductImageListResult> {
-  const response = await fetch(`/api/admin/products/${productId}/images`, {
-    headers: { accept: "application/json" },
-  });
+  const response = await adminProductFetch(
+    `/api/admin/products/${productId}/images`,
+    {
+      headers: { accept: "application/json" },
+    }
+  );
 
   return readApiEnvelope<ProductImageListResult>(response);
 }
@@ -500,15 +548,20 @@ export async function uploadProductImage(
     formData.set("name", input.name ?? "");
   }
 
-  const response = await fetch(`/api/admin/products/${productId}/images`, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-    },
-    body: formData,
-  });
+  const response = await adminProductFetch(
+    `/api/admin/products/${productId}/images`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+      },
+      body: formData,
+    }
+  );
 
-  const payload = await readApiEnvelope<{ image: ProductPhotoRecord }>(response);
+  const payload = await readApiEnvelope<{ image: ProductPhotoRecord }>(
+    response
+  );
   return payload.image;
 }
 
@@ -517,7 +570,7 @@ export async function updateProductImageOrder(
   photoId: string,
   input: UpdateProductImageOrderInput
 ): Promise<ProductPhotoRecord> {
-  const response = await fetch(
+  const response = await adminProductFetch(
     `/api/admin/products/${productId}/images/${photoId}/order`,
     {
       method: "PATCH",
@@ -529,7 +582,9 @@ export async function updateProductImageOrder(
     }
   );
 
-  const payload = await readApiEnvelope<{ image: ProductPhotoRecord }>(response);
+  const payload = await readApiEnvelope<{ image: ProductPhotoRecord }>(
+    response
+  );
   return payload.image;
 }
 
@@ -537,7 +592,7 @@ export async function setPrimaryProductImage(
   productId: string,
   photoId: string
 ): Promise<ProductPhotoRecord> {
-  const response = await fetch(
+  const response = await adminProductFetch(
     `/api/admin/products/${productId}/images/${photoId}/primary`,
     {
       method: "PATCH",
@@ -547,7 +602,9 @@ export async function setPrimaryProductImage(
     }
   );
 
-  const payload = await readApiEnvelope<{ image: ProductPhotoRecord }>(response);
+  const payload = await readApiEnvelope<{ image: ProductPhotoRecord }>(
+    response
+  );
   return payload.image;
 }
 
@@ -555,7 +612,7 @@ export async function removeProductImage(
   productId: string,
   photoId: string
 ): Promise<ProductPhotoRecord> {
-  const response = await fetch(
+  const response = await adminProductFetch(
     `/api/admin/products/${productId}/images/${photoId}`,
     {
       method: "DELETE",
@@ -565,6 +622,8 @@ export async function removeProductImage(
     }
   );
 
-  const payload = await readApiEnvelope<{ image: ProductPhotoRecord }>(response);
+  const payload = await readApiEnvelope<{ image: ProductPhotoRecord }>(
+    response
+  );
   return payload.image;
 }
