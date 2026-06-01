@@ -16,12 +16,14 @@ import {
   type ApiFailure,
   updateProductVariant,
 } from "../api";
-import type { ProductVariantOption, ProductVariantRecord } from "../types";
+import type { ProductVariantRecord } from "../types";
 import {
   formatPriceCentavos,
   VariantEditor,
   type VariantEditorSaveInput,
 } from "./VariantEditor";
+import { variantHasDuplicateVariation } from "../variantHasDuplicateVariation";
+import { variationDuplicateSummary } from "../variationDuplicateSummary";
 
 type LoadState = "loading" | "ready" | "failed";
 
@@ -143,73 +145,6 @@ function filterVariants(
   );
 }
 
-function variationKey(options: ProductVariantOption[]): string {
-  if (options.length === 0) {
-    return "";
-  }
-
-  return [...options]
-    .map(
-      (option) =>
-        `${option.group.trim().toLowerCase()}::${option.name.trim().toLowerCase()}`
-    )
-    .sort((left, right) => left.localeCompare(right))
-    .join("|");
-}
-
-function duplicateSummary(variants: ProductVariantRecord[]): string[] {
-  const byKey = new Map<string, ProductVariantRecord[]>();
-  variants.forEach((variant) => {
-    if (variant.status === "ARCHIVED") {
-      return;
-    }
-
-    const key = variationKey(variant.variationChain);
-    if (!key) {
-      return;
-    }
-    const existing = byKey.get(key);
-    if (existing) {
-      existing.push(variant);
-      return;
-    }
-    byKey.set(key, [variant]);
-  });
-
-  const duplicates: string[] = [];
-  byKey.forEach((sameKeyVariants) => {
-    if (sameKeyVariants.length <= 1) {
-      return;
-    }
-
-    duplicates.push(
-      sameKeyVariants
-        .map((variant) => `${variant.name} (${variant.sku})`)
-        .join(", ")
-    );
-  });
-
-  return duplicates;
-}
-
-function hasDuplicateVariation(
-  variants: ProductVariantRecord[],
-  input: VariantEditorSaveInput,
-  editingVariantId: string | null
-): boolean {
-  const key = variationKey(input.variationChain);
-  if (!key) {
-    return false;
-  }
-
-  return variants.some(
-    (variant) =>
-      variant.status !== "ARCHIVED" &&
-      variant.id !== editingVariantId &&
-      variationKey(variant.variationChain) === key
-  );
-}
-
 export function VariantList({
   productId,
   autoLoad = true,
@@ -281,7 +216,7 @@ export function VariantList({
     (variant) => variant.status === "ACTIVE"
   ).length;
   const duplicateWarnings = useMemo(
-    () => duplicateSummary(variants),
+    () => variationDuplicateSummary(variants),
     [variants]
   );
 
@@ -444,7 +379,13 @@ export function VariantList({
   async function handleSaveVariant(input: VariantEditorSaveInput) {
     const editingId =
       editorState?.mode === "edit" ? (editorState.variant?.id ?? null) : null;
-    if (hasDuplicateVariation(variants, input, editingId)) {
+    if (
+      variantHasDuplicateVariation({
+        editingVariantId: editingId,
+        options: input.variationChain,
+        variants,
+      })
+    ) {
       const message = "Variant option combination already exists.";
       setToast({
         tone: "warning",
@@ -702,6 +643,7 @@ export function VariantList({
           onClose={() => setEditorState(null)}
           onSave={handleSaveVariant}
           open={true}
+          referenceVariants={variants}
           saving={saving}
           variant={editorState.variant}
         />

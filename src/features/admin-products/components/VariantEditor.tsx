@@ -1,12 +1,14 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Button, Modal, Textarea, Toggle } from "@/components/ui";
+import { Button, Modal, Toggle } from "@/components/ui";
 import { deriveInventoryStateFromQuantity } from "../deriveInventoryStateFromQuantity";
+import { hasDuplicateVariationOptionGroup } from "../hasDuplicateVariationOptionGroup";
 import { inventoryStateConsistent } from "../inventoryStateConsistent";
 import {
   zodCreateProductVariantInput,
   zodUpdateInventoryStateInput,
 } from "../variantEditorSchema";
+export { normalizeVariationChainText } from "../normalizeVariationChainText";
 import type {
   InventoryState,
   ProductVariantOption,
@@ -15,6 +17,7 @@ import type {
 import { InventoryAdjuster } from "./InventoryAdjuster";
 import { InventoryStateSelector } from "./InventoryStateSelector";
 import { InputBox } from "@/components/ui/InputBox";
+import { VariationOptionsBuilder } from "./VariationOptionsBuilder";
 
 type VariantEditorMode = "create" | "edit";
 
@@ -26,7 +29,7 @@ type VariantEditorFormState = {
   inventoryState: InventoryState;
   isPreorder: boolean;
   expectedRelease: string;
-  variationChainText: string;
+  variationChain: ProductVariantOption[];
 };
 
 type VariantEditorValidationState = {
@@ -50,19 +53,13 @@ export type VariantEditorProps = {
   onClose: () => void;
   onSave: (input: VariantEditorSaveInput) => Promise<void>;
   open: boolean;
+  referenceVariants?: ProductVariantRecord[];
   saving?: boolean;
   variant?: ProductVariantRecord | null;
 };
 
 function emptyValidationState(): VariantEditorValidationState {
   return { summary: [], fields: {} };
-}
-
-function formatVariationChainText(options: ProductVariantOption[]): string {
-  return options
-    .map((option) => `${option.group}: ${option.name}`)
-    .join("\n")
-    .trim();
 }
 
 function toEditorFormState(
@@ -78,7 +75,7 @@ function toEditorFormState(
       inventoryState: "OUT_OF_STOCK",
       isPreorder: false,
       expectedRelease: "",
-      variationChainText: "",
+      variationChain: [],
     };
   }
 
@@ -97,7 +94,7 @@ function toEditorFormState(
     inventoryState,
     isPreorder: inventoryState === "PREORDER",
     expectedRelease: variant.expectedRelease ?? "",
-    variationChainText: formatVariationChainText(variant.variationChain),
+    variationChain: variant.variationChain,
   };
 }
 
@@ -119,46 +116,10 @@ function issueToField(path: string): keyof VariantEditorFormState | undefined {
     case "expectedRelease":
       return "expectedRelease";
     case "variationChain":
-      return "variationChainText";
+      return "variationChain";
     default:
       return undefined;
   }
-}
-
-export function normalizeVariationChainText(
-  value: string
-): ProductVariantOption[] {
-  const deduped = new Map<string, ProductVariantOption>();
-  value
-    .split("\n")
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0)
-    .forEach((line) => {
-      const [group, ...nameParts] = line.split(":");
-      if (!group || nameParts.length === 0) {
-        return;
-      }
-
-      const normalizedGroup = group.trim();
-      const normalizedName = nameParts.join(":").trim();
-      if (normalizedGroup.length === 0 || normalizedName.length === 0) {
-        return;
-      }
-
-      const key = `${normalizedGroup.toLowerCase()}::${normalizedName.toLowerCase()}`;
-      if (!deduped.has(key)) {
-        deduped.set(key, {
-          group: normalizedGroup,
-          name: normalizedName,
-        });
-      }
-    });
-
-  return Array.from(deduped.values()).sort((left, right) =>
-    `${left.group.toLowerCase()}:${left.name.toLowerCase()}`.localeCompare(
-      `${right.group.toLowerCase()}:${right.name.toLowerCase()}`
-    )
-  );
 }
 
 export function formatPriceCentavos(value: number): string {
@@ -197,10 +158,21 @@ function validateVariantInput(form: VariantEditorFormState):
     } {
   const priceCentavos = Number(form.priceCentavos);
   const stock = Number(form.stock);
-  const variationChain = normalizeVariationChainText(form.variationChainText);
   const stateParsed = zodUpdateInventoryStateInput.safeParse({
     state: form.inventoryState,
   });
+
+  if (hasDuplicateVariationOptionGroup(form.variationChain)) {
+    return {
+      okay: false,
+      validation: {
+        summary: ["variationChain: One value per group."],
+        fields: {
+          variationChain: "One value per group.",
+        },
+      },
+    };
+  }
 
   const parsed = zodCreateProductVariantInput.safeParse({
     name: form.name,
@@ -212,7 +184,7 @@ function validateVariantInput(form: VariantEditorFormState):
       form.expectedRelease.trim().length > 0
         ? form.expectedRelease.trim()
         : null,
-    variationChain,
+    variationChain: form.variationChain,
   });
 
   if (!parsed.success) {
@@ -227,15 +199,6 @@ function validateVariantInput(form: VariantEditorFormState):
         fields[key] = issue.message;
       }
     });
-
-    if (
-      form.variationChainText.trim().length > 0 &&
-      variationChain.length === 0 &&
-      !fields.variationChainText
-    ) {
-      fields.variationChainText = "Use `Group: Option` format for each line.";
-      summary.push("variationChain: Use `Group: Option` format for each line.");
-    }
 
     return {
       okay: false,
@@ -298,6 +261,7 @@ export function VariantEditor({
   onClose,
   onSave,
   open,
+  referenceVariants = [],
   saving = false,
   variant = null,
 }: VariantEditorProps) {
@@ -546,16 +510,14 @@ export function VariantEditor({
           value={form.expectedRelease}
         />
 
-        <Textarea
-          description="One option per line using `Group: Option` format."
-          error={validation.fields.variationChainText}
-          label="Variation options"
-          onChange={(event) =>
-            updateField("variationChainText", event.currentTarget.value)
+        <VariationOptionsBuilder
+          disabled={saving}
+          error={validation.fields.variationChain}
+          onChange={(variationChain) =>
+            updateField("variationChain", variationChain)
           }
-          placeholder={"Size: Small\nColor: Black"}
-          rows={5}
-          value={form.variationChainText}
+          options={form.variationChain}
+          referenceVariants={referenceVariants}
         />
       </form>
     </Modal>

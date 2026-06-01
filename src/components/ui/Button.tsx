@@ -101,7 +101,9 @@ export function Button({
       disabled={isDisabled}
       type={type}
     >
-      <span>{loading ? loadingLabel : children}</span>
+      <span className="inline-flex items-center justify-center gap-grid-xs">
+        {loading ? loadingLabel : children}
+      </span>
     </button>
   );
 }

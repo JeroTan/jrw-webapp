@@ -6,7 +6,9 @@ import {
   normalizeVariationChainText,
   VariantEditor,
 } from "./VariantEditor";
+import { VariationOptionsBuilder } from "./VariationOptionsBuilder";
 import { VariantList } from "./VariantList";
+import { variantHasDuplicateVariation } from "../variantHasDuplicateVariation";
 import type { ProductVariantRecord } from "../types";
 
 const now = "2026-05-21T05:00:00.000Z";
@@ -173,6 +175,7 @@ describe("variants UI surfaces", () => {
     expect(createMarkup).toContain("Price (centavos)");
     expect(createMarkup).toContain("Preorder");
     expect(createMarkup).toContain("Variation options");
+    expect(createMarkup).toContain("Category");
 
     const editMarkup = renderToStaticMarkup(
       createElement(VariantEditor, {
@@ -186,7 +189,59 @@ describe("variants UI surfaces", () => {
 
     expect(editMarkup).toContain("Edit variant");
     expect(editMarkup).toContain("SKU-S-BLK");
+    expect(editMarkup).toContain("Size");
+    expect(editMarkup).toContain("Small");
     expect(editMarkup).toContain("Save changes");
+  });
+
+  it("renders option builder references without verbose empty copy", () => {
+    const markup = renderToStaticMarkup(
+      createElement(VariationOptionsBuilder, {
+        onChange: () => undefined,
+        options: [{ group: "Size", name: "Large" }],
+        referenceVariants: [variant()],
+      })
+    );
+
+    expect(markup).toContain("Variation options");
+    expect(markup).toContain("Category");
+    expect(markup).toContain("Size");
+    expect(markup).toContain("Large");
+    expect(markup).toContain("Small");
+    expect(markup).toContain("Color");
+    expect(markup).toContain("Black");
+    expect(markup).toContain('aria-pressed="true"');
+    expect(markup).not.toContain("No categories");
+    expect(markup).not.toContain("No options");
+  });
+
+  it("blocks duplicate active variation combinations but ignores current or archived rows", () => {
+    const options = [
+      { group: "Color", name: "Black" },
+      { group: "Size", name: "Small" },
+    ];
+
+    expect(
+      variantHasDuplicateVariation({
+        options,
+        variants: [variant()],
+      })
+    ).toBe(true);
+
+    expect(
+      variantHasDuplicateVariation({
+        editingVariantId: "var_1",
+        options,
+        variants: [variant()],
+      })
+    ).toBe(false);
+
+    expect(
+      variantHasDuplicateVariation({
+        options,
+        variants: [variant({ status: "ARCHIVED" })],
+      })
+    ).toBe(false);
   });
 
   it("normalizes variation chain text and formats centavos", () => {
