@@ -22,6 +22,7 @@ export function Input({
   borderTone = "strong",
   className,
   inputClassName,
+  type,
   ...props
 }: InputProps) {
   return (
@@ -31,7 +32,10 @@ export function Input({
         inputBaseClass,
         inputBorderToneClass[borderTone],
         inputClassName,
-        className
+        className,
+        type && type == "number"
+          ? "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          : ""
       )}
     />
   );
