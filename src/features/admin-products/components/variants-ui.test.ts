@@ -68,6 +68,7 @@ describe("variants UI surfaces", () => {
     expect(readyMarkup).toContain("PHP");
     expect(readyMarkup).toContain("Active");
     expect(readyMarkup).toContain("IN STOCK");
+    expect(readyMarkup).toContain("justify-items-start");
     expect(readyMarkup).toContain("Archive");
   });
 

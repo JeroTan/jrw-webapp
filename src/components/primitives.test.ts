@@ -293,6 +293,10 @@ describe("shared UI primitives", () => {
     expect(markup).toContain('role="group"');
     expect(markup).toContain('aria-label="Brand view"');
     expect(markup).toContain('aria-pressed="true"');
+    expect(markup).toContain("bg-brand-content");
+    expect(markup).toContain("text-brand-surface");
+    expect(markup).toContain("bg-brand-surface");
+    expect(markup).toContain("text-brand-content");
     expect(markup).toContain("Cards");
     expect(markup).toContain("List");
   });

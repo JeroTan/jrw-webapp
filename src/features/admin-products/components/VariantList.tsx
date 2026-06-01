@@ -256,7 +256,7 @@ export function VariantList({
         key: "inventory",
         header: "Stock / State",
         cell: (variant) => (
-          <div className="grid gap-0.5">
+          <div className="grid justify-items-start gap-0.5">
             <span>{variant.stock}</span>
             <StatusBadge
               label={variant.inventoryState.replaceAll("_", " ")}
