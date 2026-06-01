@@ -1,6 +1,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui";
 import { createAdminSession } from "../api";
+import { InputBox } from "@/components/ui/InputBox";
 
 export function AdminSignInPanel() {
   const [email, setEmail] = React.useState("");
@@ -33,37 +34,34 @@ export function AdminSignInPanel() {
       <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
         JRW. Admin
       </p>
-      <h1 className="m-0 font-identity text-[clamp(2rem,8vw,4rem)]" id="admin-sign-in-title">
-        Sign in to JRW admin
+      <h1
+        className="m-0 font-identity text-[clamp(2rem,8vw,4rem)]"
+        id="admin-sign-in-title"
+      >
+        Sign In
       </h1>
-      <p className="m-0 text-sm text-brand-muted">
-        Admin accounts are created by Super Admin.
+      <p className="m-0 mb-3 text-sm text-brand-muted">
+        Enter your email and password to access the dashboard.
       </p>
       <form className="grid gap-grid-sm" onSubmit={handleSubmit}>
-        <label className="grid gap-[0.25rem] font-system text-xs font-bold uppercase text-brand-muted">
-          Email
-          <input
-            autoComplete="email"
-            className="min-h-control-md border border-brand-border bg-brand-background px-grid-sm text-base text-brand-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
-            name="email"
-            onChange={(event) => setEmail(event.currentTarget.value)}
-            required
-            type="email"
-            value={email}
-          />
-        </label>
-        <label className="grid gap-[0.25rem] font-system text-xs font-bold uppercase text-brand-muted">
-          Password
-          <input
-            autoComplete="current-password"
-            className="min-h-control-md border border-brand-border bg-brand-background px-grid-sm text-base text-brand-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
-            name="password"
-            onChange={(event) => setPassword(event.currentTarget.value)}
-            required
-            type="password"
-            value={password}
-          />
-        </label>
+        <InputBox
+          label="Email"
+          placeholder="sample.admin@mail.com"
+          type="email"
+          value={email}
+          autoComplete="email"
+          onChange={(event) => setEmail(event.currentTarget.value)}
+        />
+        <InputBox
+          label="Password"
+          placeholder="your-admin-password"
+          type="password"
+          value={password}
+          autoComplete="current-password"
+          onChange={(event) => setPassword(event.currentTarget.value)}
+          className="mb-5"
+        />
+
         <Button
           disabled={submitting}
           fullWidth
@@ -80,7 +78,7 @@ export function AdminSignInPanel() {
           {message}
         </p>
       ) : null}
-      <div className="flex flex-wrap gap-grid-xs">
+      <div className="flex flex-wrap gap-grid-xs justify-center">
         <a
           className="font-system text-xs font-bold uppercase text-brand-muted underline-offset-4 hover:text-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
           href="/admin/password-reset"

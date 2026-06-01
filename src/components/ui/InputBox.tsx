@@ -6,7 +6,7 @@ import { ErrorLabel } from "./ErrorLabel";
 import { Input, type InputBorderTone } from "./Input";
 import { Label } from "./Label";
 
-const inputBoxClass = "grid min-w-0 gap-grid-[0.25rem]";
+const inputBoxClass = "grid min-w-0 gap-grid-xs";
 const descriptionClass = "font-system text-xs text-brand-muted";
 
 export type InputBoxProps = InputHTMLAttributes<HTMLInputElement> & {
