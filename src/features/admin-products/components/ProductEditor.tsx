@@ -1,12 +1,10 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Button, Input, Modal, Select, Textarea } from "@/components/ui";
+import { Button, Modal, Select, Textarea } from "@/components/ui";
 import { mergeClassNames } from "@/components/utils";
-import { slugifyProductText } from "@/domain/products/product";
-import {
-  inventoryStateConsistent,
-  zodCreateProductInput,
-} from "@/domain/products/schemas";
+import { inventoryStateConsistent } from "../inventoryStateConsistent";
+import { zodCreateProductInput } from "../productEditorSchema";
+import { slugifyProductText } from "../slugifyProductText";
 import {
   archiveProduct,
   fetchProductVariants,

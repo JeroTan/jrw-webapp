@@ -13,6 +13,7 @@ import {
   Drawer,
   Input,
   Modal,
+  Pagination,
   PageToolbar,
   ResourceCard,
   ResourceList,
@@ -201,6 +202,26 @@ describe("shared UI primitives", () => {
     expect(markup).toContain("<caption");
     expect(markup).toContain("Products</caption>");
     expect(markup).toContain("No products.");
+  });
+
+  it("renders compact pagination with visible selected page", () => {
+    const markup = renderToStaticMarkup(
+      createElement(Pagination, {
+        onPageChange: () => undefined,
+        onPageSizeChange: () => undefined,
+        page: 1,
+        pageSize: 20,
+        totalItems: 2,
+        totalPages: 1,
+      })
+    );
+
+    expect(markup).toContain("flex flex-wrap items-center justify-between");
+    expect(markup).toContain("Page 1 of 1 - 2 items");
+    expect(markup).toContain("sr-only");
+    expect(markup).toContain("Rows per page");
+    expect(markup).toContain("!bg-brand-content");
+    expect(markup).toContain("!text-brand-surface");
   });
 
   it("renders modal dialog semantics when open", () => {

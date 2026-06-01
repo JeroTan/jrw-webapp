@@ -1,12 +1,12 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Button, Input, Modal, Textarea, Toggle } from "@/components/ui";
+import { Button, Modal, Textarea, Toggle } from "@/components/ui";
+import { deriveInventoryStateFromQuantity } from "../deriveInventoryStateFromQuantity";
+import { inventoryStateConsistent } from "../inventoryStateConsistent";
 import {
-  deriveInventoryStateFromQuantity,
-  inventoryStateConsistent,
   zodCreateProductVariantInput,
   zodUpdateInventoryStateInput,
-} from "@/domain/products/schemas";
+} from "../variantEditorSchema";
 import type {
   InventoryState,
   ProductVariantOption,
