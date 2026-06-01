@@ -12,16 +12,7 @@ import {
   StatusBadge,
   Toast,
 } from "@/components/feedback";
-import { PageToolbar } from "@/components/layout";
-import {
-  Button,
-  CleanButton,
-  ConfirmDialog,
-  Pagination,
-  SearchInput,
-  Select,
-  ViewToggle,
-} from "@/components/ui";
+import { Button, ConfirmDialog, Pagination } from "@/components/ui";
 import {
   archiveProduct,
   assignProductBrand,
@@ -35,6 +26,7 @@ import {
   type ApiFailure,
 } from "../api";
 import { ProductEditor, type ProductEditorSaveInput } from "./ProductEditor";
+import { ProductListToolbar } from "./ProductListToolbar";
 import { formatPriceCentavos } from "./VariantEditor";
 import type {
   ProductAssignableBrand,
@@ -764,68 +756,19 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
         </dl>
       </header>
 
-      <PageToolbar
-        actions={
-          <CleanButton
-            onClick={() => openEditor({ mode: "create", product: null })}
-            variant="primary"
-          >
-            Create product
-          </CleanButton>
-        }
-        main={
-          <SearchInput
-            label="Search products"
-            onChange={(event) => setSearchQuery(event.currentTarget.value)}
-            placeholder="Search by name or slug"
-            value={searchQuery}
-          />
-        }
-      />
-      <PageToolbar
-        main={
-          <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,260px),1fr))] gap-grid-sm">
-            <Select
-              label="Brand filter"
-              onChange={(event) => setBrandFilter(event.currentTarget.value)}
-              value={brandFilter}
-            >
-              <option value="">All brands</option>
-              <option value={BRANDLESS_FILTER_VALUE}>
-                No brand (brandless)
-              </option>
-              {availableBrands.map((brand) => (
-                <option key={brand.id} value={brand.id}>
-                  {brand.name}
-                </option>
-              ))}
-            </Select>
-
-            <Select
-              label="Category filter"
-              onChange={(event) => setCategoryFilter(event.currentTarget.value)}
-              value={categoryFilter}
-            >
-              <option value="">All categories</option>
-              {availableCategories.map((category) => (
-                <option key={category.id} value={category.id}>
-                  {category.name}
-                </option>
-              ))}
-            </Select>
-          </div>
-        }
-        actions={
-          <ViewToggle
-            label="Product dashboard view"
-            onChange={(nextView) => setViewMode(nextView)}
-            options={[
-              { label: "Table", value: "table" },
-              { label: "List", value: "list" },
-            ]}
-            value={viewMode}
-          />
-        }
+      <ProductListToolbar
+        availableBrands={availableBrands}
+        availableCategories={availableCategories}
+        brandFilter={brandFilter}
+        brandlessFilterValue={BRANDLESS_FILTER_VALUE}
+        categoryFilter={categoryFilter}
+        onBrandFilterChange={setBrandFilter}
+        onCategoryFilterChange={setCategoryFilter}
+        onCreateProduct={() => openEditor({ mode: "create", product: null })}
+        onSearchQueryChange={setSearchQuery}
+        onViewModeChange={(nextView) => setViewMode(nextView)}
+        searchQuery={searchQuery}
+        viewMode={viewMode}
       />
 
       <section className="grid gap-grid-sm py-grid-md">

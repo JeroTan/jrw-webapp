@@ -46,6 +46,20 @@ describe("product list dashboard", () => {
     expect(markup).toContain("Category filter");
   });
 
+  it("keeps search and filters in one dense toolbar", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ProductListDashboard, {
+        autoLoad: false,
+        initialLoadState: "loading",
+      })
+    );
+
+    expect(markup).toContain('aria-label="Product list controls"');
+    expect(markup).toContain(
+      "grid-cols-[minmax(240px,1.4fr)_repeat(2,minmax(180px,1fr))]"
+    );
+  });
+
   it("renders table-first columns and pagination", () => {
     const markup = renderToStaticMarkup(
       createElement(ProductListDashboard, {
