@@ -54,10 +54,10 @@ export function SidebarNav({
   return (
     <nav
       aria-label="Admin navigation"
-      className="grid content-start gap-grid-sm border-r border-brand-border bg-brand-surface p-grid-sm"
+      className="grid content-start border-r border-brand-border bg-brand-surface"
     >
       <a
-        className="relative grid gap-[0.15rem] no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+        className="relative grid gap-[0.15rem] mx-4 my-4 no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
         href="/admin"
       >
         <span className="font-identity text-[1.6rem] font-black leading-none">
@@ -71,16 +71,13 @@ export function SidebarNav({
         </span>
       </a>
 
-      <div
-        className="grid gap-1 border-t border-brand-border pt-grid-xs"
-        role="list"
-      >
+      <div className="grid border-t border-brand-border" role="list">
         {dailyNav.map((item) => (
           <CleanLinkButton
             active={item.href === activeHref}
             aria-current={item.href === activeHref ? "page" : undefined}
             className={mergeClassNames(
-              "justify-start px-grid-xs py-grid-xs text-xs uppercase",
+              "justify-start px-grid-sm py-grid-sm text-xs uppercase",
               item.href === activeHref && "text-brand-surface",
               item.href !== activeHref && "text-brand-content"
             )}
