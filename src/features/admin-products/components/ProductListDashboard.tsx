@@ -45,7 +45,7 @@ type EditorState = {
   mode: "create";
 };
 
-type DashboardView = "table" | "list";
+type DashboardView = "table" | "card";
 
 const BRANDLESS_FILTER_VALUE = "__brandless__";
 const DEFAULT_PAGE_SIZE = 20;
@@ -634,7 +634,7 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
           />
         ) : null}
 
-        {loadState === "ready" && totalItems > 0 && viewMode === "list" ? (
+        {loadState === "ready" && totalItems > 0 && viewMode === "card" ? (
           <ResourceList label="Product list cards">
             {visibleProducts.map((product) => {
               const canMutate = productCanMutate(
@@ -747,7 +747,7 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
       />
 
       {toast ? (
-        <aside className="fixed bottom-grid-md right-grid-md z-[60] max-md:bottom-grid-sm max-md:left-grid-sm max-md:right-grid-sm">
+        <aside className="fixed bottom-grid-md right-grid-md z-60 max-md:bottom-grid-sm max-md:left-grid-sm max-md:right-grid-sm">
           <Toast
             message={toast.message}
             onDismiss={() => setToast(null)}

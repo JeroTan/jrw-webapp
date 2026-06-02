@@ -7,7 +7,7 @@ import type {
   ProductAssignableCategory,
 } from "../types";
 
-type ProductListToolbarView = "table" | "list";
+type ProductListToolbarView = "table" | "card";
 
 export type ProductListToolbarProps = {
   availableBrands: ProductAssignableBrand[];
@@ -48,7 +48,7 @@ export function ProductListToolbar({
             onChange={onViewModeChange}
             options={[
               { label: "Table", value: "table" },
-              { label: "List", value: "list" },
+              { label: "Card", value: "card" },
             ]}
             value={viewMode}
           />
