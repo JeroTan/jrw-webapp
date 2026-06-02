@@ -9,11 +9,15 @@ export type InputTextSize = "xs" | "sm" | "md" | "lg";
 export type InputProps = InputHTMLAttributes<HTMLInputElement> & {
   borderTone?: InputBorderTone;
   inputClassName?: string;
+  interactive?: boolean;
   textSize?: InputTextSize;
 };
 
 const inputBaseClass =
-  "min-h-control-md w-full rounded-none border bg-brand-surface px-grid-xs text-brand-content shadow-none filter-none hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent aria-[invalid=true]:border-brand-danger";
+  "min-h-control-md w-full rounded-none border bg-brand-surface px-grid-xs text-brand-content shadow-none filter-none aria-[invalid=true]:border-brand-danger";
+
+const inputInteractiveClass =
+  "hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
 
 const inputBorderToneClass: Record<InputBorderTone, string> = {
   subtle: "border-brand-border",
@@ -31,6 +35,7 @@ export function Input({
   borderTone = "strong",
   className,
   inputClassName,
+  interactive = true,
   textSize = "md",
   type,
   ...props
@@ -41,6 +46,7 @@ export function Input({
       type={type}
       className={mergeClassNames(
         inputBaseClass,
+        interactive && inputInteractiveClass,
         inputBorderToneClass[borderTone],
         inputTextSizeClass[textSize],
         inputClassName,

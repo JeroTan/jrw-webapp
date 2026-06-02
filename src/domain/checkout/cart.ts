@@ -1,4 +1,4 @@
-import { formatCatalogPrice } from "@/domain/products/public-catalog";
+import { formatCatalogPrice } from "@/domain/products/price-format";
 import {
   SNAPSHOT_QUANTITY_MAX,
   SNAPSHOT_VARIANT_OPTION_MAX_ITEMS,
@@ -416,4 +416,3 @@ export function cartHasBlockingIssues(state: CartState): boolean {
 export function cartSubtotalLabel(state: CartState): string {
   return formatCatalogPrice(cartSubtotalCentavos(state));
 }
-

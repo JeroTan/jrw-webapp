@@ -13,6 +13,7 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   children?: ReactNode;
   borderTone?: ButtonBorderTone;
   fullWidth?: boolean;
+  interactive?: boolean;
   loading?: boolean;
   loadingLabel?: string;
   paddingX?: ButtonPaddingX;
@@ -23,7 +24,10 @@ export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 
 const buttonBaseClass =
-  "inline-flex items-center justify-center gap-grid-xs rounded-none border font-system font-bold leading-none no-underline shadow-none whitespace-nowrap filter-none enabled:hover:outline-2 enabled:hover:outline-offset-2 enabled:hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent aria-busy:border-dashed";
+  "inline-flex items-center justify-center gap-grid-xs rounded-none border font-system font-bold leading-none no-underline shadow-none whitespace-nowrap filter-none aria-busy:border-dashed";
+
+const buttonInteractiveClass =
+  "enabled:hover:outline-2 enabled:hover:outline-offset-2 enabled:hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
 
 const buttonSizeClass: Record<ButtonSize, string> = {
   sm: "min-h-control-sm",
@@ -70,6 +74,7 @@ export function Button({
   className,
   disabled,
   fullWidth = false,
+  interactive = true,
   loading = false,
   loadingLabel = "Loading",
   paddingX = "sm",
@@ -88,6 +93,7 @@ export function Button({
       aria-busy={loading || undefined}
       className={mergeClassNames(
         buttonBaseClass,
+        interactive && buttonInteractiveClass,
         square ? buttonSquareSizeClass[size] : buttonSizeClass[size],
         square ? buttonPaddingXClass.none : buttonPaddingXClass[paddingX],
         buttonTextSizeClass[textSize],

@@ -52,13 +52,15 @@ export function ProductQuantityControl({
       >
         Quantity
       </label>
-      <div className="grid grid-cols-[auto_minmax(4.5rem,5.5rem)_auto]">
+      <div className="flex">
         <Button
+          interactive={false}
           aria-label="Decrease quantity"
           disabled={disabled || quantity <= 1}
           onClick={() => onQuantityChange(clampQuantity(quantity - 1, max))}
           square
           variant="secondary"
+          className="aspect-square"
         >
           <Minus aria-hidden="true" className="size-4" />
         </Button>
@@ -67,7 +69,8 @@ export function ProductQuantityControl({
           disabled={disabled}
           id="product-quantity"
           inputMode="numeric"
-          max={max}
+          max={max && max < 99 ? max : 99}
+          interactive={false}
           onChange={(event) =>
             onQuantityChange(
               nextQuantityFromInputValue(
@@ -78,14 +81,17 @@ export function ProductQuantityControl({
             )
           }
           type="number"
+          className="w-16! text-center"
           value={quantity}
         />
         <Button
+          interactive={false}
           aria-label="Increase quantity"
           disabled={disabled || quantity >= max}
           onClick={() => onQuantityChange(clampQuantity(quantity + 1, max))}
           square
           variant="secondary"
+          className="aspect-square"
         >
           <Plus aria-hidden="true" className="size-4" />
         </Button>

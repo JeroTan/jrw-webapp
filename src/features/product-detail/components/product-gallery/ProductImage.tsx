@@ -8,11 +8,11 @@ type ProductImageProps = {
 
 export function ProductImage({ image, productName }: ProductImageProps) {
   return (
-    <div className="grid aspect-square overflow-hidden bg-brand-background">
+    <div className="block aspect-square bg-brand-surface">
       {image ? (
         <img
           alt={image.alt}
-          className="h-full w-full object-contain"
+          className="size-full object-contain "
           height={image.height ?? undefined}
           loading="eager"
           src={image.src}

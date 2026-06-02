@@ -14,6 +14,7 @@ export type ButtonLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
   borderTone?: ButtonLinkBorderTone;
   disabled?: boolean;
   fullWidth?: boolean;
+  interactive?: boolean;
   loading?: boolean;
   loadingLabel?: string;
   paddingX?: ButtonLinkPaddingX;
@@ -24,7 +25,10 @@ export type ButtonLinkProps = AnchorHTMLAttributes<HTMLAnchorElement> & {
 };
 
 const buttonLinkBaseClass =
-  "inline-flex items-center justify-center gap-grid-xs rounded-none border font-system font-bold leading-none no-underline shadow-none whitespace-nowrap filter-none hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent aria-busy:border-dashed aria-disabled:pointer-events-none aria-disabled:opacity-50";
+  "inline-flex items-center justify-center gap-grid-xs rounded-none border font-system font-bold leading-none no-underline shadow-none whitespace-nowrap filter-none aria-busy:border-dashed aria-disabled:pointer-events-none aria-disabled:opacity-50";
+
+const buttonLinkInteractiveClass =
+  "hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
 
 const buttonLinkSizeClass: Record<ButtonLinkSize, string> = {
   sm: "min-h-control-sm",
@@ -72,6 +76,7 @@ export function ButtonLink({
   disabled = false,
   fullWidth = false,
   href,
+  interactive = true,
   loading = false,
   loadingLabel = "Loading",
   paddingX = "sm",
@@ -91,6 +96,7 @@ export function ButtonLink({
       aria-disabled={isDisabled || undefined}
       className={mergeClassNames(
         buttonLinkBaseClass,
+        interactive && buttonLinkInteractiveClass,
         square ? buttonLinkSquareSizeClass[size] : buttonLinkSizeClass[size],
         square
           ? buttonLinkPaddingXClass.none

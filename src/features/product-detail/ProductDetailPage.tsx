@@ -1,11 +1,11 @@
 import * as React from "react";
 import { StatusBadge } from "@/components/feedback";
 import type { PublicCatalogDetailVariant } from "@/domain/products/public-types";
+import { cartItemInputFromDetail } from "@/features/cart-checkout/api";
 import {
   addCartItemToStore,
-  cartItemInputFromDetail,
   useCartStore,
-} from "@/features/cart-checkout";
+} from "@/features/cart-checkout/store";
 import type { StorefrontProductDetailResult } from "./types";
 import { ProductActions } from "./components/product-actions/ProductActions";
 import { ProductBrandSummary } from "./components/product-brand-summary/ProductBrandSummary";
@@ -131,7 +131,7 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
   >("idle");
   const [cartMessage, setCartMessage] = React.useState<string | null>(null);
   const selectedVariant = variantFromDetail(detail, selectedVariantId);
-  const selectedImage = selectedImageIdFromDetail(
+  const effectiveSelectedImageId = selectedImageIdFromDetail(
     detail,
     selectedVariant,
     selectedImageId
@@ -258,12 +258,12 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
             gallery={detail.gallery}
             onSelectImage={setSelectedImageId}
             productName={detail.product.name}
-            selectedImageId={selectedImage}
+            selectedImageId={effectiveSelectedImageId}
           />
 
           <section className="grid content-start gap-grid-sm border border-brand-border bg-brand-background p-grid-md">
             <h1
-              className="m-0 max-w-[18ch] font-identity text-[clamp(2rem,6vw,4rem)] [overflow-wrap:anywhere]"
+              className="m-0 max-w-[18ch] font-identity text-[clamp(2rem,6vw,4rem)] wrap-anywhere"
               id="product-detail-title"
             >
               {detail.product.name}

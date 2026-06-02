@@ -2,6 +2,7 @@ import * as React from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui";
 import type { PublicCatalogGalleryItem } from "@/domain/products/public-types";
+import { productCarouselWindow } from "./productCarouselWindow";
 
 type ProductCarouselProps = {
   gallery: PublicCatalogGalleryItem[];
@@ -13,6 +14,7 @@ type ProductCarouselProps = {
 
 const thumbnailOutlineClass =
   "hover:border-2 hover:border-brand-accent focus-visible:border-2 focus-visible:border-offset-2 focus-visible:border-brand-accent";
+const visibleThumbnailCount = 5;
 
 export function ProductCarousel({
   gallery,
@@ -24,6 +26,20 @@ export function ProductCarousel({
   if (gallery.length <= 1) {
     return null;
   }
+
+  const selectedIndex = Math.max(
+    0,
+    gallery.findIndex((image) => image.id === selectedImageId)
+  );
+  const thumbnailWindow = productCarouselWindow({
+    selectedIndex,
+    totalItems: gallery.length,
+    visibleCount: visibleThumbnailCount,
+  });
+  const visibleGallery = gallery.slice(
+    thumbnailWindow.startIndex,
+    thumbnailWindow.endIndex
+  );
 
   return (
     <div className="grid grid-cols-[auto_1fr_auto] items-center gap-grid-xs">
@@ -38,9 +54,9 @@ export function ProductCarousel({
 
       <ul
         aria-label="Product image thumbnails"
-        className="m-0 grid list-none grid-flow-col grid-cols-5 overflow-x-auto p-0"
+        className="m-0 grid list-none grid-flow-col grid-cols-5 overflow-hidden p-0"
       >
-        {gallery.map((image) => {
+        {visibleGallery.map((image) => {
           const isSelected = image.id === selectedImageId;
 
           return (

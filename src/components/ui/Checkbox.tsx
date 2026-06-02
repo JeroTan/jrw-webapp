@@ -8,7 +8,9 @@ const checkboxBaseClass =
   "inline-grid grid-cols-[auto_1fr] items-start text-brand-content has-[:disabled]:cursor-not-allowed has-[:disabled]:text-brand-disabled has-[:disabled]:opacity-70";
 const inputClass = "peer absolute opacity-0";
 const boxBaseClass =
-  "mt-0.5 grid place-items-center rounded-none border border-brand-border-strong bg-brand-surface text-brand-surface peer-checked:bg-brand-accent peer-disabled:border-brand-disabled peer-disabled:bg-brand-border peer-disabled:text-brand-disabled peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-accent";
+  "mt-0.5 grid place-items-center rounded-none border border-brand-border-strong bg-brand-surface text-brand-surface peer-checked:bg-brand-accent peer-disabled:border-brand-disabled peer-disabled:bg-brand-border peer-disabled:text-brand-disabled";
+const boxInteractiveClass =
+  "peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-accent";
 const descriptionClass = "font-system text-xs text-brand-muted";
 const errorClass = "font-system text-xs font-bold text-brand-danger";
 
@@ -32,6 +34,7 @@ export type CheckboxProps = Omit<
 > & {
   description?: string;
   error?: string;
+  interactive?: boolean;
   label: string | React.ReactNode;
   size?: CheckboxSize;
 };
@@ -43,6 +46,7 @@ export function Checkbox({
   description,
   error,
   id,
+  interactive = true,
   label,
   size = "md",
   ...props
@@ -67,18 +71,24 @@ export function Checkbox({
           type="checkbox"
         />
         <span
-          className={mergeClassNames(boxBaseClass, boxSizeClass[size])}
+          className={mergeClassNames(
+            boxBaseClass,
+            interactive && boxInteractiveClass,
+            boxSizeClass[size]
+          )}
           aria-hidden="true"
         >
           &#10003;
         </span>
         <span>{label}</span>
       </label>
+
       {description ? (
         <p className={descriptionClass} id={descriptionId}>
           {description}
         </p>
       ) : null}
+
       {error ? (
         <p className={errorClass} id={errorId}>
           {error}

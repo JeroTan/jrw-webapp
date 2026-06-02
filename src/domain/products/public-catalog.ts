@@ -1,5 +1,6 @@
 import { GeneralError } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
+import { formatCatalogPrice } from "./price-format";
 import { normalizeProductListQuery } from "./product";
 import type { ProductVariantOption } from "./types";
 import type { InventoryState } from "./types";
@@ -219,9 +220,7 @@ export function publicCatalogAvailabilityFromStates(
   };
 }
 
-export function formatCatalogPrice(value: number): string {
-  return `PHP ${(value / 100).toFixed(2)}`;
-}
+export { formatCatalogPrice };
 
 export function formatCatalogPriceLabel(input: {
   lowestPrice: number | null;

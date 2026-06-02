@@ -1,7 +1,8 @@
 import * as React from "react";
 import { useState } from "react";
 import { Button } from "@/components/ui";
-import { CartDrawer, useCartSummary } from "@/features/cart-checkout";
+import { CartDrawer } from "@/features/cart-checkout/components/CartDrawer";
+import { useCartSummary } from "@/features/cart-checkout/store";
 import { ShoppingCart } from "lucide-react";
 
 export default function CartAction() {

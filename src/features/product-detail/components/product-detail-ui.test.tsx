@@ -224,6 +224,41 @@ describe("product detail UI", () => {
     expect(singleImageMarkup).not.toContain("Product image thumbnails");
   });
 
+  it("limits carousel thumbnails to five and windows around selected image", () => {
+    const gallery = Array.from({ length: 6 }, (_, index) => ({
+      ...detail.gallery[0],
+      alt: `Image ${index + 1}`,
+      id: `photo_${index + 1}`,
+      isPrimary: index === 0,
+      name: `Image ${index + 1}`,
+      src: `/assets/products/linen-shirt/${index + 1}.jpg`,
+    }));
+
+    const selectedFifthMarkup = renderToStaticMarkup(
+      createElement(ProductGallery, {
+        gallery,
+        onSelectImage: () => undefined,
+        productName: detail.product.name,
+        selectedImageId: "photo_5",
+      })
+    );
+    const selectedThirdMarkup = renderToStaticMarkup(
+      createElement(ProductGallery, {
+        gallery,
+        onSelectImage: () => undefined,
+        productName: detail.product.name,
+        selectedImageId: "photo_3",
+      })
+    );
+
+    expect(selectedFifthMarkup).not.toContain("View Image 1");
+    expect(selectedFifthMarkup).toContain("View Image 2");
+    expect(selectedFifthMarkup).toContain("View Image 6");
+    expect(selectedThirdMarkup).toContain("View Image 1");
+    expect(selectedThirdMarkup).toContain("View Image 5");
+    expect(selectedThirdMarkup).not.toContain("View Image 6");
+  });
+
   it("renders dynamic variant option groups as chips and color swatches", () => {
     const markup = renderToStaticMarkup(
       createElement(VariantSelector, {
