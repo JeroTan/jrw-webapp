@@ -12,7 +12,7 @@ import {
   StatusBadge,
   Toast,
 } from "@/components/feedback";
-import { Button, ConfirmDialog, Pagination } from "@/components/ui";
+import { Button, ButtonLink, ConfirmDialog, Pagination } from "@/components/ui";
 import {
   archiveProduct,
   assignProductBrand,
@@ -21,17 +21,15 @@ import {
   fetchAssignableBrands,
   fetchAssignableCategories,
   fetchProductListWithQuery,
-  fetchProductOrganization,
-  updateProduct,
-  type ApiFailure,
 } from "../api";
+import { productActionErrorMessage } from "../productActionErrorMessage";
+import { productCanMutate } from "../productCanMutate";
 import { ProductEditor, type ProductEditorSaveInput } from "./ProductEditor";
 import { ProductListToolbar } from "./ProductListToolbar";
 import { formatPriceCentavos } from "./VariantEditor";
 import type {
   ProductAssignableBrand,
   ProductAssignableCategory,
-  ProductOrganizationRecord,
   ProductRecord,
 } from "../types";
 
@@ -44,13 +42,7 @@ type ToastState = {
 };
 
 type EditorState = {
-  mode: "create" | "edit";
-  product: ProductRecord | null;
-  organization: ProductOrganizationRecord | null;
-  organizationReady: boolean;
-  organizationUnavailable: boolean;
-  mutationsBlocked: boolean;
-  mutationBlockReason: string | null;
+  mode: "create";
 };
 
 type DashboardView = "table" | "list";
@@ -78,62 +70,6 @@ function statusLabel(status: ProductRecord["status"]) {
     default:
       return "Draft";
   }
-}
-
-function productActionErrorMessage(error: unknown, fallback: string): string {
-  if (
-    typeof error !== "object" ||
-    error === null ||
-    !("code" in error) ||
-    typeof (error as ApiFailure).code !== "string"
-  ) {
-    return fallback;
-  }
-
-  const failure = error as ApiFailure;
-  const reason =
-    typeof failure.details === "object" &&
-    failure.details !== null &&
-    "reason" in failure.details &&
-    typeof (failure.details as { reason?: unknown }).reason === "string"
-      ? String((failure.details as { reason: string }).reason)
-      : null;
-
-  if (failure.code === "CONFLICT_STATE") {
-    if (reason === "DUPLICATE_SLUG") {
-      return "Slug is already in use.";
-    }
-
-    if (reason === "BRAND_MEMBERSHIP_REQUIRED") {
-      return "You need active membership in selected brand.";
-    }
-
-    return "Product state conflicts with current data.";
-  }
-
-  if (failure.code === "VALIDATION_FAILED") {
-    if (reason === "CATEGORY_NOT_ACTIVE") {
-      return "Archived categories cannot be assigned to this product.";
-    }
-    if (reason === "INVALID_CATEGORY_IDS") {
-      return "Selected categories are invalid. Refresh and try again.";
-    }
-
-    return "Product data is invalid. Check required fields and try again.";
-  }
-
-  if (failure.code === "AUTH_FORBIDDEN") {
-    if (reason === "BRAND_MEMBERSHIP_REQUIRED") {
-      return "You need active membership in selected brand.";
-    }
-
-    return "You do not have access to manage this product.";
-  }
-
-  return typeof failure.message === "string" &&
-    failure.message.trim().length > 0
-    ? failure.message
-    : fallback;
 }
 
 export function filterProductsByQuery(
@@ -221,25 +157,6 @@ function formatUpdatedAt(value: string): string {
     hour: "2-digit",
     minute: "2-digit",
   });
-}
-
-function productCanMutate(
-  product: ProductRecord,
-  availableBrandIds: Set<string>,
-  brandScopeKnown: boolean
-): { allowed: boolean; reason: string | null } {
-  if (!brandScopeKnown || !product.brandId) {
-    return { allowed: true, reason: null };
-  }
-
-  if (availableBrandIds.has(product.brandId)) {
-    return { allowed: true, reason: null };
-  }
-
-  return {
-    allowed: false,
-    reason: "You need active membership in this product brand.",
-  };
 }
 
 export type ProductListDashboardProps = {
@@ -395,80 +312,8 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
     hasSearchQuery || brandFilter.length > 0 || categoryFilter.length > 0;
   const draftCount = products.filter((row) => row.status === "DRAFT").length;
 
-  function openEditor(input: {
-    mode: "create" | "edit";
-    product: ProductRecord | null;
-  }) {
-    if (input.mode === "create") {
-      setEditorState({
-        mode: "create",
-        product: null,
-        organization: null,
-        organizationReady: false,
-        organizationUnavailable: false,
-        mutationsBlocked: false,
-        mutationBlockReason: null,
-      });
-      return;
-    }
-
-    if (!input.product) {
-      return;
-    }
-
-    const mutationState = productCanMutate(
-      input.product,
-      availableBrandIds,
-      brandScopeKnown
-    );
-
-    setEditorState({
-      mode: "edit",
-      product: input.product,
-      organization: null,
-      organizationReady: false,
-      organizationUnavailable: false,
-      mutationsBlocked: !mutationState.allowed,
-      mutationBlockReason: mutationState.reason,
-    });
-
-    fetchProductOrganization(input.product.id)
-      .then((organization) => {
-        setEditorState((previous) => {
-          if (
-            !previous ||
-            previous.mode !== "edit" ||
-            previous.product?.id !== input.product?.id
-          ) {
-            return previous;
-          }
-
-          return {
-            ...previous,
-            organization,
-            organizationReady: true,
-            organizationUnavailable: false,
-          };
-        });
-      })
-      .catch(() => {
-        setEditorState((previous) => {
-          if (
-            !previous ||
-            previous.mode !== "edit" ||
-            previous.product?.id !== input.product?.id
-          ) {
-            return previous;
-          }
-
-          return {
-            ...previous,
-            organization: null,
-            organizationReady: false,
-            organizationUnavailable: true,
-          };
-        });
-      });
+  function openCreateEditor() {
+    setEditorState({ mode: "create" });
   }
 
   const columns = useMemo<Array<DataTableColumn<ProductRecord>>>(
@@ -556,22 +401,22 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
                 }
                 if (event.key === "Enter") {
                   event.preventDefault();
-                  openEditor({ mode: "edit", product });
+                  window.location.assign(`/admin/products/${product.id}`);
                 }
               }}
               role="group"
               tabIndex={canMutate.allowed ? 0 : undefined}
             >
-              <Button
+              <ButtonLink
                 aria-label={`Edit ${product.name}`}
                 disabled={!canMutate.allowed}
-                onClick={() => openEditor({ mode: "edit", product })}
+                href={`/admin/products/${product.id}`}
                 size="sm"
                 title={canMutate.reason ?? undefined}
                 variant="secondary"
               >
                 Edit
-              </Button>
+              </ButtonLink>
               <Button
                 aria-label={`Archive ${product.name}`}
                 disabled={!canMutate.allowed || archiveBlocked || saving}
@@ -619,45 +464,11 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
           title: "Product created",
           message: "Add category and variant next. Image upload is optional.",
         });
-        openEditor({ mode: "edit", product: nextProduct });
         setRefreshToken((value) => value + 1);
-        return;
-      } else if (editorState?.product) {
-        let nextProduct = await updateProduct(
-          editorState.product.id,
-          input.identity
-        );
-
-        if (input.organization.persist) {
-          const brandMutation = await assignProductBrand(
-            editorState.product.id,
-            {
-              brandId: input.organization.brandId,
-            }
-          );
-          nextProduct = brandMutation.product;
-
-          const categoryMutation = await assignProductCategories(
-            editorState.product.id,
-            {
-              categoryIds: input.organization.categoryIds,
-            }
-          );
-          nextProduct = categoryMutation.product;
+        if (typeof window !== "undefined") {
+          window.location.assign(`/admin/products/${nextProduct.id}`);
         }
-
-        setProducts((previous) =>
-          sortProducts(
-            previous.map((product) =>
-              product.id === nextProduct.id ? nextProduct : product
-            )
-          )
-        );
-        setToast({
-          tone: "success",
-          title: "Product updated",
-          message: "Product identity and organization changes are saved.",
-        });
+        return;
       }
 
       setEditorState(null);
@@ -693,20 +504,6 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
           )
         )
       );
-      setEditorState((previous) => {
-        if (
-          !previous ||
-          previous.mode !== "edit" ||
-          previous.product?.id !== archived.id
-        ) {
-          return previous;
-        }
-
-        return {
-          ...previous,
-          product: archived,
-        };
-      });
       setRefreshToken((value) => value + 1);
       setToast({
         tone: "success",
@@ -764,7 +561,7 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
         categoryFilter={categoryFilter}
         onBrandFilterChange={setBrandFilter}
         onCategoryFilterChange={setCategoryFilter}
-        onCreateProduct={() => openEditor({ mode: "create", product: null })}
+        onCreateProduct={openCreateEditor}
         onSearchQueryChange={setSearchQuery}
         onViewModeChange={(nextView) => setViewMode(nextView)}
         searchQuery={searchQuery}
@@ -808,7 +605,7 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
                     return;
                   }
 
-                  openEditor({ mode: "create", product: null });
+                  openCreateEditor();
                 }}
                 size="sm"
                 variant={hasActiveFilters ? "secondary" : "primary"}
@@ -855,15 +652,15 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
                 <ResourceCard
                   action={
                     <div className="inline-flex flex-wrap gap-grid-xs">
-                      <Button
+                      <ButtonLink
                         disabled={!canMutate.allowed}
-                        onClick={() => openEditor({ mode: "edit", product })}
+                        href={`/admin/products/${product.id}`}
                         size="sm"
                         title={canMutate.reason ?? undefined}
                         variant="secondary"
                       >
                         Edit
-                      </Button>
+                      </ButtonLink>
                       <Button
                         disabled={
                           !canMutate.allowed || archiveBlocked || saving
@@ -927,49 +724,9 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
           availableBrands={availableBrands}
           availableCategories={availableCategories}
           mode={editorState.mode}
-          mutationBlockReason={editorState.mutationBlockReason}
-          mutationsBlocked={editorState.mutationsBlocked}
           onClose={() => setEditorState(null)}
-          onProductStatusChange={(nextProduct, operation) => {
-            setProducts((previous) =>
-              sortProducts(
-                previous.map((row) =>
-                  row.id === nextProduct.id ? nextProduct : row
-                )
-              )
-            );
-            setEditorState((previous) => {
-              if (
-                !previous ||
-                previous.mode !== "edit" ||
-                previous.product?.id !== nextProduct.id
-              ) {
-                return previous;
-              }
-
-              return {
-                ...previous,
-                product: nextProduct,
-              };
-            });
-            setRefreshToken((value) => value + 1);
-            setToast({
-              tone: "success",
-              title: "Status updated",
-              message:
-                operation === "publish"
-                  ? "Product published and visible to storefront queries."
-                  : operation === "unpublish"
-                    ? "Product moved to draft and hidden from storefront queries."
-                    : "Product archived with historical references preserved.",
-            });
-          }}
           onSave={handleSaveProduct}
           open={true}
-          organization={editorState.organization}
-          organizationReady={editorState.organizationReady}
-          organizationUnavailable={editorState.organizationUnavailable}
-          product={editorState.product}
           saving={saving}
         />
       ) : null}

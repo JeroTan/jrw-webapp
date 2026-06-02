@@ -6,6 +6,7 @@ import {
   suggestedProductSlug,
   validateInventoryAdjustmentInput,
 } from "./ProductEditor";
+import { ProductDetailDashboard } from "./ProductDetailDashboard";
 import { ProductList, filterProductsByQuery } from "./ProductList";
 import type {
   ProductAssignableBrand,
@@ -170,12 +171,53 @@ describe("products UI surfaces", () => {
     expect(editMarkup).toContain("Edit product");
     expect(editMarkup).toContain("kitchen-scale");
     expect(editMarkup).toContain("Membership status");
-    expect(editMarkup).toContain("Category links selected");
-    expect(editMarkup).toContain("Next catalog steps");
-    expect(editMarkup).toContain("Optional; placeholder used");
+    expect(editMarkup).toContain("Lighting");
+    expect(editMarkup).toContain("1 selected");
+    expect(editMarkup).not.toContain("Next catalog steps");
+    expect(editMarkup).toContain("Upload image");
     expect(editMarkup).toContain("Variant matrix");
     expect(editMarkup).toContain("Inventory adjuster");
     expect(editMarkup).toContain("Save changes");
+  });
+
+  it("renders product detail editor as a separate admin page surface", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ProductDetailDashboard, {
+        autoLoad: false,
+        initialLoadState: "ready",
+        initialProduct: product({
+          id: "prod_2",
+          name: "Kitchen Scale",
+          slug: "kitchen-scale",
+          linkedCategoryCount: 1,
+          variantCount: 1,
+          hasAvailableVariants: true,
+        }),
+        initialAvailableBrands: brands,
+        initialAvailableCategories: categories,
+        initialBrandScopeKnown: true,
+        initialOrganizationReady: true,
+        initialOrganization: {
+          productId: "prod_2",
+          brand: null,
+          categories: [
+            {
+              id: "cat_1",
+              name: "Lighting",
+              slug: "lighting",
+              status: "ACTIVE",
+            },
+          ],
+        },
+        productId: "prod_2",
+      })
+    );
+
+    expect(markup).toContain("Edit product");
+    expect(markup).toContain("Back to products");
+    expect(markup).toContain("Upload image");
+    expect(markup).toContain("Variant matrix");
+    expect(markup).toContain("Publish readiness");
   });
 
   it("suggests editable slugs from product names", () => {

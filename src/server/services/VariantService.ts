@@ -1,4 +1,8 @@
-import { createAuditEvent, NoopAuditEventPublisher, type AuditEventPublisher } from "@/domain/audit/events";
+import {
+  createAuditEvent,
+  NoopAuditEventPublisher,
+  type AuditEventPublisher,
+} from "@/domain/audit/events";
 import { evaluateRouteAccess } from "@/domain/auth/rbac";
 import {
   zodArchiveProductVariantInput,
@@ -7,6 +11,7 @@ import {
 } from "@/domain/products/schemas";
 import type {
   ProductRecord,
+  ProductPhotoRecord,
   ProductVariantRecord,
   VariantListResult,
 } from "@/domain/products/types";
@@ -40,6 +45,10 @@ type VariantProductScopeRepository = {
     brandId: string,
     adminId: string
   ): Promise<ProductBrandMembershipRecord | null>;
+};
+
+type VariantPhotoRepository = {
+  findById(photoId: string): Promise<ProductPhotoRecord | null>;
 };
 
 export type VariantActorInput = Pick<
@@ -99,6 +108,7 @@ export type VariantDetailResult = {
 export type VariantServiceOptions = {
   variantRepository: VariantRepository;
   productRepository: VariantProductScopeRepository;
+  photoRepository?: VariantPhotoRepository;
   auditPublisher?: AuditEventPublisher;
   now?: () => Date;
 };
@@ -171,10 +181,10 @@ function isActiveMembership(
   return membership.role === "OWNER" || membership.role === "MEMBER";
 }
 
-function normalizePagination(query: {
-  page?: number;
-  pageSize?: number;
-}): { page: number; pageSize: number } {
+function normalizePagination(query: { page?: number; pageSize?: number }): {
+  page: number;
+  pageSize: number;
+} {
   const page =
     typeof query.page === "number" &&
     Number.isFinite(query.page) &&
@@ -199,20 +209,20 @@ function normalizePagination(query: {
 export class VariantService {
   private readonly variantRepository: VariantRepository;
   private readonly productRepository: VariantProductScopeRepository;
+  private readonly photoRepository: VariantPhotoRepository | null;
   private readonly auditPublisher: AuditEventPublisher;
   private readonly now: () => Date;
 
   constructor(options: VariantServiceOptions) {
     this.variantRepository = options.variantRepository;
     this.productRepository = options.productRepository;
+    this.photoRepository = options.photoRepository ?? null;
     this.auditPublisher =
       options.auditPublisher ?? new NoopAuditEventPublisher();
     this.now = options.now ?? (() => new Date());
   }
 
-  private requireAdminActor(
-    actor: VariantActorInput | undefined
-  ): AppResult<{
+  private requireAdminActor(actor: VariantActorInput | undefined): AppResult<{
     actorId: string;
     safeActorId: string;
     role: "ADMIN" | "SUPER_ADMIN";
@@ -260,6 +270,9 @@ export class VariantService {
       expectedRelease: this.hasOwnField(body, "expectedRelease")
         ? body.expectedRelease
         : undefined,
+      imageReferenceId: this.hasOwnField(body, "imageReferenceId")
+        ? body.imageReferenceId
+        : undefined,
       variationChain: this.hasOwnField(body, "variationChain")
         ? body.variationChain
         : undefined,
@@ -286,6 +299,9 @@ export class VariantService {
     }
     if (this.hasOwnField(body, "expectedRelease")) {
       patch.expectedRelease = body.expectedRelease;
+    }
+    if (this.hasOwnField(body, "imageReferenceId")) {
+      patch.imageReferenceId = body.imageReferenceId;
     }
     if (this.hasOwnField(body, "variationChain")) {
       patch.variationChain = body.variationChain;
@@ -379,15 +395,40 @@ export class VariantService {
     variationChain: ProductVariantRecord["variationChain"];
     excludeVariantId?: string;
   }): Promise<AppResult<null>> {
-    const duplicate = await this.variantRepository.findDuplicateOptionCombination({
-      productId: input.productId,
-      variationChain: input.variationChain,
-      excludeVariantId: input.excludeVariantId,
-    });
+    const duplicate =
+      await this.variantRepository.findDuplicateOptionCombination({
+        productId: input.productId,
+        variationChain: input.variationChain,
+        excludeVariantId: input.excludeVariantId,
+      });
     if (duplicate) {
       return Result.error(
         serviceError("CONFLICT_STATE", {
           reason: "DUPLICATE_OPTION_COMBINATION",
+        })
+      );
+    }
+
+    return Result.okay(null);
+  }
+
+  private async ensureImageReferenceAvailable(input: {
+    productId: string;
+    imageReferenceId?: string | null;
+  }): Promise<AppResult<null>> {
+    if (!input.imageReferenceId) {
+      return Result.okay(null);
+    }
+
+    if (!this.photoRepository) {
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+
+    const photo = await this.photoRepository.findById(input.imageReferenceId);
+    if (!photo || photo.productId !== input.productId) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", {
+          reason: "IMAGE_REFERENCE_NOT_PRODUCT",
         })
       );
     }
@@ -402,10 +443,7 @@ export class VariantService {
     actorRole: "ADMIN" | "SUPER_ADMIN";
     productId: string;
     variantId: string;
-    operation:
-      | "create_variant"
-      | "update_variant"
-      | "archive_variant";
+    operation: "create_variant" | "update_variant" | "archive_variant";
     oldVariant?: ProductVariantRecord;
     newVariant: ProductVariantRecord;
     reason?: string;
@@ -510,7 +548,10 @@ export class VariantService {
 
       const pagination = normalizePagination(input.query);
       return Result.okay(
-        await this.variantRepository.listByProductId(input.productId, pagination)
+        await this.variantRepository.listByProductId(
+          input.productId,
+          pagination
+        )
       );
     } catch (error) {
       if (providerFailure(error)) {
@@ -568,6 +609,14 @@ export class VariantService {
         return Result.error(optionAvailable.error);
       }
 
+      const imageAvailable = await this.ensureImageReferenceAvailable({
+        productId: input.productId,
+        imageReferenceId: parsed.data.imageReferenceId,
+      });
+      if (imageAvailable.error) {
+        return Result.error(imageAvailable.error);
+      }
+
       const variant = await this.variantRepository.create({
         productId: input.productId,
         name: parsed.data.name,
@@ -576,6 +625,7 @@ export class VariantService {
         stock: parsed.data.stock,
         isPreorder: parsed.data.isPreorder,
         expectedRelease: parsed.data.expectedRelease ?? null,
+        imageReferenceId: parsed.data.imageReferenceId ?? null,
         variationChain: parsed.data.variationChain,
       });
 
@@ -714,18 +764,33 @@ export class VariantService {
         }
       }
 
+      if (parsed.data.imageReferenceId !== undefined) {
+        const imageAvailable = await this.ensureImageReferenceAvailable({
+          productId: input.productId,
+          imageReferenceId: parsed.data.imageReferenceId,
+        });
+        if (imageAvailable.error) {
+          return Result.error(imageAvailable.error);
+        }
+      }
+
       const updated = await this.variantRepository.update(input.variantId, {
         ...(parsed.data.name !== undefined ? { name: parsed.data.name } : {}),
         ...(parsed.data.sku !== undefined ? { sku: parsed.data.sku } : {}),
         ...(parsed.data.priceCentavos !== undefined
           ? { priceCentavos: parsed.data.priceCentavos }
           : {}),
-        ...(parsed.data.stock !== undefined ? { stock: parsed.data.stock } : {}),
+        ...(parsed.data.stock !== undefined
+          ? { stock: parsed.data.stock }
+          : {}),
         ...(parsed.data.isPreorder !== undefined
           ? { isPreorder: parsed.data.isPreorder }
           : {}),
         ...(parsed.data.expectedRelease !== undefined
           ? { expectedRelease: parsed.data.expectedRelease ?? null }
+          : {}),
+        ...(parsed.data.imageReferenceId !== undefined
+          ? { imageReferenceId: parsed.data.imageReferenceId ?? null }
           : {}),
         ...(parsed.data.variationChain !== undefined
           ? { variationChain: parsed.data.variationChain }

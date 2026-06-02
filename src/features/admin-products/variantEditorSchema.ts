@@ -26,6 +26,9 @@ export const zodCreateProductVariantInput = z.object({
   stock: z.number().int().min(0).max(PRODUCT_VARIANT_MAX_STOCK).default(0),
   isPreorder: z.boolean().default(false),
   expectedRelease: z.union([z.string().trim().min(1), z.null()]).optional(),
+  imageReferenceId: z
+    .union([z.string().trim().min(1).max(128), z.null()])
+    .optional(),
   variationChain: z
     .array(zodProductVariantOption)
     .max(PRODUCT_VARIANT_MAX_OPTION_ITEMS)

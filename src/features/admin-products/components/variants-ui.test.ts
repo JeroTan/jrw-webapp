@@ -9,7 +9,7 @@ import {
 import { VariationOptionsBuilder } from "./VariationOptionsBuilder";
 import { VariantList } from "./VariantList";
 import { variantHasDuplicateVariation } from "../variantHasDuplicateVariation";
-import type { ProductVariantRecord } from "../types";
+import type { ProductPhotoRecord, ProductVariantRecord } from "../types";
 
 const now = "2026-05-21T05:00:00.000Z";
 
@@ -36,6 +36,29 @@ function variant(
     availability: "Available",
     createdAt: now,
     updatedAt: now,
+    ...overrides,
+  };
+}
+
+function photo(
+  overrides: Partial<ProductPhotoRecord> = {}
+): ProductPhotoRecord {
+  return {
+    id: "photo_1",
+    productId: "prod_1",
+    imageId: "https://pub.r2.dev/products/prod_1/photo_1.png",
+    name: "Front",
+    sortOrder: 0,
+    isPrimary: true,
+    r2Key: "products/prod_1/photo_1.png",
+    fileSize: 120000,
+    contentType: "image/png",
+    width: 1200,
+    height: 1200,
+    createdAt: now,
+    updatedAt: now,
+    uploadedAt: now,
+    url: "/assets/products/prod_1/photo_1.png",
     ...overrides,
   };
 }
@@ -214,6 +237,23 @@ describe("variants UI surfaces", () => {
     expect(markup).toContain('aria-pressed="true"');
     expect(markup).not.toContain("No categories");
     expect(markup).not.toContain("No options");
+  });
+
+  it("renders optional variant image assignment from product images", () => {
+    const markup = renderToStaticMarkup(
+      createElement(VariantEditor, {
+        availableImages: [photo()],
+        mode: "edit",
+        open: true,
+        variant: variant({ imageReferenceId: "photo_1" }),
+        onClose: () => undefined,
+        onSave: async () => undefined,
+      })
+    );
+
+    expect(markup).toContain("Variant image");
+    expect(markup).toContain("Use product primary image");
+    expect(markup).toContain("Front");
   });
 
   it("blocks duplicate active variation combinations but ignores current or archived rows", () => {

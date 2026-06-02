@@ -1,0 +1,14 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { ProductDetailDashboard } from "@/features/admin-products/components/ProductDetailDashboard";
+
+const productId = Astro.params.id ?? "";
+---
+
+<AdminLayout
+  activeHref="/admin/products"
+  title="Edit Product | JRW Admin"
+  description="Product detail editing, media, variants, inventory, and publish status."
+>
+  <ProductDetailDashboard client:load productId={productId} />
+</AdminLayout>

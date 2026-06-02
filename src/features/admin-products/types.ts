@@ -129,6 +129,7 @@ export type ProductVariantRecord = {
   inventoryState: InventoryState;
   stockVersion: number;
   availability: AvailabilityLabel;
+  imageReferenceId?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -140,6 +141,7 @@ export type CreateVariantInput = {
   stock?: number;
   isPreorder?: boolean;
   expectedRelease?: string | null;
+  imageReferenceId?: string | null;
   variationChain?: ProductVariantOption[];
 };
 

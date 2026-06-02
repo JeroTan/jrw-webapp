@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Button, Modal, Toggle } from "@/components/ui";
+import { Button, Modal, Select, Toggle } from "@/components/ui";
 import { deriveInventoryStateFromQuantity } from "../deriveInventoryStateFromQuantity";
 import { hasDuplicateVariationOptionGroup } from "../hasDuplicateVariationOptionGroup";
 import { inventoryStateConsistent } from "../inventoryStateConsistent";
@@ -11,6 +11,7 @@ import {
 export { normalizeVariationChainText } from "../normalizeVariationChainText";
 import type {
   InventoryState,
+  ProductPhotoRecord,
   ProductVariantOption,
   ProductVariantRecord,
 } from "../types";
@@ -29,6 +30,7 @@ type VariantEditorFormState = {
   inventoryState: InventoryState;
   isPreorder: boolean;
   expectedRelease: string;
+  imageReferenceId: string;
   variationChain: ProductVariantOption[];
 };
 
@@ -45,10 +47,12 @@ export type VariantEditorSaveInput = {
   inventoryState: InventoryState;
   isPreorder: boolean;
   expectedRelease: string | null;
+  imageReferenceId: string | null;
   variationChain: ProductVariantOption[];
 };
 
 export type VariantEditorProps = {
+  availableImages?: ProductPhotoRecord[];
   mode: VariantEditorMode;
   onClose: () => void;
   onSave: (input: VariantEditorSaveInput) => Promise<void>;
@@ -75,6 +79,7 @@ function toEditorFormState(
       inventoryState: "OUT_OF_STOCK",
       isPreorder: false,
       expectedRelease: "",
+      imageReferenceId: "",
       variationChain: [],
     };
   }
@@ -94,6 +99,7 @@ function toEditorFormState(
     inventoryState,
     isPreorder: inventoryState === "PREORDER",
     expectedRelease: variant.expectedRelease ?? "",
+    imageReferenceId: variant.imageReferenceId ?? "",
     variationChain: variant.variationChain,
   };
 }
@@ -115,6 +121,8 @@ function issueToField(path: string): keyof VariantEditorFormState | undefined {
       return "isPreorder";
     case "expectedRelease":
       return "expectedRelease";
+    case "imageReferenceId":
+      return "imageReferenceId";
     case "variationChain":
       return "variationChain";
     default:
@@ -184,6 +192,10 @@ function validateVariantInput(form: VariantEditorFormState):
       form.expectedRelease.trim().length > 0
         ? form.expectedRelease.trim()
         : null,
+    imageReferenceId:
+      form.imageReferenceId.trim().length > 0
+        ? form.imageReferenceId.trim()
+        : null,
     variationChain: form.variationChain,
   });
 
@@ -251,12 +263,14 @@ function validateVariantInput(form: VariantEditorFormState):
       inventoryState: stateParsed.data.state,
       isPreorder: stateParsed.data.state === "PREORDER",
       expectedRelease: parsed.data.expectedRelease ?? null,
+      imageReferenceId: parsed.data.imageReferenceId ?? null,
       variationChain: parsed.data.variationChain,
     },
   };
 }
 
 export function VariantEditor({
+  availableImages = [],
   mode,
   onClose,
   onSave,
@@ -509,6 +523,25 @@ export function VariantEditor({
           placeholder="2026-08-31"
           value={form.expectedRelease}
         />
+
+        {availableImages.length > 0 ? (
+          <Select
+            description="Optional. Variant uses product primary image when blank."
+            error={validation.fields.imageReferenceId}
+            label="Variant image"
+            onChange={(event) =>
+              updateField("imageReferenceId", event.currentTarget.value)
+            }
+            value={form.imageReferenceId}
+          >
+            <option value="">Use product primary image</option>
+            {availableImages.map((image, index) => (
+              <option key={image.id} value={image.id}>
+                {image.name || `Image ${index + 1}`}
+              </option>
+            ))}
+          </Select>
+        ) : null}
 
         <VariationOptionsBuilder
           disabled={saving}

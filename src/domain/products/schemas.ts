@@ -9,7 +9,11 @@ export const PRODUCT_SLUG_MAX_LENGTH = 120;
 export const PRODUCT_SUMMARY_MAX_LENGTH = 280;
 export const PRODUCT_DESCRIPTION_MIN_LENGTH = 2;
 export const PRODUCT_DESCRIPTION_MAX_LENGTH = 8_000;
-export const PRODUCT_STATUS_VALUES = ["DRAFT", "PUBLISHED", "ARCHIVED"] as const;
+export const PRODUCT_STATUS_VALUES = [
+  "DRAFT",
+  "PUBLISHED",
+  "ARCHIVED",
+] as const;
 export const PRODUCT_ASSIGNMENT_MAX_CATEGORY_IDS = 100;
 export const PRODUCT_READINESS_MAX_ITEMS = 32;
 export const PRODUCT_VARIANT_NAME_MAX_LENGTH = 255;
@@ -100,20 +104,14 @@ export const zodAssignProductCategoriesInput = z.object({
 
 export const zodProductReadinessResult = z.object({
   isReady: z.boolean(),
-  missingItems: z.array(z.string().trim().min(1)).max(PRODUCT_READINESS_MAX_ITEMS),
+  missingItems: z
+    .array(z.string().trim().min(1))
+    .max(PRODUCT_READINESS_MAX_ITEMS),
 });
 
 export const zodProductVariantOption = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1)
-    .max(PRODUCT_VARIANT_OPTION_NAME_MAX_LENGTH),
-  group: z
-    .string()
-    .trim()
-    .min(1)
-    .max(PRODUCT_VARIANT_OPTION_GROUP_MAX_LENGTH),
+  name: z.string().trim().min(1).max(PRODUCT_VARIANT_OPTION_NAME_MAX_LENGTH),
+  group: z.string().trim().min(1).max(PRODUCT_VARIANT_OPTION_GROUP_MAX_LENGTH),
 });
 
 const zodInventoryState = z.enum(INVENTORY_STATE_VALUES);
@@ -150,7 +148,10 @@ export function deriveInventoryStateFromQuantity(input: {
     return "PREORDER";
   }
 
-  const threshold = Math.max(0, input.lowStockThreshold ?? PRODUCT_VARIANT_LOW_STOCK_THRESHOLD);
+  const threshold = Math.max(
+    0,
+    input.lowStockThreshold ?? PRODUCT_VARIANT_LOW_STOCK_THRESHOLD
+  );
 
   if (input.quantity <= 0) {
     return "OUT_OF_STOCK";
@@ -186,15 +187,14 @@ const zodProductVariantCommon = z.object({
     .trim()
     .min(PRODUCT_NAME_MIN_LENGTH)
     .max(PRODUCT_VARIANT_NAME_MAX_LENGTH),
-  sku: z
-    .string()
-    .trim()
-    .min(1)
-    .max(PRODUCT_VARIANT_SKU_MAX_LENGTH),
+  sku: z.string().trim().min(1).max(PRODUCT_VARIANT_SKU_MAX_LENGTH),
   priceCentavos: z.number().int().min(0),
   stock: z.number().int().min(0).max(PRODUCT_VARIANT_MAX_STOCK).default(0),
   isPreorder: z.boolean().default(false),
   expectedRelease: z.union([z.string().trim().min(1), z.null()]).optional(),
+  imageReferenceId: z
+    .union([z.string().trim().min(1).max(128), z.null()])
+    .optional(),
   variationChain: z
     .array(zodProductVariantOption)
     .max(PRODUCT_VARIANT_MAX_OPTION_ITEMS)
@@ -211,6 +211,7 @@ export const zodUpdateProductVariantInput = z
     stock: zodProductVariantCommon.shape.stock.optional(),
     isPreorder: zodProductVariantCommon.shape.isPreorder.optional(),
     expectedRelease: zodProductVariantCommon.shape.expectedRelease,
+    imageReferenceId: zodProductVariantCommon.shape.imageReferenceId,
     variationChain: zodProductVariantCommon.shape.variationChain.optional(),
   })
   .refine((value) => Object.keys(value).length > 0, {
@@ -252,7 +253,12 @@ export const zodProductImageUploadInput = z.object({
     .refine((file) => file.size <= PRODUCT_IMAGE_MAX_FILE_SIZE_BYTES, {
       message: "Image file exceeds maximum size.",
     }),
-  name: z.union([z.string().trim().min(1).max(PRODUCT_IMAGE_NAME_MAX_LENGTH), z.null()]).optional(),
+  name: z
+    .union([
+      z.string().trim().min(1).max(PRODUCT_IMAGE_NAME_MAX_LENGTH),
+      z.null(),
+    ])
+    .optional(),
 });
 
 export const zodUpdateImageOrderInput = z.object({
@@ -269,7 +275,10 @@ const tboxProductStatus = t.Union([
   t.Literal("ARCHIVED"),
 ]);
 
-const tboxCategoryStatus = t.Union([t.Literal("ACTIVE"), t.Literal("ARCHIVED")]);
+const tboxCategoryStatus = t.Union([
+  t.Literal("ACTIVE"),
+  t.Literal("ARCHIVED"),
+]);
 const tboxBrandStatus = t.Union([t.Literal("ACTIVE"), t.Literal("ARCHIVED")]);
 
 export const tboxProduct = t.Object({
@@ -468,6 +477,7 @@ export const tboxProductVariant = t.Object({
   stock: t.Integer({ minimum: 0 }),
   isPreorder: t.Boolean(),
   expectedRelease: t.Nullable(t.String()),
+  imageReferenceId: t.Optional(t.Nullable(t.String())),
   variationChain: t.Array(tboxProductVariantOption, {
     maxItems: PRODUCT_VARIANT_MAX_OPTION_ITEMS,
   }),
@@ -555,7 +565,9 @@ export const tboxUploadProductImageBody = t.Object(
       minSize: 1,
     }),
     name: t.Optional(
-      t.Nullable(t.String({ minLength: 1, maxLength: PRODUCT_IMAGE_NAME_MAX_LENGTH }))
+      t.Nullable(
+        t.String({ minLength: 1, maxLength: PRODUCT_IMAGE_NAME_MAX_LENGTH })
+      )
     ),
   },
   { additionalProperties: false }
@@ -589,6 +601,9 @@ export const tboxCreateProductVariantBody = t.Object(
     ),
     isPreorder: t.Optional(t.Boolean()),
     expectedRelease: t.Optional(t.Nullable(t.String({ minLength: 1 }))),
+    imageReferenceId: t.Optional(
+      t.Nullable(t.String({ minLength: 1, maxLength: 128 }))
+    ),
     variationChain: t.Optional(
       t.Array(tboxProductVariantOption, {
         maxItems: PRODUCT_VARIANT_MAX_OPTION_ITEMS,
@@ -615,6 +630,9 @@ export const tboxUpdateProductVariantBody = t.Object(
     ),
     isPreorder: t.Optional(t.Boolean()),
     expectedRelease: t.Optional(t.Nullable(t.String({ minLength: 1 }))),
+    imageReferenceId: t.Optional(
+      t.Nullable(t.String({ minLength: 1, maxLength: 128 }))
+    ),
     variationChain: t.Optional(
       t.Array(tboxProductVariantOption, {
         maxItems: PRODUCT_VARIANT_MAX_OPTION_ITEMS,

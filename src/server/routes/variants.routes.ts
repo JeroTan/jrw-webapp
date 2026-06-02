@@ -20,6 +20,7 @@ import type {
 import { rbacGuard } from "@/server/middleware/rbac";
 import { routeDetail } from "@/server/openapi/route-metadata";
 import { createProductRepositories } from "@/server/repositories/ProductRepository";
+import { createPhotoRepositories } from "@/server/repositories/PhotoRepository";
 import { createVariantRepositories } from "@/server/repositories/VariantRepository";
 import { VariantService } from "@/server/services/VariantService";
 import { GeneralError } from "@/utils/general/error";
@@ -32,7 +33,9 @@ export type VariantControllerFactoryInput = {
 };
 
 export type VariantRoutesOptions = {
-  controllerFactory?: (input: VariantControllerFactoryInput) => VariantController;
+  controllerFactory?: (
+    input: VariantControllerFactoryInput
+  ) => VariantController;
 };
 
 function createRuntimeController(
@@ -48,8 +51,10 @@ function createRuntimeController(
   }
 
   const productRepositories = createProductRepositories(db as D1Database);
+  const photoRepositories = createPhotoRepositories(db as D1Database);
   const variantRepositories = createVariantRepositories(db as D1Database);
   const service = new VariantService({
+    photoRepository: photoRepositories.photoRepository,
     productRepository: productRepositories.repository,
     variantRepository: variantRepositories.variantRepository,
   });
@@ -160,13 +165,20 @@ export function variantsRoutes(
     .post(
       "/admin/products/:productId/variants",
       async (ctx) => {
-        const { request, set, runtimeEnv, requestContext, requestId, params, body } =
-          ctx as typeof ctx &
-            RequestContextDecorations & {
-              runtimeEnv?: Partial<Env> & Record<string, unknown>;
-              params: { productId: string };
-              body: Record<string, unknown>;
-            };
+        const {
+          request,
+          set,
+          runtimeEnv,
+          requestContext,
+          requestId,
+          params,
+          body,
+        } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+            params: { productId: string };
+            body: Record<string, unknown>;
+          };
         const controller = getController(
           { request, runtimeEnv, requestId },
           options
@@ -203,18 +215,12 @@ export function variantsRoutes(
     .get(
       "/admin/products/:productId/variants/:variantId",
       async (ctx) => {
-        const {
-          request,
-          set,
-          runtimeEnv,
-          requestContext,
-          requestId,
-          params,
-        } = ctx as typeof ctx &
-          RequestContextDecorations & {
-            runtimeEnv?: Partial<Env> & Record<string, unknown>;
-            params: { productId: string; variantId: string };
-          };
+        const { request, set, runtimeEnv, requestContext, requestId, params } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+              params: { productId: string; variantId: string };
+            };
         const controller = getController(
           { request, runtimeEnv, requestId },
           options

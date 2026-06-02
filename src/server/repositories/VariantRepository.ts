@@ -1,4 +1,4 @@
-import { createDb, type AppDb } from "@/adapter/infrastructure/db/client";
+﻿import { createDb, type AppDb } from "@/adapter/infrastructure/db/client";
 import {
   availabilityLabelFromState,
   deriveInventoryStateFromQuantity,
@@ -45,6 +45,7 @@ export type CreateVariantRecordInput = {
   stock: number;
   isPreorder: boolean;
   expectedRelease: string | null;
+  imageReferenceId?: string | null;
   variationChain: ProductVariantOption[];
 };
 
@@ -55,6 +56,7 @@ export type UpdateVariantRecordInput = {
   stock?: number;
   isPreorder?: boolean;
   expectedRelease?: string | null;
+  imageReferenceId?: string | null;
   variationChain?: ProductVariantOption[];
 };
 
@@ -109,7 +111,9 @@ function normalizeOptionSignature(options: ProductVariantOption[]): string {
         name: option.name.trim().toLowerCase(),
       }))
       .sort((left, right) =>
-        `${left.group}:${left.name}`.localeCompare(`${right.group}:${right.name}`)
+        `${left.group}:${left.name}`.localeCompare(
+          `${right.group}:${right.name}`
+        )
       )
   );
 }
@@ -217,6 +221,7 @@ export class DrizzleVariantRepository implements VariantRepository {
         inventory_state: inventoryState,
         is_preorder: input.isPreorder,
         expected_release: input.expectedRelease,
+        image_reference_id: input.imageReferenceId ?? null,
         stock_version: 0,
         variation_chain: normalizeVariationChain(input.variationChain),
       })
@@ -299,11 +304,18 @@ export class DrizzleVariantRepository implements VariantRepository {
     const patch = {
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.sku !== undefined ? { sku: input.sku } : {}),
-      ...(input.priceCentavos !== undefined ? { price: input.priceCentavos } : {}),
+      ...(input.priceCentavos !== undefined
+        ? { price: input.priceCentavos }
+        : {}),
       ...(input.stock !== undefined ? { stock: input.stock } : {}),
-      ...(input.isPreorder !== undefined ? { is_preorder: input.isPreorder } : {}),
+      ...(input.isPreorder !== undefined
+        ? { is_preorder: input.isPreorder }
+        : {}),
       ...(input.expectedRelease !== undefined
         ? { expected_release: input.expectedRelease }
+        : {}),
+      ...(input.imageReferenceId !== undefined
+        ? { image_reference_id: input.imageReferenceId }
         : {}),
       ...(input.variationChain !== undefined
         ? { variation_chain: normalizeVariationChain(input.variationChain) }
@@ -448,16 +460,17 @@ export class DrizzleVariantRepository implements VariantRepository {
   async getProductSummary(productId: string): Promise<ProductVariantSummary> {
     const [row] = await this.db
       .select({
-        variantCount:
-          sql<number>`cast(count(case when ${product_variants.stock_lock_version} != ${ARCHIVED_STOCK_LOCK_VERSION} then 1 end) as integer)`,
-        lowestPrice:
-          sql<number | null>`cast(min(case when ${product_variants.stock_lock_version} != ${ARCHIVED_STOCK_LOCK_VERSION} then ${product_variants.price} end) as integer)`,
-        priceRangeMin:
-          sql<number | null>`cast(min(case when ${product_variants.stock_lock_version} != ${ARCHIVED_STOCK_LOCK_VERSION} then ${product_variants.price} end) as integer)`,
-        priceRangeMax:
-          sql<number | null>`cast(max(case when ${product_variants.stock_lock_version} != ${ARCHIVED_STOCK_LOCK_VERSION} then ${product_variants.price} end) as integer)`,
-        hasAvailableVariants:
-          sql<number>`cast(max(case when ${product_variants.stock_lock_version} != ${ARCHIVED_STOCK_LOCK_VERSION} and (${product_variants.stock} > 0 or ${product_variants.is_preorder} = 1) then 1 else 0 end) as integer)`,
+        variantCount: sql<number>`cast(count(case when ${product_variants.stock_lock_version} != ${ARCHIVED_STOCK_LOCK_VERSION} then 1 end) as integer)`,
+        lowestPrice: sql<
+          number | null
+        >`cast(min(case when ${product_variants.stock_lock_version} != ${ARCHIVED_STOCK_LOCK_VERSION} then ${product_variants.price} end) as integer)`,
+        priceRangeMin: sql<
+          number | null
+        >`cast(min(case when ${product_variants.stock_lock_version} != ${ARCHIVED_STOCK_LOCK_VERSION} then ${product_variants.price} end) as integer)`,
+        priceRangeMax: sql<
+          number | null
+        >`cast(max(case when ${product_variants.stock_lock_version} != ${ARCHIVED_STOCK_LOCK_VERSION} then ${product_variants.price} end) as integer)`,
+        hasAvailableVariants: sql<number>`cast(max(case when ${product_variants.stock_lock_version} != ${ARCHIVED_STOCK_LOCK_VERSION} and (${product_variants.stock} > 0 or ${product_variants.is_preorder} = 1) then 1 else 0 end) as integer)`,
       })
       .from(product_variants)
       .where(eq(product_variants.product_id, productId));

@@ -2,6 +2,7 @@ import * as React from "react";
 import { EmptyState } from "@/components/feedback";
 import { Button } from "@/components/ui";
 import type { ProductReadinessResult } from "../types";
+import { ReadinessMissingItems } from "./ReadinessMissingItems";
 
 type ReadinessPanelProps = {
   readiness: ProductReadinessResult | null;
@@ -40,7 +41,9 @@ export function ReadinessPanel({
       </header>
 
       {loading ? (
-        <p className="font-system text-xs text-brand-muted">Loading publish readiness...</p>
+        <p className="font-system text-xs text-brand-muted">
+          Loading publish readiness...
+        </p>
       ) : null}
 
       {!loading && errorMessage ? (
@@ -64,16 +67,8 @@ export function ReadinessPanel({
       readiness &&
       !readiness.isReady &&
       readiness.missingItems.length > 0 ? (
-        <section className="grid gap-grid-xs border border-brand-border-strong p-grid-sm font-system text-[0.8125rem] font-bold [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm" role="status">
-          <p>Missing requirements:</p>
-          <ul>
-            {readiness.missingItems.map((item) => (
-              <li key={item}>{item}</li>
-            ))}
-          </ul>
-        </section>
+        <ReadinessMissingItems items={readiness.missingItems} />
       ) : null}
     </section>
   );
 }
-

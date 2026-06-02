@@ -16,7 +16,7 @@ import {
   type ApiFailure,
   updateProductVariant,
 } from "../api";
-import type { ProductVariantRecord } from "../types";
+import type { ProductPhotoRecord, ProductVariantRecord } from "../types";
 import {
   formatPriceCentavos,
   VariantEditor,
@@ -40,6 +40,7 @@ type EditorState = {
 
 export type VariantListProps = {
   productId: string;
+  availableImages?: ProductPhotoRecord[];
   autoLoad?: boolean;
   initialVariants?: ProductVariantRecord[];
   initialLoadState?: LoadState;
@@ -47,6 +48,7 @@ export type VariantListProps = {
   allowMutations?: boolean;
   mutationDisabledReason?: string | null;
   onEditorOpenChange?: (open: boolean) => void;
+  onVariantsChange?: () => Promise<void> | void;
 };
 
 function sortVariants(rows: ProductVariantRecord[]): ProductVariantRecord[] {
@@ -147,6 +149,7 @@ function filterVariants(
 
 export function VariantList({
   productId,
+  availableImages = [],
   autoLoad = true,
   initialVariants = [],
   initialLoadState = "loading",
@@ -154,6 +157,7 @@ export function VariantList({
   allowMutations = true,
   mutationDisabledReason = null,
   onEditorOpenChange,
+  onVariantsChange,
 }: VariantListProps) {
   const [loadState, setLoadState] = useState<LoadState>(initialLoadState);
   const [variants, setVariants] = useState<ProductVariantRecord[]>(
@@ -253,6 +257,20 @@ export function VariantList({
         cell: (variant) => formatPriceCentavos(variant.priceCentavos),
       },
       {
+        key: "image",
+        header: "Image",
+        cell: (variant) => {
+          if (!variant.imageReferenceId) {
+            return "Product primary";
+          }
+
+          const image = availableImages.find(
+            (row) => row.id === variant.imageReferenceId
+          );
+          return image?.name || "Assigned image";
+        },
+      },
+      {
         key: "inventory",
         header: "Stock / State",
         cell: (variant) => (
@@ -338,7 +356,7 @@ export function VariantList({
         },
       },
     ],
-    [allowMutations, mutationDisabledReason]
+    [allowMutations, availableImages, mutationDisabledReason]
   );
 
   async function handleArchiveVariant() {
@@ -357,6 +375,11 @@ export function VariantList({
           previous.map((row) => (row.id === archived.id ? archived : row))
         )
       );
+      try {
+        await onVariantsChange?.();
+      } catch {
+        // Parent refresh failure should not hide successful archive.
+      }
       setToast({
         tone: "success",
         title: "Variant archived",
@@ -405,6 +428,7 @@ export function VariantList({
           stock: input.stock,
           isPreorder: input.isPreorder,
           expectedRelease: input.expectedRelease,
+          imageReferenceId: input.imageReferenceId,
           variationChain: input.variationChain,
         });
 
@@ -424,6 +448,7 @@ export function VariantList({
             priceCentavos: input.priceCentavos,
             stock: input.stock,
             expectedRelease: input.expectedRelease,
+            imageReferenceId: input.imageReferenceId,
             variationChain: input.variationChain,
             isPreorder: input.isPreorder,
           }
@@ -445,6 +470,11 @@ export function VariantList({
 
       setEditorState(null);
       setRefreshToken((value) => value + 1);
+      try {
+        await onVariantsChange?.();
+      } catch {
+        // Parent refresh failure should not hide successful save.
+      }
     } catch (error) {
       const message = productActionErrorMessage(
         error,
@@ -643,6 +673,7 @@ export function VariantList({
           onClose={() => setEditorState(null)}
           onSave={handleSaveVariant}
           open={true}
+          availableImages={availableImages}
           referenceVariants={variants}
           saving={saving}
           variant={editorState.variant}

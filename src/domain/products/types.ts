@@ -161,6 +161,7 @@ export type CreateProductVariantInput = {
   stock?: number;
   isPreorder?: boolean;
   expectedRelease?: string | null;
+  imageReferenceId?: string | null;
   variationChain?: ProductVariantOption[];
 };
 
@@ -171,6 +172,7 @@ export type UpdateProductVariantInput = {
   stock?: number;
   isPreorder?: boolean;
   expectedRelease?: string | null;
+  imageReferenceId?: string | null;
   variationChain?: ProductVariantOption[];
 };
 

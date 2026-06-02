@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Button, Modal, Select, Textarea } from "@/components/ui";
+import { Button, Select, Textarea } from "@/components/ui";
 import { mergeClassNames } from "@/components/utils";
 import { inventoryStateConsistent } from "../inventoryStateConsistent";
 import { zodCreateProductInput } from "../productEditorSchema";
@@ -32,9 +32,13 @@ import type {
   ProductRecord,
   ProductVariantRecord,
 } from "../types";
-import { ImageList } from "./ImageList";
-import { ImageUpload } from "./ImageUpload";
+import { CategoryAssignmentPicker } from "./CategoryAssignmentPicker";
 import { InventoryAdjuster } from "./InventoryAdjuster";
+import {
+  ProductEditorChrome,
+  type ProductEditorSurface,
+} from "./ProductEditorChrome";
+import { ProductMediaManager } from "./ProductMediaManager";
 import { PublishControl } from "./PublishControl";
 import { ReadinessPanel } from "./ReadinessPanel";
 import { VariantList } from "./VariantList";
@@ -42,8 +46,6 @@ import { InputBox } from "@/components/ui/InputBox";
 
 type ProductEditorMode = "create" | "edit";
 
-const imageFeedbackClass =
-  "border border-brand-border-strong p-grid-sm font-system text-[0.8125rem] font-bold [&_p]:m-0";
 const publishFeedbackClass =
   "grid gap-grid-xs border border-brand-border-strong p-grid-sm font-system text-[0.8125rem] font-bold [&_p]:m-0 [&_ul]:m-0 [&_ul]:pl-grid-sm";
 const feedbackToneClass = {
@@ -85,6 +87,7 @@ export type ProductEditorProps = {
   mutationsBlocked?: boolean;
   mutationBlockReason?: string | null;
   product?: ProductRecord | null;
+  closeLabel?: string;
   mode: ProductEditorMode;
   onClose: () => void;
   onProductStatusChange?: (
@@ -94,6 +97,7 @@ export type ProductEditorProps = {
   onSave: (input: ProductEditorSaveInput) => Promise<void>;
   open: boolean;
   saving?: boolean;
+  surface?: ProductEditorSurface;
 };
 
 function emptyValidationState(): ProductEditorValidationState {
@@ -562,91 +566,6 @@ function allowedNextActionFromError(error: unknown): string | null {
   return null;
 }
 
-function ProductSetupGuide({
-  activeVariantCount,
-  categoryCount,
-  hasAvailableVariant,
-  imageCount,
-  loadingVariants,
-}: {
-  activeVariantCount: number;
-  categoryCount: number;
-  hasAvailableVariant: boolean;
-  imageCount: number;
-  loadingVariants: boolean;
-}) {
-  const requiredReady =
-    categoryCount > 0 && activeVariantCount > 0 && hasAvailableVariant;
-  const rows = [
-    {
-      label: "Category",
-      status: categoryCount > 0 ? `${categoryCount} selected` : "Required next",
-      ready: categoryCount > 0,
-    },
-    {
-      label: "Variant",
-      status: loadingVariants
-        ? "Checking variants"
-        : activeVariantCount > 0
-          ? `${activeVariantCount} active`
-          : "Required next",
-      ready: activeVariantCount > 0,
-    },
-    {
-      label: "Availability",
-      status: loadingVariants
-        ? "Checking stock"
-        : activeVariantCount <= 0
-          ? "After variant"
-          : hasAvailableVariant
-            ? "Ready"
-            : "Set stock or preorder",
-      ready: hasAvailableVariant,
-    },
-    {
-      label: "Image",
-      status:
-        imageCount > 0
-          ? `${imageCount} uploaded`
-          : "Optional; placeholder used",
-      ready: true,
-    },
-  ];
-
-  return (
-    <section
-      aria-label="Product setup next steps"
-      className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm"
-    >
-      <header className="grid gap-grid-xs">
-        <p className="m-0 text-sm font-bold">Next catalog steps</p>
-        <p className="font-system text-xs text-brand-muted">
-          {requiredReady
-            ? "Required setup is ready. Review publish readiness below."
-            : "Finish required rows, then publish. Image upload can wait."}
-        </p>
-      </header>
-      <div className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,160px),1fr))] border border-brand-border-strong">
-        {rows.map((row) => (
-          <div
-            className="grid gap-grid-xs border-r border-brand-border p-grid-sm last:border-r-0 max-md:border-b max-md:border-r-0 max-md:last:border-b-0"
-            key={row.label}
-          >
-            <span className="font-system text-xs font-bold uppercase text-brand-muted">
-              {row.label}
-            </span>
-            <strong
-              className={row.ready ? "text-brand-success" : "text-brand-danger"}
-            >
-              {row.status}
-            </strong>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 export function ProductEditor({
   availableBrands = [],
   availableCategories = [],
@@ -656,12 +575,14 @@ export function ProductEditor({
   mutationsBlocked = false,
   mutationBlockReason = null,
   product = null,
+  closeLabel = "Cancel",
   mode,
   onClose,
   onProductStatusChange,
   onSave,
   open,
   saving = false,
+  surface = "modal",
 }: ProductEditorProps) {
   const [form, setForm] = useState<ProductEditorFormState>(() =>
     toEditorFormState({
@@ -821,6 +742,17 @@ export function ProductEditor({
     }
   }
 
+  async function reloadPublishDependencies(productId: string): Promise<void> {
+    const results = await Promise.allSettled([
+      reloadVariants(productId),
+      reloadReadiness(productId),
+    ]);
+
+    if (results.some((result) => result.status === "rejected")) {
+      setReadinessLoadState("failed");
+    }
+  }
+
   useEffect(() => {
     if (!open || mode !== "edit" || !editingProductId) {
       setImages([]);
@@ -939,20 +871,6 @@ export function ProductEditor({
     () => variants.find((variant) => variant.id === selectedVariantId) ?? null,
     [selectedVariantId, variants]
   );
-  const activeVariantCount = useMemo(
-    () => variants.filter((variant) => variant.status === "ACTIVE").length,
-    [variants]
-  );
-  const hasAvailableVariant = useMemo(
-    () =>
-      variants.some(
-        (variant) =>
-          variant.status === "ACTIVE" &&
-          (variant.hasAvailableStock || variant.inventoryState === "PREORDER")
-      ),
-    [variants]
-  );
-
   useEffect(() => {
     if (!selectedVariant) {
       setInventoryQuantity("0");
@@ -1078,6 +996,9 @@ export function ProductEditor({
       await onSave(result.value);
       setBaselineForm(serializeFormState(form));
       setValidation(emptyValidationState());
+      if (mode === "edit" && editingProductId) {
+        await reloadPublishDependencies(editingProductId);
+      }
     } catch (error) {
       setValidation({
         summary: [actionErrorMessage(error)],
@@ -1453,17 +1374,22 @@ export function ProductEditor({
               : "Membership status: Brand membership required for selected brand.";
 
   return (
-    <Modal
-      className={mode === "edit" ? "!w-[min(100%,1040px)]" : undefined}
+    <ProductEditorChrome
+      className={
+        surface === "modal" && mode === "edit"
+          ? "!w-[min(100%,1040px)]"
+          : undefined
+      }
       description="You can create or edit product identity before variants, pricing, stock, and publishing."
       onClose={handleClose}
       open={open}
+      surface={surface}
       title={mode === "create" ? "Create product" : "Edit product"}
       footer={
         variantEditorOpen ? null : (
           <>
             <Button onClick={handleClose} variant="secondary">
-              Cancel
+              {closeLabel}
             </Button>
             <Button
               disabled={mode === "edit" && mutationsBlocked}
@@ -1577,102 +1503,53 @@ export function ProductEditor({
                 ))}
               </Select>
 
-              <Select
-                description="Assign one or more active categories. Archived categories are rejected."
+              <CategoryAssignmentPicker
+                categories={availableCategories}
                 disabled={!organizationReady || saving || mutationsBlocked}
                 error={validation.fields.categoryIds}
-                label="Categories"
-                multiple
-                onChange={(event) =>
-                  updateField(
-                    "categoryIds",
-                    Array.from(
-                      event.currentTarget.selectedOptions,
-                      (option) => option.value
-                    )
-                  )
+                loading={!organizationReady && !organizationUnavailable}
+                onChange={(categoryIds) =>
+                  updateField("categoryIds", categoryIds)
                 }
-                selectClassName="min-h-[8.5rem]"
-                size={Math.min(Math.max(availableCategories.length, 2), 8)}
-                value={form.categoryIds}
-              >
-                {availableCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </Select>
-
-              <p className="font-system text-xs text-brand-muted">
-                {organizationReady
-                  ? `Category links selected: ${form.categoryIds.length}`
-                  : organizationUnavailable
-                    ? "Product organization unavailable. Save updates for identity only."
-                    : "Loading product organization..."}
-              </p>
+                selectedCategoryIds={form.categoryIds}
+              />
             </>
           ) : null}
         </form>
 
         {mode === "edit" && editingProductId ? (
-          <ProductSetupGuide
-            activeVariantCount={activeVariantCount}
-            categoryCount={form.categoryIds.length}
-            hasAvailableVariant={hasAvailableVariant}
-            imageCount={images.length}
-            loadingVariants={variantLoadState === "loading"}
+          <ProductMediaManager
+            busy={imageBusy}
+            disabled={
+              !organizationReady || saving || imageBusy || mutationsBlocked
+            }
+            feedback={imageFeedback}
+            images={images}
+            loading={imageLoadState === "loading"}
+            onRemove={handleRemoveImage}
+            onReorder={handleReorderImage}
+            onSetPrimary={handleSetPrimaryImage}
+            onUpload={async (input) => {
+              await handleUploadImage(input.image);
+            }}
+            productName={product?.name}
           />
-        ) : null}
-
-        {mode === "edit" && editingProductId ? (
-          <section className="grid gap-grid-sm border-t border-brand-border pt-grid-sm">
-            {imageFeedback ? (
-              <section
-                aria-live="assertive"
-                className={mergeClassNames(
-                  imageFeedbackClass,
-                  feedbackToneClass[imageFeedback.tone]
-                )}
-                role={imageFeedback.tone === "error" ? "alert" : "status"}
-              >
-                <p>{imageFeedback.message}</p>
-              </section>
-            ) : null}
-
-            <ImageUpload
-              disabled={
-                !organizationReady || saving || imageBusy || mutationsBlocked
-              }
-              onUpload={async (input) => {
-                await handleUploadImage(input.image);
-              }}
-              uploading={imageBusy}
-            />
-
-            <ImageList
-              busy={
-                saving || imageBusy || !organizationReady || mutationsBlocked
-              }
-              images={images}
-              loading={imageLoadState === "loading"}
-              onRemove={handleRemoveImage}
-              onReorder={handleReorderImage}
-              onSetPrimary={handleSetPrimaryImage}
-              productName={product?.name}
-            />
-          </section>
         ) : null}
 
         {mode === "edit" && editingProductId ? (
           <section className="grid gap-grid-sm border-t border-brand-border pt-grid-sm">
             <VariantList
               allowMutations={!mutationsBlocked && organizationReady}
+              availableImages={images}
               embedded
               mutationDisabledReason={
                 mutationBlockReason ??
                 "You need active membership in this product brand."
               }
               onEditorOpenChange={setVariantEditorOpen}
+              onVariantsChange={async () => {
+                await reloadPublishDependencies(editingProductId);
+              }}
               productId={editingProductId}
             />
           </section>
@@ -1846,6 +1723,6 @@ export function ProductEditor({
           </section>
         ) : null}
       </div>
-    </Modal>
+    </ProductEditorChrome>
   );
 }
