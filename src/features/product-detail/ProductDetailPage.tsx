@@ -261,8 +261,11 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
             selectedImageId={effectiveSelectedImageId}
           />
 
-          <section className="" aria-label="Product details">
-            <section className="mb-5">
+          <section
+            className="grid content-start gap-y-5"
+            aria-label="Product details"
+          >
+            <section>
               <h1
                 className="brand-title-base text-[clamp(2rem,6vw,4rem)]"
                 id="product-detail-title"
@@ -296,7 +299,7 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
               ) : null}
             </section>
 
-            <div className="grid mb-5">
+            <div className="grid">
               <p className="brand-title-secondary">Price</p>
               <p className="brand-title-big text-brand-accent">{priceLabel}</p>
             </div>
@@ -308,7 +311,7 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
               variants={detail.variants}
             />
 
-            <div className="grid gap-grid-sm pt-grid-xs sm:grid-cols-[minmax(0,1fr)_auto] items-start mb-5">
+            <div className="grid gap-grid-sm pt-grid-xs sm:grid-cols-[minmax(0,1fr)_auto] items-start">
               <div className="grid items-start">
                 <p className="brand-title-secondary mb-1">Availability</p>
                 <div className="flex flex-wrap items-center gap-grid-xs">
