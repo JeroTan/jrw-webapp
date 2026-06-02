@@ -250,7 +250,7 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
       className="grid gap-grid-lg"
     >
       <section
-        className="grid gap-grid-md border border-brand-border p-grid-sm md:p-grid-md"
+        className="grid gap-grid-md "
         data-product-detail-module="product-details"
       >
         <div className="grid gap-grid-md lg:grid-cols-[minmax(0,40%)_minmax(0,60%)]">
@@ -261,44 +261,44 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
             selectedImageId={effectiveSelectedImageId}
           />
 
-          <section className="grid content-start gap-grid-sm border border-brand-border bg-brand-background p-grid-md">
-            <h1
-              className="m-0 max-w-[18ch] font-identity text-[clamp(2rem,6vw,4rem)] wrap-anywhere"
-              id="product-detail-title"
-            >
-              {detail.product.name}
-            </h1>
+          <section className="" aria-label="Product details">
+            <section className="mb-5">
+              <h1
+                className="brand-title-base text-[clamp(2rem,6vw,4rem)]"
+                id="product-detail-title"
+              >
+                {detail.product.name}
+              </h1>
 
-            <div className="flex flex-wrap items-center gap-grid-xs">
-              {detail.product.brandName ? (
-                <span className="font-system text-xs font-bold uppercase text-brand-muted">
-                  {detail.product.brandName}
-                </span>
+              <div className="flex flex-wrap items-center gap-grid-xs mb-2">
+                {detail.product.brandName ? (
+                  <>
+                    <span className="brand-title-secondary">
+                      {detail.product.brandName}
+                    </span>
+                    <span className="brand-title-secondary">/</span>
+                  </>
+                ) : null}
+                {detail.product.categories.map((category) => (
+                  <a
+                    className={`brand-title-secondary inline-flex items-center hover:border-b`}
+                    href={category.href}
+                    key={category.id}
+                  >
+                    {category.name}
+                  </a>
+                ))}
+              </div>
+              {detail.product.summary ? (
+                <p className="brand-paragraph-secondary">
+                  {detail.product.summary}
+                </p>
               ) : null}
-              {detail.product.categories.map((category) => (
-                <a
-                  className={`inline-flex min-h-control-md items-center border border-brand-border px-grid-xs font-system text-xs font-bold uppercase text-brand-muted no-underline ${linkOutlineClass}`}
-                  href={category.href}
-                  key={category.id}
-                >
-                  {category.name}
-                </a>
-              ))}
-            </div>
+            </section>
 
-            {detail.product.summary ? (
-              <p className="m-0 text-[0.9375rem] text-brand-muted">
-                {detail.product.summary}
-              </p>
-            ) : null}
-
-            <div className="grid gap-[0.2rem] pt-grid-xs">
-              <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-                Selected price
-              </p>
-              <p className="m-0 font-identity text-[clamp(1.35rem,4vw,2rem)] font-bold">
-                {priceLabel}
-              </p>
+            <div className="grid mb-5">
+              <p className="brand-title-secondary">Price</p>
+              <p className="brand-title-big text-brand-accent">{priceLabel}</p>
             </div>
 
             <VariantSelector
@@ -308,21 +308,14 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
               variants={detail.variants}
             />
 
-            <div className="grid gap-grid-sm pt-grid-xs sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-              <div className="grid gap-grid-xs">
-                <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-                  Availability
-                </p>
+            <div className="grid gap-grid-sm pt-grid-xs sm:grid-cols-[minmax(0,1fr)_auto] items-start mb-5">
+              <div className="grid items-start">
+                <p className="brand-title-secondary mb-1">Availability</p>
                 <div className="flex flex-wrap items-center gap-grid-xs">
                   <StatusBadge
                     label={availabilityLabel}
                     tone={availability.tone}
                   />
-                  {selectedVariant ? (
-                    <span className="font-system text-xs font-bold uppercase text-brand-muted">
-                      {selectedVariant.label}
-                    </span>
-                  ) : null}
                 </div>
               </div>
               <ProductQuantityControl

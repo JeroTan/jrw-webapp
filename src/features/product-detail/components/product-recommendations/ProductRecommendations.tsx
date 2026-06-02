@@ -18,12 +18,14 @@ export function ProductRecommendations({
   return (
     <section
       aria-labelledby="product-recommendations-title"
-      className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-md"
+      className="grid gap-grid-sm bg-brand-surface"
       data-product-detail-module="recommendations"
     >
       <RecommendationHeader recommendations={recommendations} />
       <RecommendationGrid products={recommendations.items} />
-      <RecommendationViewMore recommendations={recommendations} />
+      <div className="flex justify-center">
+        <RecommendationViewMore recommendations={recommendations} />
+      </div>
     </section>
   );
 }

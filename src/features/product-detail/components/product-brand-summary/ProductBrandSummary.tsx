@@ -15,10 +15,13 @@ export function ProductBrandSummary({ brand }: ProductBrandSummaryProps) {
   return (
     <section
       aria-labelledby="product-brand-title"
-      className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-md"
+      className="grid gap-grid-sm bg-brand-surface"
       data-product-detail-module="brand-summary"
     >
-      <h2 className="m-0 text-[clamp(1.4rem,4vw,2rem)]" id="product-brand-title">
+      <h2
+        className="m-0 text-[clamp(1.4rem,4vw,2rem)]"
+        id="product-brand-title"
+      >
         Brand details
       </h2>
       <div className="grid gap-grid-sm sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">

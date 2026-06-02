@@ -28,7 +28,7 @@ export function ProductDetailErrorState({
         Product
       </p>
       <h1
-        className="m-0 max-w-[18ch] font-identity text-[clamp(2rem,8vw,4rem)] [overflow-wrap:anywhere]"
+        className="m-0 max-w-[18ch] font-identity text-[clamp(2rem,8vw,4rem)] wrap-anywhere"
         id="product-detail-error-title"
       >
         {error.title}

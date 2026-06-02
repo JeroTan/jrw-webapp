@@ -41,10 +41,26 @@
   --font-data: "Space Mono", "Courier New", monospace;
 }
 
+.brand-title-base {
+  @apply font-identity font-extrabold leading-tight wrap-anywhere;
+}
+
 .brand-title {
   @apply font-identity text-lg font-extrabold leading-tight wrap-anywhere;
 }
 
+.brand-title-big {
+  @apply font-identity text-2xl font-extrabold leading-tight wrap-anywhere;
+}
+
+.brand-title-2big {
+  @apply font-identity text-4xl font-extrabold leading-tight wrap-anywhere;
+}
+
 .brand-title-secondary {
   @apply font-system text-xs font-bold uppercase text-brand-muted;
+}
+
+.brand-paragraph-secondary {
+  @apply font-system text-sm text-brand-muted;
 }

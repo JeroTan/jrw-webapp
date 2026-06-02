@@ -45,11 +45,8 @@ export function ProductQuantityControl({
   const max = Math.max(1, Math.trunc(maxQuantity));
 
   return (
-    <div className="grid gap-1">
-      <label
-        className="font-system text-xs font-bold uppercase text-brand-muted"
-        htmlFor="product-quantity"
-      >
+    <div className="grid mb-2">
+      <label className="brand-title-secondary mb-2" htmlFor="product-quantity">
         Quantity
       </label>
       <div className="flex">

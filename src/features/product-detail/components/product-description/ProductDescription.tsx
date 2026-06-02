@@ -12,7 +12,7 @@ export function ProductDescription({ description }: ProductDescriptionProps) {
   return (
     <section
       aria-labelledby="product-description-title"
-      className="grid gap-grid-sm border border-brand-border bg-brand-background p-grid-md"
+      className="grid gap-grid-sm"
       data-product-detail-module="product-description"
     >
       <h2
