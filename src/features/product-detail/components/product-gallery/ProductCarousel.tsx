@@ -12,7 +12,7 @@ type ProductCarouselProps = {
 };
 
 const thumbnailOutlineClass =
-  "hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
+  "hover:border-2 hover:border-brand-accent focus-visible:border-2 focus-visible:border-offset-2 focus-visible:border-brand-accent";
 
 export function ProductCarousel({
   gallery,
@@ -26,7 +26,7 @@ export function ProductCarousel({
   }
 
   return (
-    <div className="grid grid-cols-[auto_1fr_auto] items-stretch gap-grid-xs">
+    <div className="grid grid-cols-[auto_1fr_auto] items-center gap-grid-xs">
       <Button
         aria-label="Previous product image"
         onClick={onPreviousImage}
@@ -38,7 +38,7 @@ export function ProductCarousel({
 
       <ul
         aria-label="Product image thumbnails"
-        className="m-0 grid list-none grid-flow-col auto-cols-[minmax(72px,88px)] gap-grid-xs overflow-x-auto p-0"
+        className="m-0 grid list-none grid-flow-col grid-cols-5 overflow-x-auto p-0"
       >
         {gallery.map((image) => {
           const isSelected = image.id === selectedImageId;
@@ -56,10 +56,10 @@ export function ProductCarousel({
                 onClick={() => onSelectImage(image.id)}
                 type="button"
               >
-                <span className="grid aspect-square">
+                <span className="block aspect-square overflow-hidden">
                   <img
                     alt=""
-                    className="h-full w-full object-contain"
+                    className="size-full object-cover"
                     height={image.height ?? undefined}
                     loading="lazy"
                     src={image.src}
