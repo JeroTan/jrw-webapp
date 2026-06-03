@@ -3,6 +3,11 @@ import {
   NoopAuditEventPublisher,
   type AuditEventPublisher,
 } from "@/domain/audit/events";
+import { createId } from "@paralleldrive/cuid2";
+import {
+  PRODUCT_IMAGE_ALLOWED_CONTENT_TYPES,
+  PRODUCT_IMAGE_MAX_FILE_SIZE_BYTES,
+} from "@/domain/products/schemas";
 import {
   acceptBrandInvitation as acceptBrandInvitationDraft,
   approveBrandJoinRequest as approveBrandJoinRequestDraft,
@@ -30,6 +35,7 @@ import type {
   BrandRecord,
   BrandRepository,
 } from "@/server/repositories/BrandRepository";
+import type { ImageRepository } from "@/server/repositories/ImageRepository";
 import { GeneralError } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
 
@@ -63,6 +69,14 @@ export type UpdateBrandServiceInput = {
   requestId: string;
   brandId: string;
   body: Record<string, unknown>;
+};
+
+export type UploadBrandImageServiceInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+  file: File;
+  name?: string | null;
 };
 
 export type ArchiveBrandServiceInput = {
@@ -168,6 +182,10 @@ export type BrandUpdateResult = {
   brand: BrandRecord;
 };
 
+export type BrandImageUploadResult = {
+  brand: BrandRecord;
+};
+
 export type BrandArchiveResult = {
   brand: BrandRecord;
 };
@@ -221,6 +239,7 @@ export type BrandProductMutationGuardResult = {
 
 export type BrandServiceOptions = {
   repository: BrandRepository;
+  imageRepository?: ImageRepository;
   auditPublisher?: AuditEventPublisher;
   accountEmails?: AccountEmailNotifier;
   invitationEmailsEnabled?: boolean;
@@ -261,6 +280,19 @@ function isUniqueConstraintError(error: unknown): boolean {
   );
 }
 
+function contentTypeToExtension(contentType: string): string {
+  switch (contentType) {
+    case "image/jpeg":
+      return "jpg";
+    case "image/png":
+      return "png";
+    case "image/webp":
+      return "webp";
+    default:
+      return "bin";
+  }
+}
+
 function mapBrandDomainErrorCode(
   code: string
 ): "VALIDATION_FAILED" | "CONFLICT_STATE" | "AUTH_FORBIDDEN" {
@@ -299,6 +331,7 @@ function normalizeInviteEmail(value: string): string {
 export class BrandService {
   private readonly repository: BrandRepository;
   private readonly auditPublisher: AuditEventPublisher;
+  private readonly imageRepository: ImageRepository | null;
   private readonly accountEmails: AccountEmailNotifier;
   private readonly invitationEmailsEnabled: boolean;
   private readonly brandInvitationActionUrl: string | null;
@@ -308,6 +341,7 @@ export class BrandService {
     this.repository = options.repository;
     this.auditPublisher =
       options.auditPublisher ?? new NoopAuditEventPublisher();
+    this.imageRepository = options.imageRepository ?? null;
     this.accountEmails = options.accountEmails ?? noopAccountEmails;
     this.invitationEmailsEnabled = options.invitationEmailsEnabled ?? false;
     this.brandInvitationActionUrl = options.brandInvitationActionUrl ?? null;
@@ -370,10 +404,7 @@ export class BrandService {
     }
 
     if (this.hasOwnField(body, "description")) {
-      if (
-        typeof body.description === "string" ||
-        body.description === null
-      ) {
+      if (typeof body.description === "string" || body.description === null) {
         patch.description = body.description;
       } else {
         reasons.push("description:type");
@@ -385,6 +416,67 @@ export class BrandService {
     }
 
     return Result.okay(patch);
+  }
+
+  private validateBrandImageFile(
+    file: File
+  ): AppResult<{ contentType: string }> {
+    const contentType = file.type;
+
+    if (
+      !PRODUCT_IMAGE_ALLOWED_CONTENT_TYPES.includes(
+        contentType as (typeof PRODUCT_IMAGE_ALLOWED_CONTENT_TYPES)[number]
+      )
+    ) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", {
+          reason: "UNSUPPORTED_IMAGE_TYPE",
+          allowedTypes: [...PRODUCT_IMAGE_ALLOWED_CONTENT_TYPES],
+        })
+      );
+    }
+
+    if (file.size <= 0) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", { reason: "EMPTY_IMAGE_FILE" })
+      );
+    }
+
+    if (file.size > PRODUCT_IMAGE_MAX_FILE_SIZE_BYTES) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", {
+          reason: "IMAGE_TOO_LARGE",
+          maxBytes: PRODUCT_IMAGE_MAX_FILE_SIZE_BYTES,
+        })
+      );
+    }
+
+    return Result.okay({ contentType });
+  }
+
+  private brandImageObjectKey(input: {
+    brandId: string;
+    imageId: string;
+    contentType: string;
+  }): string {
+    return `brands/${input.brandId}/${input.imageId}.${contentTypeToExtension(
+      input.contentType
+    )}`;
+  }
+
+  private imageAlt(input: {
+    brand: BrandRecord;
+    file: File;
+    name?: string | null;
+  }): string {
+    const explicitName =
+      typeof input.name === "string" && input.name.trim().length > 0
+        ? input.name.trim()
+        : null;
+    const fileName = input.file.name.trim();
+    return (
+      explicitName ?? (fileName.length > 0 ? fileName : input.brand.name)
+    ).slice(0, 255);
   }
 
   private extractInviteTarget(
@@ -529,9 +621,11 @@ export class BrandService {
     return Math.min(pageSize, MAX_PAGE_SIZE);
   }
 
-  private normalizeListQuery(
-    query: ListBrandQueryInput
-  ): { page: number; pageSize: number; status?: string } {
+  private normalizeListQuery(query: ListBrandQueryInput): {
+    page: number;
+    pageSize: number;
+    status?: string;
+  } {
     const page = this.normalizePage(query.page);
     const pageSize = this.normalizePageSize(query.pageSize);
     const status =
@@ -602,16 +696,18 @@ export class BrandService {
     const adminIds = Array.from(
       new Set(
         rows.flatMap((row) =>
-          row.invitedByAdminId ? [row.adminId, row.invitedByAdminId] : [row.adminId]
+          row.invitedByAdminId
+            ? [row.adminId, row.invitedByAdminId]
+            : [row.adminId]
         )
       )
     );
 
     const admins = await Promise.all(
-      adminIds.map(async (adminId) => [
-        adminId,
-        await this.repository.findAdminById(adminId),
-      ] as const)
+      adminIds.map(
+        async (adminId) =>
+          [adminId, await this.repository.findAdminById(adminId)] as const
+      )
     );
     const adminMap = new Map(admins);
 
@@ -619,7 +715,7 @@ export class BrandService {
       ...row,
       adminEmail: adminMap.get(row.adminId)?.email ?? row.adminId,
       invitedByLabel: row.invitedByAdminId
-        ? adminMap.get(row.invitedByAdminId)?.email ?? row.invitedByAdminId
+        ? (adminMap.get(row.invitedByAdminId)?.email ?? row.invitedByAdminId)
         : undefined,
     }));
   }
@@ -757,6 +853,108 @@ export class BrandService {
     }
   }
 
+  async uploadBrandImage(
+    input: UploadBrandImageServiceInput
+  ): Promise<AppResult<BrandImageUploadResult>> {
+    const actor = this.requireAdminActor(input.actor);
+    if (actor.error) return actor;
+
+    if (!this.imageRepository) {
+      return Result.error(
+        serviceError("PROVIDER_UNAVAILABLE", {
+          reason: "missing_storage_binding",
+        })
+      );
+    }
+
+    try {
+      const brand = await this.repository.findBrandById(input.brandId);
+      if (!brand) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", { reason: "BRAND_NOT_FOUND" })
+        );
+      }
+
+      if (!this.hasElevatedPermission(actor.content.role)) {
+        const membership = await this.repository.findMembershipByBrandAndAdmin(
+          input.brandId,
+          actor.content.actorId
+        );
+        if (!this.isActiveBrandMember(membership)) {
+          return Result.error(serviceError("AUTH_FORBIDDEN"));
+        }
+      }
+
+      const validation = this.validateBrandImageFile(input.file);
+      if (validation.error) return validation;
+
+      const imageId = createId();
+      const key = this.brandImageObjectKey({
+        brandId: input.brandId,
+        imageId,
+        contentType: validation.content.contentType,
+      });
+      const uploaded = await this.imageRepository.upload(input.file, key);
+      const timestamp = this.now().toISOString();
+
+      let updatedBrand: BrandRecord;
+      try {
+        updatedBrand = await this.repository.updateBrandImage(input.brandId, {
+          imageId: uploaded.url,
+          imageR2Key: uploaded.key,
+          imageAlt: this.imageAlt({
+            brand,
+            file: input.file,
+            name: input.name,
+          }),
+          updatedAt: timestamp,
+        });
+      } catch (error) {
+        try {
+          await this.imageRepository.delete(uploaded.key);
+        } catch {
+          // Best-effort rollback only.
+        }
+        throw error;
+      }
+
+      const auditEvent = createAuditEvent({
+        requestId: input.requestId,
+        action: "brand.updated",
+        actor: {
+          type: "user",
+          id: actor.content.actorId,
+          role: actor.content.role,
+        },
+        target: {
+          entity: "brand",
+          entityId: updatedBrand.id,
+        },
+        safeDetails: {
+          requestId: input.requestId,
+          changedFields: {
+            image: {
+              from: brand.imageSrc,
+              to: updatedBrand.imageSrc,
+            },
+          },
+          timestamp,
+        },
+        occurredAt: timestamp,
+      });
+
+      await this.auditPublisher.publish(auditEvent);
+
+      return Result.okay({ brand: updatedBrand });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
   async inviteAdminToBrand(
     input: InviteBrandServiceInput
   ): Promise<AppResult<BrandInviteResult>> {
@@ -774,10 +972,11 @@ export class BrandService {
         );
       }
 
-      const actorMembership = await this.repository.findMembershipByBrandAndAdmin(
-        input.brandId,
-        actor.content.actorId
-      );
+      const actorMembership =
+        await this.repository.findMembershipByBrandAndAdmin(
+          input.brandId,
+          actor.content.actorId
+        );
 
       if (
         !this.hasElevatedPermission(actor.content.role) &&
@@ -786,7 +985,9 @@ export class BrandService {
         return Result.error(serviceError("AUTH_FORBIDDEN"));
       }
 
-      const targetAdminResult = await this.findInviteTargetAdmin(target.content);
+      const targetAdminResult = await this.findInviteTargetAdmin(
+        target.content
+      );
       if (targetAdminResult.error) {
         return targetAdminResult;
       }
@@ -812,7 +1013,10 @@ export class BrandService {
             : null,
         },
         targetAdminId:
-          targetAdmin?.id ?? target.content.adminId ?? target.content.email ?? "",
+          targetAdmin?.id ??
+          target.content.adminId ??
+          target.content.email ??
+          "",
         brandId: input.brandId,
         existingMembership: existingMembership
           ? {
@@ -1017,7 +1221,10 @@ export class BrandService {
       });
       if (draft.error) {
         return Result.error(
-          serviceError(mapBrandDomainErrorCode(draft.error.code), draft.error.data)
+          serviceError(
+            mapBrandDomainErrorCode(draft.error.code),
+            draft.error.data
+          )
         );
       }
 
@@ -1060,7 +1267,9 @@ export class BrandService {
     } catch (error) {
       if (isUniqueConstraintError(error)) {
         return Result.error(
-          serviceError("CONFLICT_STATE", { reason: "DUPLICATE_PENDING_REQUEST" })
+          serviceError("CONFLICT_STATE", {
+            reason: "DUPLICATE_PENDING_REQUEST",
+          })
         );
       }
 
@@ -1126,7 +1335,9 @@ export class BrandService {
 
       if (!pendingJoinRequest) {
         return Result.error(
-          serviceError("VALIDATION_FAILED", { reason: "JOIN_REQUEST_NOT_FOUND" })
+          serviceError("VALIDATION_FAILED", {
+            reason: "JOIN_REQUEST_NOT_FOUND",
+          })
         );
       }
 
@@ -1230,7 +1441,9 @@ export class BrandService {
 
       if (!pendingJoinRequest) {
         return Result.error(
-          serviceError("VALIDATION_FAILED", { reason: "JOIN_REQUEST_NOT_FOUND" })
+          serviceError("VALIDATION_FAILED", {
+            reason: "JOIN_REQUEST_NOT_FOUND",
+          })
         );
       }
 
@@ -1323,7 +1536,9 @@ export class BrandService {
         return access;
       }
 
-      const memberships = await this.repository.findBrandMemberships(input.brandId);
+      const memberships = await this.repository.findBrandMemberships(
+        input.brandId
+      );
       return Result.okay({
         items: await this.enrichMembershipRows(memberships),
       });
@@ -1352,7 +1567,9 @@ export class BrandService {
         return access;
       }
 
-      const memberships = await this.repository.findBrandInvitations(input.brandId);
+      const memberships = await this.repository.findBrandInvitations(
+        input.brandId
+      );
       return Result.okay({
         items: await this.enrichMembershipRows(memberships),
       });
@@ -1381,7 +1598,9 @@ export class BrandService {
         return access;
       }
 
-      const memberships = await this.repository.findBrandJoinRequests(input.brandId);
+      const memberships = await this.repository.findBrandJoinRequests(
+        input.brandId
+      );
       return Result.okay({
         items: await this.enrichMembershipRows(memberships),
       });

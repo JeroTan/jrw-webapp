@@ -9,8 +9,8 @@ import { Skeleton } from "@/components/feedback/Skeleton";
 import { StatusBadge } from "@/components/feedback/StatusBadge";
 import { Toast } from "@/components/feedback/Toast";
 import { Button } from "@/components/ui/Button";
+import { ButtonLink } from "@/components/ui/ButtonLink";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { Input } from "@/components/ui/Input";
 import { Tabs } from "@/components/ui/Tabs";
 import {
   approveJoinRequest,
@@ -24,6 +24,7 @@ import {
   inviteBrandMember,
   isNotFoundFailure,
   rejectJoinRequest,
+  uploadBrandImage,
   type ApiFailure,
 } from "../api";
 import { validateBrandCopy } from "../language";
@@ -38,6 +39,7 @@ import type {
 } from "../types";
 import { BrandInviteTable } from "./BrandInviteTable";
 import { BrandJoinRequestTable } from "./BrandJoinRequestTable";
+import { BrandImageMark } from "./BrandImageMark";
 import { BrandMembershipTable } from "./BrandMembershipTable";
 import { InputBox } from "@/components/ui/InputBox";
 
@@ -193,6 +195,40 @@ async function loadCollection<T>(
   }
 }
 
+export function BrandDetailHeader({ brand }: { brand: BrandRecord }) {
+  return (
+    <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-grid-sm max-sm:grid-cols-1">
+        <BrandImageMark
+          imageAlt={brand.imageAlt}
+          imageSrc={brand.imageSrc}
+          name={brand.name}
+          size="lg"
+        />
+        <div className="min-w-0">
+          <p className="font-system text-xs font-bold uppercase text-brand-muted">
+            Catalog collaboration
+          </p>
+          <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">{brand.name}</h1>
+          <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
+            Manage people, invites, join requests, and linked products for this
+            brand.
+          </p>
+        </div>
+      </div>
+      <div className="grid justify-items-end gap-grid-xs max-md:justify-items-start">
+        <ButtonLink href="/admin/brands" size="sm" textSize="xs">
+          Back to brands
+        </ButtonLink>
+        <StatusBadge label={brand.status} tone={statusTone(brand.status)} />
+        <p className="text-xs text-brand-muted">
+          Updated {formatDateTime(brand.updatedAt)}
+        </p>
+      </div>
+    </header>
+  );
+}
+
 export function BrandDetail({ brandId }: { brandId: string }) {
   const [loadState, setLoadState] = useState<LoadState>("loading");
   const [brand, setBrand] = useState<BrandRecord | null>(null);
@@ -206,11 +242,14 @@ export function BrandDetail({ brandId }: { brandId: string }) {
   const [products, setProducts] =
     useState<CollectionState<BrandProductRecord>>(emptyCollection());
   const [inviteEmail, setInviteEmail] = useState("");
+  const [brandImageFile, setBrandImageFile] = useState<File | null>(null);
+  const [brandImageAlt, setBrandImageAlt] = useState("");
   const [actionToast, setActionToast] = useState<ToastState | null>(null);
   const [pendingJoinAdminId, setPendingJoinAdminId] = useState<string | null>(
     null
   );
   const [sendingInvite, setSendingInvite] = useState(false);
+  const [uploadingBrandImage, setUploadingBrandImage] = useState(false);
   const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
   const [archiving, setArchiving] = useState(false);
   const [copyViolations, setCopyViolations] = useState<string[]>([]);
@@ -352,6 +391,47 @@ export function BrandDetail({ brandId }: { brandId: string }) {
     }
   }
 
+  async function handleBrandImageSubmit(
+    event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>
+  ) {
+    event.preventDefault();
+    if (!brand || !brandImageFile) {
+      setActionToast({
+        tone: "warning",
+        title: "Brand image required",
+        message: "Choose an image before uploading.",
+      });
+      return;
+    }
+
+    setUploadingBrandImage(true);
+    try {
+      const updated = await uploadBrandImage(brand.id, {
+        image: brandImageFile,
+        name: brandImageAlt.trim().length > 0 ? brandImageAlt : brand.name,
+      });
+      setBrand(updated);
+      setBrandImageFile(null);
+      setBrandImageAlt("");
+      setActionToast({
+        tone: "success",
+        title: "Image uploaded",
+        message: "Brand image is now visible in brand cards and detail.",
+      });
+    } catch (error) {
+      setActionToast({
+        tone: "error",
+        title: "Image upload failed",
+        message: brandActionErrorMessage(
+          error,
+          "We couldn't upload this brand image right now."
+        ),
+      });
+    } finally {
+      setUploadingBrandImage(false);
+    }
+  }
+
   async function handleJoinDecision(
     action: "approve" | "reject",
     adminId: string
@@ -441,30 +521,48 @@ export function BrandDetail({ brandId }: { brandId: string }) {
 
   return (
     <main className="mx-auto w-full max-w-[1240px] p-grid-md max-md:p-grid-sm">
-      <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
-        <div>
-          <p className="font-system text-xs font-bold uppercase text-brand-muted">
-            Catalog collaboration
-          </p>
-          <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">{brand.name}</h1>
-          <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
-            Manage people, invites, join requests, and linked products for this
-            brand.
-          </p>
-        </div>
-        <div className="grid justify-items-end gap-grid-xs max-md:justify-items-start">
-          <StatusBadge label={brand.status} tone={statusTone(brand.status)} />
-          <p className="text-xs text-brand-muted">
-            Updated {formatDateTime(brand.updatedAt)}
-          </p>
-        </div>
-      </header>
+      <BrandDetailHeader brand={brand} />
 
       <section className="grid gap-grid-sm py-grid-md">
         <div className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm">
           <p className="font-system text-xs font-bold uppercase text-brand-muted">
             Brand actions
           </p>
+          <form
+            className="grid grid-cols-[minmax(220px,1fr)_minmax(220px,1fr)_auto] items-end gap-grid-xs max-md:grid-cols-1"
+            onSubmit={handleBrandImageSubmit}
+          >
+            <InputBox
+              accept="image/jpeg,image/png,image/webp"
+              description="Upload JPEG, PNG, or WEBP up to 5MB."
+              disabled={!permissions.canInviteMembers || uploadingBrandImage}
+              label="Brand image"
+              onChange={(event) =>
+                setBrandImageFile(event.currentTarget.files?.item(0) ?? null)
+              }
+              type="file"
+            />
+            <InputBox
+              disabled={!permissions.canInviteMembers || uploadingBrandImage}
+              label="Image alt text"
+              onChange={(event) => setBrandImageAlt(event.currentTarget.value)}
+              placeholder={brand.name}
+              value={brandImageAlt}
+            />
+            <Button
+              disabled={
+                !permissions.canInviteMembers ||
+                !brandImageFile ||
+                uploadingBrandImage
+              }
+              loading={uploadingBrandImage}
+              loadingLabel="Uploading"
+              type="submit"
+              variant="secondary"
+            >
+              Upload image
+            </Button>
+          </form>
           <form
             className="grid grid-cols-[minmax(260px,1fr)_auto_auto] items-end gap-grid-xs max-md:grid-cols-1"
             onSubmit={handleInviteSubmit}

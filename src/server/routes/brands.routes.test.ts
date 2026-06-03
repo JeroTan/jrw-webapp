@@ -71,11 +71,13 @@ describe("brands routes", () => {
 
     const post = body.paths?.["/api/brands"]?.post;
     const patch = body.paths?.["/api/brands/{id}"]?.patch;
+    const image = body.paths?.["/api/brands/{id}/image"]?.post;
     const detail = body.paths?.["/api/brands/{id}"]?.get;
     const invite = body.paths?.["/api/brands/{id}/invite"]?.post;
     const accept = body.paths?.["/api/brands/{id}/accept"]?.post;
     const join = body.paths?.["/api/brands/{id}/join"]?.post;
-    const approve = body.paths?.["/api/brands/{id}/join/{adminId}/approve"]?.post;
+    const approve =
+      body.paths?.["/api/brands/{id}/join/{adminId}/approve"]?.post;
     const reject = body.paths?.["/api/brands/{id}/join/{adminId}/reject"]?.post;
     const listMembers = body.paths?.["/api/brands/{id}/members"]?.get;
     const listInvites = body.paths?.["/api/brands/{id}/invites"]?.get;
@@ -119,6 +121,12 @@ describe("brands routes", () => {
     });
     expect(patch?.["x-rate-limit-class"]).toBe("admin-write");
     expect(patch?.responses).toHaveProperty("409");
+
+    expect(image?.summary).toBe("Upload brand image");
+    expect(image?.tags).toContain("Brands");
+    expect(image?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(image?.responses).toHaveProperty("413");
+    expect(image?.responses).toHaveProperty("415");
 
     expect(detail?.summary).toBe("Get brand detail");
     expect(detail?.tags).toContain("Brands");
@@ -1675,15 +1683,18 @@ describe("brands routes", () => {
     });
 
     const invalidPayload = await app.handle(
-      new Request("https://jrw.test/api/brands/products/product_1/reassign/guard", {
-        method: "POST",
-        headers: {
-          cookie: "jrw_admin_session=admin-token",
-          "content-type": "application/json",
-          "x-request-id": "req_guard_reassign_invalid_body",
-        },
-        body: JSON.stringify({}),
-      })
+      new Request(
+        "https://jrw.test/api/brands/products/product_1/reassign/guard",
+        {
+          method: "POST",
+          headers: {
+            cookie: "jrw_admin_session=admin-token",
+            "content-type": "application/json",
+            "x-request-id": "req_guard_reassign_invalid_body",
+          },
+          body: JSON.stringify({}),
+        }
+      )
     );
     expect(invalidPayload.status).toBe(400);
     await expect(invalidPayload.json()).resolves.toMatchObject({

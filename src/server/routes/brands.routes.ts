@@ -1,5 +1,9 @@
 import { t } from "elysia";
 import { createAccountEmailNotifier } from "@/adapter/infrastructure/resend/CustomerVerificationEmailNotifier";
+import {
+  PRODUCT_IMAGE_ALLOWED_CONTENT_TYPES,
+  PRODUCT_IMAGE_MAX_FILE_SIZE_BYTES,
+} from "@/domain/products/schemas";
 import { tboxApiSuccess, openApiErrorResponses } from "@/lib/typebox/api";
 import {
   BrandController,
@@ -11,6 +15,7 @@ import type {
 } from "@/server/context/request-context";
 import { rbacGuard } from "@/server/middleware/rbac";
 import { routeDetail } from "@/server/openapi/route-metadata";
+import { R2ImageRepository } from "@/server/repositories/ImageRepository";
 import { createBrandRepositories } from "@/server/repositories/BrandRepository";
 import { BrandService } from "@/server/services/BrandService";
 import { GeneralError } from "@/utils/general/error";
@@ -23,6 +28,8 @@ const tboxBrand = t.Object({
   name: t.String({ minLength: 2, maxLength: 120 }),
   slug: t.String({ minLength: 2, maxLength: 120 }),
   description: t.Nullable(t.String({ maxLength: 500 })),
+  imageSrc: t.Optional(t.Nullable(t.String())),
+  imageAlt: t.Optional(t.Nullable(t.String())),
   status: tboxBrandStatus,
   archivedAt: t.Nullable(t.String({ format: "date-time" })),
   createdAt: t.String({ format: "date-time" }),
@@ -33,7 +40,10 @@ const tboxBrandCreateData = t.Object({
   brand: tboxBrand,
 });
 
-const tboxBrandMembershipRole = t.Union([t.Literal("OWNER"), t.Literal("MEMBER")]);
+const tboxBrandMembershipRole = t.Union([
+  t.Literal("OWNER"),
+  t.Literal("MEMBER"),
+]);
 const tboxBrandMembershipStatus = t.Union([
   t.Literal("ACTIVE"),
   t.Literal("PENDING"),
@@ -159,10 +169,24 @@ const tboxUpdateBrandBody = t.Object(
   { additionalProperties: false, minProperties: 1 }
 );
 
+const tboxUploadBrandImageBody = t.Object(
+  {
+    image: t.File({
+      type: [...PRODUCT_IMAGE_ALLOWED_CONTENT_TYPES],
+      maxSize: PRODUCT_IMAGE_MAX_FILE_SIZE_BYTES,
+      minSize: 1,
+    }),
+    name: t.Optional(t.Nullable(t.String({ minLength: 1, maxLength: 255 }))),
+  },
+  { additionalProperties: false }
+);
+
 const tboxInviteBrandBody = t.Object(
   {
     adminId: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
-    email: t.Optional(t.String({ format: "email", minLength: 3, maxLength: 254 })),
+    email: t.Optional(
+      t.String({ format: "email", minLength: 3, maxLength: 254 })
+    ),
   },
   { additionalProperties: false, minProperties: 1 }
 );
@@ -224,6 +248,7 @@ function createRuntimeController(
   input: BrandControllerFactoryInput
 ): BrandController {
   const db = input.runtimeEnv?.DB;
+  const storage = input.runtimeEnv?.STORAGE;
 
   if (!db) {
     throw new GeneralError(
@@ -232,9 +257,19 @@ function createRuntimeController(
     );
   }
 
+  const imageRepository = storage
+    ? new R2ImageRepository({
+        bucket: storage as R2Bucket,
+        publicBaseUrl:
+          typeof input.runtimeEnv?.R2_PUBLIC_URL === "string"
+            ? input.runtimeEnv.R2_PUBLIC_URL
+            : undefined,
+      })
+    : undefined;
   const repositories = createBrandRepositories(db as D1Database);
   const service = new BrandService({
     ...repositories,
+    imageRepository,
     accountEmails: createAccountEmailNotifier(input.runtimeEnv ?? {}, {
       requestUrl: input.request.url,
     }),
@@ -311,10 +346,7 @@ const brandReadErrors = [
 ] as const;
 const brandMutationGuardErrors = [...brandReadErrors] as const;
 
-export function brandsRoutes(
-  app: AnyElysia,
-  options: BrandRoutesOptions = {}
-) {
+export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
   return app
     .post(
       "/brands",
@@ -342,8 +374,7 @@ export function brandsRoutes(
         body: tboxCreateBrandBody,
         detail: routeDetail({
           summary: "Create brand",
-          description:
-            `Creates a brand as JRW catalog collaboration group and auto-creates OWNER membership for the creator.
+          description: `Creates a brand as JRW catalog collaboration group and auto-creates OWNER membership for the creator.
 
 **Path:** \`POST /brands\`
 
@@ -411,8 +442,7 @@ export function brandsRoutes(
         body: tboxUpdateBrandBody,
         detail: routeDetail({
           summary: "Update brand",
-          description:
-            `Updates allowed brand fields for an active brand catalog collaboration group.
+          description: `Updates allowed brand fields for an active brand catalog collaboration group.
 
 **Path:** \`PATCH /brands/:id\`
 
@@ -444,6 +474,69 @@ export function brandsRoutes(
         response: {
           200: tboxApiSuccess(tboxBrandCreateData),
           ...openApiErrorResponses([400, 401, 403, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/brands/:id/image",
+      async (ctx) => {
+        const {
+          request,
+          set,
+          runtimeEnv,
+          requestContext,
+          requestId,
+          body,
+          params,
+        } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+            body: { image: File; name?: string | null };
+            params: { id: string };
+          };
+        const controller = getController(
+          { request, runtimeEnv, requestId },
+          options
+        );
+        const result = await controller.uploadBrandImage({
+          actor: adminActor(requestContext.actor),
+          requestId,
+          brandId: params.id,
+          file: body.image,
+          name: body.name,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        params: tboxBrandIdParams,
+        body: tboxUploadBrandImageBody,
+        detail: routeDetail({
+          summary: "Upload brand image",
+          description: `Uploads JPEG, PNG, or WEBP image to R2 and saves it as optional brand image metadata.
+
+**Path:** \`POST /brands/:id/image\`
+
+**Path Parameters:**
+- \`id\` (string, required): The UUID of the brand to update (1-128 characters).
+
+**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+
+**Request Body:** Multipart form data with \`image\` file and optional \`name\` alt text.
+
+**Response (200):**
+- \`data.brand.imageSrc\` (string or null): Public image URL.
+- \`data.brand.imageAlt\` (string or null): Image alt text.`,
+          tags: ["Brands"],
+          auth: brandCreateAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...brandUpdateErrors],
+        }),
+        transform: rbacGuard(brandCreateAuth),
+        response: {
+          200: tboxApiSuccess(tboxBrandCreateData),
+          ...openApiErrorResponses([400, 401, 403, 409, 413, 415, 500, 503]),
         },
       }
     )
@@ -483,8 +576,7 @@ export function brandsRoutes(
         body: tboxInviteBrandBody,
         detail: routeDetail({
           summary: "Invite brand admin",
-          description:
-            `Creates a pending brand membership invitation for an existing eligible admin account.
+          description: `Creates a pending brand membership invitation for an existing eligible admin account.
 
 **Path:** \`POST /brands/:id/invite\`
 
@@ -544,8 +636,7 @@ export function brandsRoutes(
         params: tboxBrandIdParams,
         detail: routeDetail({
           summary: "Accept brand invitation",
-          description:
-            `Accepts pending invitation for current admin and activates brand membership.
+          description: `Accepts pending invitation for current admin and activates brand membership.
 
 **Path:** \`POST /brands/:id/accept\`
 
@@ -603,8 +694,7 @@ export function brandsRoutes(
         params: tboxBrandIdParams,
         detail: routeDetail({
           summary: "Request brand join",
-          description:
-            `Creates pending brand join request for current admin when no active or pending membership exists.
+          description: `Creates pending brand join request for current admin when no active or pending membership exists.
 
 **Path:** \`POST /brands/:id/join\`
 
@@ -663,8 +753,7 @@ export function brandsRoutes(
         params: tboxBrandJoinAdminParams,
         detail: routeDetail({
           summary: "Approve brand join request",
-          description:
-            `Approves pending brand join request for target admin and activates membership.
+          description: `Approves pending brand join request for target admin and activates membership.
 
 **Path:** \`POST /brands/:id/join/:adminId/approve\`
 
@@ -724,8 +813,7 @@ export function brandsRoutes(
         params: tboxBrandJoinAdminParams,
         detail: routeDetail({
           summary: "Reject brand join request",
-          description:
-            `Rejects pending brand join request for target admin and revokes pending membership.
+          description: `Rejects pending brand join request for target admin and revokes pending membership.
 
 **Path:** \`POST /brands/:id/join/:adminId/reject\`
 
@@ -784,8 +872,7 @@ export function brandsRoutes(
         params: tboxBrandIdParams,
         detail: routeDetail({
           summary: "Guard brand product create",
-          description:
-            `Checks brand membership and brand status before allowing create product flow in requested brand scope. Returns permission verdict without creating a product.
+          description: `Checks brand membership and brand status before allowing create product flow in requested brand scope. Returns permission verdict without creating a product.
 
 **Path:** \`POST /brands/:id/products/guard\`
 
@@ -842,8 +929,7 @@ export function brandsRoutes(
         params: tboxBrandProductGuardParams,
         detail: routeDetail({
           summary: "Guard brand product update",
-          description:
-            `Checks membership and product-brand association before allowing update flow in requested brand scope. Returns permission verdict without modifying the product.
+          description: `Checks membership and product-brand association before allowing update flow in requested brand scope. Returns permission verdict without modifying the product.
 
 **Path:** \`POST /brands/:id/products/:productId/guard\`
 
@@ -910,8 +996,7 @@ export function brandsRoutes(
         body: tboxReassignGuardBody,
         detail: routeDetail({
           summary: "Guard brand product reassignment",
-          description:
-            `Checks source and target brand permissions before allowing product brand reassignment flow. Returns permission verdict without reassigning the product.
+          description: `Checks source and target brand permissions before allowing product brand reassignment flow. Returns permission verdict without reassigning the product.
 
 **Path:** \`POST /brands/products/:productId/reassign/guard\`
 
@@ -965,8 +1050,7 @@ export function brandsRoutes(
       {
         detail: routeDetail({
           summary: "Guard brandless product mutation",
-          description:
-            `Checks authenticated admin permission before allowing brandless product mutation flow. Returns permission verdict without creating or modifying a product.
+          description: `Checks authenticated admin permission before allowing brandless product mutation flow. Returns permission verdict without creating or modifying a product.
 
 **Path:** \`POST /brands/products/brandless/guard\`
 
@@ -1029,8 +1113,7 @@ export function brandsRoutes(
         query: tboxBrandListQuery,
         detail: routeDetail({
           summary: "List brand scoped products",
-          description:
-            `Lists products assigned to requested brand for authorized brand members and super admin.
+          description: `Lists products assigned to requested brand for authorized brand members and super admin.
 
 **Path:** \`GET /brands/:id/products\`
 
@@ -1094,8 +1177,7 @@ export function brandsRoutes(
         query: tboxBrandListQuery,
         detail: routeDetail({
           summary: "List brandless products",
-          description:
-            `Lists products without brand assignment for authenticated catalog admins.
+          description: `Lists products without brand assignment for authenticated catalog admins.
 
 **Path:** \`GET /brands/products/brandless\`
 
@@ -1156,8 +1238,7 @@ export function brandsRoutes(
         query: tboxBrandListQuery,
         detail: routeDetail({
           summary: "List my brands",
-          description:
-            `Lists brands where current admin has active membership in catalog collaboration.
+          description: `Lists brands where current admin has active membership in catalog collaboration.
 
 **Path:** \`GET /brands/me\`
 
@@ -1220,8 +1301,7 @@ export function brandsRoutes(
         params: tboxBrandIdParams,
         detail: routeDetail({
           summary: "Get brand detail",
-          description:
-            `Returns one brand for an authorized brand member or elevated admin.
+          description: `Returns one brand for an authorized brand member or elevated admin.
 
 **Path:** \`GET /brands/:id\`
 
@@ -1277,8 +1357,7 @@ export function brandsRoutes(
         params: tboxBrandIdParams,
         detail: routeDetail({
           summary: "List brand members",
-          description:
-            `Lists member records for one brand, including active and pending states.
+          description: `Lists member records for one brand, including active and pending states.
 
 **Path:** \`GET /brands/:id/members\`
 
@@ -1337,8 +1416,7 @@ export function brandsRoutes(
         params: tboxBrandIdParams,
         detail: routeDetail({
           summary: "List brand invites",
-          description:
-            `Lists invite records sent for one brand.
+          description: `Lists invite records sent for one brand.
 
 **Path:** \`GET /brands/:id/invites\`
 
@@ -1387,8 +1465,7 @@ export function brandsRoutes(
         params: tboxBrandIdParams,
         detail: routeDetail({
           summary: "List brand join requests",
-          description:
-            `Lists join requests sent for one brand.
+          description: `Lists join requests sent for one brand.
 
 **Path:** \`GET /brands/:id/join-requests\`
 
@@ -1437,8 +1514,7 @@ export function brandsRoutes(
         params: tboxBrandIdParams,
         detail: routeDetail({
           summary: "Archive brand",
-          description:
-            `Archives brand as irreversible MVP soft-delete while preserving historical references.
+          description: `Archives brand as irreversible MVP soft-delete while preserving historical references.
 
 **Path:** \`POST /brands/:id/archive\`
 

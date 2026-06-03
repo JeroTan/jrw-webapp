@@ -8,7 +8,7 @@ Contains generic, highly reusable global React components used across multiple f
 - DashboardShell, SidebarNav, TopBar, Footer: shell specs live in planning artifacts until implementation starts. Keep them sharp, 1px bordered, keyboard friendly, and operation focused.
 - `ui/SearchInput`: search field wrapper around `Input`; visible label required, `type="search"` enforced.
 - `ui/ViewToggle`: card/list/table mode control; selected state must be text-visible and announced through button state.
-- `data-display/ResourceCard`: repeated resource card/module with title, metadata, status, stats, and primary action.
+- `data-display/ResourceCard`: repeated resource card/module with optional media, title, metadata, status, stats, and primary action.
 - `data-display/ResourceList`: responsive resource card/list wrapper with `role="list"`.
 - `data-display/DataTable`: dense admin list/table primitive for operational scanning.
 - `feedback/EmptyState`: states current condition plus next action. Do not use policy lectures.

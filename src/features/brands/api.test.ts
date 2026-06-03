@@ -1,13 +1,17 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { fetchBrandDetail, fetchBrandList } from "./api";
+import {
+  createBrand,
+  fetchBrandDetail,
+  fetchBrandList,
+  uploadBrandImage,
+} from "./api";
 
 function jsonResponse(payload: unknown, status = 200): Response {
-  return new Response(JSON.stringify(payload), {
+  return {
+    json: async () => payload,
+    ok: status >= 200 && status < 300,
     status,
-    headers: {
-      "content-type": "application/json",
-    },
-  });
+  } as Response;
 }
 
 describe("brand API client", () => {
@@ -25,14 +29,17 @@ describe("brand API client", () => {
           totalItems: 0,
           totalPages: 0,
         },
-      }),
+      })
     );
 
     const result = await fetchBrandList();
 
-    expect(fetchMock).toHaveBeenCalledWith("/api/brands/me?page=1&pageSize=100", {
-      headers: { accept: "application/json" },
-    });
+    expect(fetchMock).toHaveBeenCalledWith(
+      "/api/brands/me?page=1&pageSize=100",
+      {
+        headers: { accept: "application/json" },
+      }
+    );
     expect(result.pageSize).toBe(100);
   });
 
@@ -51,7 +58,7 @@ describe("brand API client", () => {
             updatedAt: "2026-05-18T06:30:00.000Z",
           },
         },
-      }),
+      })
     );
 
     const result = await fetchBrandDetail("brand_1");
@@ -62,6 +69,90 @@ describe("brand API client", () => {
     expect(result).toMatchObject({
       id: "brand_1",
       name: "JRW Studio",
+    });
+  });
+
+  it("creates brand through brand mutation route", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse(
+        {
+          data: {
+            brand: {
+              id: "brand_1",
+              name: "JRW Studio",
+              slug: "jrw-studio",
+              description: null,
+              status: "ACTIVE",
+              archivedAt: null,
+              createdAt: "2026-05-18T06:30:00.000Z",
+              updatedAt: "2026-05-18T06:30:00.000Z",
+            },
+          },
+        },
+        201
+      )
+    );
+
+    const result = await createBrand({
+      name: "JRW Studio",
+      slug: "jrw-studio",
+      description: null,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith("/api/brands", {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "JRW Studio",
+        slug: "jrw-studio",
+        description: null,
+      }),
+    });
+    expect(result).toMatchObject({
+      id: "brand_1",
+      slug: "jrw-studio",
+    });
+  });
+
+  it("uploads brand image through multipart brand image route", async () => {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      jsonResponse({
+        data: {
+          brand: {
+            id: "brand_1",
+            name: "JRW Studio",
+            slug: "jrw-studio",
+            description: null,
+            imageSrc: "/assets/brands/brand_1/image.jpg",
+            imageAlt: "JRW Studio mark",
+            status: "ACTIVE",
+            archivedAt: null,
+            createdAt: "2026-05-18T06:30:00.000Z",
+            updatedAt: "2026-05-18T06:30:00.000Z",
+          },
+        },
+      })
+    );
+    const image = new File(["brand"], "brand.jpg", { type: "image/jpeg" });
+
+    const result = await uploadBrandImage("brand_1", {
+      image,
+      name: "JRW Studio mark",
+    });
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("/api/brands/brand_1/image");
+    expect(init).toMatchObject({
+      method: "POST",
+      headers: { accept: "application/json" },
+    });
+    expect(init?.body).toBeInstanceOf(FormData);
+    expect(result).toMatchObject({
+      imageSrc: "/assets/brands/brand_1/image.jpg",
+      imageAlt: "JRW Studio mark",
     });
   });
 });

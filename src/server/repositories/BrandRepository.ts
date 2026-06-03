@@ -27,6 +27,9 @@ type BrandRowLike = {
   name: string;
   slug: string;
   description: string | null;
+  image_id?: string | null;
+  image_r2_key?: string | null;
+  image_alt?: string | null;
   status: BrandStatusValue;
   created_by_admin_id: string;
   archived_at: string | null;
@@ -72,6 +75,8 @@ export type BrandRecord = {
   name: string;
   slug: string;
   description: string | null;
+  imageSrc?: string | null;
+  imageAlt?: string | null;
   status: BrandStatusValue;
   archivedAt: string | null;
   createdAt: string;
@@ -133,6 +138,9 @@ export type CreateBrandInput = {
   name: string;
   slug: string;
   description: string | null;
+  imageId?: string | null;
+  imageR2Key?: string | null;
+  imageAlt?: string | null;
   status: BrandStatusValue;
   createdAt: string;
   updatedAt: string;
@@ -162,6 +170,16 @@ export type UpdateBrandInput = {
   name?: string;
   slug?: string;
   description?: string | null;
+  imageId?: string | null;
+  imageR2Key?: string | null;
+  imageAlt?: string | null;
+  updatedAt: string;
+};
+
+export type UpdateBrandImageInput = {
+  imageId: string;
+  imageR2Key: string;
+  imageAlt: string | null;
   updatedAt: string;
 };
 
@@ -175,6 +193,10 @@ export type BrandRepository = {
     adminId: string
   ): Promise<CreateBrandWithOwnerMembershipResult>;
   updateBrand(brandId: string, input: UpdateBrandInput): Promise<BrandRecord>;
+  updateBrandImage(
+    brandId: string,
+    input: UpdateBrandImageInput
+  ): Promise<BrandRecord>;
   archiveBrand(brandId: string, timestamp: string): Promise<BrandRecord>;
   findBrandBySlug(slug: string): Promise<BrandRecord | null>;
   findBrandByName(name: string): Promise<BrandRecord | null>;
@@ -257,6 +279,14 @@ export function brandDtoFromRow(row: BrandRowLike): BrandRecord {
     name: row.name,
     slug: row.slug,
     description: row.description,
+    imageSrc:
+      typeof row.image_id === "string" && row.image_id.trim().length > 0
+        ? row.image_id
+        : null,
+    imageAlt:
+      typeof row.image_alt === "string" && row.image_alt.trim().length > 0
+        ? row.image_alt
+        : null,
     status: row.status,
     archivedAt: toNullableApiDateTime(row.archived_at),
     createdAt: toApiDateTime(row.created_at),
@@ -346,6 +376,10 @@ function productBrandlessClause() {
 export class DrizzleBrandRepository implements BrandRepository {
   constructor(private readonly db: AppDb) {}
 
+  private brandDtoFromRow(row: BrandRowLike): BrandRecord {
+    return brandDtoFromRow(row);
+  }
+
   async createBrand(
     input: CreateBrandInput,
     adminId: string
@@ -358,6 +392,9 @@ export class DrizzleBrandRepository implements BrandRepository {
         name: input.name,
         slug: input.slug,
         description: input.description,
+        image_id: input.imageId ?? null,
+        image_r2_key: input.imageR2Key ?? null,
+        image_alt: input.imageAlt ?? null,
         status: input.status,
         created_by_admin_id: adminId,
         archived_at: input.status === "ARCHIVED" ? input.createdAt : null,
@@ -366,7 +403,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       })
       .returning();
 
-    return brandDtoFromRow(brand);
+    return this.brandDtoFromRow(brand);
   }
 
   async createBrandMembership(
@@ -404,6 +441,9 @@ export class DrizzleBrandRepository implements BrandRepository {
           name: input.brand.name,
           slug: input.brand.slug,
           description: input.brand.description,
+          image_id: input.brand.imageId ?? null,
+          image_r2_key: input.brand.imageR2Key ?? null,
+          image_alt: input.brand.imageAlt ?? null,
           status: input.brand.status,
           created_by_admin_id: adminId,
           archived_at:
@@ -428,12 +468,15 @@ export class DrizzleBrandRepository implements BrandRepository {
     ]);
 
     return {
-      brand: brandDtoFromRow(brandRows[0]),
+      brand: this.brandDtoFromRow(brandRows[0]),
       membership: brandMembershipDtoFromRow(membershipRows[0]),
     };
   }
 
-  async updateBrand(brandId: string, input: UpdateBrandInput): Promise<BrandRecord> {
+  async updateBrand(
+    brandId: string,
+    input: UpdateBrandInput
+  ): Promise<BrandRecord> {
     const [brand] = await this.db
       .update(brands)
       .set({
@@ -442,6 +485,11 @@ export class DrizzleBrandRepository implements BrandRepository {
         ...(input.description !== undefined
           ? { description: input.description }
           : {}),
+        ...(input.imageId !== undefined ? { image_id: input.imageId } : {}),
+        ...(input.imageR2Key !== undefined
+          ? { image_r2_key: input.imageR2Key }
+          : {}),
+        ...(input.imageAlt !== undefined ? { image_alt: input.imageAlt } : {}),
         updated_at: input.updatedAt,
       })
       .where(eq(brands.id, brandId))
@@ -451,7 +499,29 @@ export class DrizzleBrandRepository implements BrandRepository {
       throw new Error("D1_ERROR: brand not found for update");
     }
 
-    return brandDtoFromRow(brand);
+    return this.brandDtoFromRow(brand);
+  }
+
+  async updateBrandImage(
+    brandId: string,
+    input: UpdateBrandImageInput
+  ): Promise<BrandRecord> {
+    const [brand] = await this.db
+      .update(brands)
+      .set({
+        image_id: input.imageId,
+        image_r2_key: input.imageR2Key,
+        image_alt: input.imageAlt,
+        updated_at: input.updatedAt,
+      })
+      .where(eq(brands.id, brandId))
+      .returning();
+
+    if (!brand) {
+      throw new Error("D1_ERROR: brand not found for image update");
+    }
+
+    return this.brandDtoFromRow(brand);
   }
 
   async archiveBrand(brandId: string, timestamp: string): Promise<BrandRecord> {
@@ -469,7 +539,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       throw new Error("D1_ERROR: brand not found for archive");
     }
 
-    return brandDtoFromRow(brand);
+    return this.brandDtoFromRow(brand);
   }
 
   async findBrandBySlug(slug: string): Promise<BrandRecord | null> {
@@ -484,7 +554,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       )
       .limit(1);
 
-    return brand ? brandDtoFromRow(brand) : null;
+    return brand ? this.brandDtoFromRow(brand) : null;
   }
 
   async findBrandByName(name: string): Promise<BrandRecord | null> {
@@ -499,7 +569,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       )
       .limit(1);
 
-    return brand ? brandDtoFromRow(brand) : null;
+    return brand ? this.brandDtoFromRow(brand) : null;
   }
 
   async findArchivedBrandByName(name: string): Promise<BrandRecord | null> {
@@ -514,7 +584,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       )
       .limit(1);
 
-    return brand ? brandDtoFromRow(brand) : null;
+    return brand ? this.brandDtoFromRow(brand) : null;
   }
 
   async findBrandById(brandId: string): Promise<BrandRecord | null> {
@@ -524,7 +594,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       .where(and(eq(brands.id, brandId), ne(brands.status, "ARCHIVED")))
       .limit(1);
 
-    return brand ? brandDtoFromRow(brand) : null;
+    return brand ? this.brandDtoFromRow(brand) : null;
   }
 
   async findBrandByIdIncludingArchived(
@@ -536,7 +606,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       .where(eq(brands.id, brandId))
       .limit(1);
 
-    return brand ? brandDtoFromRow(brand) : null;
+    return brand ? this.brandDtoFromRow(brand) : null;
   }
 
   async findBrandByIdForMutation(brandId: string): Promise<BrandRecord | null> {
@@ -546,7 +616,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       .where(eq(brands.id, brandId))
       .limit(1);
 
-    return brand ? brandDtoFromRow(brand) : null;
+    return brand ? this.brandDtoFromRow(brand) : null;
   }
 
   async findBrandByNameExcluding(
@@ -565,7 +635,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       )
       .limit(1);
 
-    return brand ? brandDtoFromRow(brand) : null;
+    return brand ? this.brandDtoFromRow(brand) : null;
   }
 
   async findArchivedBrandByNameExcluding(
@@ -584,7 +654,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       )
       .limit(1);
 
-    return brand ? brandDtoFromRow(brand) : null;
+    return brand ? this.brandDtoFromRow(brand) : null;
   }
 
   async findBrandBySlugExcluding(
@@ -603,7 +673,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       )
       .limit(1);
 
-    return brand ? brandDtoFromRow(brand) : null;
+    return brand ? this.brandDtoFromRow(brand) : null;
   }
 
   async findMembershipByBrandAndAdmin(
@@ -741,7 +811,9 @@ export class DrizzleBrandRepository implements BrandRepository {
     return membership ? brandMembershipDtoFromRow(membership) : null;
   }
 
-  async findBrandMemberships(brandId: string): Promise<BrandMembershipRecord[]> {
+  async findBrandMemberships(
+    brandId: string
+  ): Promise<BrandMembershipRecord[]> {
     const memberships = await this.db
       .select()
       .from(brand_memberships)
@@ -751,7 +823,9 @@ export class DrizzleBrandRepository implements BrandRepository {
     return memberships.map(brandMembershipDtoFromRow);
   }
 
-  async findBrandInvitations(brandId: string): Promise<BrandMembershipRecord[]> {
+  async findBrandInvitations(
+    brandId: string
+  ): Promise<BrandMembershipRecord[]> {
     const memberships = await this.db
       .select()
       .from(brand_memberships)
@@ -784,7 +858,9 @@ export class DrizzleBrandRepository implements BrandRepository {
     return memberships.map(brandMembershipDtoFromRow);
   }
 
-  async findActiveBrandMembers(brandId: string): Promise<BrandMembershipRecord[]> {
+  async findActiveBrandMembers(
+    brandId: string
+  ): Promise<BrandMembershipRecord[]> {
     const memberships = await this.db
       .select()
       .from(brand_memberships)
@@ -876,7 +952,7 @@ export class DrizzleBrandRepository implements BrandRepository {
       .where(eq(brands.status, "ACTIVE"))
       .orderBy(desc(brands.updated_at), desc(brands.id));
 
-    return rows.map((row) => brandDtoFromRow(row.brand));
+    return rows.map((row) => this.brandDtoFromRow(row.brand));
   }
 
   async findAdminById(adminId: string): Promise<BrandAdminRecord | null> {

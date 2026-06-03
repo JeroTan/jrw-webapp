@@ -5,8 +5,10 @@ import type {
   BrandListResult,
   BrandMembershipListResult,
   BrandMembershipRecord,
+  BrandMutationInput,
   BrandProductListResult,
   BrandRecord,
+  UploadBrandImageInput,
 } from "./types";
 
 export type ApiFailure = {
@@ -109,7 +111,9 @@ async function readApiEnvelope<T>(response: Response): Promise<T> {
   return envelope.data as T;
 }
 
-function normalizeMembershipRows(rows: BrandMembershipRecord[]): BrandMembershipRecord[] {
+function normalizeMembershipRows(
+  rows: BrandMembershipRecord[]
+): BrandMembershipRecord[] {
   return rows.map((row) => ({
     ...row,
     adminEmail: row.adminEmail ?? row.adminId,
@@ -131,7 +135,7 @@ export async function fetchBrandList(): Promise<BrandListResult> {
     `/api/brands/me?page=1&pageSize=${BRAND_LIST_PAGE_SIZE}`,
     {
       headers: { accept: "application/json" },
-    },
+    }
   );
 
   return readApiEnvelope<BrandListResult>(response);
@@ -145,8 +149,46 @@ export async function fetchBrandDetail(brandId: string): Promise<BrandRecord> {
   return payload.brand;
 }
 
-export async function fetchBrandMembers(
+export async function createBrand(
+  input: BrandMutationInput
+): Promise<BrandRecord> {
+  const response = await fetch("/api/brands", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify(input),
+  });
+
+  const payload = await readApiEnvelope<{ brand: BrandRecord }>(response);
+  return payload.brand;
+}
+
+export async function uploadBrandImage(
   brandId: string,
+  input: UploadBrandImageInput
+): Promise<BrandRecord> {
+  const formData = new FormData();
+  formData.set("image", input.image);
+  if (input.name !== undefined) {
+    formData.set("name", input.name ?? "");
+  }
+
+  const response = await fetch(`/api/brands/${brandId}/image`, {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+    },
+    body: formData,
+  });
+
+  const payload = await readApiEnvelope<{ brand: BrandRecord }>(response);
+  return payload.brand;
+}
+
+export async function fetchBrandMembers(
+  brandId: string
 ): Promise<BrandMembershipRecord[]> {
   const response = await fetch(`/api/brands/${brandId}/members`, {
     headers: { accept: "application/json" },
@@ -155,7 +197,9 @@ export async function fetchBrandMembers(
   return normalizeMembershipRows(data.items);
 }
 
-export async function fetchBrandInvites(brandId: string): Promise<BrandInviteRecord[]> {
+export async function fetchBrandInvites(
+  brandId: string
+): Promise<BrandInviteRecord[]> {
   const response = await fetch(`/api/brands/${brandId}/invites`, {
     headers: { accept: "application/json" },
   });
@@ -164,7 +208,7 @@ export async function fetchBrandInvites(brandId: string): Promise<BrandInviteRec
 }
 
 export async function fetchBrandJoinRequests(
-  brandId: string,
+  brandId: string
 ): Promise<BrandJoinRequestRecord[]> {
   const response = await fetch(`/api/brands/${brandId}/join-requests`, {
     headers: { accept: "application/json" },
@@ -173,12 +217,14 @@ export async function fetchBrandJoinRequests(
   return normalizeMembershipRows(data.items);
 }
 
-export async function fetchBrandProducts(brandId: string): Promise<BrandProductListResult> {
+export async function fetchBrandProducts(
+  brandId: string
+): Promise<BrandProductListResult> {
   const response = await fetch(
     `/api/brands/${brandId}/products?page=1&pageSize=100`,
     {
       headers: { accept: "application/json" },
-    },
+    }
   );
   return readApiEnvelope<BrandProductListResult>(response);
 }
@@ -198,30 +244,36 @@ export async function fetchSessionActor(): Promise<AuthenticatedActor | null> {
 
 export async function approveJoinRequest(
   brandId: string,
-  adminId: string,
+  adminId: string
 ): Promise<void> {
-  const response = await fetch(`/api/brands/${brandId}/join/${adminId}/approve`, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-    },
-  });
+  const response = await fetch(
+    `/api/brands/${brandId}/join/${adminId}/approve`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+    }
+  );
 
   await readApiEnvelope<{ membership: BrandMembershipRecord }>(response);
 }
 
 export async function rejectJoinRequest(
   brandId: string,
-  adminId: string,
+  adminId: string
 ): Promise<void> {
-  const response = await fetch(`/api/brands/${brandId}/join/${adminId}/reject`, {
-    method: "POST",
-    headers: {
-      accept: "application/json",
-      "content-type": "application/json",
-    },
-  });
+  const response = await fetch(
+    `/api/brands/${brandId}/join/${adminId}/reject`,
+    {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+    }
+  );
 
   await readApiEnvelope<{ membership: BrandMembershipRecord }>(response);
 }
@@ -257,7 +309,7 @@ export async function inviteBrandMember(input: {
   });
 
   const payload = await readApiEnvelope<{ invitation: BrandMembershipRecord }>(
-    response,
+    response
   );
   return payload.invitation;
 }

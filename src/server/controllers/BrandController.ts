@@ -14,6 +14,7 @@ import type {
   BrandArchiveResult,
   BrandCreateResult,
   BrandDetailResult,
+  BrandImageUploadResult,
   BrandInviteResult,
   BrandListAdminBrandsResult,
   BrandListMembershipsResult,
@@ -39,15 +40,23 @@ import type {
   RejectBrandJoinRequestServiceInput,
   RequestBrandJoinServiceInput,
   UpdateBrandServiceInput,
+  UploadBrandImageServiceInput,
 } from "@/server/services/BrandService";
 import type { AppResult } from "@/utils/general/result";
 
 export type BrandServiceLike = {
-  createBrand(input: CreateBrandServiceInput): Promise<AppResult<BrandCreateResult>>;
+  createBrand(
+    input: CreateBrandServiceInput
+  ): Promise<AppResult<BrandCreateResult>>;
   getBrandDetail(
     input: GetBrandDetailServiceInput
   ): Promise<AppResult<BrandDetailResult>>;
-  updateBrand(input: UpdateBrandServiceInput): Promise<AppResult<BrandUpdateResult>>;
+  updateBrand(
+    input: UpdateBrandServiceInput
+  ): Promise<AppResult<BrandUpdateResult>>;
+  uploadBrandImage(
+    input: UploadBrandImageServiceInput
+  ): Promise<AppResult<BrandImageUploadResult>>;
   archiveBrand(
     input: ArchiveBrandServiceInput
   ): Promise<AppResult<BrandArchiveResult>>;
@@ -114,6 +123,14 @@ export type UpdateBrandControllerInput = {
   requestId: string;
   brandId: string;
   body: Record<string, unknown>;
+};
+
+export type UploadBrandImageControllerInput = {
+  actor: BrandActorInput | undefined;
+  requestId: string;
+  brandId: string;
+  file: File;
+  name?: string | null;
 };
 
 export type BrandDetailControllerInput = {
@@ -272,6 +289,23 @@ export class BrandController {
     input: ArchiveBrandControllerInput
   ): Promise<BrandControllerResult<BrandArchiveResult>> {
     const result = await this.service.archiveBrand(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      status: 200,
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+    };
+  }
+
+  async uploadBrandImage(
+    input: UploadBrandImageControllerInput
+  ): Promise<BrandControllerResult<BrandImageUploadResult>> {
+    const result = await this.service.uploadBrandImage(input);
 
     if (result.error) {
       return errorResult(result, input.requestId);

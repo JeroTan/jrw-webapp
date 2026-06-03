@@ -308,6 +308,7 @@ describe("shared UI primitives", () => {
         { href: "/admin/brands/brand_1" },
         "Open detail"
       ),
+      media: createElement("span", { role: "img" }, "JS"),
       meta: "jrw-studio",
       stats: [
         { label: "Brand members", value: "2" },
@@ -335,6 +336,7 @@ describe("shared UI primitives", () => {
     expect(markup).toContain("border-b");
     expect(markup).toContain('role="list"');
     expect(markup).toContain('role="listitem"');
+    expect(markup).toContain('role="img"');
     expect(markup).toContain("JRW Studio");
     expect(markup).toContain("Linked products");
     expect(markup).toContain("Open detail");

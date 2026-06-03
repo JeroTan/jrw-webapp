@@ -7,11 +7,15 @@ const cardClass =
   "grid min-h-[236px] rounded-none border border-brand-border-strong bg-brand-surface";
 const headerClass =
   "grid grid-cols-[minmax(0,1fr)_auto] items-start gap-grid-sm border-b border-brand-border-strong p-grid-sm max-md:grid-cols-1";
+const headerWithMediaClass =
+  "grid grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-grid-sm border-b border-brand-border-strong p-grid-sm max-md:grid-cols-[auto_minmax(0,1fr)]";
 const identityClass = "grid min-w-0 gap-0.5";
 const titleClass = "text-[1.35rem] [overflow-wrap:anywhere]";
 const metaClass =
   "m-0 font-system text-xs text-brand-muted [overflow-wrap:anywhere]";
 const statusClass = "justify-self-end max-md:justify-self-start";
+const statusWithMediaClass =
+  "justify-self-end max-md:col-start-2 max-md:justify-self-start";
 const statsClass = "m-0 grid grid-cols-2";
 const statClass =
   "grid min-h-[70px] gap-0.5 border-r border-b border-brand-border p-grid-sm even:border-r-0";
@@ -28,6 +32,7 @@ export type ResourceCardStat = {
 
 export type ResourceCardProps = Omit<HTMLAttributes<HTMLElement>, "title"> & {
   action?: ReactNode;
+  media?: ReactNode;
   meta?: ReactNode;
   stats?: ResourceCardStat[];
   status?: ReactNode;
@@ -37,6 +42,7 @@ export type ResourceCardProps = Omit<HTMLAttributes<HTMLElement>, "title"> & {
 export function ResourceCard({
   action,
   className,
+  media,
   meta,
   stats = [],
   status,
@@ -49,13 +55,16 @@ export function ResourceCard({
       className={mergeClassNames(cardClass, className)}
       role="listitem"
     >
-      <header className={headerClass}>
+      <header className={media ? headerWithMediaClass : headerClass}>
+        {media ? <div>{media}</div> : null}
         <div className={identityClass}>
           <h2 className={titleClass}>{title}</h2>
           {meta ? <p className={metaClass}>{meta}</p> : null}
         </div>
         {status ? (
-          <div className={statusClass}>{status}</div>
+          <div className={media ? statusWithMediaClass : statusClass}>
+            {status}
+          </div>
         ) : null}
       </header>
 
@@ -70,9 +79,7 @@ export function ResourceCard({
         </dl>
       ) : null}
 
-      {action ? (
-        <div className={actionClass}>{action}</div>
-      ) : null}
+      {action ? <div className={actionClass}>{action}</div> : null}
     </article>
   );
 }

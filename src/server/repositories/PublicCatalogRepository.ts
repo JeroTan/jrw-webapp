@@ -481,6 +481,8 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
     const [brand] = await this.db
       .select({
         id: brands.id,
+        imageAlt: brands.image_alt,
+        imageSrc: brands.image_id,
         name: brands.name,
         slug: brands.slug,
       })
@@ -500,6 +502,8 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
     const rows = await this.db
       .select({
         id: brands.id,
+        imageAlt: brands.image_alt,
+        imageSrc: brands.image_id,
         name: brands.name,
         slug: brands.slug,
       })
@@ -681,6 +685,8 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
     const [brand] = await this.db
       .select({
         id: brands.id,
+        imageAlt: brands.image_alt,
+        imageSrc: brands.image_id,
         name: brands.name,
         slug: brands.slug,
       })
@@ -691,6 +697,10 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
     if (!brand) {
       return null;
     }
+    const brandWithImage = brand as typeof brand & {
+      imageAlt: string | null;
+      imageSrc: string | null;
+    };
 
     const brandProducts = await this.listPublishedProductCards({
       brandIds: [brand.id],
@@ -702,8 +712,12 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
     return {
       href: brandHref(brand.slug),
       id: brand.id,
-      ...(brandImage?.imageAlt ? { imageAlt: brandImage.imageAlt } : {}),
-      ...(brandImage?.imageSrc ? { imageSrc: brandImage.imageSrc } : {}),
+      ...(brandWithImage.imageAlt || brandImage?.imageAlt
+        ? { imageAlt: brandWithImage.imageAlt ?? brandImage?.imageAlt }
+        : {}),
+      ...(brandWithImage.imageSrc || brandImage?.imageSrc
+        ? { imageSrc: brandWithImage.imageSrc ?? brandImage?.imageSrc }
+        : {}),
       name: brand.name,
       productCount: brandProducts.pagination.totalItems,
       slug: brand.slug,

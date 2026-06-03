@@ -5,6 +5,10 @@ import type {
   BrandRepository,
   BrandRecord,
 } from "@/server/repositories/BrandRepository";
+import type {
+  ImageRepository,
+  UploadedImageMetadata,
+} from "@/server/repositories/ImageRepository";
 import { BrandService, type BrandActorInput } from "./BrandService";
 
 const now = "2026-05-17T21:30:00.000Z";
@@ -50,11 +54,13 @@ class RepoStub implements BrandRepository {
   existingByIdIncludingArchived: BrandRecord | null = brandRecord();
   createBrandError: Error | null = null;
   updateBrandError: Error | null = null;
+  updateBrandImageError: Error | null = null;
   archiveBrandError: Error | null = null;
   createBrandMembershipError: Error | null = null;
   createdMembershipCount = 0;
   createdMembershipInputs: Array<Record<string, unknown>> = [];
   updateCalls: Array<Record<string, unknown>> = [];
+  imageUpdateCalls: Array<Record<string, unknown>> = [];
   archiveCalls: Array<Record<string, unknown>> = [];
   listProductsError: Error | null = null;
   products: Array<{
@@ -266,6 +272,20 @@ class RepoStub implements BrandRepository {
     });
   }
 
+  async updateBrandImage(brandId: string, input: Record<string, unknown>) {
+    if (this.updateBrandImageError) {
+      throw this.updateBrandImageError;
+    }
+
+    this.imageUpdateCalls.push({ brandId, ...input });
+    return brandRecord({
+      ...this.existingById,
+      imageSrc: input.imageId as string,
+      imageAlt: input.imageAlt as string | null,
+      updatedAt: (input.updatedAt as string) ?? now,
+    });
+  }
+
   async archiveBrand(brandId: string, timestamp: string) {
     if (this.archiveBrandError) {
       throw this.archiveBrandError;
@@ -337,7 +357,12 @@ class RepoStub implements BrandRepository {
 
   async findProductBrandAssignment(productId: string) {
     this.productBrandAssignmentLookups += 1;
-    if (!Object.prototype.hasOwnProperty.call(this.productBrandAssignmentByProductId, productId)) {
+    if (
+      !Object.prototype.hasOwnProperty.call(
+        this.productBrandAssignmentByProductId,
+        productId
+      )
+    ) {
       return null;
     }
 
@@ -377,7 +402,10 @@ class RepoStub implements BrandRepository {
     };
   }
 
-  async findPendingInvitationByAdminAndBrand(_adminId: string, _brandId: string) {
+  async findPendingInvitationByAdminAndBrand(
+    _adminId: string,
+    _brandId: string
+  ) {
     const membership = this.membershipByAdminId[_adminId];
     if (
       !membership ||
@@ -425,16 +453,18 @@ class RepoStub implements BrandRepository {
   }
 
   async findBrandMemberships(_brandId: string) {
-    return Object.entries(this.membershipByAdminId).map(([adminId, membership]) => ({
-      id: `membership_${adminId}`,
-      brandId: "brand_1",
-      adminId,
-      role: membership.role,
-      status: membership.status,
-      invitedByAdminId: membership.invitedByAdminId,
-      createdAt: now,
-      updatedAt: now,
-    }));
+    return Object.entries(this.membershipByAdminId).map(
+      ([adminId, membership]) => ({
+        id: `membership_${adminId}`,
+        brandId: "brand_1",
+        adminId,
+        role: membership.role,
+        status: membership.status,
+        invitedByAdminId: membership.invitedByAdminId,
+        createdAt: now,
+        updatedAt: now,
+      })
+    );
   }
 
   async findBrandInvitations(_brandId: string) {
@@ -520,7 +550,9 @@ class RepoStub implements BrandRepository {
       return [];
     }
 
-    return Object.values(this.brandById).filter((brand) => brand.status === "ACTIVE");
+    return Object.values(this.brandById).filter(
+      (brand) => brand.status === "ACTIVE"
+    );
   }
 
   async findAdminById(adminId: string) {
@@ -534,6 +566,35 @@ class RepoStub implements BrandRepository {
         (admin) => admin.email.toLowerCase() === normalized
       ) ?? null
     );
+  }
+}
+
+class ImageRepoStub implements ImageRepository {
+  uploadCalls: Array<{ file: File; key: string }> = [];
+  deletedKeys: string[] = [];
+
+  getPublicUrl(key: string): string {
+    return `/assets/${key}`;
+  }
+
+  async upload(file: File, key: string): Promise<UploadedImageMetadata> {
+    this.uploadCalls.push({ file, key });
+    return {
+      key,
+      size: file.size,
+      contentType: file.type,
+      uploadedAt: now,
+      etag: "etag_brand_image",
+      url: this.getPublicUrl(key),
+    };
+  }
+
+  async get(_key: string): Promise<R2ObjectBody | null> {
+    return null;
+  }
+
+  async delete(key: string): Promise<void> {
+    this.deletedKeys.push(key);
   }
 }
 
@@ -816,6 +877,47 @@ describe("BrandService", () => {
     const serialized = JSON.stringify(published[0]);
     expect(serialized).not.toContain("password");
     expect(serialized).not.toContain("token");
+  });
+
+  it("uploads optional brand image for active brand member", async () => {
+    const repo = new RepoStub();
+    const imageRepository = new ImageRepoStub();
+    const published: AuditEvent[] = [];
+    const service = new BrandService({
+      repository: repo,
+      imageRepository,
+      now: () => new Date(now),
+      auditPublisher: {
+        publish: async (event) => {
+          published.push(event);
+        },
+      },
+    });
+
+    const result = await service.uploadBrandImage({
+      actor: adminActor(),
+      requestId: "req_brand_image",
+      brandId: "brand_1",
+      file: new File(["brand"], "brand.jpg", { type: "image/jpeg" }),
+      name: "JRW Lifestyle mark",
+    });
+
+    expect(result.error).toBeNull();
+    expect(imageRepository.uploadCalls).toHaveLength(1);
+    expect(imageRepository.uploadCalls[0].key).toMatch(
+      /^brands\/brand_1\/.+\.jpg$/
+    );
+    expect(repo.imageUpdateCalls[0]).toMatchObject({
+      brandId: "brand_1",
+      imageAlt: "JRW Lifestyle mark",
+    });
+    expect(result.content?.brand).toMatchObject({
+      imageAlt: "JRW Lifestyle mark",
+    });
+    expect(published[0]).toMatchObject({
+      action: "brand.updated",
+      target: { entity: "brand", entityId: "brand_1" },
+    });
   });
 
   it("invites eligible admins for OWNER, MEMBER, and SUPER_ADMIN actor paths", async () => {
@@ -1700,7 +1802,10 @@ describe("BrandService", () => {
     });
     expect(invalid.error?.code).toBe("VALIDATION_FAILED");
 
-    repo.existingByName = brandRecord({ id: "brand_2", name: "JRW Lifestyle+" });
+    repo.existingByName = brandRecord({
+      id: "brand_2",
+      name: "JRW Lifestyle+",
+    });
     const duplicateName = await service.updateBrand({
       actor: adminActor(),
       requestId: "req_duplicate_name_update",
@@ -1710,7 +1815,10 @@ describe("BrandService", () => {
     expect(duplicateName.error?.code).toBe("CONFLICT_STATE");
 
     repo.existingByName = null;
-    repo.existingBySlug = brandRecord({ id: "brand_2", slug: "jrw-lifestyle-2" });
+    repo.existingBySlug = brandRecord({
+      id: "brand_2",
+      slug: "jrw-lifestyle-2",
+    });
     const duplicateSlug = await service.updateBrand({
       actor: adminActor(),
       requestId: "req_duplicate_slug_update",
@@ -2143,12 +2251,13 @@ describe("BrandService", () => {
       repository: sourceDeniedRepo,
       now: () => new Date(now),
     });
-    const sourceDenied = await sourceDeniedService.guardBrandProductReassignment({
-      actor: adminActor(),
-      requestId: "req_guard_reassign_source_denied",
-      productId: "product_1",
-      targetBrandId: "brand_2",
-    });
+    const sourceDenied =
+      await sourceDeniedService.guardBrandProductReassignment({
+        actor: adminActor(),
+        requestId: "req_guard_reassign_source_denied",
+        productId: "product_1",
+        targetBrandId: "brand_2",
+      });
     expect(sourceDenied.error?.code).toBe("AUTH_FORBIDDEN");
     expect(sourceDenied.error?.data).toMatchObject({
       reason: "SOURCE_BRAND_PERMISSION_REQUIRED",
@@ -2165,12 +2274,13 @@ describe("BrandService", () => {
       repository: targetDeniedRepo,
       now: () => new Date(now),
     });
-    const targetDenied = await targetDeniedService.guardBrandProductReassignment({
-      actor: adminActor(),
-      requestId: "req_guard_reassign_target_denied",
-      productId: "product_1",
-      targetBrandId: "brand_2",
-    });
+    const targetDenied =
+      await targetDeniedService.guardBrandProductReassignment({
+        actor: adminActor(),
+        requestId: "req_guard_reassign_target_denied",
+        productId: "product_1",
+        targetBrandId: "brand_2",
+      });
     expect(targetDenied.error?.code).toBe("AUTH_FORBIDDEN");
     expect(targetDenied.error?.data).toMatchObject({
       reason: "TARGET_BRAND_PERMISSION_REQUIRED",

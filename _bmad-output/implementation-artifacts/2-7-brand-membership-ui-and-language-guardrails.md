@@ -1,6 +1,7 @@
 # Story 2.7: Brand Membership UI and Language Guardrails
 
 Status: done
+
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
 ## Story
@@ -117,65 +118,75 @@ _(To be populated by code review)_
 ### Current Code Intelligence
 
 #### `src/features/owner-governance/` (Epic 1 — Pattern Reference)
-  - **Current state:** Contains `OwnershipTransferPanel.tsx`, `api.ts`, `ownership-transfer.ts`, `ownership-transfer.test.ts`. Uses React components, typed API client functions, domain logic, and tests.
-  - **What this story uses as pattern:** Feature module structure — `components/`, `api.ts`, `types.ts`, domain logic, tests. Follow this same organization for `src/features/brands/`.
-  - **What must be preserved:** Do not modify owner-governance feature. Use it as reference only.
+
+- **Current state:** Contains `OwnershipTransferPanel.tsx`, `api.ts`, `ownership-transfer.ts`, `ownership-transfer.test.ts`. Uses React components, typed API client functions, domain logic, and tests.
+- **What this story uses as pattern:** Feature module structure — `components/`, `api.ts`, `types.ts`, domain logic, tests. Follow this same organization for `src/features/brands/`.
+- **What must be preserved:** Do not modify owner-governance feature. Use it as reference only.
 
 #### `src/components/ui/` (Epic 1 — UI Primitives)
-  - **Current state:** Contains Button, Input, Select, Textarea, Checkbox, Toggle, Modal, ConfirmDialog, Tabs, IconButton. All are generic reusable primitives.
-  - **What this story uses:** All primitives for brand UI composition. `Select` for brand dropdown, `Modal`/`ConfirmDialog` for destructive actions, `Tabs` for brand detail sections, `Button`/`IconButton` for actions.
-  - **What must be preserved:** Do not modify existing primitives unless a genuine bug is found. Extend if needed but keep backward compatible.
+
+- **Current state:** Contains Button, Input, Select, Textarea, Checkbox, Toggle, Modal, ConfirmDialog, Tabs, IconButton. All are generic reusable primitives.
+- **What this story uses:** All primitives for brand UI composition. `Select` for brand dropdown, `Modal`/`ConfirmDialog` for destructive actions, `Tabs` for brand detail sections, `Button`/`IconButton` for actions.
+- **What must be preserved:** Do not modify existing primitives unless a genuine bug is found. Extend if needed but keep backward compatible.
 
 #### `src/components/data-display/DataTable.tsx` (Epic 1)
-  - **Current state:** Generic data table component for dense admin surfaces.
-  - **What this story uses:** Brand list table, membership table, invite table, join request table.
-  - **What must be preserved:** Existing table API. Compose with brand-specific columns and actions.
+
+- **Current state:** Generic data table component for dense admin surfaces.
+- **What this story uses:** Brand list table, membership table, invite table, join request table.
+- **What must be preserved:** Existing table API. Compose with brand-specific columns and actions.
 
 #### `src/components/feedback/` (Epic 1 — Feedback Primitives)
-  - **Current state:** Contains Skeleton, EmptyState, Toast, StatusBadge, Badge.
-  - **What this story uses:** `StatusBadge` for brand status (ACTIVE, ARCHIVED), membership status (ACTIVE, PENDING, REVOKED), invite/join request states. `Skeleton` for loading states. `EmptyState` for empty tables. `Toast` for operation feedback.
-  - **What must be preserved:** StatusBadge must include TEXT labels — never color-only. This is a critical accessibility requirement.
+
+- **Current state:** Contains Skeleton, EmptyState, Toast, StatusBadge, Badge.
+- **What this story uses:** `StatusBadge` for brand status (ACTIVE, ARCHIVED), membership status (ACTIVE, PENDING, REVOKED), invite/join request states. `Skeleton` for loading states. `EmptyState` for empty tables. `Toast` for operation feedback.
+- **What must be preserved:** StatusBadge must include TEXT labels — never color-only. This is a critical accessibility requirement.
 
 #### `src/styles/global.css` (Epic 1)
-  - **Current state:** Tailwind CSS v4 project style surface with `@theme`, `@utility`, and reusable component classes. Contains JRW Technical Brutalist tokens: sharp 0px corners, 1px grid/borders, no shadows, no blur, cobalt accent.
-  - **What this story uses:** Extract repeated Tailwind class chains here for brand components. Use existing theme tokens.
-  - **What must be preserved:** Existing theme tokens, utilities. Do not add shadows, blur, or soft generic ecommerce style.
+
+- **Current state:** Tailwind CSS v4 project style surface with `@theme`, `@utility`, and reusable component classes. Contains JRW Technical Brutalist tokens: sharp 0px corners, 1px grid/borders, no shadows, no blur, cobalt accent.
+- **What this story uses:** Extract repeated Tailwind class chains here for brand components. Use existing theme tokens.
+- **What must be preserved:** Existing theme tokens, utilities. Do not add shadows, blur, or soft generic ecommerce style.
 
 #### `src/pages/admin/owner/transfer.astro` (Epic 1 — Page Pattern Reference)
-  - **Current state:** Astro page embedding React island for ownership transfer. Uses `BaseLayout.astro`.
-  - **What this story uses as pattern:** Astro page structure for embedding React feature islands. Follow this pattern for brand pages.
-  - **What must be preserved:** Do not modify existing pages.
+
+- **Current state:** Astro page embedding React island for ownership transfer. Uses `BaseLayout.astro`.
+- **What this story uses as pattern:** Astro page structure for embedding React feature islands. Follow this pattern for brand pages.
+- **What must be preserved:** Do not modify existing pages.
 
 #### `src/pages/index.astro` and `src/layouts/BaseLayout.astro` (Epic 1)
-  - **Current state:** Index page and base layout. Base layout provides admin shell structure.
-  - **What this story uses:** `BaseLayout.astro` as wrapper for brand admin pages.
-  - **What must be preserved:** Existing layout structure.
+
+- **Current state:** Index page and base layout. Base layout provides admin shell structure.
+- **What this story uses:** `BaseLayout.astro` as wrapper for brand admin pages.
+- **What must be preserved:** Existing layout structure.
 
 #### `src/server/routes/brands.routes.ts` (Stories 2.1-2.6)
-  - **Current state:** Complete brand API with CRUD, invite, join, approve, reject, archive, product visibility, and mutation guard endpoints. TypeBox schemas, RBAC guard, OpenAPI metadata.
-  - **What this story uses:** API endpoints for brand list, detail, members, invites, join requests, products, brandless. The `api.ts` client in brand feature will call these.
-  - **What must be preserved:** No API changes needed. This story is UI-only consumption of existing endpoints.
+
+- **Current state:** Complete brand API with CRUD, invite, join, approve, reject, archive, product visibility, and mutation guard endpoints. TypeBox schemas, RBAC guard, OpenAPI metadata.
+- **What this story uses:** API endpoints for brand list, detail, members, invites, join requests, products, brandless. The `api.ts` client in brand feature will call these.
+- **What must be preserved:** No API changes needed. This story is UI-only consumption of existing endpoints.
 
 #### `src/domain/brands/brand.ts` (Stories 2.1-2.6)
-  - **Current state:** Brand domain rules with types for create/update input, conflict decisions, validation functions. Contains brand name/slug validation, status enums, membership role enums.
-  - **What this story uses:** Type references for brand DTOs, status values, membership roles. May re-export types in `src/features/brands/types.ts`.
-  - **What must be preserved:** All domain rules. Do not modify.
+
+- **Current state:** Brand domain rules with types for create/update input, conflict decisions, validation functions. Contains brand name/slug validation, status enums, membership role enums.
+- **What this story uses:** Type references for brand DTOs, status values, membership roles. May re-export types in `src/features/brands/types.ts`.
+- **What must be preserved:** All domain rules. Do not modify.
 
 ### Brand UI Surface Inventory
 
-| Surface | Component | Data Source | Key Requirements |
-|---------|-----------|-------------|------------------|
-| Brand list page | `BrandList.tsx` | `GET /api/brands` (list all) or paginated | Name, status, member count, pending invites/requests count, text-labeled status badges |
-| Brand detail page | `BrandDetail.tsx` | `GET /api/brands/:id` | Name, description, status, tabs for members/invites/join-requests/products |
-| Members table | `BrandMembershipTable.tsx` | `GET /api/brands/:id/members` | Admin name, role (OWNER/MEMBER), status (ACTIVE/PENDING/REVOKED), valid next actions |
-| Invites table | `BrandInviteTable.tsx` | `GET /api/brands/:id/invites` | Invited admin, invited by, date, status, revoke action |
-| Join requests table | `BrandJoinRequestTable.tsx` | `GET /api/brands/:id/join-requests` | Requester admin, date, status, approve/reject actions |
-| Brand-scoped products | (links to Epic 3 product UI) | `GET /api/brands/:id/products` | Product list for brand scope (may be placeholder until Epic 3) |
-| Product brand field | `ProductBrandField.tsx` | `GET /api/brands/me` | Dropdown with brand options + "No brand" option, helper text |
+| Surface               | Component                    | Data Source                               | Key Requirements                                                                       |
+| --------------------- | ---------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------- |
+| Brand list page       | `BrandList.tsx`              | `GET /api/brands` (list all) or paginated | Name, status, member count, pending invites/requests count, text-labeled status badges |
+| Brand detail page     | `BrandDetail.tsx`            | `GET /api/brands/:id`                     | Name, description, status, tabs for members/invites/join-requests/products             |
+| Members table         | `BrandMembershipTable.tsx`   | `GET /api/brands/:id/members`             | Admin name, role (OWNER/MEMBER), status (ACTIVE/PENDING/REVOKED), valid next actions   |
+| Invites table         | `BrandInviteTable.tsx`       | `GET /api/brands/:id/invites`             | Invited admin, invited by, date, status, revoke action                                 |
+| Join requests table   | `BrandJoinRequestTable.tsx`  | `GET /api/brands/:id/join-requests`       | Requester admin, date, status, approve/reject actions                                  |
+| Brand-scoped products | (links to Epic 3 product UI) | `GET /api/brands/:id/products`            | Product list for brand scope (may be placeholder until Epic 3)                         |
+| Product brand field   | `ProductBrandField.tsx`      | `GET /api/brands/me`                      | Dropdown with brand options + "No brand" option, helper text                           |
 
 ### Language Guardrails (Critical — This Story's Primary Purpose)
 
 **APPROVED TERMS:**
+
 - "brand" — the catalog collaboration group
 - "catalog group" — alternative description of what a brand is
 - "brand members" — admins who belong to a brand
@@ -184,6 +195,7 @@ _(To be populated by code review)_
 - "catalog organization choice" — explains why brand is optional
 
 **UI MICROCOPY RULES:**
+
 - Page descriptions say what the Admin can do on the page.
 - Brand list example: "You can manage your list of brands here."
 - Brand detail example: "Manage this brand's members, invitations, join requests, and linked products."
@@ -193,6 +205,7 @@ _(To be populated by code review)_
 - Empty states state current state plus next action, not abstract brand policy.
 
 **FORBIDDEN TERMS (NEVER use for brands):**
+
 - "seller" — JRW is the seller of record, not brands
 - "merchant" — brands are not merchants
 - "tenant" — brands are not tenants (no multi-tenancy)
@@ -201,6 +214,7 @@ _(To be populated by code review)_
 - "PayMongo owner" — JRW has single PayMongo merchant account
 
 **Language rules apply to:**
+
 - All UI copy (labels, headings, helper text, tooltips, error messages)
 - Code comments where brand context is described
 - Test descriptions for brand-related tests
@@ -209,6 +223,7 @@ _(To be populated by code review)_
 - Audit event details related to brand operations
 
 **JRW seller of record:**
+
 - When seller context is needed, explicitly state "JRW is the seller of record"
 - Seller-of-record wording belongs in technical docs, API docs, audit/legal/payment copy, and developer notes.
 - Do not include seller-of-record wording in normal brand management page descriptions or product brand helper text.
@@ -216,15 +231,15 @@ _(To be populated by code review)_
 
 ### Permission-Aware UI Behavior
 
-| Action | Required Permission | UI Behavior if Lacking Permission |
-|--------|-------------------|-----------------------------------|
-| View brand list | Authenticated ADMIN/SUPER_ADMIN | Show list; filter to authorized brands only |
-| View brand detail | Brand member OR SUPER_ADMIN | Show detail; hide restricted tabs |
-| Invite admin to brand | Active brand member or elevated Admin | Hide/disable invite button with tooltip |
-| Approve/reject join request | Active brand member or elevated Admin | Hide/disable approve/reject buttons |
-| Archive brand | Active brand member or elevated Admin | Hide/disable archive button; show ConfirmDialog |
-| Create product in brand | Brand member OR SUPER_ADMIN | Guard check from Story 2.6; hide/disable create |
-| Edit product in brand | Brand member OR SUPER_ADMIN | Guard check from Story 2.6; hide/disable edit |
+| Action                      | Required Permission                   | UI Behavior if Lacking Permission               |
+| --------------------------- | ------------------------------------- | ----------------------------------------------- |
+| View brand list             | Authenticated ADMIN/SUPER_ADMIN       | Show list; filter to authorized brands only     |
+| View brand detail           | Brand member OR SUPER_ADMIN           | Show detail; hide restricted tabs               |
+| Invite admin to brand       | Active brand member or elevated Admin | Hide/disable invite button with tooltip         |
+| Approve/reject join request | Active brand member or elevated Admin | Hide/disable approve/reject buttons             |
+| Archive brand               | Active brand member or elevated Admin | Hide/disable archive button; show ConfirmDialog |
+| Create product in brand     | Brand member OR SUPER_ADMIN           | Guard check from Story 2.6; hide/disable create |
+| Edit product in brand       | Brand member OR SUPER_ADMIN           | Guard check from Story 2.6; hide/disable edit   |
 
 ### Accessibility Requirements
 
@@ -334,12 +349,14 @@ GPT-5 Codex
 - `src/styles/global.css`
 
 ## Change Log
+
 - 2026-05-18: Implemented brand UI module, guardrail utility/tests, admin brand pages, responsive styles, and validation gates.
 - 2026-05-18: Verified `npm run build-test` end-to-end after review patches. Marked Story 2.7 done and Epic 2 done.
 - 2026-05-19: Reconciled stale Story 2.7 checklist boxes after Epic 2 retrospective; ran targeted brand vitest files only.
 - 2026-05-18: Story 2.7 context engine created — comprehensive developer guide for brand membership UI and language guardrails.
 
 ## Post-Retro Fix: Super Admin Seed Credential Validation
+
 - 2026-05-18: During Epic 2 retrospective, MR. JRW discovered `npm run seed:super-admin` rejected `.env` credentials with "Super Admin seed credentials are missing or invalid."
 - Root cause: `src/domain/auth/super-admin-seed.ts` contained a `hasPlaceholderValue()` function that hardcoded `super-admin@example.com` as a rejected placeholder, and also rejected any value starting with `replace-with-` or containing `example-placeholder`.
 - Fix: Removed `hasPlaceholderValue()` entirely. `.env` is now treated as the source of truth — any valid email format (16+ char password, 16+ char pepper) is accepted without placeholder rejection.
@@ -347,6 +364,7 @@ GPT-5 Codex
 - This fix enables MR. JRW to seed and login with any credentials defined in `.env` for testing brand UI and admin flows.
 
 ## Post-Retro Fix: Smart Seed Dethrone Logic
+
 - 2026-05-18: MR. JRW requested that seeding with a different email should dethrone the current owner (demote to ADMIN) and create a new SUPER_ADMIN, while seeding with the same email should only update the password.
 - New operation type `dethrone-and-create-owner` added to `decideSuperAdminSeedOperation()`:
   - If seed email differs from current owner's email → demote old owner (`is_owner = 0`), insert new SUPER_ADMIN
@@ -363,4 +381,25 @@ GPT-5 Codex
 - Added lightweight redirects for `/brand`, `/brand/:id`, `/brands`, and `/brands/:id` to the canonical admin brand UI routes.
 - Testing path after seeding Admin: sign in with `POST /api/admin/auth/sessions`, then open `/admin/brands` or redirected `/brand`.
 - No Vitest exists for redirect-only Astro aliases; full route/build verification is left to MR. JRW's `npm run build-test` gate.
+- Status: done.
+
+## Post-Retro Fix: Create Brand UI
+
+- 2026-06-03: Added create brand UI on `/admin/brands` so Admin can create brand records from the brand resource page instead of using the API directly.
+- Reused existing admin/category/product patterns: shared `Modal`, `Button`, `InputBox`, `Textarea`, form validation, dirty-close prompt, toast feedback, and local list update before navigation.
+- Added `BrandEditor` create modal with name, slug, and description fields. Slug auto-suggests from brand name through existing `generateSlug()` domain helper while remaining editable.
+- Added `createBrand()` API client helper for `POST /api/brands`, using the existing standard API envelope reader and `BrandMutationInput` type.
+- Added create actions to the brand toolbar and empty brand state. Toolbar order was aligned with products: view toggle first, create action on the far right.
+- Aligned post-create navigation with products: successful brand create redirects to `/admin/brands/:id` detail page after the brand record is created.
+- Added `Back to brands` return action in `/admin/brands/:id` detail header so Admin can leave brand detail without using browser back.
+- Added optional brand image storage with nullable `brands.image_id`, `brands.image_r2_key`, and `brands.image_alt` columns plus manual migration `migrations/0023_brand_optional_image.sql`.
+- Applied `0023_brand_optional_image.sql` to remote development D1 (`jrw-database-development`) with `npm run db:migrate:remote`. Production migration remains review-gated.
+- Added `POST /api/brands/:id/image` multipart upload. It uses the same JPEG/PNG/WEBP and 5MB constraints as product media, writes to R2 under `brands/:brandId/:imageId`, and returns updated `brand.imageSrc`/`brand.imageAlt`.
+- Added `/assets/brands/:key` R2 asset route so brand images render when `R2_PUBLIC_URL` is not configured.
+- Added `BrandImageMark` to render saved brand images in brand cards, brand table rows, and brand detail header. If no image exists, it falls back to accessible initials placeholder.
+- Added image picker to `BrandEditor` create modal and image upload/replace control in `/admin/brands/:id` detail actions.
+- Public brand index/detail and product detail brand summary now prefer saved brand image over product-photo fallback.
+- Files changed include brand schema/migration, brand API route/service/controller/repository, brand asset route, public brand/catalog repositories, admin brand UI/API/types/tests, and `ResourceCard.media`.
+- Validation: `npx vitest run src\features\brands\api.test.ts src\features\brands\components\brands-ui.test.ts --testTimeout=10000`, `npx vitest run src\server\repositories\BrandRepository.test.ts --testTimeout=20000`, `npx vitest run src\server\services\BrandService.test.ts --testTimeout=15000`, `npx vitest run src\server\routes\brands.routes.test.ts --testTimeout=15000`, `npx vitest run src\server\repositories\PublicCatalogRepository.test.ts --testTimeout=15000`, `npm run check`, and `git diff --check` passed. Combined backend run hit a Miniflare worker close, then passed when repository suite ran alone.
+- Cross-reference: toolbar/resource-browser alignment also touches Story 3.0 surface.
 - Status: done.

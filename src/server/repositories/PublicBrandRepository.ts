@@ -21,6 +21,8 @@ const BRAND_PRODUCT_PREVIEW_LIMIT = 4;
 
 type BrandSummaryLookup = {
   id: string;
+  imageAlt: string | null;
+  imageSrc: string | null;
   name: string;
   slug: string;
 };
@@ -161,6 +163,8 @@ function brandRowFromSummary(
   return {
     href: brandHref(row.slug),
     id: row.id,
+    ...(row.imageAlt ? { imageAlt: row.imageAlt } : {}),
+    ...(row.imageSrc ? { imageSrc: row.imageSrc } : {}),
     name: row.name,
     productCount: Number(row.productCount ?? 0),
     products: productPreviews,
@@ -208,6 +212,8 @@ export class DrizzlePublicBrandRepository implements PublicBrandRepository {
     const [brand] = await this.db
       .select({
         id: brands.id,
+        imageAlt: brands.image_alt,
+        imageSrc: brands.image_id,
         name: brands.name,
         slug: brands.slug,
       })
@@ -230,6 +236,8 @@ export class DrizzlePublicBrandRepository implements PublicBrandRepository {
     const activeBrands = await this.db
       .select({
         id: brands.id,
+        imageAlt: brands.image_alt,
+        imageSrc: brands.image_id,
         name: brands.name,
         slug: brands.slug,
       })

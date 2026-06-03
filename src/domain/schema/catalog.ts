@@ -40,6 +40,9 @@ export const brands = sqliteTable(
     name: text("name").notNull(),
     slug: text("slug").notNull(),
     description: text("description"),
+    image_id: text("image_id"),
+    image_r2_key: text("image_r2_key"),
+    image_alt: text("image_alt"),
     status: text("status", { enum: brandStatusValues })
       .notNull()
       .default("ACTIVE"),
@@ -165,7 +168,10 @@ export const product_photos = sqliteTable(
       .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
-    index("idx_product_photos_product_sort").on(table.product_id, table.sort_order),
+    index("idx_product_photos_product_sort").on(
+      table.product_id,
+      table.sort_order
+    ),
     index("idx_product_photos_product_primary").on(
       table.product_id,
       table.is_primary

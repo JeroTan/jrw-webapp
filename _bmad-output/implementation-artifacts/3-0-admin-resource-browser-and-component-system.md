@@ -251,6 +251,7 @@ GPT-5 Codex
 ### Completion Notes List
 
 - Added shared resource browser primitives: `SearchInput`, `ViewToggle`, `ResourceCard`, `ResourceList`, and `PageToolbar`.
+- Added optional `ResourceCard.media` slot for visual identity marks in resource cards while preserving title/meta/status/action contract.
 - Converted `/admin/brands` list into searchable resource browser with card default, list toggle, session-only view persistence, filtered empty reset, and card/list field parity.
 - Added linked product counts through existing `fetchBrandProducts`; count failures show `Unavailable` without failing the whole brand page.
 - Added stable resource-card skeleton layout using existing reduced-motion-safe `jrw-skeleton` pulse standard.
@@ -281,6 +282,8 @@ GPT-5 Codex
 
 ## Change Log
 
+- 2026-06-03: Added optional `ResourceCard.media` slot and used it for admin brand saved imagery with initials placeholder fallback; upload/storage details live in Story 2.7 notes.
+- 2026-06-03: Post-retro alignment: `/admin/brands` toolbar now keeps resource view toggle before `Create brand`, matching product toolbar action order. Full create modal details documented in Story 2.7.
 - 2026-05-20: Code review fixed view toggle sizing token and marked Story 3.0 done.
 - 2026-05-20: Replaced custom stepped skeleton pulse with Tailwind `motion-safe:animate-pulse` and updated targeted tests.
 - 2026-05-20: Implemented Story 3.0 admin resource browser, shared browse primitives, brand card/list/search UI, skeleton/card styles, component inventory docs, and targeted tests.

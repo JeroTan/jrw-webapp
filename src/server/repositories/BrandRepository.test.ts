@@ -34,6 +34,9 @@ async function createBrandTestD1() {
       name text NOT NULL,
       slug text NOT NULL,
       description text,
+      image_id text,
+      image_r2_key text,
+      image_alt text,
       status text DEFAULT 'ACTIVE' NOT NULL,
       created_by_admin_id text NOT NULL,
       archived_at text,
@@ -123,6 +126,8 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
       name: "JRW Lifestyle",
       slug: "jrw-lifestyle",
       description: "Catalog team",
+      image_id: null,
+      image_alt: null,
       status: "ARCHIVED",
       created_by_admin_id: "admin_1",
       archived_at: sqliteNow,
@@ -135,6 +140,8 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
       name: "JRW Lifestyle",
       slug: "jrw-lifestyle",
       description: "Catalog team",
+      imageAlt: null,
+      imageSrc: null,
       status: "ARCHIVED",
       archivedAt: now,
       createdAt: now,
@@ -407,6 +414,40 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
         name: "JRW Lifestyle Updated",
         slug: "jrw-lifestyle-updated",
         description: null,
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("updates optional brand image metadata", async () => {
+    const { d1, mf } = await createBrandTestD1();
+
+    try {
+      const repository = new DrizzleBrandRepository(createDb(d1));
+      const created = await repository.createBrand(
+        {
+          name: "JRW Lifestyle",
+          slug: "jrw-lifestyle",
+          description: null,
+          status: "ACTIVE",
+          createdAt: now,
+          updatedAt: now,
+        },
+        "admin_1"
+      );
+
+      const updated = await repository.updateBrandImage(created.id, {
+        imageId: "/assets/brands/brand_1/image.jpg",
+        imageR2Key: "brands/brand_1/image.jpg",
+        imageAlt: "JRW Lifestyle mark",
+        updatedAt: "2026-05-17T22:45:00.000Z",
+      });
+
+      expect(updated).toMatchObject({
+        id: created.id,
+        imageSrc: "/assets/brands/brand_1/image.jpg",
+        imageAlt: "JRW Lifestyle mark",
       });
     } finally {
       await mf.dispose();
@@ -775,7 +816,9 @@ describe("BrandRepository", { timeout: 20_000 }, () => {
         }),
       ]);
 
-      const brandJoinRequests = await repository.findBrandJoinRequests(brand.id);
+      const brandJoinRequests = await repository.findBrandJoinRequests(
+        brand.id
+      );
       expect(brandJoinRequests).toEqual([
         expect.objectContaining({
           id: joinRequestMembership.id,

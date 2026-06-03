@@ -9,17 +9,22 @@ import {
 import { EmptyState } from "@/components/feedback/EmptyState";
 import { Skeleton } from "@/components/feedback/Skeleton";
 import { StatusBadge } from "@/components/feedback/StatusBadge";
+import { Toast } from "@/components/feedback/Toast";
 import { PageToolbar } from "@/components/layout";
-import { Button, SearchInput, ViewToggle } from "@/components/ui";
+import { Button, ButtonLink, SearchInput, ViewToggle } from "@/components/ui";
 import {
+  createBrand,
   fetchBrandInvites,
   fetchBrandJoinRequests,
   fetchBrandList,
   fetchBrandMembers,
   fetchBrandProducts,
+  uploadBrandImage,
 } from "../api";
 import { validateBrandCopy } from "../language";
-import type { BrandRecord } from "../types";
+import type { BrandEditorSaveInput, BrandRecord } from "../types";
+import { BrandEditor } from "./BrandEditor";
+import { BrandImageMark } from "./BrandImageMark";
 
 type LoadState = "loading" | "ready" | "failed";
 export type BrandResourceViewMode = "cards" | "list";
@@ -34,6 +39,12 @@ type BrandCounts = {
   linkedProducts: number | null;
   pendingInvites: number | null;
   pendingJoinRequests: number | null;
+};
+
+type ToastState = {
+  message: string;
+  title: string;
+  tone: "error" | "success" | "warning";
 };
 
 const brandResourceViewStorageKey = "jrw.brandResourceViewMode";
@@ -107,6 +118,72 @@ function countValue(
   return counts ? countLabel(counts[key]) : "Loading";
 }
 
+function createdBrandCounts(): BrandCounts {
+  return {
+    brandMembers: 1,
+    linkedProducts: 0,
+    pendingInvites: 0,
+    pendingJoinRequests: 0,
+  };
+}
+
+function brandActionErrorMessage(error: unknown, fallback: string): string {
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("code" in error) ||
+    typeof (error as { code?: unknown }).code !== "string"
+  ) {
+    return fallback;
+  }
+
+  const failure = error as {
+    code: string;
+    details?: unknown;
+    message?: unknown;
+  };
+  const reason =
+    typeof failure.details === "object" &&
+    failure.details !== null &&
+    "reason" in failure.details &&
+    typeof (failure.details as { reason?: unknown }).reason === "string"
+      ? String((failure.details as { reason: string }).reason)
+      : null;
+
+  if (failure.code === "CONFLICT_STATE") {
+    if (reason === "DUPLICATE_NAME") {
+      return "Brand name is already in use.";
+    }
+
+    if (reason === "DUPLICATE_SLUG") {
+      return "Slug is already in use.";
+    }
+
+    if (reason === "ARCHIVED_NAME_CONFLICT") {
+      return "An archived brand already uses this name.";
+    }
+
+    return "Brand state conflicts with current data.";
+  }
+
+  if (failure.code === "VALIDATION_FAILED") {
+    return "Brand data is invalid. Check field values and try again.";
+  }
+
+  if (failure.code === "AUTH_FORBIDDEN") {
+    return "You do not have access to create brands.";
+  }
+
+  if (failure.code === "PROVIDER_UNAVAILABLE") {
+    return "We couldn't complete that right now. Try again soon.";
+  }
+
+  return typeof failure.message === "string" &&
+    failure.message.trim().length > 0
+    ? failure.message
+    : fallback;
+}
+
 async function loadBrandCounts(brandId: string): Promise<BrandCounts> {
   const defaultCounts: BrandCounts = {
     brandMembers: null,
@@ -153,6 +230,9 @@ export function BrandList() {
   const [viewMode, setViewMode] = useState<BrandResourceViewMode>(() =>
     readBrandResourceViewMode()
   );
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [toast, setToast] = useState<ToastState | null>(null);
 
   const visibleBrands = useMemo(
     () => filterBrandsByQuery(brands, searchQuery),
@@ -164,6 +244,67 @@ export function BrandList() {
   function handleViewModeChange(nextViewMode: BrandResourceViewMode) {
     setViewMode(nextViewMode);
     writeBrandResourceViewMode(nextViewMode);
+  }
+
+  async function handleCreateBrand(input: BrandEditorSaveInput) {
+    setSaving(true);
+    try {
+      const created = await createBrand({
+        name: input.name,
+        slug: input.slug,
+        description: input.description,
+      });
+      let nextBrand = created;
+      let imageUploadFailed = false;
+
+      if (typeof File !== "undefined" && input.image instanceof File) {
+        try {
+          nextBrand = await uploadBrandImage(created.id, {
+            image: input.image,
+            name: input.imageAlt ?? created.name,
+          });
+        } catch {
+          imageUploadFailed = true;
+        }
+      }
+
+      setBrands((previous) => [...previous, nextBrand]);
+      setCountsByBrandId((previous) => ({
+        ...previous,
+        [nextBrand.id]: createdBrandCounts(),
+      }));
+      setEditorOpen(false);
+      setToast(
+        imageUploadFailed
+          ? {
+              tone: "warning",
+              title: "Brand created",
+              message:
+                "Brand is ready, but image upload failed. Upload it from brand detail.",
+            }
+          : {
+              tone: "success",
+              title: "Brand created",
+              message: "Brand is ready for product assignment.",
+            }
+      );
+      if (typeof window !== "undefined") {
+        window.location.assign(`/admin/brands/${nextBrand.id}`);
+      }
+    } catch (error) {
+      const message = brandActionErrorMessage(
+        error,
+        "Brand save failed. Try again."
+      );
+      setToast({
+        tone: "error",
+        title: "Save failed",
+        message,
+      });
+      throw new Error(message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   useEffect(() => {
@@ -213,9 +354,17 @@ export function BrandList() {
         key: "brand",
         header: "Brand",
         cell: (brand) => (
-          <div className="grid gap-0.5">
-            <strong>{brand.name}</strong>
-            <span className="text-xs text-brand-muted">{brand.slug}</span>
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-grid-xs">
+            <BrandImageMark
+              imageAlt={brand.imageAlt}
+              imageSrc={brand.imageSrc}
+              name={brand.name}
+              size="sm"
+            />
+            <div className="grid min-w-0 gap-0.5">
+              <strong>{brand.name}</strong>
+              <span className="text-xs text-brand-muted">{brand.slug}</span>
+            </div>
           </div>
         ),
       },
@@ -261,12 +410,9 @@ export function BrandList() {
         header: "Action",
         align: "right",
         cell: (brand) => (
-          <a
-            className="inline-flex min-h-control-sm items-center border border-brand-border-strong px-grid-xs no-underline hover:border-brand-accent focus-visible:border-brand-accent"
-            href={`/admin/brands/${brand.id}`}
-          >
+          <ButtonLink href={`/admin/brands/${brand.id}`} size="sm">
             Open detail
-          </a>
+          </ButtonLink>
         ),
       },
     ],
@@ -279,14 +425,19 @@ export function BrandList() {
     return (
       <ResourceCard
         action={
-          <a
-            className="inline-flex min-h-control-sm items-center border border-brand-border-strong px-grid-xs no-underline hover:border-brand-accent focus-visible:border-brand-accent"
-            href={`/admin/brands/${brand.id}`}
-          >
+          <ButtonLink href={`/admin/brands/${brand.id}`} size="sm">
             Open detail
-          </a>
+          </ButtonLink>
         }
         key={brand.id}
+        media={
+          <BrandImageMark
+            imageAlt={brand.imageAlt}
+            imageSrc={brand.imageSrc}
+            name={brand.name}
+            size="md"
+          />
+        }
         meta={brand.slug}
         stats={[
           {
@@ -318,11 +469,20 @@ export function BrandList() {
     <section className="grid gap-grid-sm">
       <header className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-grid-md border-b border-brand-border-strong py-grid-md pt-grid-lg max-md:grid-cols-1 max-md:items-stretch max-md:pt-grid-md">
         <div>
-          <p className="font-system text-xs font-bold uppercase text-brand-muted">Catalog collaboration</p>
-          <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">Brand catalog groups</h1>
-          <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">{brandListIntroCopy}</p>
+          <p className="font-system text-xs font-bold uppercase text-brand-muted">
+            Catalog collaboration
+          </p>
+          <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">
+            Brand catalog groups
+          </h1>
+          <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
+            {brandListIntroCopy}
+          </p>
         </div>
-        <dl className="m-0 grid grid-cols-2 border border-brand-border-strong bg-brand-surface max-md:grid-cols-1 [&>div]:grid [&>div]:gap-grid-xs [&>div]:border-r [&>div]:border-brand-border [&>div]:p-grid-sm [&>div:last-child]:border-r-0 max-md:[&>div]:border-r-0 max-md:[&>div]:border-b max-md:[&>div:last-child]:border-b-0 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:text-brand-muted [&_dd]:m-0 [&_dd]:font-heading [&_dd]:text-xl [&_dd]:font-bold" aria-label="Brand status summary">
+        <dl
+          className="m-0 grid grid-cols-2 border border-brand-border-strong bg-brand-surface max-md:grid-cols-1 [&>div]:grid [&>div]:gap-grid-xs [&>div]:border-r [&>div]:border-brand-border [&>div]:p-grid-sm [&>div:last-child]:border-r-0 max-md:[&>div]:border-r-0 max-md:[&>div]:border-b max-md:[&>div:last-child]:border-b-0 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:text-brand-muted [&_dd]:m-0 [&_dd]:font-heading [&_dd]:text-xl [&_dd]:font-bold"
+          aria-label="Brand status summary"
+        >
           <div>
             <dt>Visible brands</dt>
             <dd>{loadState === "ready" ? brands.length : "-"}</dd>
@@ -336,12 +496,17 @@ export function BrandList() {
 
       <PageToolbar
         actions={
-          <ViewToggle
-            label="Brand view"
-            onChange={handleViewModeChange}
-            options={brandResourceViewOptions}
-            value={viewMode}
-          />
+          <div className="flex flex-wrap items-center justify-end gap-grid-xs max-md:justify-start">
+            <ViewToggle
+              label="Brand view"
+              onChange={handleViewModeChange}
+              options={brandResourceViewOptions}
+              value={viewMode}
+            />
+            <Button onClick={() => setEditorOpen(true)} variant="primary">
+              Create brand
+            </Button>
+          </div>
         }
         main={
           <SearchInput
@@ -389,7 +554,15 @@ export function BrandList() {
                 <Button onClick={() => setSearchQuery("")} size="sm">
                   Reset search
                 </Button>
-              ) : undefined
+              ) : (
+                <Button
+                  onClick={() => setEditorOpen(true)}
+                  size="sm"
+                  variant="primary"
+                >
+                  Create first brand
+                </Button>
+              )
             }
             title={hasSearchQuery ? "No matching brands." : "No brands yet."}
             message={
@@ -403,7 +576,10 @@ export function BrandList() {
         {loadState === "ready" &&
         visibleBrands.length > 0 &&
         viewMode === "cards" ? (
-          <ResourceList className="grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))]" label="Brand cards">
+          <ResourceList
+            className="grid-cols-[repeat(auto-fit,minmax(min(100%,300px),1fr))]"
+            label="Brand cards"
+          >
             {visibleBrands.map((brand) => renderBrandCard(brand))}
           </ResourceList>
         ) : null}
@@ -433,6 +609,26 @@ export function BrandList() {
           />
         ) : null}
       </section>
+
+      {editorOpen ? (
+        <BrandEditor
+          onClose={() => setEditorOpen(false)}
+          onSave={handleCreateBrand}
+          open={true}
+          saving={saving}
+        />
+      ) : null}
+
+      {toast ? (
+        <aside className="fixed bottom-grid-md right-grid-md z-[60] max-md:bottom-grid-sm max-md:left-grid-sm max-md:right-grid-sm">
+          <Toast
+            message={toast.message}
+            onDismiss={() => setToast(null)}
+            title={toast.title}
+            tone={toast.tone}
+          />
+        </aside>
+      ) : null}
     </section>
   );
 }

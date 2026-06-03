@@ -7,6 +7,8 @@ export type BrandRecord = {
   name: string;
   slug: string;
   description: string | null;
+  imageSrc?: string | null;
+  imageAlt?: string | null;
   status: BrandStatus;
   archivedAt: string | null;
   createdAt: string;
@@ -19,6 +21,22 @@ export type BrandListResult = {
   pageSize: number;
   totalItems: number;
   totalPages: number;
+};
+
+export type BrandMutationInput = {
+  name: string;
+  slug?: string;
+  description?: string | null;
+};
+
+export type BrandEditorSaveInput = BrandMutationInput & {
+  image?: File | null;
+  imageAlt?: string | null;
+};
+
+export type UploadBrandImageInput = {
+  image: File;
+  name?: string | null;
 };
 
 export type BrandMembershipRecord = {
@@ -75,4 +93,3 @@ export type AuthenticatedActor = {
     approved: boolean;
   };
 };
-

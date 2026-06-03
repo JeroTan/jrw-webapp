@@ -3,7 +3,10 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { BrandInviteTable } from "./BrandInviteTable";
 import { BrandJoinRequestTable } from "./BrandJoinRequestTable";
-import { resolveBrandActionPermissions } from "./BrandDetail";
+import {
+  BrandDetailHeader,
+  resolveBrandActionPermissions,
+} from "./BrandDetail";
 import {
   BrandList,
   filterBrandsByQuery,
@@ -12,6 +15,8 @@ import {
 } from "./BrandList";
 import { BrandMembershipTable } from "./BrandMembershipTable";
 import { ProductBrandField } from "./ProductBrandField";
+import { BrandEditor, suggestedBrandSlug } from "./BrandEditor";
+import { BrandImageMark, brandInitials } from "./BrandImageMark";
 
 const now = "2026-05-18T06:30:00.000Z";
 
@@ -69,14 +74,87 @@ describe("brands UI surfaces", () => {
 
     expect(markup).toContain("You can manage your list of brands here.");
     expect(markup).toContain("Search brands");
+    expect(markup).toContain("Create brand");
     expect(markup).toContain("Brand view");
     expect(markup).toContain("Cards");
     expect(markup).toContain("List");
     expect(markup).toContain("Loading brand cards");
     expect(markup).toContain("Loading brand card 1");
+    expect(markup.indexOf("Brand view")).toBeLessThan(
+      markup.indexOf("Create brand")
+    );
     expect(markup).not.toContain(
       "Brands are optional catalog groups. JRW remains seller of record."
     );
+  });
+
+  it("renders brand editor for create flow", () => {
+    const markup = renderToStaticMarkup(
+      createElement(BrandEditor, {
+        open: true,
+        onClose: () => undefined,
+        onSave: async () => undefined,
+      })
+    );
+
+    expect(markup).toContain("Create brand");
+    expect(markup).toContain("Brand name");
+    expect(markup).toContain("Slug");
+    expect(markup).toContain("Description");
+    expect(markup).toContain("Brand image");
+    expect(markup).toContain("Image alt text");
+  });
+
+  it("renders brand detail return action", () => {
+    const markup = renderToStaticMarkup(
+      createElement(BrandDetailHeader, {
+        brand: {
+          id: "brand_1",
+          name: "JRW Studio",
+          slug: "jrw-studio",
+          description: null,
+          status: "ACTIVE",
+          archivedAt: null,
+          createdAt: now,
+          updatedAt: now,
+        },
+      })
+    );
+
+    expect(markup).toContain("Back to brands");
+    expect(markup).toContain('href="/admin/brands"');
+    expect(markup).toContain('aria-label="JRW Studio brand image placeholder"');
+    expect(markup).toContain("JRW Studio");
+  });
+
+  it("renders brand image placeholder initials when no image exists", () => {
+    const markup = renderToStaticMarkup(
+      createElement(BrandImageMark, { name: "North Workshop" })
+    );
+
+    expect(brandInitials("North Workshop")).toBe("NW");
+    expect(markup).toContain('role="img"');
+    expect(markup).toContain("North Workshop brand image placeholder");
+    expect(markup).toContain("NW");
+  });
+
+  it("renders saved brand image when image exists", () => {
+    const markup = renderToStaticMarkup(
+      createElement(BrandImageMark, {
+        imageAlt: "JRW Studio mark",
+        imageSrc: "/assets/brands/brand_1/image.jpg",
+        name: "JRW Studio",
+      })
+    );
+
+    expect(markup).toContain("<img");
+    expect(markup).toContain('alt="JRW Studio mark"');
+    expect(markup).toContain('src="/assets/brands/brand_1/image.jpg"');
+  });
+
+  it("suggests editable brand slugs from names", () => {
+    expect(suggestedBrandSlug(" JRW Studio / Gifts ")).toBe("jrw-studio-gifts");
+    expect(suggestedBrandSlug("")).toBe("");
   });
 
   it("renders product brand helper text and brandless option", () => {
