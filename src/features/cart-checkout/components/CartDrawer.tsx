@@ -1,5 +1,5 @@
 import * as React from "react";
-import { Drawer } from "@/components/ui";
+import { ButtonLink, Drawer } from "@/components/ui";
 import type { CartState } from "@/domain/checkout/cart";
 import { refreshCartItems } from "../api";
 import { useCartStore } from "../store";
@@ -17,8 +17,16 @@ type CartDrawerViewProps = CartDrawerProps & {
 
 export function CartDrawerView({ onClose, open, state }: CartDrawerViewProps) {
   React.useEffect(() => {
-    if (open) {
-      void refreshCartItems(state.items);
+    async function verifyVisibleItems() {
+      try {
+        await refreshCartItems(state.items);
+      } catch {
+        // Cart refresh is best-effort; stored cart state stays visible.
+      }
+    }
+
+    if (open && state.items.length > 0) {
+      void verifyVisibleItems();
     }
   }, [open]);
 
@@ -32,12 +40,9 @@ export function CartDrawerView({ onClose, open, state }: CartDrawerViewProps) {
       <div className="grid gap-grid-sm">
         <CartLineItems items={state.items} />
         <CartSummary state={state} />
-        <a
-          className="inline-flex min-h-control-md items-center justify-center border border-brand-border-strong px-grid-sm font-system text-xs font-bold uppercase no-underline hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
-          href="/cart"
-        >
-          Open cart page
-        </a>
+        <ButtonLink href="/cart" textSize="xs">
+          See full cart page
+        </ButtonLink>
       </div>
     </Drawer>
   );

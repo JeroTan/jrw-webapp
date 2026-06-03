@@ -20,6 +20,7 @@ import {
   type CartState,
   type CreateCartItemSnapshotInput,
 } from "@/domain/checkout/cart";
+import { formatCatalogPrice } from "@/domain/products/price-format";
 
 export const CART_STORAGE_KEY = "jrw.cart.v1";
 
@@ -116,8 +117,7 @@ function parseCartItem(value: unknown): CartItemSnapshot | null {
       ? { imageSrc: safeOptionalString(value.imageSrc) }
       : {}),
     priceCentavos,
-    priceLabel:
-      safeString(value.priceLabel) ?? `PHP ${(priceCentavos / 100).toFixed(2)}`,
+    priceLabel: safeString(value.priceLabel) ?? formatCatalogPrice(priceCentavos),
     productId,
     productName,
     productSlug,

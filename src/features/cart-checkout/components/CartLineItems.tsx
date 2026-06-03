@@ -1,10 +1,12 @@
 import * as React from "react";
-import { Button } from "@/components/ui";
+import { Button, ButtonLink, Input, Label } from "@/components/ui";
 import { StatusBadge } from "@/components/feedback";
 import {
   cartItemKey,
   type CartItemSnapshot,
 } from "@/domain/checkout/cart";
+import { formatCatalogPrice } from "@/domain/products/price-format";
+import { Minus, Plus, X } from "lucide-react";
 import { refreshCartItem } from "../api";
 import {
   removeCartItemFromStore,
@@ -39,12 +41,9 @@ export function CartEmptyState() {
       <p className="m-0 max-w-[56ch] text-sm text-brand-muted">
         Add an available option from product detail. Cart saves in this browser.
       </p>
-      <a
-        className="inline-flex min-h-control-md w-fit items-center justify-center border border-brand-border-strong px-grid-sm font-system text-xs font-bold uppercase no-underline hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
-        href="/products"
-      >
+      <ButtonLink className="w-fit" href="/products" textSize="xs">
         Browse products
-      </a>
+      </ButtonLink>
     </section>
   );
 }
@@ -55,6 +54,7 @@ function CartLineItem({ item }: { item: CartItemSnapshot }) {
   const [error, setError] = React.useState<string | null>(null);
   const key = cartItemKey(item);
   const errorId = `${key.replace(/[^a-zA-Z0-9_-]/g, "-")}-quantity-error`;
+  const quantityInputId = `${errorId}-quantity`;
   const isBlocked = item.availabilityStatus !== "ACTIVE";
 
   React.useEffect(() => {
@@ -85,14 +85,18 @@ function CartLineItem({ item }: { item: CartItemSnapshot }) {
     }, 1200);
   }
 
+  const itemPath = `/products/${encodeURIComponent(item.productSlug)}`;
+  const itemPriceLabel = formatCatalogPrice(item.priceCentavos);
+  const lineSubtotalLabel = formatCatalogPrice(item.priceCentavos * item.quantity);
+
   return (
     <article
-      className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm sm:grid-cols-[84px_minmax(0,1fr)]"
+      className="relative grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm sm:grid-cols-[84px_minmax(0,1fr)]"
       role="listitem"
     >
       <a
-        className="block w-fit hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
-        href={`/products/${encodeURIComponent(item.productSlug)}`}
+        className="block size-[84px] self-start hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+        href={itemPath}
       >
         {item.imageSrc ? (
           <img
@@ -113,86 +117,76 @@ function CartLineItem({ item }: { item: CartItemSnapshot }) {
         )}
       </a>
 
-      <div className="grid min-w-0 gap-grid-xs">
+      <div className="grid min-w-0 gap-grid-sm pr-control-sm">
         <div className="grid gap-1">
           <div className="flex flex-wrap items-start justify-between gap-grid-xs">
             <div className="min-w-0">
               <h3 className="m-0 text-base font-bold [overflow-wrap:anywhere]">
                 <a
                   className="no-underline hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
-                  href={`/products/${encodeURIComponent(item.productSlug)}`}
+                  href={itemPath}
                 >
                   {item.productName}
                 </a>
               </h3>
               <p className="m-0 text-sm text-brand-muted">{item.variantLabel}</p>
             </div>
-            <p className="m-0 font-system text-sm font-bold">
-              {item.priceLabel}
-            </p>
           </div>
 
-          <div className="flex flex-wrap gap-1">
-            {item.variantOptions.map((option) => (
-              <span
-                className="border border-brand-border px-2 py-1 font-system text-[0.6875rem] font-bold uppercase text-brand-muted"
-                key={`${option.group}:${option.name}`}
-              >
-                {option.group}: {option.name}
-              </span>
-            ))}
-          </div>
         </div>
 
         <div className="flex flex-wrap items-end gap-grid-xs">
-          <div
-            aria-label={`Quantity for ${item.productName} ${item.variantLabel}`}
-            className="flex flex-wrap items-end gap-1"
-            role="group"
-          >
-            <Button
-              aria-label="Decrease quantity"
-              disabled={item.quantity <= 1}
-              onClick={() => applyQuantity(item.quantity - 1)}
-              size="sm"
+          <div className="grid w-fit gap-1">
+            <Label htmlFor={quantityInputId}>
+              QUANTITY
+            </Label>
+            <div
+              aria-label={`Quantity for ${item.productName} ${item.variantLabel}`}
+              className="flex items-stretch gap-1"
+              role="group"
             >
-              -
-            </Button>
-            <label className="grid gap-1">
-              <span className="font-system text-[0.6875rem] font-bold uppercase text-brand-muted">
-                Qty
-              </span>
-              <input
+              <Button
+                aria-label="Decrease quantity"
+                disabled={item.quantity <= 1}
+                onClick={() => applyQuantity(item.quantity - 1)}
+                size="sm"
+                square
+              >
+                <Minus aria-hidden="true" size={16} />
+              </Button>
+              <Input
                 aria-describedby={error ? errorId : undefined}
                 aria-invalid={error ? "true" : undefined}
-                className="min-h-control-md w-[76px] border border-brand-border-strong bg-brand-surface px-grid-xs text-center font-system font-bold text-brand-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+                className="w-14! !min-h-control-sm text-center font-system font-bold leading-none"
+                id={quantityInputId}
                 inputMode="numeric"
+                onBlur={() => {
+                  if (draftQuantity !== String(item.quantity)) {
+                    applyQuantity(draftQuantity);
+                  }
+                }}
                 onChange={(event) => setDraftQuantity(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    applyQuantity(draftQuantity);
+                  }
+                }}
+                textSize="sm"
                 value={draftQuantity}
               />
-            </label>
-            <Button
-              aria-label="Increase quantity"
-              onClick={() => applyQuantity(item.quantity + 1)}
-              size="sm"
-            >
-              +
-            </Button>
-            <Button onClick={() => applyQuantity(draftQuantity)} size="sm">
-              Update
-            </Button>
+              <Button
+                aria-label="Increase quantity"
+                onClick={() => applyQuantity(item.quantity + 1)}
+                size="sm"
+                square
+              >
+                <Plus aria-hidden="true" size={16} />
+              </Button>
+            </div>
           </div>
-
-          <Button
-            onClick={() => removeCartItemFromStore(item.productId, item.variantId)}
-            size="sm"
-            variant="ghost"
-          >
-            Remove
-          </Button>
         </div>
 
-        <div className="min-h-control-md" aria-live="polite">
+        <div className="grid gap-1" aria-live="polite">
           {error ? (
             <p className="m-0 text-sm font-bold text-brand-danger" id={errorId}>
               {error}
@@ -208,24 +202,38 @@ function CartLineItem({ item }: { item: CartItemSnapshot }) {
               {item.staleReason ?? item.availabilityText}
             </p>
           ) : (
-            <p className="m-0 text-sm text-brand-muted">
-              Line subtotal: PHP {((item.priceCentavos * item.quantity) / 100).toFixed(2)}
-            </p>
+            <>
+              <p className="brand-title-secondary m-0">
+                Item price: {itemPriceLabel}
+              </p>
+              <p className="brand-title-big m-0">{lineSubtotalLabel}</p>
+            </>
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-grid-xs">
-          <StatusBadge
-            label={isBlocked ? item.availabilityText : "Verified display item"}
-            tone={isBlocked ? "error" : "success"}
-          />
-          {item.availabilityStatus === "STALE" ? (
-            <span className="text-xs font-bold uppercase text-brand-muted">
-              Refresh needed
-            </span>
-          ) : null}
-        </div>
+        {isBlocked ? (
+          <div className="flex flex-wrap items-center gap-grid-xs">
+            <StatusBadge label={item.availabilityText} tone="error" />
+            {item.availabilityStatus === "STALE" ? (
+              <span className="text-xs font-bold uppercase text-brand-muted">
+                Refresh needed
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </div>
+
+      <Button
+        aria-label={`Remove ${item.productName} ${item.variantLabel}`}
+        className="absolute right-grid-xs top-grid-xs"
+        onClick={() => removeCartItemFromStore(item.productId, item.variantId)}
+        size="sm"
+        square
+        title="Remove item"
+        variant="ghost"
+      >
+        <X aria-hidden="true" size={16} />
+      </Button>
     </article>
   );
 }

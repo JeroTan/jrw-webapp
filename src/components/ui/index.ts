@@ -6,6 +6,8 @@ export * from "./ConfirmDialog";
 export * from "./CleanButton";
 export * from "./Drawer";
 export * from "./Input";
+export * from "./InputBox";
+export * from "./Label";
 export * from "./Modal";
 export * from "./Pagination";
 export * from "./ResponsiveFilterPanel";

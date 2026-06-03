@@ -101,6 +101,21 @@ describe("cart store", () => {
       updatedAt: "t1",
     });
     expect(parseCartState("{bad json").items).toHaveLength(0);
+
+    const fallbackLabel = parseCartState(
+      JSON.stringify({
+        items: [
+          {
+            ...added.state.items[0],
+            priceCentavos: 149900,
+            priceLabel: "",
+          },
+        ],
+        updatedAt: "t2",
+      })
+    );
+
+    expect(fallbackLabel.items[0]?.priceLabel).toBe("PHP 1,499.00");
   });
 
   it("notifies same-tab subscribers after cart writes", () => {

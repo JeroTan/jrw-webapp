@@ -93,6 +93,20 @@ so that I can prepare my purchase before checkout.
   - [x] Run targeted Vitest suites, then `npm run check`, and `npm run build` if no blocker appears.
   - [x] Manual QA at 320, 375, 390, 430, 768, 1024, and 1440px covering add-to-cart, drawer focus, cart page, sticky summary non-overlap, keyboard-only flow, and reduced-motion behavior. Automated/static coverage added; manual browser QA not run in this pass and remains documented blocker.
 
+- [x] Task 10: Stabilize cart drawer follow-up from reported sidebar error. (AC: 5, 8)
+  - [x] Guard drawer and cart page background refresh so unexpected refresh failures do not surface as UI errors after opening cart.
+  - [x] Keep manual refresh button from getting stuck in loading state if refresh fails unexpectedly.
+  - [x] Rename drawer full-page action to "See full cart page" and keep it linked to `/cart`.
+  - [x] Include `elysia/adapter/cloudflare-worker` in Vite SSR dependency optimization so cart refresh API calls do not crash the dev server.
+  - [x] Replace cart quantity raw input with shared `Input` and button-style cart links with `ButtonLink`.
+  - [x] Clean cart item UX: compact quantity field, no update button, top-right icon remove, item price/subtotal hierarchy, and no internal "verified display item" badge.
+  - [x] Update cart summary UX: accent subtotal, left-side `Checkout` CTA, icon-only refresh, and guest-friendly `/checkout` placeholder target.
+  - [x] Format PHP amounts with thousands separators and match cart quantity input height to small quantity buttons.
+  - [x] Use shared `Input` for cart quantity, with separate visible `QUANTITY` label above one aligned minus/input/plus control group.
+  - [x] Remove duplicate variant option chip because line item already shows variant label.
+  - [x] Remove non-actionable checkout validation helper copy from cart summary while retaining blocking warning copy.
+  - [x] Update focused cart UI test for the drawer full-page action label.
+
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint. Mark non-applicable items as `N/A` with reason.
@@ -304,6 +318,7 @@ Expected update files:
 - `src/features/storefront-shell/components/StorefrontHeader.tsx`
 - `src/layouts/StorefrontLayout.astro`
 - `src/pages/cart/index.astro`
+- `src/pages/checkout/index.astro`
 - `src/domain/products/public-types.ts`
 - `src/server/repositories/PublicCatalogRepository.ts`
 - `src/server/routes/public-catalog.routes.ts`
@@ -395,6 +410,7 @@ GPT-5 Codex
 - Added cart drawer, cart page, line items, quantity controls, stale/error states, empty state, sticky mobile summary, and honest interim `Continue to account` CTA.
 - Wired product detail add-to-cart from selected available variant and header live quantity badge/drawer trigger with `client:load` storefront shell hydration.
 - Local review found successful product-detail refresh did not mark unavailable variants in store; fixed and covered with regression test.
+- Post-done follow-up on 2026-06-03 guarded drawer/cart page background refresh against unexpected failures, included the Elysia Cloudflare adapter in Vite SSR dependency optimization, switched cart quantity/actions to shared input/link primitives, cleaned cart item/summary UX, and renamed the drawer full-page action to "See full cart page".
 - Validation: targeted Vitest suites passed; `npm run check` passed with 0 errors and 2 existing deprecated `returnValue` hints; `npm run build-test` passed with full Vitest 91 files / 560 tests and Astro build complete.
 - Manual viewport/browser QA not run in this pass; automated/static coverage and code review cover implementation constraints, browser QA remains follow-up blocker.
 

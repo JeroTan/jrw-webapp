@@ -45,7 +45,17 @@ export function CartPage() {
   const state = useCartStore();
 
   React.useEffect(() => {
-    void refreshCartItems(state.items);
+    async function verifyVisibleItems() {
+      try {
+        await refreshCartItems(state.items);
+      } catch {
+        // Cart refresh is best-effort; stored cart state stays visible.
+      }
+    }
+
+    if (state.items.length > 0) {
+      void verifyVisibleItems();
+    }
   }, []);
 
   return <CartPageView state={state} />;

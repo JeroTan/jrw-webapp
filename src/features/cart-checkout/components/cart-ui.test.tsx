@@ -96,7 +96,7 @@ const activeCart = addCartItem(
     availabilityText: "Available",
     imageAlt: "Linen Shirt front",
     imageSrc: "/assets/products/linen-shirt/front.jpg",
-    priceCentavos: 1999,
+    priceCentavos: 149900,
     productId: "prod_linen",
     productName: "Linen Shirt",
     productSlug: "linen-shirt",
@@ -128,10 +128,23 @@ describe("cart checkout UI", () => {
     expect(markup).toContain("Linen Shirt");
     expect(markup).toContain("Quantity for Linen Shirt Size: Small");
     expect(markup).toContain("min-h-control-md");
+    expect(markup).toContain("!min-h-control-sm");
+    expect(markup).toContain(">QUANTITY</label>");
+    expect(markup).toContain("w-14!");
+    expect(markup).not.toContain(
+      "border-brand-border px-2 py-1 font-system text-[0.6875rem] font-bold uppercase text-brand-muted"
+    );
     expect(markup).toContain("pb-[calc(var(--spacing-grid-lg)+88px)]");
     expect(markup).toContain("sticky bottom-0");
-    expect(markup).toContain("Continue to account");
-    expect(markup).toContain("PHP 39.98");
+    expect(markup).toContain("Checkout");
+    expect(markup).toContain('href="/checkout"');
+    expect(markup).toContain("Item price: PHP 1,499.00");
+    expect(markup).toContain("PHP 2,998.00");
+    expect(markup).not.toContain(
+      "Checkout validates price and availability again before payment."
+    );
+    expect(markup).not.toContain("Update");
+    expect(markup).not.toContain("Verified display item");
   });
 
   it("renders empty cart state without checkout action", () => {
@@ -157,7 +170,7 @@ describe("cart checkout UI", () => {
 
     expect(markup).toContain('role="dialog"');
     expect(markup).toContain('aria-modal="true"');
-    expect(markup).toContain("Open cart page");
+    expect(markup).toContain("See full cart page");
     expect(markup).toContain("Review line items before next checkout step.");
   });
 
@@ -176,7 +189,7 @@ describe("cart checkout UI", () => {
 
     expect(markup).toContain("Selected option is unavailable right now.");
     expect(markup).toContain("Resolve unavailable or unverified items");
-    expect(markup).toContain("Resolve items");
+    expect(markup).toContain("Checkout");
     expect(markup).not.toContain("stock_lock_version");
     expect(markup).not.toContain("R2");
   });

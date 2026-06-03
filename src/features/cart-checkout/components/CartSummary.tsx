@@ -1,6 +1,7 @@
 import * as React from "react";
-import { Button } from "@/components/ui";
+import { Button, ButtonLink } from "@/components/ui";
 import type { CartState } from "@/domain/checkout/cart";
+import { RefreshCw } from "lucide-react";
 import { refreshCartItems } from "../api";
 import { getCartSummary } from "../store";
 
@@ -9,9 +10,6 @@ type CartSummaryProps = {
   state: CartState;
 };
 
-const actionClass =
-  "inline-flex min-h-control-md items-center justify-center border border-brand-accent bg-brand-accent px-grid-sm font-system text-xs font-bold uppercase text-brand-surface no-underline hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
-
 export function CartSummary({ onRefresh, state }: CartSummaryProps) {
   const summary = getCartSummary(state);
   const isEmpty = state.items.length === 0;
@@ -19,9 +17,14 @@ export function CartSummary({ onRefresh, state }: CartSummaryProps) {
 
   async function handleRefresh() {
     setRefreshing(true);
-    await refreshCartItems(state.items);
-    onRefresh?.();
-    setRefreshing(false);
+    try {
+      await refreshCartItems(state.items);
+      onRefresh?.();
+    } catch {
+      // Cart verification is best-effort; stale state remains visible.
+    } finally {
+      setRefreshing(false);
+    }
   }
 
   return (
@@ -34,7 +37,7 @@ export function CartSummary({ onRefresh, state }: CartSummaryProps) {
           <span className="font-system text-sm font-bold uppercase text-brand-muted">
             Subtotal
           </span>
-          <strong className="font-identity text-2xl">
+          <strong className="brand-title-big text-brand-accent">
             {summary.subtotalLabel}
           </strong>
         </div>
@@ -48,31 +51,32 @@ export function CartSummary({ onRefresh, state }: CartSummaryProps) {
         <p className="m-0 border border-brand-danger bg-brand-surface p-grid-xs text-sm font-bold text-brand-danger">
           Resolve unavailable or unverified items before checkout.
         </p>
-      ) : (
-        <p className="m-0 min-h-control-md text-sm text-brand-muted">
-          Checkout validates price and availability again before payment.
-        </p>
-      )}
+      ) : null}
 
-      <div className="grid gap-grid-xs sm:grid-cols-2">
-        <Button
-          disabled={isEmpty || refreshing}
-          loading={refreshing}
-          loadingLabel="Refreshing"
-          onClick={handleRefresh}
-          variant="secondary"
-        >
-          Refresh cart
-        </Button>
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-grid-xs">
         {isEmpty || summary.hasBlockingIssues ? (
           <Button disabled variant="primary">
-            {isEmpty ? "Cart empty" : "Resolve items"}
+            Checkout
           </Button>
         ) : (
-          <a className={actionClass} href="/account">
-            Continue to account
-          </a>
+          <ButtonLink href="/checkout" textSize="xs" variant="primary">
+            Checkout
+          </ButtonLink>
         )}
+        <Button
+          aria-label="Refresh cart"
+          disabled={isEmpty || refreshing}
+          onClick={handleRefresh}
+          square
+          title="Refresh cart"
+          variant="secondary"
+        >
+          <RefreshCw
+            aria-hidden="true"
+            className={refreshing ? "motion-safe:animate-spin" : undefined}
+            size={16}
+          />
+        </Button>
       </div>
     </aside>
   );

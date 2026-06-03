@@ -13,6 +13,7 @@ const serverOnlyOptimizeExcludes = [
 
 const workerServerOptimizeIncludes = [
   "elysia",
+  "elysia/adapter/cloudflare-worker",
   "@elysiajs/openapi",
   "@elysiajs/cors",
   "drizzle-orm",
