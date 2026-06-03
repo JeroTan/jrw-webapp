@@ -12,13 +12,10 @@ export function ProductDescription({ description }: ProductDescriptionProps) {
   return (
     <section
       aria-labelledby="product-description-title"
-      className="grid gap-grid-sm"
+      className="grid gap-grid-sm "
       data-product-detail-module="product-description"
     >
-      <h2
-        className="m-0 text-[clamp(1.4rem,4vw,2rem)]"
-        id="product-description-title"
-      >
+      <h2 className="brand-title" id="product-description-title">
         Product description
       </h2>
       <ProductDescriptionLayout>

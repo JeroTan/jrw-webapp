@@ -22,7 +22,8 @@ const pageData = await loadStorefrontProductDetailPageData({
 
 Astro.response.status = pageData.status;
 const metadata = pageData.detail?.metadata ?? null;
-const title = metadata?.title ?? `${pageData.error?.title ?? "Product unavailable"} | JRW`;
+const title =
+  metadata?.title ?? `${pageData.error?.title ?? "Product unavailable"} | JRW`;
 const description =
   metadata?.description ??
   pageData.error?.message ??
@@ -44,17 +45,19 @@ const socialImageUrl = metadata?.imageSrc
   socialImageUrl={socialImageUrl}
   title={title}
 >
-  {pageData.detail ? (
-    <ProductDetailPage client:load detail={pageData.detail} />
-  ) : pageData.error ? (
-    <ProductDetailErrorState error={pageData.error} />
-  ) : (
-    <ProductDetailErrorState
-      error={{
-        code: "PROVIDER_UNAVAILABLE",
-        message: "Product page is unavailable right now. Try again soon.",
-        title: "Product unavailable",
-      }}
-    />
-  )}
+  {
+    pageData.detail ? (
+      <ProductDetailPage client:load detail={pageData.detail} />
+    ) : pageData.error ? (
+      <ProductDetailErrorState error={pageData.error} />
+    ) : (
+      <ProductDetailErrorState
+        error={{
+          code: "PROVIDER_UNAVAILABLE",
+          message: "Product page is unavailable right now. Try again soon.",
+          title: "Product unavailable",
+        }}
+      />
+    )
+  }
 </StorefrontLayout>

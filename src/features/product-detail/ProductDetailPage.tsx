@@ -247,13 +247,13 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
   return (
     <section
       aria-labelledby="product-detail-title"
-      className="grid gap-grid-lg"
+      className="grid  gap-grid-lg sm:mt-4 mt-2"
     >
       <section
         className="grid gap-grid-md "
         data-product-detail-module="product-details"
       >
-        <div className="grid gap-grid-md lg:grid-cols-[minmax(0,40%)_minmax(0,60%)]">
+        <div className="grid sm:gap-grid-lg gap-grid-md lg:grid-cols-[minmax(0,40%)_minmax(0,60%)]">
           <ProductGallery
             gallery={detail.gallery}
             onSelectImage={setSelectedImageId}
@@ -262,7 +262,7 @@ export function ProductDetailPage({ detail }: ProductDetailPageProps) {
           />
 
           <section
-            className="grid content-start gap-y-5"
+            className="grid content-start gap-y-5 "
             aria-label="Product details"
           >
             <section>

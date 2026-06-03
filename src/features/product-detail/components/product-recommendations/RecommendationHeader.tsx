@@ -10,10 +10,7 @@ export function RecommendationHeader({
 }: RecommendationHeaderProps) {
   return (
     <div className="flex flex-wrap items-end justify-between gap-grid-sm">
-      <h2
-        className="m-0 text-[clamp(1.4rem,4vw,2rem)]"
-        id="product-recommendations-title"
-      >
+      <h2 className="brand-title" id="product-recommendations-title">
         {recommendations.title}
       </h2>
       <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
