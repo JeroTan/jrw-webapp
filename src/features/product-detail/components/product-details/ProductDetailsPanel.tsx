@@ -1,5 +1,5 @@
 import * as React from "react";
-import { StatusBadge } from "@/components/feedback";
+import { StatusBadge, Toast } from "@/components/feedback";
 import type {
   PublicCatalogAvailability,
   PublicCatalogDetailVariant,
@@ -21,6 +21,12 @@ import { VariantSelector } from "../product-variant-selector/VariantSelector";
 type ProductDetailsPanelProps = {
   detail: StorefrontProductDetailResult;
   onSelectedImageChange: (imageId: string | null) => void;
+};
+
+type ProductFeedbackToast = {
+  message: string;
+  title: string;
+  tone: "error" | "info" | "success";
 };
 
 const unavailableSelectionAvailability = {
@@ -133,10 +139,10 @@ export function ProductDetailsPanel({
       selectionFromVariant(initialVariant)
     );
   const [quantity, setQuantity] = React.useState(1);
-  const [cartStatus, setCartStatus] = React.useState<
-    "idle" | "pending" | "success" | "error"
-  >("idle");
-  const [cartMessage, setCartMessage] = React.useState<string | null>(null);
+  const [cartStatus, setCartStatus] = React.useState<"idle" | "pending">(
+    "idle"
+  );
+  const [toast, setToast] = React.useState<ProductFeedbackToast | null>(null);
   const selectedVariant = variantFromDetail(detail, selectedVariantId);
   const availability =
     selectedVariant?.availability ?? unavailableSelectionAvailability;
@@ -194,7 +200,7 @@ export function ProductDetailsPanel({
       );
     }
 
-    setCartMessage(null);
+    setToast(null);
     setCartStatus("idle");
   }
 
@@ -209,16 +215,23 @@ export function ProductDetailsPanel({
     );
 
     if (result.error) {
-      setCartStatus("error");
-      setCartMessage(result.error.message);
+      setCartStatus("idle");
+      setToast({
+        message: result.error.message,
+        title: "Could not add to cart",
+        tone: "error",
+      });
       return false;
     }
 
-    setCartStatus("success");
-    setCartMessage("Added to cart.");
-    window.setTimeout(() => {
-      setCartStatus("idle");
-    }, 1400);
+    setCartStatus("idle");
+    setToast({
+      message: `${displayQuantity} ${
+        displayQuantity === 1 ? "item" : "items"
+      } added to cart.`,
+      title: "Added to cart",
+      tone: "success",
+    });
     return true;
   }
 
@@ -241,11 +254,19 @@ export function ProductDetailsPanel({
 
     if (navigator.clipboard?.writeText) {
       await navigator.clipboard.writeText(shareUrl);
-      setCartMessage("Product link copied.");
+      setToast({
+        message: "Product link copied.",
+        title: "Link copied",
+        tone: "info",
+      });
       return;
     }
 
-    setCartMessage("Copy product link from address bar.");
+    setToast({
+      message: "Copy product link from address bar.",
+      title: "Copy link",
+      tone: "info",
+    });
   }
 
   return (
@@ -324,20 +345,21 @@ export function ProductDetailsPanel({
       />
 
       <div className="min-h-control-md" aria-live="polite">
-        {cartMessage ? (
-          <p
-            className={
-              cartStatus === "error"
-                ? "m-0 text-sm font-bold text-brand-danger"
-                : "m-0 text-sm font-bold text-brand-success"
-            }
-          >
-            {cartMessage}
-          </p>
-        ) : visibleActionReason ? (
+        {visibleActionReason ? (
           <p className="m-0 text-sm text-brand-muted">{visibleActionReason}</p>
         ) : null}
       </div>
+
+      {toast ? (
+        <aside className="fixed bottom-grid-md right-grid-md z-[60] max-md:bottom-grid-sm max-md:left-grid-sm max-md:right-grid-sm">
+          <Toast
+            message={toast.message}
+            onDismiss={() => setToast(null)}
+            title={toast.title}
+            tone={toast.tone}
+          />
+        </aside>
+      ) : null}
     </section>
   );
 }
