@@ -175,9 +175,7 @@ describe("product detail UI", () => {
 
     expect(markup).toContain('data-product-detail-module="product-details"');
     expect(markup).toContain("lg:grid-cols-[minmax(0,40%)_minmax(0,60%)]");
-    expect(markup.indexOf("Linen Shirt")).toBeLessThan(
-      markup.indexOf("Selected price")
-    );
+    expect(markup.indexOf("Linen Shirt")).toBeLessThan(markup.indexOf("Price"));
     expect(markup).toContain("Product description");
     expect(markup).toContain("<h3>Fit notes</h3>");
     expect(markup).toContain("<strong>linen</strong>");
