@@ -43,6 +43,7 @@ export function cartItemInputFromDetail(
     availabilityText: variant.availability.label,
     imageAlt: variantImageAlt(detail, variant),
     imageSrc: variant.imageSrc ?? detail.product.primaryImage?.src,
+    maxQuantity: variant.maxQuantity,
     priceCentavos: variant.priceCentavos,
     priceLabel: variant.priceLabel,
     productId: detail.product.id,

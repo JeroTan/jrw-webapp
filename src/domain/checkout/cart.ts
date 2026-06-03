@@ -1,8 +1,7 @@
 import { formatCatalogPrice } from "@/domain/products/price-format";
-import {
-  SNAPSHOT_QUANTITY_MAX,
-  SNAPSHOT_VARIANT_OPTION_MAX_ITEMS,
-} from "@/domain/snapshots/schemas";
+import { SNAPSHOT_VARIANT_OPTION_MAX_ITEMS } from "@/domain/snapshots/schemas";
+
+export const STOREFRONT_CART_LINE_QUANTITY_MAX = 99;
 
 export type CartAvailabilityStatus = "ACTIVE" | "STALE" | "UNAVAILABLE";
 
@@ -16,6 +15,7 @@ export type CartItemSnapshot = {
   availabilityText: string;
   imageAlt?: string;
   imageSrc?: string;
+  maxQuantity: number;
   priceCentavos: number;
   priceLabel: string;
   productId: string;
@@ -38,6 +38,7 @@ export type CreateCartItemSnapshotInput = {
   availabilityText: string;
   imageAlt?: string;
   imageSrc?: string;
+  maxQuantity?: number;
   priceCentavos: number;
   priceLabel?: string;
   productId: string;
@@ -97,7 +98,7 @@ function quantityError(code: CartQuantityErrorCode): CartQuantityError {
     case "QUANTITY_ABOVE_MAX":
       return {
         code,
-        message: `Quantity must be ${SNAPSHOT_QUANTITY_MAX} or less.`,
+        message: "Quantity exceeds the available limit.",
       };
     case "QUANTITY_BELOW_MIN":
       return { code, message: "Quantity must be at least 1." };
@@ -113,6 +114,38 @@ function validationError(
   message: string
 ): CartValidationError {
   return { code, message };
+}
+
+export function normalizeCartLineQuantityMax(value: unknown): number {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return STOREFRONT_CART_LINE_QUANTITY_MAX;
+  }
+
+  return Math.min(
+    Math.max(1, Math.trunc(value)),
+    STOREFRONT_CART_LINE_QUANTITY_MAX
+  );
+}
+
+export function clampCartQuantityToMax(
+  value: number | string | unknown,
+  maxQuantity: number
+): number | null {
+  const parsed =
+    typeof value === "string" && value.trim().length > 0
+      ? Number(value.trim())
+      : value;
+
+  if (
+    typeof parsed !== "number" ||
+    !Number.isFinite(parsed) ||
+    !Number.isInteger(parsed) ||
+    parsed < 1
+  ) {
+    return null;
+  }
+
+  return Math.min(parsed, maxQuantity);
 }
 
 export function createEmptyCartState(updatedAt = emptyCartTimestamp): CartState {
@@ -131,8 +164,10 @@ export function cartItemKey(item: Pick<CartItemSnapshot, "productId" | "variantI
 }
 
 export function validateCartQuantity(
-  value: number | string | unknown
+  value: number | string | unknown,
+  maxQuantity = STOREFRONT_CART_LINE_QUANTITY_MAX
 ): { error: CartQuantityError; quantity: null } | { error: null; quantity: number } {
+  const max = normalizeCartLineQuantityMax(maxQuantity);
   const parsed =
     typeof value === "string" && value.trim().length > 0
       ? Number(value.trim())
@@ -150,7 +185,7 @@ export function validateCartQuantity(
     return { error: quantityError("QUANTITY_BELOW_MIN"), quantity: null };
   }
 
-  if (parsed > SNAPSHOT_QUANTITY_MAX) {
+  if (parsed > max) {
     return { error: quantityError("QUANTITY_ABOVE_MAX"), quantity: null };
   }
 
@@ -199,7 +234,8 @@ export function createCartItemSnapshot(
     };
   }
 
-  const quantity = validateCartQuantity(input.quantity ?? 1);
+  const maxQuantity = normalizeCartLineQuantityMax(input.maxQuantity);
+  const quantity = validateCartQuantity(input.quantity ?? 1, maxQuantity);
   if (quantity.error) {
     return { error: quantity.error, item: null };
   }
@@ -211,6 +247,7 @@ export function createCartItemSnapshot(
       availabilityText: cleanText(input.availabilityText) || "Available",
       ...(input.imageAlt?.trim() ? { imageAlt: cleanText(input.imageAlt) } : {}),
       ...(input.imageSrc?.trim() ? { imageSrc: input.imageSrc.trim() } : {}),
+      maxQuantity,
       priceCentavos: input.priceCentavos,
       priceLabel: input.priceLabel?.trim() || formatCatalogPrice(input.priceCentavos),
       productId,
@@ -256,7 +293,7 @@ export function addCartItem(
   }
 
   const nextQuantity = existing.quantity + nextItem.item.quantity;
-  const quantity = validateCartQuantity(nextQuantity);
+  const quantity = validateCartQuantity(nextQuantity, nextItem.item.maxQuantity);
 
   if (quantity.error) {
     return { error: quantity.error, state };
@@ -286,13 +323,13 @@ export function updateCartItemQuantity(
   quantityValue: number | string | unknown,
   updatedAt = timestamp()
 ): CartMutationResult {
-  const quantity = validateCartQuantity(quantityValue);
+  const lineKey = cartLineKey(productId, variantId);
+  const currentItem = state.items.find((item) => cartItemKey(item) === lineKey);
+  const quantity = validateCartQuantity(quantityValue, currentItem?.maxQuantity);
 
   if (quantity.error) {
     return { error: quantity.error, state };
   }
-
-  const lineKey = cartLineKey(productId, variantId);
 
   return {
     error: null,
@@ -340,10 +377,16 @@ export function replaceCartItemSnapshot(
   const current = state.items.find(
     (item) => item.productId === input.productId && item.variantId === input.variantId
   );
+  const maxQuantity = normalizeCartLineQuantityMax(input.maxQuantity);
+  const quantity = clampCartQuantityToMax(
+    current?.quantity ?? input.quantity ?? 1,
+    maxQuantity
+  );
   const nextItem = createCartItemSnapshot(
     {
       ...input,
-      quantity: current?.quantity ?? input.quantity ?? 1,
+      maxQuantity,
+      quantity: quantity ?? 1,
     },
     updatedAt
   );

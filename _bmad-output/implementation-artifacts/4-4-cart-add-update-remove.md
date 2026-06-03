@@ -37,10 +37,10 @@ so that I can prepare my purchase before checkout.
 
 - [x] Task 2: Define browser-safe cart contract and pure cart rules. (AC: 1-4, 7-8)
   - [x] Create pure domain rules under `src/domain/checkout/**` for add, update, remove, merge, subtotal, quantity validation, stale marking, and checkout blocking so business logic stays testable outside React.
-  - [x] Reuse naming and quantity limits from `src/domain/snapshots/**` where browser-safe, especially `SNAPSHOT_QUANTITY_MAX`, snapshot field names, and variant option structures.
+  - [x] Reuse snapshot field names and variant option structures where browser-safe, and enforce storefront line quantity cap at `min(99, variant maxQuantity)`.
   - [x] Define cart item snapshot shape that at minimum stores: `productId`, `productSlug`, `productName`, `variantId`, `variantLabel`, `variantOptions`, `priceCentavos`, `priceLabel`, `quantity`, public image URL/alt, and customer-safe availability text.
   - [x] Keep snapshot immutable-per-write: update quantity/stale flags without mutating previous in-memory objects so store subscribers stay predictable.
-  - [x] Add validation helpers that reject non-integer, `< 1`, `> SNAPSHOT_QUANTITY_MAX`, or mismatched product/variant payloads while preserving prior valid state.
+  - [x] Add validation helpers that reject non-integer, `< 1`, `> min(99, variant maxQuantity)`, or mismatched product/variant payloads while preserving prior valid state.
 
 - [x] Task 3: Create shared cart store and storage synchronization. (AC: 1-4, 7-8)
   - [x] Create `src/features/cart-checkout/**` external store and custom hooks using `useSyncExternalStore` for shared header/detail/cart-page access.
@@ -105,6 +105,9 @@ so that I can prepare my purchase before checkout.
   - [x] Use shared `Input` for cart quantity, with separate visible `QUANTITY` label above one aligned minus/input/plus control group.
   - [x] Remove duplicate variant option chip because line item already shows variant label.
   - [x] Remove non-actionable checkout validation helper copy from cart summary while retaining blocking warning copy.
+  - [x] Remake cart page into checkout flow shell with stepper, cart step content, right-side order summary rail, and details-step placeholder route.
+  - [x] Simplify checkout flow rail to cart-summary style subtotal/quantity only with full-width CTA.
+  - [x] Enforce `min(99, variant maxQuantity)` for product detail, cart add/merge/update, cart refresh, and legacy stored cart quantity clamps.
   - [x] Update focused cart UI test for the drawer full-page action label.
 
 ## Endpoint Guard Checklist
@@ -186,7 +189,7 @@ Complete for every new or changed endpoint. Mark non-applicable items as `N/A` w
 
 - Recommended cart line key: `productId + "::" + variantId`.
 - Recommended count semantics: badge shows total quantity across all line items.
-- Recommended quantity limit: reuse `SNAPSHOT_QUANTITY_MAX` from `src/domain/snapshots/schemas.ts` for hard validation until business sets a stricter cart cap.
+- Recommended quantity limit: storefront cart line quantity max is `99`, further limited by selected variant `maxQuantity`.
 - Recommended subtotal source: sum `priceCentavos * quantity` from persisted numeric fields, then derive formatted display label. Never reverse-parse `priceLabel`.
 - Recommended stale flags:
   - `ACTIVE`: current snapshot is usable
@@ -423,12 +426,16 @@ GPT-5 Codex
 - `src/components/ui/index.ts`
 - `src/domain/checkout/cart.test.ts`
 - `src/domain/checkout/cart.ts`
+- `src/domain/products/price-format.test.ts`
+- `src/domain/products/price-format.ts`
 - `src/domain/products/public-types.ts`
 - `src/features/cart-checkout/api.ts`
 - `src/features/cart-checkout/components/CartDrawer.tsx`
 - `src/features/cart-checkout/components/CartLineItems.tsx`
 - `src/features/cart-checkout/components/CartPage.tsx`
 - `src/features/cart-checkout/components/CartSummary.tsx`
+- `src/features/cart-checkout/components/CheckoutDetailsPage.tsx`
+- `src/features/cart-checkout/components/CheckoutFlow.tsx`
 - `src/features/cart-checkout/components/cart-ui.test.tsx`
 - `src/features/cart-checkout/index.ts`
 - `src/features/cart-checkout/store.test.ts`
@@ -439,6 +446,7 @@ GPT-5 Codex
 - `src/features/storefront-shell/components/storefront-shell-ui.test.tsx`
 - `src/layouts/StorefrontLayout.astro`
 - `src/pages/cart/index.astro`
+- `src/pages/checkout/index.astro`
 - `src/server/repositories/PublicCatalogRepository.ts`
 - `src/server/routes/public-catalog.routes.test.ts`
 - `src/server/routes/public-catalog.routes.ts`

@@ -1,21 +1,12 @@
 ---
-import { StorefrontPlaceholder } from "@/features/storefront-shell";
+import { CheckoutDetailsPage } from "@/features/cart-checkout";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
 ---
 
 <StorefrontLayout
   title="Checkout | JRW"
-  description="Checkout contact and delivery details open here when checkout is ready."
-  mainAriaLabel="Checkout placeholder"
+  description="Enter checkout contact and delivery details."
+  mainAriaLabel="Checkout details"
 >
-  <StorefrontPlaceholder
-    copy="Checkout will collect contact and delivery details here before payment. Guest checkout stays allowed."
-    kicker="Checkout"
-    links={[
-      { href: "/cart", label: "Back to cart" },
-      { href: "/products", label: "Browse products" },
-    ]}
-    title="Checkout details open here"
-    titleId="checkout-placeholder-title"
-  />
+  <CheckoutDetailsPage client:load />
 </StorefrontLayout>

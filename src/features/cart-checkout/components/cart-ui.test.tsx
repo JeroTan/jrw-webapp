@@ -3,7 +3,11 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
 import { addCartItem, markCartItemAvailability } from "@/domain/checkout/cart";
 import type { PublicCatalogDetailResult } from "@/domain/products/public-types";
-import { CartDrawerView, CartPageView } from "@/features/cart-checkout";
+import {
+  CartDrawerView,
+  CartPageView,
+  CheckoutDetailsPageView,
+} from "@/features/cart-checkout";
 import { fetchCartProductDetail, refreshCartItem } from "../api";
 import {
   getCartSnapshot,
@@ -117,27 +121,39 @@ describe("cart checkout UI", () => {
     (globalThis as { window?: unknown }).window = originalWindow;
   });
 
-  it("renders cart page line items, quantity controls, and mobile sticky reserve", () => {
+  it("renders cart page checkout flow shell, line items, and summary rail", () => {
     const markup = renderToStaticMarkup(
       createElement(CartPageView, { state: activeCart })
     );
 
-    expect(markup).toContain("Storefront cart");
     expect(markup).toContain('aria-labelledby="cart-title"');
     expect(markup).toContain('id="cart-title"');
+    expect(markup).toContain('aria-current="step"');
+    expect(markup).toContain("01 Cart");
+    expect(markup).toContain("02 Details");
+    expect(markup).toContain("03 Payment");
+    expect(markup).toContain("04 Receipt");
     expect(markup).toContain("Linen Shirt");
     expect(markup).toContain("Quantity for Linen Shirt Size: Small");
     expect(markup).toContain("min-h-control-md");
     expect(markup).toContain("!min-h-control-sm");
+    expect(markup).toContain('max="99"');
     expect(markup).toContain(">QUANTITY</label>");
     expect(markup).toContain("w-14!");
     expect(markup).not.toContain(
       "border-brand-border px-2 py-1 font-system text-[0.6875rem] font-bold uppercase text-brand-muted"
     );
-    expect(markup).toContain("pb-[calc(var(--spacing-grid-lg)+88px)]");
-    expect(markup).toContain("sticky bottom-0");
     expect(markup).toContain("Checkout");
     expect(markup).toContain('href="/checkout"');
+    expect(markup).toContain("Cart summary");
+    expect(markup).toContain("2 item quantity across 1 line");
+    expect(markup).toContain("w-full");
+    expect(markup).not.toContain("Pending");
+    expect(markup).not.toContain("Fulfillment");
+    expect(markup).not.toContain("Not placed");
+    expect(markup).not.toContain("Return");
+    expect(markup).not.toContain("Refund");
+    expect(markup).not.toContain("Not requested");
     expect(markup).toContain("Item price: PHP 1,499.00");
     expect(markup).toContain("PHP 2,998.00");
     expect(markup).not.toContain(
@@ -145,6 +161,24 @@ describe("cart checkout UI", () => {
     );
     expect(markup).not.toContain("Update");
     expect(markup).not.toContain("Verified display item");
+  });
+
+  it("renders checkout details placeholder as step two", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CheckoutDetailsPageView, { state: activeCart })
+    );
+
+    expect(markup).toContain('id="checkout-details-title"');
+    expect(markup).toContain("01 Cart");
+    expect(markup).toContain('aria-current="step"');
+    expect(markup).toContain("02 Details");
+    expect(markup).toContain("Full name");
+    expect(markup).toContain("Email");
+    expect(markup).toContain("Phone");
+    expect(markup).toContain("City");
+    expect(markup).toContain("Barangay");
+    expect(markup).toContain("Postal code");
+    expect(markup).toContain("Continue to Payment");
   });
 
   it("renders empty cart state without checkout action", () => {

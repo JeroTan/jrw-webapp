@@ -8,8 +8,10 @@ import {
   cartSubtotalLabel,
   cartTotalQuantity,
   clearCartState,
+  clampCartQuantityToMax,
   createEmptyCartState,
   markCartItemAvailability,
+  normalizeCartLineQuantityMax,
   removeCartItem,
   replaceCartItemSnapshot,
   updateCartItemQuantity,
@@ -76,7 +78,11 @@ function parseCartItem(value: unknown): CartItemSnapshot | null {
   const productSlug = safeString(value.productSlug);
   const variantId = safeString(value.variantId);
   const variantLabel = safeString(value.variantLabel);
-  const quantity = validateCartQuantity(value.quantity);
+  const maxQuantity = normalizeCartLineQuantityMax(value.maxQuantity);
+  const clampedQuantity = clampCartQuantityToMax(value.quantity, maxQuantity);
+  const quantity = clampedQuantity
+    ? validateCartQuantity(clampedQuantity, maxQuantity)
+    : validateCartQuantity(value.quantity, maxQuantity);
   const priceCentavos = value.priceCentavos;
 
   if (
@@ -116,6 +122,7 @@ function parseCartItem(value: unknown): CartItemSnapshot | null {
     ...(safeOptionalString(value.imageSrc)
       ? { imageSrc: safeOptionalString(value.imageSrc) }
       : {}),
+    maxQuantity,
     priceCentavos,
     priceLabel: safeString(value.priceLabel) ?? formatCatalogPrice(priceCentavos),
     productId,

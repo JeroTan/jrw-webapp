@@ -1,5 +1,6 @@
 import * as React from "react";
 import { StatusBadge, Toast } from "@/components/feedback";
+import { normalizeCartLineQuantityMax } from "@/domain/checkout/cart";
 import type {
   PublicCatalogAvailability,
   PublicCatalogDetailVariant,
@@ -97,7 +98,13 @@ export function initialSelectedImageIdFromDetail(
 function maxQuantityFromVariant(
   selectedVariant: PublicCatalogDetailVariant | null
 ): number {
-  return Math.max(0, Math.trunc(selectedVariant?.maxQuantity ?? 0));
+  const rawMaxQuantity = Math.trunc(selectedVariant?.maxQuantity ?? 0);
+
+  if (!Number.isFinite(rawMaxQuantity) || rawMaxQuantity <= 0) {
+    return 0;
+  }
+
+  return normalizeCartLineQuantityMax(rawMaxQuantity);
 }
 
 function clampQuantity(quantity: number, maxQuantity: number): number {

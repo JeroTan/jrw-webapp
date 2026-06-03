@@ -116,6 +116,24 @@ describe("cart store", () => {
     );
 
     expect(fallbackLabel.items[0]?.priceLabel).toBe("PHP 1,499.00");
+
+    const legacyOverMax = parseCartState(
+      JSON.stringify({
+        items: [
+          {
+            ...added.state.items[0],
+            maxQuantity: undefined,
+            quantity: 102,
+          },
+        ],
+        updatedAt: "t3",
+      })
+    );
+
+    expect(legacyOverMax.items[0]).toMatchObject({
+      maxQuantity: 99,
+      quantity: 99,
+    });
   });
 
   it("notifies same-tab subscribers after cart writes", () => {

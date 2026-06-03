@@ -342,6 +342,7 @@ describe("product detail UI", () => {
     expect(nextQuantityFromInputValue("", 3, 12)).toBe(3);
     expect(nextQuantityFromInputValue("e", 3, 12)).toBe(3);
     expect(nextQuantityFromInputValue("99", 3, 12)).toBe(12);
+    expect(nextQuantityFromInputValue("150", 3, 99)).toBe(99);
     expect(nextQuantityFromInputValue("0", 3, 12)).toBe(1);
   });
 

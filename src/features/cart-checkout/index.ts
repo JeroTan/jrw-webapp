@@ -3,4 +3,6 @@ export * from "./components/CartDrawer";
 export * from "./components/CartLineItems";
 export * from "./components/CartPage";
 export * from "./components/CartSummary";
+export * from "./components/CheckoutDetailsPage";
+export * from "./components/CheckoutFlow";
 export * from "./store";

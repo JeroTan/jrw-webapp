@@ -160,6 +160,7 @@ function CartLineItem({ item }: { item: CartItemSnapshot }) {
                 className="w-14! !min-h-control-sm text-center font-system font-bold leading-none"
                 id={quantityInputId}
                 inputMode="numeric"
+                max={item.maxQuantity}
                 onBlur={() => {
                   if (draftQuantity !== String(item.quantity)) {
                     applyQuantity(draftQuantity);
@@ -176,6 +177,7 @@ function CartLineItem({ item }: { item: CartItemSnapshot }) {
               />
               <Button
                 aria-label="Increase quantity"
+                disabled={item.quantity >= item.maxQuantity}
                 onClick={() => applyQuantity(item.quantity + 1)}
                 size="sm"
                 square

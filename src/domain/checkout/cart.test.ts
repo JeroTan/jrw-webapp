@@ -90,6 +90,41 @@ describe("cart domain rules", () => {
     expect(notNumeric.state.items[0]?.quantity).toBe(1);
   });
 
+  it("caps cart quantity at 99 or lower variant capacity", () => {
+    const cappedAtStorefrontMax = addCartItem(
+      createEmptyCartState("t0"),
+      { ...linenSmall, maxQuantity: 150, quantity: 99 },
+      "t1"
+    );
+    const overStorefrontMax = updateCartItemQuantity(
+      cappedAtStorefrontMax.state,
+      "prod_linen",
+      "variant_linen_small",
+      100,
+      "t2"
+    );
+    const stockLimited = addCartItem(
+      createEmptyCartState("t0"),
+      { ...linenSmall, maxQuantity: 6, quantity: 6 },
+      "t1"
+    );
+    const overStockLimit = updateCartItemQuantity(
+      stockLimited.state,
+      "prod_linen",
+      "variant_linen_small",
+      7,
+      "t2"
+    );
+
+    expect(cappedAtStorefrontMax.error).toBeNull();
+    expect(cappedAtStorefrontMax.state.items[0]?.maxQuantity).toBe(99);
+    expect(overStorefrontMax.error?.code).toBe("QUANTITY_ABOVE_MAX");
+    expect(overStorefrontMax.state.items[0]?.quantity).toBe(99);
+    expect(stockLimited.state.items[0]?.maxQuantity).toBe(6);
+    expect(overStockLimit.error?.code).toBe("QUANTITY_ABOVE_MAX");
+    expect(overStockLimit.state.items[0]?.quantity).toBe(6);
+  });
+
   it("rejects mismatched product and variant payloads", () => {
     const result = addCartItem(
       createEmptyCartState("t0"),
