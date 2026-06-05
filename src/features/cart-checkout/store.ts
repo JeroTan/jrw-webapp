@@ -2,7 +2,9 @@ import * as React from "react";
 import {
   addCartItem,
   cartHasBlockingIssues,
+  cartItemKey,
   cartLineItemCount,
+  cartLineKey,
   cartStaleItemCount,
   cartSubtotalCentavos,
   cartSubtotalLabel,
@@ -22,6 +24,10 @@ import {
   type CartState,
   type CreateCartItemSnapshotInput,
 } from "@/domain/checkout/cart";
+import type {
+  CheckoutCartValidationSummary,
+  ValidatedCartLine,
+} from "@/domain/checkout/cart-validation";
 import { formatCatalogPrice } from "@/domain/products/price-format";
 
 export const CART_STORAGE_KEY = "jrw.cart.v1";
@@ -324,6 +330,74 @@ export function markCartItemAvailabilityInStore(
       reason
     )
   );
+}
+
+function availabilityTextForValidatedLine(line: ValidatedCartLine): string {
+  if (line.availabilityStatus === "ACTIVE") {
+    return line.availabilityLabel;
+  }
+
+  return line.availabilityStatus === "STALE" ? "Review needed" : "Unavailable";
+}
+
+function cartItemFromValidatedLine(
+  line: ValidatedCartLine,
+  fallback?: CartItemSnapshot,
+  updatedAt = new Date().toISOString()
+): CartItemSnapshot {
+  const quantity = line.quantity > 0 ? line.quantity : fallback?.quantity ?? 1;
+  const maxQuantity = normalizeCartLineQuantityMax(
+    line.maxQuantity > 0 ? line.maxQuantity : fallback?.maxQuantity
+  );
+  const imageAlt = line.imageAlt ?? fallback?.imageAlt;
+  const imageSrc = line.imageSrc ?? fallback?.imageSrc;
+  const staleReason =
+    line.availabilityStatus === "ACTIVE"
+      ? undefined
+      : line.reason ?? line.suggestedAction ?? availabilityTextForValidatedLine(line);
+
+  return {
+    availabilityStatus: line.availabilityStatus,
+    availabilityText: availabilityTextForValidatedLine(line),
+    ...(imageAlt ? { imageAlt } : {}),
+    ...(imageSrc ? { imageSrc } : {}),
+    maxQuantity,
+    priceCentavos: line.priceCentavos,
+    priceLabel: line.priceLabel,
+    productId: line.productId,
+    productName: line.productName,
+    productSlug: line.productSlug,
+    quantity,
+    ...(staleReason ? { staleReason } : {}),
+    updatedAt,
+    variantId: line.variantId,
+    variantLabel: line.variantLabel,
+    variantOptions: line.variantOptions,
+  };
+}
+
+export function applyCheckoutValidationSummaryToStore(
+  summary: CheckoutCartValidationSummary
+) {
+  ensureCartHydrated();
+  const updatedAt = new Date().toISOString();
+  const linesByKey = new Map(
+    summary.items.map((item) => [cartLineKey(item.productId, item.variantId), item])
+  );
+  const existingKeys = new Set(currentState.items.map((item) => cartItemKey(item)));
+  const updatedItems = currentState.items.map((item) => {
+    const line = linesByKey.get(cartItemKey(item));
+
+    return line ? cartItemFromValidatedLine(line, item, updatedAt) : item;
+  });
+  const appendedItems = summary.items
+    .filter((line) => !existingKeys.has(cartLineKey(line.productId, line.variantId)))
+    .map((line) => cartItemFromValidatedLine(line, undefined, updatedAt));
+
+  commitCartState({
+    items: [...updatedItems, ...appendedItems],
+    updatedAt,
+  });
 }
 
 export function getCartSummary(state: CartState) {

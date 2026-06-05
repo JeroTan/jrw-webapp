@@ -4,6 +4,7 @@ import { mergeClassNames } from "@/components/utils";
 import type { CartState } from "@/domain/checkout/cart";
 import type { ReactNode } from "react";
 import { getCartSummary } from "../store";
+import { useCheckoutValidationAction } from "./useCheckoutValidationAction";
 
 export type CheckoutStepId = "cart" | "details" | "payment" | "receipt";
 
@@ -78,6 +79,10 @@ function CheckoutFlowSummary({
   const summary = getCartSummary(state);
   const cta = checkoutCta[currentStep];
   const isBlocked = state.items.length === 0 || summary.hasBlockingIssues;
+  const checkoutValidation = useCheckoutValidationAction({
+    navigateOnSuccess: true,
+    state,
+  });
   const canNavigate = Boolean(cta.href) && !isBlocked;
 
   return (
@@ -107,7 +112,21 @@ function CheckoutFlowSummary({
       ) : null}
 
       <div>
-        {canNavigate && cta.href ? (
+        {currentStep === "cart" ? (
+          <Button
+            disabled={state.items.length === 0}
+            fullWidth
+            loading={checkoutValidation.isPending}
+            loadingLabel="Checking cart"
+            onClick={checkoutValidation.validate}
+            textSize="xs"
+            variant="primary"
+          >
+            {checkoutValidation.validation.status === "changed"
+              ? "Review changes"
+              : "Check cart"}
+          </Button>
+        ) : canNavigate && cta.href ? (
           <ButtonLink fullWidth href={cta.href} textSize="xs" variant="primary">
             {cta.label}
           </ButtonLink>
@@ -117,6 +136,12 @@ function CheckoutFlowSummary({
           </Button>
         )}
       </div>
+
+      {checkoutValidation.validation.message ? (
+        <p className="m-0 text-sm font-bold text-brand-muted" role="status">
+          {checkoutValidation.validation.message}
+        </p>
+      ) : null}
     </aside>
   );
 }

@@ -8,7 +8,11 @@ import {
   CartPageView,
   CheckoutDetailsPageView,
 } from "@/features/cart-checkout";
-import { fetchCartProductDetail, refreshCartItem } from "../api";
+import {
+  fetchCartProductDetail,
+  refreshCartItem,
+  validateCartBeforeCheckout,
+} from "../api";
 import {
   getCartSnapshot,
   resetCartStoreForTest,
@@ -143,8 +147,8 @@ describe("cart checkout UI", () => {
     expect(markup).not.toContain(
       "border-brand-border px-2 py-1 font-system text-[0.6875rem] font-bold uppercase text-brand-muted"
     );
-    expect(markup).toContain("Checkout");
-    expect(markup).toContain('href="/checkout"');
+    expect(markup).toContain("Check cart");
+    expect(markup).not.toContain('href="/checkout"');
     expect(markup).toContain("Cart summary");
     expect(markup).toContain("2 item quantity across 1 line");
     expect(markup).toContain("w-full");
@@ -223,7 +227,7 @@ describe("cart checkout UI", () => {
 
     expect(markup).toContain("Selected option is unavailable right now.");
     expect(markup).toContain("Resolve unavailable or unverified items");
-    expect(markup).toContain("Checkout");
+    expect(markup).toContain("Check cart");
     expect(markup).not.toContain("stock_lock_version");
     expect(markup).not.toContain("R2");
   });
@@ -248,6 +252,138 @@ describe("cart checkout UI", () => {
     expect(providerFailure).toEqual({
       kind: "stale",
       reason: "Could not verify this item. Try refresh.",
+    });
+  });
+
+  it("maps checkout validation API success with local cart payload", async () => {
+    let capturedUrl = "";
+    let capturedBody: unknown;
+    const result = await validateCartBeforeCheckout(
+      activeCart,
+      async (url, init) => {
+        capturedUrl = String(url);
+        capturedBody = JSON.parse(String(init?.body));
+
+        return new Response(
+          JSON.stringify({
+            data: {
+              issues: [],
+              items: [
+                {
+                  availabilityLabel: "Available",
+                  availabilityStatus: "ACTIVE",
+                  lineSubtotalCentavos: 299800,
+                  lineSubtotalLabel: "PHP 2,998.00",
+                  maxQuantity: 8,
+                  priceCentavos: 149900,
+                  priceLabel: "PHP 1,499.00",
+                  productId: "prod_linen",
+                  productName: "Linen Shirt",
+                  productSlug: "linen-shirt",
+                  quantity: 2,
+                  recoveryStatus: "READY",
+                  variantId: "variant_linen_small",
+                  variantLabel: "Size: Small",
+                  variantOptions: [{ group: "Size", name: "Small" }],
+                },
+              ],
+              lineItemCount: 1,
+              requiresCustomerAcceptance: false,
+              status: "VALID",
+              subtotalCentavos: 299800,
+              subtotalLabel: "PHP 2,998.00",
+              totalQuantity: 2,
+            },
+            meta: { requestId: "req_checkout_client" },
+          }),
+          { status: 200 }
+        );
+      }
+    );
+
+    expect(capturedUrl).toBe("/api/checkout/cart-validations");
+    expect(capturedBody).toMatchObject({
+      items: [
+        {
+          priceCentavos: 149900,
+          productId: "prod_linen",
+          productSlug: "linen-shirt",
+          quantity: 2,
+          variantId: "variant_linen_small",
+        },
+      ],
+    });
+    expect(result).toMatchObject({
+      kind: "valid",
+      summary: {
+        status: "VALID",
+      },
+    });
+  });
+
+  it("maps checkout validation changed and runtime failures safely", async () => {
+    const changedResult = await validateCartBeforeCheckout(
+      activeCart,
+      async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "CONFLICT_STATE",
+              message: "The request conflicts with the current state.",
+              details: {
+                issues: [
+                  {
+                    code: "PRICE_CHANGED",
+                    message: "Review updated price before checkout.",
+                    productId: "prod_linen",
+                    variantId: "variant_linen_small",
+                  },
+                ],
+                items: [
+                  {
+                    availabilityLabel: "Available",
+                    availabilityStatus: "STALE",
+                    lineSubtotalCentavos: 319800,
+                    lineSubtotalLabel: "PHP 3,198.00",
+                    maxQuantity: 8,
+                    priceCentavos: 159900,
+                    priceLabel: "PHP 1,599.00",
+                    productId: "prod_linen",
+                    productName: "Linen Shirt",
+                    productSlug: "linen-shirt",
+                    quantity: 2,
+                    reason: "Review updated price before checkout.",
+                    recoveryStatus: "PRICE_CHANGED",
+                    variantId: "variant_linen_small",
+                    variantLabel: "Size: Small",
+                    variantOptions: [{ group: "Size", name: "Small" }],
+                  },
+                ],
+                lineItemCount: 1,
+                requiresCustomerAcceptance: true,
+                status: "CHANGED",
+                subtotalCentavos: 319800,
+                subtotalLabel: "PHP 3,198.00",
+                totalQuantity: 2,
+              },
+            },
+          }),
+          { status: 409 }
+        )
+    );
+    const failureResult = await validateCartBeforeCheckout(activeCart, async () => {
+      throw new Error("network down");
+    });
+
+    expect(changedResult).toMatchObject({
+      kind: "changed",
+      summary: {
+        status: "CHANGED",
+      },
+    });
+    expect(failureResult).toEqual({
+      kind: "failure",
+      reason: "Could not verify cart. Try again.",
     });
   });
 

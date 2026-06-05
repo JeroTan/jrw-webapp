@@ -1,9 +1,10 @@
 import * as React from "react";
-import { Button, ButtonLink } from "@/components/ui";
+import { Button } from "@/components/ui";
 import type { CartState } from "@/domain/checkout/cart";
 import { RefreshCw } from "lucide-react";
 import { refreshCartItems } from "../api";
 import { getCartSummary } from "../store";
+import { useCheckoutValidationAction } from "./useCheckoutValidationAction";
 
 type CartSummaryProps = {
   onRefresh?: () => void;
@@ -14,6 +15,11 @@ export function CartSummary({ onRefresh, state }: CartSummaryProps) {
   const summary = getCartSummary(state);
   const isEmpty = state.items.length === 0;
   const [refreshing, setRefreshing] = React.useState(false);
+  const checkoutValidation = useCheckoutValidationAction({
+    navigateOnSuccess: true,
+    onValidated: onRefresh,
+    state,
+  });
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -54,15 +60,18 @@ export function CartSummary({ onRefresh, state }: CartSummaryProps) {
       ) : null}
 
       <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-grid-xs">
-        {isEmpty || summary.hasBlockingIssues ? (
-          <Button disabled variant="primary">
-            Checkout
-          </Button>
-        ) : (
-          <ButtonLink href="/checkout" textSize="xs" variant="primary">
-            Checkout
-          </ButtonLink>
-        )}
+        <Button
+          disabled={isEmpty}
+          loading={checkoutValidation.isPending}
+          loadingLabel="Checking cart"
+          onClick={checkoutValidation.validate}
+          textSize="xs"
+          variant="primary"
+        >
+          {checkoutValidation.validation.status === "changed"
+            ? "Review changes"
+            : "Check cart"}
+        </Button>
         <Button
           aria-label="Refresh cart"
           disabled={isEmpty || refreshing}
@@ -78,6 +87,12 @@ export function CartSummary({ onRefresh, state }: CartSummaryProps) {
           />
         </Button>
       </div>
+
+      {checkoutValidation.validation.message ? (
+        <p className="m-0 text-sm font-bold text-brand-muted" role="status">
+          {checkoutValidation.validation.message}
+        </p>
+      ) : null}
     </aside>
   );
 }

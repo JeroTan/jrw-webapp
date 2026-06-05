@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { addCartItem } from "@/domain/checkout/cart";
 import {
   addCartItemToStore,
+  applyCheckoutValidationSummaryToStore,
   CART_STORAGE_KEY,
   getCartSnapshot,
   parseCartState,
@@ -179,6 +180,58 @@ describe("cart store", () => {
     expect(publishCount).toBe(1);
     expect(getCartSnapshot()).toMatchObject({
       items: [{ quantity: 2 }],
+    });
+  });
+
+  it("applies checkout validation summaries to local cart lines", () => {
+    const windowDouble = createWindowDouble();
+    (globalThis as { window?: unknown }).window = windowDouble;
+    const added = addCartItemToStore(linenSmall);
+
+    expect(added.error).toBeNull();
+
+    applyCheckoutValidationSummaryToStore({
+      issues: [
+        {
+          code: "PRICE_CHANGED",
+          message: "Review updated price before checkout.",
+          productId: "prod_linen",
+          variantId: "variant_linen_small",
+        },
+      ],
+      items: [
+        {
+          availabilityLabel: "Available",
+          availabilityStatus: "STALE",
+          lineSubtotalCentavos: 2499,
+          lineSubtotalLabel: "PHP 24.99",
+          maxQuantity: 8,
+          priceCentavos: 2499,
+          priceLabel: "PHP 24.99",
+          productId: "prod_linen",
+          productName: "Linen Shirt",
+          productSlug: "linen-shirt",
+          quantity: 1,
+          reason: "Review updated price before checkout.",
+          recoveryStatus: "PRICE_CHANGED",
+          variantId: "variant_linen_small",
+          variantLabel: "Size: Small",
+          variantOptions: [{ group: "Size", name: "Small" }],
+        },
+      ],
+      lineItemCount: 1,
+      requiresCustomerAcceptance: true,
+      status: "CHANGED",
+      subtotalCentavos: 2499,
+      subtotalLabel: "PHP 24.99",
+      totalQuantity: 1,
+    });
+
+    expect(getCartSnapshot().items[0]).toMatchObject({
+      availabilityStatus: "STALE",
+      priceCentavos: 2499,
+      quantity: 1,
+      staleReason: "Review updated price before checkout.",
     });
   });
 });

@@ -24,8 +24,11 @@ describe("admin auth UI", () => {
   it("renders sign-in and recovery entry without admin registration affordance", () => {
     const signInMarkup = renderToStaticMarkup(createElement(AdminSignInPanel));
 
-    expect(signInMarkup).toContain("Sign in to JRW admin");
-    expect(signInMarkup).toContain("Admin accounts are created by Super Admin.");
+    expect(signInMarkup).toContain("JRW. Admin");
+    expect(signInMarkup).toContain("Sign In");
+    expect(signInMarkup).toContain(
+      "Enter your email and password to access the dashboard."
+    );
     expect(signInMarkup).toContain("Forgot password");
     expect(signInMarkup).toContain('type="submit"');
     expect(signInMarkup).toContain("border-brand-accent");
@@ -54,7 +57,9 @@ describe("admin auth UI", () => {
     const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
       calls.push({ input, init });
       return jsonResponse(
-        { error: { code: "PROVIDER_UNAVAILABLE", message: "raw provider dump" } },
+        {
+          error: { code: "PROVIDER_UNAVAILABLE", message: "raw provider dump" },
+        },
         401
       );
     };
@@ -80,7 +85,9 @@ describe("admin auth UI", () => {
     const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
     const fetcher = async (input: RequestInfo | URL, init?: RequestInit) => {
       calls.push({ input, init });
-      return jsonResponse({ data: { accepted: true, cleared: true, reset: true, revoked: true } });
+      return jsonResponse({
+        data: { accepted: true, cleared: true, reset: true, revoked: true },
+      });
     };
 
     await deleteCurrentAdminSession(fetcher);

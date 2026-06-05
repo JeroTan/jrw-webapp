@@ -1,4 +1,8 @@
 import type {
+  CheckoutCartValidationSummary,
+  ValidatedCartLine,
+} from "@/domain/checkout/cart-validation";
+import type {
   PublicCatalogDetailResult,
   PublicCatalogDetailVariant,
 } from "@/domain/products/public-types";
@@ -18,6 +22,13 @@ export type CartRefreshResult =
   | { kind: "stale"; reason: string };
 
 type PublicCatalogDetailEnvelope = ApiResponse<PublicCatalogDetailResult>;
+type CheckoutCartValidationEnvelope = ApiResponse<CheckoutCartValidationSummary>;
+
+export type CheckoutCartValidationClientResult =
+  | { kind: "valid"; summary: CheckoutCartValidationSummary }
+  | { kind: "changed"; summary: CheckoutCartValidationSummary }
+  | { kind: "blocked"; summary: CheckoutCartValidationSummary }
+  | { kind: "failure"; reason: string };
 
 function variantImageAlt(
   detail: PublicCatalogDetailResult,
@@ -175,5 +186,120 @@ export async function refreshCartItems(
 ) {
   for (const item of items) {
     await refreshCartItem(item, fetcher);
+  }
+}
+
+function cartValidationRequestBody(state: {
+  items: CartItemSnapshot[];
+  updatedAt: string;
+}) {
+  return {
+    cartUpdatedAt: state.updatedAt,
+    items: state.items.map((item) => ({
+      priceCentavos: item.priceCentavos,
+      productId: item.productId,
+      productName: item.productName,
+      productSlug: item.productSlug,
+      quantity: item.quantity,
+      variantId: item.variantId,
+      variantLabel: item.variantLabel,
+      variantOptions: item.variantOptions,
+    })),
+  };
+}
+
+function isValidationSummary(value: unknown): value is CheckoutCartValidationSummary {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return false;
+  }
+
+  const candidate = value as Partial<CheckoutCartValidationSummary>;
+  return (
+    Array.isArray(candidate.items) &&
+    Array.isArray(candidate.issues) &&
+    (candidate.status === "VALID" ||
+      candidate.status === "CHANGED" ||
+      candidate.status === "BLOCKED")
+  );
+}
+
+function validationResultFromSummary(
+  summary: CheckoutCartValidationSummary
+): CheckoutCartValidationClientResult {
+  switch (summary.status) {
+    case "VALID":
+      return { kind: "valid", summary };
+    case "CHANGED":
+      return { kind: "changed", summary };
+    case "BLOCKED":
+      return { kind: "blocked", summary };
+  }
+}
+
+export function cartItemInputFromValidatedLine(
+  line: ValidatedCartLine,
+  fallback?: CartItemSnapshot
+): CreateCartItemSnapshotInput {
+  const imageAlt = line.imageAlt ?? fallback?.imageAlt;
+  const imageSrc = line.imageSrc ?? fallback?.imageSrc;
+  const maxQuantity =
+    line.maxQuantity > 0 ? line.maxQuantity : fallback?.maxQuantity;
+
+  return {
+    availabilityText:
+      line.availabilityStatus === "ACTIVE"
+        ? line.availabilityLabel
+        : line.reason ?? line.availabilityLabel,
+    ...(imageAlt ? { imageAlt } : {}),
+    ...(imageSrc ? { imageSrc } : {}),
+    ...(maxQuantity ? { maxQuantity } : {}),
+    priceCentavos: line.priceCentavos,
+    priceLabel: line.priceLabel,
+    productId: line.productId,
+    productName: line.productName,
+    productSlug: line.productSlug,
+    quantity: line.quantity > 0 ? line.quantity : fallback?.quantity ?? 1,
+    variantId: line.variantId,
+    variantLabel: line.variantLabel,
+    variantOptions: line.variantOptions,
+    variantProductId: line.productId,
+  };
+}
+
+export async function validateCartBeforeCheckout(
+  state: { items: CartItemSnapshot[]; updatedAt: string },
+  fetcher: typeof fetch = fetch
+): Promise<CheckoutCartValidationClientResult> {
+  try {
+    const response = await fetcher("/api/checkout/cart-validations", {
+      body: JSON.stringify(cartValidationRequestBody(state)),
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const body = (await response.json()) as CheckoutCartValidationEnvelope;
+
+    if ("data" in body && isValidationSummary(body.data)) {
+      return validationResultFromSummary(body.data);
+    }
+
+    if ("error" in body && isValidationSummary(body.error.details)) {
+      return validationResultFromSummary(body.error.details);
+    }
+
+    return {
+      kind: "failure",
+      reason: response.ok
+        ? "Could not verify cart. Try again."
+        : "Could not verify cart. Try again.",
+    };
+  } catch {
+    return {
+      kind: "failure",
+      reason: "Could not verify cart. Try again.",
+    };
   }
 }

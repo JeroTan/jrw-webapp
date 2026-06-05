@@ -13,6 +13,7 @@ import {
   categoriesRoutes,
   type CategoryRoutesOptions,
 } from "./categories.routes";
+import { checkoutRoutes, type CheckoutRoutesOptions } from "./checkout.routes";
 import { customerRoutes, type CustomerRoutesOptions } from "./customer.routes";
 import { foundationRoutes } from "./foundation.routes";
 import {
@@ -50,6 +51,7 @@ export type ServerRoutesOptions = {
   auth?: AuthRoutesOptions;
   brands?: BrandRoutesOptions;
   categories?: CategoryRoutesOptions;
+  checkout?: CheckoutRoutesOptions;
   customers?: CustomerRoutesOptions;
   googleOAuth?: GoogleOAuthRoutesOptions;
   images?: ImageRoutesOptions;
@@ -76,6 +78,7 @@ export function serverRoutes(
     .use((routes) => ownerGovernanceRoutes(routes, options.ownerGovernance))
     .use((routes) => brandsRoutes(routes, options.brands))
     .use((routes) => categoriesRoutes(routes, options.categories))
+    .use((routes) => checkoutRoutes(routes, options.checkout))
     .use((routes) => productsRoutes(routes, options.products))
     .use((routes) => imagesRoutes(routes, options.images))
     .use((routes) => variantsRoutes(routes, options.variants))

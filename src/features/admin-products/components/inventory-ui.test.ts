@@ -16,8 +16,10 @@ describe("inventory UI surfaces", () => {
     );
 
     expect(markup).toContain("Stock quantity");
-    expect(markup).toContain("Non-negative integer");
-    expect(markup).toContain("type=\"number\"");
+    expect(markup).toContain(
+      "Quantity 0 maps to Out of stock unless state is Preorder."
+    );
+    expect(markup).toContain('type="number"');
   });
 
   it("renders validation and conflict errors", () => {

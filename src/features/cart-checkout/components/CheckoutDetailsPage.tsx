@@ -1,11 +1,16 @@
 import * as React from "react";
-import { InputBox } from "@/components/ui";
+import { Button, ButtonLink, InputBox } from "@/components/ui";
 import type { CartState } from "@/domain/checkout/cart";
-import { useCartStore } from "../store";
+import { validateCartBeforeCheckout } from "../api";
+import { applyCheckoutValidationSummaryToStore, useCartStore } from "../store";
+import { CartLineItems } from "./CartLineItems";
 import { CheckoutFlowShell } from "./CheckoutFlow";
 
 type CheckoutDetailsPageViewProps = {
+  onRetryValidation?: () => void;
   state: CartState;
+  validationMessage?: string | null;
+  validationStatus?: "blocked" | "error" | "pending" | "valid";
 };
 
 const detailFields = [
@@ -28,8 +33,59 @@ const detailFields = [
 ] as const;
 
 export function CheckoutDetailsPageView({
+  onRetryValidation,
   state,
+  validationMessage = null,
+  validationStatus = "valid",
 }: CheckoutDetailsPageViewProps) {
+  if (validationStatus !== "valid") {
+    const pending = validationStatus === "pending";
+
+    return (
+      <CheckoutFlowShell
+        currentStep="cart"
+        state={state}
+        title="Checkout validation"
+        titleId="checkout-validation-title"
+      >
+        <section className="grid gap-grid-sm border border-brand-border-strong p-grid-sm">
+          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+            Cart check
+          </p>
+          <h2 className="m-0 font-identity text-2xl font-bold">
+            {pending ? "Checking cart" : "Review cart"}
+          </h2>
+          <p className="m-0 text-sm text-brand-muted" role="status">
+            {validationMessage ??
+              (pending
+                ? "Checking cart..."
+                : "Resolve cart updates before details.")}
+          </p>
+          {state.items.length > 0 ? (
+            <CartLineItems items={state.items} />
+          ) : null}
+          <div className="flex flex-wrap gap-grid-xs">
+            {onRetryValidation ? (
+              <Button
+                disabled={pending}
+                loading={pending}
+                loadingLabel="Checking cart"
+                onClick={onRetryValidation}
+                textSize="xs"
+                variant="primary"
+              >
+                Check cart
+              </Button>
+            ) : null}
+            <ButtonLink href="/cart" textSize="xs" variant="secondary">
+              Return to cart
+            </ButtonLink>
+          </div>
+        </section>
+      </CheckoutFlowShell>
+    );
+  }
+
   return (
     <CheckoutFlowShell
       currentStep="details"
@@ -64,6 +120,66 @@ export function CheckoutDetailsPageView({
 
 export function CheckoutDetailsPage() {
   const state = useCartStore();
+  const validationStartedRef = React.useRef(false);
+  const [validationStatus, setValidationStatus] = React.useState<
+    "blocked" | "error" | "pending" | "valid"
+  >("pending");
+  const [validationMessage, setValidationMessage] = React.useState<
+    string | null
+  >("Checking cart...");
 
-  return <CheckoutDetailsPageView state={state} />;
+  const validateDirectCheckout = React.useCallback(async () => {
+    if (state.items.length === 0) {
+      setValidationStatus("blocked");
+      setValidationMessage("Add an item before checkout.");
+      return;
+    }
+
+    setValidationStatus("pending");
+    setValidationMessage("Checking cart...");
+    const result = await validateCartBeforeCheckout(state);
+
+    if (result.kind === "failure") {
+      setValidationStatus("error");
+      setValidationMessage(result.reason);
+      return;
+    }
+
+    applyCheckoutValidationSummaryToStore(result.summary);
+
+    if (result.kind === "valid") {
+      setValidationStatus("valid");
+      setValidationMessage(null);
+      return;
+    }
+
+    setValidationStatus("blocked");
+    setValidationMessage(
+      result.kind === "changed"
+        ? "Review cart updates before checkout."
+        : "Resolve unavailable items before checkout."
+    );
+  }, [state]);
+
+  React.useEffect(() => {
+    const timeoutId = window.setTimeout(() => {
+      if (validationStartedRef.current) {
+        return;
+      }
+
+      validationStartedRef.current = true;
+      void validateDirectCheckout();
+    }, 0);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [state.items.length, validateDirectCheckout]);
+
+  return (
+    <CheckoutDetailsPageView
+      onRetryValidation={validateDirectCheckout}
+      state={state}
+      validationMessage={validationMessage}
+      validationStatus={validationStatus}
+    />
+  );
 }

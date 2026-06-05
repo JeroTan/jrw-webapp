@@ -1,0 +1,74 @@
+import { errorCodeToHttpStatus, publicErrorMessage } from "@/lib/api/errors";
+import {
+  apiErrorWithRequestId,
+  apiSuccessWithRequestId,
+  type ApiResponse,
+} from "@/lib/api/response";
+import type { CheckoutCartValidationSummary } from "@/domain/checkout/cart-validation";
+import type {
+  CheckoutCartValidationServiceInput,
+} from "@/server/services/CheckoutService";
+import type { AppResult } from "@/utils/general/result";
+
+export type CheckoutServiceLike = {
+  validateCart(
+    input: CheckoutCartValidationServiceInput
+  ): Promise<AppResult<CheckoutCartValidationSummary>>;
+};
+
+export type CheckoutControllerResult<T> = {
+  body: ApiResponse<T>;
+  status: number;
+};
+
+export type CheckoutCartValidationControllerInput = {
+  body: unknown;
+  requestId: string;
+};
+
+function errorResult<T>(
+  result: AppResult<unknown>,
+  requestId: string
+): CheckoutControllerResult<T> {
+  if (!result.error) {
+    throw new Error("Expected error result.");
+  }
+
+  const details =
+    typeof result.error.data === "object" &&
+    result.error.data !== null &&
+    Object.keys(result.error.data).length > 0
+      ? result.error.data
+      : undefined;
+
+  return {
+    body: apiErrorWithRequestId(
+      result.error.code,
+      publicErrorMessage(result.error.code, result.error.message),
+      requestId,
+      details
+    ),
+    status: errorCodeToHttpStatus(result.error.code),
+  };
+}
+
+export class CheckoutController {
+  constructor(private readonly service: CheckoutServiceLike) {}
+
+  async validateCart(
+    input: CheckoutCartValidationControllerInput
+  ): Promise<CheckoutControllerResult<CheckoutCartValidationSummary>> {
+    const result = await this.service.validateCart(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+      status: 200,
+    };
+  }
+}

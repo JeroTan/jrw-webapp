@@ -160,6 +160,9 @@ export function createApp(options: CreateAppOptions = {}) {
     categories: {
       ...options.routes?.categories,
     },
+    checkout: {
+      ...options.routes?.checkout,
+    },
     products: {
       ...options.routes?.products,
     },
