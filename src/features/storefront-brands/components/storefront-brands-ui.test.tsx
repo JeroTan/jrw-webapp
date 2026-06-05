@@ -89,6 +89,30 @@ describe("storefront brand UI", () => {
     expect(markup).not.toContain('href="/brands/empty-brand"');
   });
 
+  it("places brand images before brand copy in index rows", () => {
+    const markup = renderToStaticMarkup(
+      createElement(StorefrontBrandIndex, {
+        rows: [
+          {
+            ...brand,
+            imageAlt: "JRW Studio mark",
+            imageSrc: "/assets/brands/jrw-studio/logo.png",
+          },
+        ],
+        selectedBrands: [],
+      })
+    );
+    const rowMarkup = markup.slice(
+      markup.indexOf('aria-label="Brand product rows"')
+    );
+    const imageIndex = rowMarkup.indexOf('alt="JRW Studio mark"');
+    const headingIndex = rowMarkup.indexOf('id="jrw-studio-section"');
+
+    expect(imageIndex).toBeGreaterThan(-1);
+    expect(headingIndex).toBeGreaterThan(-1);
+    expect(imageIndex).toBeLessThan(headingIndex);
+  });
+
   it("uses simple brand detail layout with product cards", () => {
     const markup = renderToStaticMarkup(
       createElement(StorefrontBrandDetail, {

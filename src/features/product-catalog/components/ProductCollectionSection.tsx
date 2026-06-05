@@ -38,27 +38,29 @@ export function ProductCollectionSection({
   return (
     <section className="grid gap-grid-sm" aria-labelledby={titleId}>
       <div className="flex flex-wrap items-start justify-between gap-grid-sm">
-        <div className="grid gap-grid-xs">
-          <h2
-            className="m-0 font-identity text-[clamp(1.5rem,4vw,2.35rem)] font-extrabold leading-none"
-            id={titleId}
-          >
-            {title}
-          </h2>
-          {meta ? (
-            <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-              {meta}
-            </p>
-          ) : null}
+        <div className="flex min-w-0 flex-1 items-start gap-grid-sm">
           {imageSrc ? (
             <img
               alt={imageAlt ?? `${title} brand image`}
-              className="h-14 w-fit max-w-48 object-contain"
+              className="h-14 w-20 shrink-0 object-contain object-left"
               decoding="async"
               loading="lazy"
               src={imageSrc}
             />
           ) : null}
+          <div className="grid min-w-0 gap-grid-xs">
+            <h2
+              className="m-0 font-identity text-[clamp(1.5rem,4vw,2.35rem)] font-extrabold leading-none"
+              id={titleId}
+            >
+              {title}
+            </h2>
+            {meta ? (
+              <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+                {meta}
+              </p>
+            ) : null}
+          </div>
         </div>
 
         {actionHref && hasProducts ? (
