@@ -57,6 +57,21 @@ export function suggestedBrandSlug(name: string): string {
   return name.trim().length > 0 ? generateSlug(name) : "";
 }
 
+export function brandImagePreviewAlt(input: {
+  brandName: string;
+  imageAlt: string;
+}): string {
+  const explicitAlt = input.imageAlt.trim();
+  if (explicitAlt.length > 0) {
+    return explicitAlt;
+  }
+
+  const brandName = input.brandName.trim();
+  return brandName.length > 0
+    ? `${brandName} brand image preview`
+    : "Selected brand image preview";
+}
+
 function validationReasonMessage(reason: string): string {
   switch (reason) {
     case "name:required":
@@ -205,6 +220,7 @@ export function BrandEditor({
     emptyValidationState()
   );
   const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) {
@@ -238,6 +254,27 @@ export function BrandEditor({
       window.removeEventListener("beforeunload", beforeUnload);
     };
   }, [isDirty, open]);
+
+  useEffect(() => {
+    if (
+      !open ||
+      !form.image ||
+      typeof URL === "undefined" ||
+      typeof URL.createObjectURL !== "function"
+    ) {
+      setImagePreviewUrl(null);
+      return;
+    }
+
+    const nextPreviewUrl = URL.createObjectURL(form.image);
+    setImagePreviewUrl(nextPreviewUrl);
+
+    return () => {
+      if (typeof URL.revokeObjectURL === "function") {
+        URL.revokeObjectURL(nextPreviewUrl);
+      }
+    };
+  }, [form.image, open]);
 
   function clearValidation() {
     if (
@@ -398,9 +435,23 @@ export function BrandEditor({
         />
 
         {form.image ? (
-          <p className="m-0 font-system text-xs text-brand-muted">
-            Selected image: {form.image.name}
-          </p>
+          <section aria-live="polite" className="grid gap-grid-xs">
+            <p className="m-0 font-system text-xs text-brand-muted">
+              Selected image: {form.image.name}
+            </p>
+            {imagePreviewUrl ? (
+              <div className="aspect-square w-24 overflow-hidden border border-brand-border-strong bg-brand-surface-subtle">
+                <img
+                  alt={brandImagePreviewAlt({
+                    brandName: form.name,
+                    imageAlt: form.imageAlt,
+                  })}
+                  className="h-full w-full object-cover"
+                  src={imagePreviewUrl}
+                />
+              </div>
+            ) : null}
+          </section>
         ) : null}
 
         <InputBox

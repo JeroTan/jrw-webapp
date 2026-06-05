@@ -15,7 +15,11 @@ import {
 } from "./BrandList";
 import { BrandMembershipTable } from "./BrandMembershipTable";
 import { ProductBrandField } from "./ProductBrandField";
-import { BrandEditor, suggestedBrandSlug } from "./BrandEditor";
+import {
+  BrandEditor,
+  brandImagePreviewAlt,
+  suggestedBrandSlug,
+} from "./BrandEditor";
 import { BrandImageMark, brandInitials } from "./BrandImageMark";
 
 const now = "2026-05-18T06:30:00.000Z";
@@ -155,6 +159,27 @@ describe("brands UI surfaces", () => {
   it("suggests editable brand slugs from names", () => {
     expect(suggestedBrandSlug(" JRW Studio / Gifts ")).toBe("jrw-studio-gifts");
     expect(suggestedBrandSlug("")).toBe("");
+  });
+
+  it("builds accessible alt text for selected brand image previews", () => {
+    expect(
+      brandImagePreviewAlt({
+        brandName: "JRW Studio",
+        imageAlt: "Studio mark",
+      })
+    ).toBe("Studio mark");
+    expect(
+      brandImagePreviewAlt({
+        brandName: "JRW Studio",
+        imageAlt: " ",
+      })
+    ).toBe("JRW Studio brand image preview");
+    expect(
+      brandImagePreviewAlt({
+        brandName: " ",
+        imageAlt: " ",
+      })
+    ).toBe("Selected brand image preview");
   });
 
   it("renders product brand helper text and brandless option", () => {
