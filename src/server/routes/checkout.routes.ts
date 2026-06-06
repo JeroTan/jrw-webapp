@@ -1,4 +1,9 @@
 import { t } from "elysia";
+import { STOREFRONT_CART_LINE_ITEM_MAX } from "@/domain/checkout/cart-validation";
+import {
+  SNAPSHOT_VARIANT_OPTION_MAX_ITEMS,
+  SNAPSHOT_VARIANT_OPTION_TEXT_MAX_LENGTH,
+} from "@/domain/snapshots/schemas";
 import { openApiErrorResponses, tboxApiSuccess } from "@/lib/typebox/api";
 import { CheckoutController } from "@/server/controllers/CheckoutController";
 import type { RequestContextDecorations } from "@/server/context/request-context";
@@ -21,8 +26,14 @@ export type CheckoutRoutesOptions = {
 };
 
 const tboxCheckoutVariantOption = t.Object({
-  group: t.String(),
-  name: t.String(),
+  group: t.String({
+    minLength: 1,
+    maxLength: SNAPSHOT_VARIANT_OPTION_TEXT_MAX_LENGTH,
+  }),
+  name: t.String({
+    minLength: 1,
+    maxLength: SNAPSHOT_VARIANT_OPTION_TEXT_MAX_LENGTH,
+  }),
 });
 
 const tboxCheckoutCartValidationItem = t.Object(
@@ -34,7 +45,11 @@ const tboxCheckoutCartValidationItem = t.Object(
     quantity: t.Integer({ minimum: 1, maximum: 99 }),
     variantId: t.String({ minLength: 1, maxLength: 128 }),
     variantLabel: t.Optional(t.String({ minLength: 1, maxLength: 255 })),
-    variantOptions: t.Optional(t.Array(tboxCheckoutVariantOption)),
+    variantOptions: t.Optional(
+      t.Array(tboxCheckoutVariantOption, {
+        maxItems: SNAPSHOT_VARIANT_OPTION_MAX_ITEMS,
+      })
+    ),
   },
   { additionalProperties: false }
 );
@@ -42,7 +57,10 @@ const tboxCheckoutCartValidationItem = t.Object(
 const tboxCheckoutCartValidationBody = t.Object(
   {
     cartUpdatedAt: t.Optional(t.String()),
-    items: t.Array(tboxCheckoutCartValidationItem),
+    items: t.Array(tboxCheckoutCartValidationItem, {
+      maxItems: STOREFRONT_CART_LINE_ITEM_MAX,
+      minItems: 1,
+    }),
   },
   { additionalProperties: false }
 );
@@ -93,7 +111,9 @@ const tboxCheckoutCartLine = t.Object({
   suggestedAction: t.Optional(t.String()),
   variantId: t.String(),
   variantLabel: t.String(),
-  variantOptions: t.Array(tboxCheckoutVariantOption),
+  variantOptions: t.Array(tboxCheckoutVariantOption, {
+    maxItems: SNAPSHOT_VARIANT_OPTION_MAX_ITEMS,
+  }),
 });
 
 const tboxCheckoutCartValidationData = t.Object({
@@ -164,7 +184,10 @@ export function checkoutRoutes(
           body: unknown;
           runtimeEnv?: Partial<Env> & Record<string, unknown>;
         };
-      const controller = getController({ request, requestId, runtimeEnv }, options);
+      const controller = getController(
+        { request, requestId, runtimeEnv },
+        options
+      );
       const result = await controller.validateCart({
         body,
         requestId,

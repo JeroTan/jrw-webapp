@@ -23,6 +23,7 @@ export type CartItemSnapshot = {
   productSlug: string;
   quantity: number;
   staleReason?: string;
+  suggestedAction?: string;
   updatedAt: string;
   variantId: string;
   variantLabel: string;
@@ -148,7 +149,9 @@ export function clampCartQuantityToMax(
   return Math.min(parsed, maxQuantity);
 }
 
-export function createEmptyCartState(updatedAt = emptyCartTimestamp): CartState {
+export function createEmptyCartState(
+  updatedAt = emptyCartTimestamp
+): CartState {
   return {
     items: [],
     updatedAt,
@@ -159,14 +162,18 @@ export function cartLineKey(productId: string, variantId: string): string {
   return `${productId}::${variantId}`;
 }
 
-export function cartItemKey(item: Pick<CartItemSnapshot, "productId" | "variantId">) {
+export function cartItemKey(
+  item: Pick<CartItemSnapshot, "productId" | "variantId">
+) {
   return cartLineKey(item.productId, item.variantId);
 }
 
 export function validateCartQuantity(
   value: number | string | unknown,
   maxQuantity = STOREFRONT_CART_LINE_QUANTITY_MAX
-): { error: CartQuantityError; quantity: null } | { error: null; quantity: number } {
+):
+  | { error: CartQuantityError; quantity: null }
+  | { error: null; quantity: number } {
   const max = normalizeCartLineQuantityMax(maxQuantity);
   const parsed =
     typeof value === "string" && value.trim().length > 0
@@ -199,7 +206,11 @@ export function createCartItemSnapshot(
   const productId = cleanText(input.productId);
   const variantId = cleanText(input.variantId);
 
-  if (!productId || !cleanText(input.productSlug) || !cleanText(input.productName)) {
+  if (
+    !productId ||
+    !cleanText(input.productSlug) ||
+    !cleanText(input.productName)
+  ) {
     return {
       error: validationError("PRODUCT_REQUIRED", "Product data is incomplete."),
       item: null,
@@ -229,7 +240,10 @@ export function createCartItemSnapshot(
     input.priceCentavos < 0
   ) {
     return {
-      error: validationError("PRICE_INVALID", "Selected option price is unavailable."),
+      error: validationError(
+        "PRICE_INVALID",
+        "Selected option price is unavailable."
+      ),
       item: null,
     };
   }
@@ -245,11 +259,14 @@ export function createCartItemSnapshot(
     item: {
       availabilityStatus: "ACTIVE",
       availabilityText: cleanText(input.availabilityText) || "Available",
-      ...(input.imageAlt?.trim() ? { imageAlt: cleanText(input.imageAlt) } : {}),
+      ...(input.imageAlt?.trim()
+        ? { imageAlt: cleanText(input.imageAlt) }
+        : {}),
       ...(input.imageSrc?.trim() ? { imageSrc: input.imageSrc.trim() } : {}),
       maxQuantity,
       priceCentavos: input.priceCentavos,
-      priceLabel: input.priceLabel?.trim() || formatCatalogPrice(input.priceCentavos),
+      priceLabel:
+        input.priceLabel?.trim() || formatCatalogPrice(input.priceCentavos),
       productId,
       productName: cleanText(input.productName),
       productSlug: cleanText(input.productSlug),
@@ -293,7 +310,10 @@ export function addCartItem(
   }
 
   const nextQuantity = existing.quantity + nextItem.item.quantity;
-  const quantity = validateCartQuantity(nextQuantity, nextItem.item.maxQuantity);
+  const quantity = validateCartQuantity(
+    nextQuantity,
+    nextItem.item.maxQuantity
+  );
 
   if (quantity.error) {
     return { error: quantity.error, state };
@@ -325,7 +345,10 @@ export function updateCartItemQuantity(
 ): CartMutationResult {
   const lineKey = cartLineKey(productId, variantId);
   const currentItem = state.items.find((item) => cartItemKey(item) === lineKey);
-  const quantity = validateCartQuantity(quantityValue, currentItem?.maxQuantity);
+  const quantity = validateCartQuantity(
+    quantityValue,
+    currentItem?.maxQuantity
+  );
 
   if (quantity.error) {
     return { error: quantity.error, state };
@@ -375,7 +398,8 @@ export function replaceCartItemSnapshot(
   updatedAt = timestamp()
 ): CartMutationResult {
   const current = state.items.find(
-    (item) => item.productId === input.productId && item.variantId === input.variantId
+    (item) =>
+      item.productId === input.productId && item.variantId === input.variantId
   );
   const maxQuantity = normalizeCartLineQuantityMax(input.maxQuantity);
   const quantity = clampCartQuantityToMax(
@@ -449,7 +473,8 @@ export function cartSubtotalCentavos(state: CartState): number {
 }
 
 export function cartStaleItemCount(state: CartState): number {
-  return state.items.filter((item) => item.availabilityStatus !== "ACTIVE").length;
+  return state.items.filter((item) => item.availabilityStatus !== "ACTIVE")
+    .length;
 }
 
 export function cartHasBlockingIssues(state: CartState): boolean {

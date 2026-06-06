@@ -7,6 +7,7 @@ import {
   getCartSnapshot,
   parseCartState,
   readCartStateFromStorage,
+  removeCartItemFromStore,
   resetCartStoreForTest,
   subscribeCartStore,
   writeCartStateToStorage,
@@ -50,7 +51,10 @@ function createWindowDouble(storage = createStorageDouble()) {
   const listeners = new Set<(event: FakeStorageEvent) => void>();
 
   return {
-    addEventListener: (type: string, listener: (event: FakeStorageEvent) => void) => {
+    addEventListener: (
+      type: string,
+      listener: (event: FakeStorageEvent) => void
+    ) => {
       if (type === "storage") {
         listeners.add(listener);
       }
@@ -187,13 +191,10 @@ describe("cart store", () => {
     const windowDouble = createWindowDouble();
     (globalThis as { window?: unknown }).window = windowDouble;
     const added = addCartItemToStore(linenSmall);
-
-    expect(added.error).toBeNull();
-
-    applyCheckoutValidationSummaryToStore({
+    const validationSummary = {
       issues: [
         {
-          code: "PRICE_CHANGED",
+          code: "PRICE_CHANGED" as const,
           message: "Review updated price before checkout.",
           productId: "prod_linen",
           variantId: "variant_linen_small",
@@ -201,8 +202,8 @@ describe("cart store", () => {
       ],
       items: [
         {
-          availabilityLabel: "Available",
-          availabilityStatus: "STALE",
+          availabilityLabel: "Available" as const,
+          availabilityStatus: "STALE" as const,
           lineSubtotalCentavos: 2499,
           lineSubtotalLabel: "PHP 24.99",
           maxQuantity: 8,
@@ -213,7 +214,8 @@ describe("cart store", () => {
           productSlug: "linen-shirt",
           quantity: 1,
           reason: "Review updated price before checkout.",
-          recoveryStatus: "PRICE_CHANGED",
+          recoveryStatus: "PRICE_CHANGED" as const,
+          suggestedAction: "Review updated price before checkout.",
           variantId: "variant_linen_small",
           variantLabel: "Size: Small",
           variantOptions: [{ group: "Size", name: "Small" }],
@@ -221,18 +223,30 @@ describe("cart store", () => {
       ],
       lineItemCount: 1,
       requiresCustomerAcceptance: true,
-      status: "CHANGED",
+      status: "CHANGED" as const,
       subtotalCentavos: 2499,
       subtotalLabel: "PHP 24.99",
       totalQuantity: 1,
-    });
+    };
+
+    expect(added.error).toBeNull();
+
+    expect(applyCheckoutValidationSummaryToStore(validationSummary)).toBe(true);
 
     expect(getCartSnapshot().items[0]).toMatchObject({
       availabilityStatus: "STALE",
       priceCentavos: 2499,
       quantity: 1,
       staleReason: "Review updated price before checkout.",
+      suggestedAction: "Review updated price before checkout.",
     });
+
+    const requestSnapshot = getCartSnapshot();
+    removeCartItemFromStore("prod_linen", "variant_linen_small");
+
+    expect(
+      applyCheckoutValidationSummaryToStore(validationSummary, requestSnapshot)
+    ).toBe(false);
+    expect(getCartSnapshot().items).toHaveLength(0);
   });
 });
-

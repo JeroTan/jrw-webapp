@@ -1,7 +1,7 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it } from "vitest";
-import { addCartItem, markCartItemAvailability } from "@/domain/checkout/cart";
+import { addCartItem } from "@/domain/checkout/cart";
 import type { PublicCatalogDetailResult } from "@/domain/products/public-types";
 import {
   CartDrawerView,
@@ -213,23 +213,55 @@ describe("cart checkout UI", () => {
   });
 
   it("blocks checkout for stale or unavailable cart items", () => {
-    const staleCart = markCartItemAvailability(
-      activeCart,
-      "prod_linen",
-      "variant_linen_small",
-      "UNAVAILABLE",
-      "Selected option is unavailable right now.",
-      "t2"
-    );
+    const staleCart = {
+      ...activeCart,
+      items: [
+        {
+          ...activeCart.items[0]!,
+          availabilityStatus: "STALE" as const,
+          availabilityText: "Review needed",
+          priceCentavos: 159900,
+          priceLabel: "PHP 1,599.00",
+          staleReason: "Review updated price before checkout.",
+          suggestedAction: "Review updated price before checkout.",
+        },
+      ],
+      updatedAt: "t2",
+    };
     const markup = renderToStaticMarkup(
       createElement(CartPageView, { state: staleCart })
     );
 
-    expect(markup).toContain("Selected option is unavailable right now.");
+    expect(markup).toContain("Review updated price before checkout.");
     expect(markup).toContain("Resolve unavailable or unverified items");
     expect(markup).toContain("Check cart");
+    expect(markup).toContain("Item price: PHP 1,599.00");
+    expect(markup).toContain("PHP 3,198.00");
     expect(markup).not.toContain("stock_lock_version");
     expect(markup).not.toContain("R2");
+  });
+
+  it("shows blocked line reasons and suggested actions together", () => {
+    const unavailableCart = {
+      ...activeCart,
+      items: [
+        {
+          ...activeCart.items[0]!,
+          availabilityStatus: "UNAVAILABLE" as const,
+          availabilityText: "Unavailable",
+          staleReason: "This option is unavailable right now.",
+          suggestedAction: "Remove this item or choose another option.",
+        },
+      ],
+      updatedAt: "t2",
+    };
+    const markup = renderToStaticMarkup(
+      createElement(CartPageView, { state: unavailableCart })
+    );
+
+    expect(markup).toContain("This option is unavailable right now.");
+    expect(markup).toContain("Remove this item or choose another option.");
+    expect(markup).toContain("Item price: PHP 1,499.00");
   });
 
   it("maps public detail refresh responses without leaking provider errors", async () => {
@@ -243,9 +275,12 @@ describe("cart checkout UI", () => {
     const providerFailure = await fetchCartProductDetail(
       "linen-shirt",
       async () =>
-        new Response(JSON.stringify({ error: { code: "PROVIDER_UNAVAILABLE" } }), {
-          status: 503,
-        })
+        new Response(
+          JSON.stringify({ error: { code: "PROVIDER_UNAVAILABLE" } }),
+          {
+            status: 503,
+          }
+        )
     );
 
     expect(ok.kind).toBe("ok");
@@ -371,9 +406,12 @@ describe("cart checkout UI", () => {
           { status: 409 }
         )
     );
-    const failureResult = await validateCartBeforeCheckout(activeCart, async () => {
-      throw new Error("network down");
-    });
+    const failureResult = await validateCartBeforeCheckout(
+      activeCart,
+      async () => {
+        throw new Error("network down");
+      }
+    );
 
     expect(changedResult).toMatchObject({
       kind: "changed",

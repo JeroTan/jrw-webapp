@@ -1,6 +1,6 @@
 # Story 4.5: Availability Blocking Before Checkout
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -96,6 +96,16 @@ Complete for every new or changed endpoint. Mark non-applicable items as `N/A` w
 - N/A Denial tests cover unauthenticated actor, wrong role, invalid account state, missing brand membership, and elevated actor path where applicable. No protected actor path in this story.
 - [x] Error response uses safe envelope codes and does not leak provider/internal authorization, inventory internals, DB rows, stock versions, R2 keys, PayMongo details, or raw payment payloads.
 - [x] OpenAPI/endpoint catalog lists auth mode, roles when declared, rate-limit class, endpoint summary/description, request/response schemas, and denial/error codes.
+
+### Review Findings
+
+- [x] [Review][Patch] Public validation leaked unpublished product data [src/server/repositories/CheckoutRepository.ts:125] — fixed by filtering checkout validation reads to published products and active variants, and by using client snapshot fields for non-public blocked lines.
+- [x] [Review][Patch] Duplicate cart lines bypassed stock validation [src/domain/checkout/cart-validation.ts:167] — fixed by rejecting duplicate `productId::variantId` request lines before repository access.
+- [x] [Review][Patch] Public endpoint lacked cart payload caps [src/server/routes/checkout.routes.ts:50] — fixed by capping cart line count and variant option arrays in route and domain validation.
+- [x] [Review][Patch] Stale validation response could overwrite current cart [src/features/cart-checkout/store.ts:388] — fixed by applying validation summaries only when current cart still matches the request snapshot, and by never appending lines absent from current cart.
+- [x] [Review][Patch] Direct checkout did not revalidate after cart changes [src/features/cart-checkout/components/CheckoutDetailsPage.tsx:155] — fixed by tracking cart fingerprints and revalidating when cart contents change after hydration.
+- [x] [Review][Patch] Changed-price rows hid updated price [src/features/cart-checkout/components/CartLineItems.tsx:207] — fixed by always showing current item price and subtotal for active, stale, and blocked rows.
+- [x] [Review][Patch] Suggested actions were dropped from affected cart lines [src/features/cart-checkout/components/CartLineItems.tsx:203] — fixed by preserving `suggestedAction` on cart snapshots and rendering it beside affected line reasons.
 
 ## Dev Notes
 
@@ -409,6 +419,8 @@ GPT-5 Codex
 - 2026-06-05T19:56:00+08:00 - Fixed direct checkout validation to defer first validation until client cart hydration can settle, and isolated Playwright specs from Vitest via `tests/qa/**` exclude.
 - 2026-06-05T20:01:49+08:00 - `npm run build-test` passed end-to-end: Astro check, 105 Vitest files / 632 tests, and Astro build.
 - 2026-06-05T20:02:00+08:00 - `npm run qa:checkout-viewports` passed 14 Playwright checks across 320, 375, 390, 430, 768, 1024, and 1440px.
+- 2026-06-06T00:33:16+08:00 - Code review corrections applied for unpublished data leakage, duplicate line validation, public payload caps, stale validation responses, direct checkout revalidation, changed-price visibility, and suggested action display.
+- 2026-06-06T00:33:16+08:00 - Final validation passed: targeted checkout/cart tests, `npm run build-test`, styling guard review, and `npm run qa:checkout-viewports`.
 
 ### Completion Notes List
 
@@ -418,8 +430,9 @@ GPT-5 Codex
 - Direction 02 is reflected through cart handoff/drawer summary language and line-level text reasons; Direction 04 is reflected through the stage-based checkout shell and blocked validation state before Details/Payment.
 - Added direct Playwright browser QA with `@playwright/test`, Chromium install script, dedicated Playwright config, and checkout viewport automation that seeds local cart state, mocks public product detail/checkout validation endpoints, checks keyboard activation, uses reduced-motion media emulation, and asserts no horizontal overflow at 320, 375, 390, 430, 768, 1024, and 1440px.
 - Browser QA found and fixed a direct `/checkout` hydration race: the details page could validate the server-empty snapshot before the browser cart store hydrated, showing "Add an item before checkout." while cart items were visible. Direct checkout validation now defers the first attempt by one tick and retries against the hydrated cart snapshot before showing the details form or blocked state.
+- Code review found and fixed seven checkout validation issues: unpublished server data exposure, duplicate cart-line stock bypass, missing public payload caps, stale validation response replay, missing direct checkout revalidation after cart changes, hidden changed-price row prices, and dropped suggested actions.
 - Updated stale admin auth and inventory UI test expectations to match the intentionally edited sign-in copy and current inventory helper copy.
-- Validation passed for targeted domain, checkout service/route, cart UI/store, admin auth, and inventory UI suites; `npm run check`, `npm run build-test`, and `npm run qa:checkout-viewports` all passed.
+- Validation passed for targeted domain, checkout service/route, cart UI/store, admin auth, and inventory UI suites; `npm run check`, `npm run build-test`, styling guard review, and `npm run qa:checkout-viewports` all passed.
 
 ### File List
 

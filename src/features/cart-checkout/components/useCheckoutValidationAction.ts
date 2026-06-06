@@ -67,7 +67,8 @@ export function useCheckoutValidationAction(input: {
       status: "pending",
     });
 
-    const result = await validateCartBeforeCheckout(input.state);
+    const requestState = input.state;
+    const result = await validateCartBeforeCheckout(requestState);
 
     if (result.kind === "failure") {
       setValidation({
@@ -77,7 +78,19 @@ export function useCheckoutValidationAction(input: {
       return;
     }
 
-    applyCheckoutValidationSummaryToStore(result.summary);
+    const applied = applyCheckoutValidationSummaryToStore(
+      result.summary,
+      requestState
+    );
+
+    if (!applied) {
+      setValidation({
+        message: "Cart changed. Check cart again.",
+        status: "changed",
+      });
+      return;
+    }
+
     input.onValidated?.();
 
     if (result.kind === "valid") {

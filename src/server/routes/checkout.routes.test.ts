@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { STOREFRONT_CART_LINE_ITEM_MAX } from "@/domain/checkout/cart-validation";
+import { SNAPSHOT_VARIANT_OPTION_MAX_ITEMS } from "@/domain/snapshots/schemas";
 import { createApp } from "@/server/app";
 import {
   CheckoutController,
@@ -213,6 +215,98 @@ describe("checkout routes", () => {
               message: "This option is unavailable right now.",
             },
           ],
+        },
+      },
+    });
+  });
+
+  it("rejects oversized public cart validation payloads before controller work", async () => {
+    let controllerCreated = false;
+    const app = createApp({
+      routes: {
+        checkout: {
+          controllerFactory: () => {
+            controllerCreated = true;
+            return checkoutController({});
+          },
+        },
+      },
+    });
+    const response = await app.handle(
+      new Request("https://jrw.test/api/checkout/cart-validations", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req_checkout_route_too_many",
+        },
+        body: JSON.stringify({
+          items: Array.from(
+            { length: STOREFRONT_CART_LINE_ITEM_MAX + 1 },
+            (_, index) => ({
+              ...requestBody.items[0],
+              productId: `prod_linen_${index}`,
+              variantId: `variant_linen_small_${index}`,
+            })
+          ),
+        }),
+      })
+    );
+
+    expect(controllerCreated).toBe(false);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "VALIDATION_FAILED",
+        details: {
+          requestId: "req_checkout_route_too_many",
+        },
+      },
+    });
+  });
+
+  it("rejects oversized variant option arrays before controller work", async () => {
+    let controllerCreated = false;
+    const app = createApp({
+      routes: {
+        checkout: {
+          controllerFactory: () => {
+            controllerCreated = true;
+            return checkoutController({});
+          },
+        },
+      },
+    });
+    const response = await app.handle(
+      new Request("https://jrw.test/api/checkout/cart-validations", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req_checkout_route_too_many_options",
+        },
+        body: JSON.stringify({
+          items: [
+            {
+              ...requestBody.items[0],
+              variantOptions: Array.from(
+                { length: SNAPSHOT_VARIANT_OPTION_MAX_ITEMS + 1 },
+                (_, index) => ({
+                  group: `Group ${index}`,
+                  name: `Name ${index}`,
+                })
+              ),
+            },
+          ],
+        }),
+      })
+    );
+
+    expect(controllerCreated).toBe(false);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "VALIDATION_FAILED",
+        details: {
+          requestId: "req_checkout_route_too_many_options",
         },
       },
     });

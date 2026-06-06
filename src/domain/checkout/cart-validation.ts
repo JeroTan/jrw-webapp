@@ -4,12 +4,18 @@ import {
   type CartVariantOption,
 } from "./cart";
 import { formatCatalogPrice } from "@/domain/products/price-format";
+import {
+  SNAPSHOT_VARIANT_OPTION_MAX_ITEMS,
+  SNAPSHOT_VARIANT_OPTION_TEXT_MAX_LENGTH,
+} from "@/domain/snapshots/schemas";
 import type {
   AvailabilityLabel,
   InventoryState,
   ProductStatus,
   ProductVariantStatus,
 } from "@/domain/products/types";
+
+export const STOREFRONT_CART_LINE_ITEM_MAX = 50;
 
 export type CheckoutCartRequestItem = {
   priceCentavos: number;
@@ -142,7 +148,9 @@ function maxQuantityForServerLine(line: CheckoutCartServerLine): number {
     );
   }
 
-  return line.inventoryState === "PREORDER" ? STOREFRONT_CART_LINE_QUANTITY_MAX : 0;
+  return line.inventoryState === "PREORDER"
+    ? STOREFRONT_CART_LINE_QUANTITY_MAX
+    : 0;
 }
 
 export function validateCheckoutCartRequestItems(
@@ -155,10 +163,19 @@ export function validateCheckoutCartRequestItems(
     return reasons;
   }
 
+  if (items.length > STOREFRONT_CART_LINE_ITEM_MAX) {
+    reasons.push("cart:too_many_items");
+    return reasons;
+  }
+
+  const seenLineKeys = new Set<string>();
+
   items.forEach((item, index) => {
     const prefix = `items[${index}]`;
+    const cleanProductId = cleanText(item.productId);
+    const cleanVariantId = cleanText(item.variantId);
 
-    if (!cleanText(item.productId)) {
+    if (!cleanProductId) {
       reasons.push(`${prefix}.productId:invalid_value`);
     }
 
@@ -166,8 +183,18 @@ export function validateCheckoutCartRequestItems(
       reasons.push(`${prefix}.productSlug:invalid_value`);
     }
 
-    if (!cleanText(item.variantId)) {
+    if (!cleanVariantId) {
       reasons.push(`${prefix}.variantId:invalid_value`);
+    }
+
+    if (cleanProductId && cleanVariantId) {
+      const key = lineKey(cleanProductId, cleanVariantId);
+
+      if (seenLineKeys.has(key)) {
+        reasons.push(`${prefix}:duplicate_item`);
+      } else {
+        seenLineKeys.add(key);
+      }
     }
 
     if (
@@ -178,11 +205,34 @@ export function validateCheckoutCartRequestItems(
       reasons.push(`${prefix}.quantity:invalid_value`);
     }
 
-    if (
-      !Number.isInteger(item.priceCentavos) ||
-      item.priceCentavos < 0
-    ) {
+    if (!Number.isInteger(item.priceCentavos) || item.priceCentavos < 0) {
       reasons.push(`${prefix}.priceCentavos:invalid_value`);
+    }
+
+    if (item.variantOptions) {
+      if (item.variantOptions.length > SNAPSHOT_VARIANT_OPTION_MAX_ITEMS) {
+        reasons.push(`${prefix}.variantOptions:too_many_items`);
+      }
+
+      item.variantOptions.forEach((option, optionIndex) => {
+        const optionPrefix = `${prefix}.variantOptions[${optionIndex}]`;
+
+        if (
+          !cleanText(option.group) ||
+          cleanText(option.group).length >
+            SNAPSHOT_VARIANT_OPTION_TEXT_MAX_LENGTH
+        ) {
+          reasons.push(`${optionPrefix}.group:invalid_value`);
+        }
+
+        if (
+          !cleanText(option.name) ||
+          cleanText(option.name).length >
+            SNAPSHOT_VARIANT_OPTION_TEXT_MAX_LENGTH
+        ) {
+          reasons.push(`${optionPrefix}.name:invalid_value`);
+        }
+      });
     }
   });
 
@@ -206,17 +256,21 @@ function safeLineFromRequest(
     priceCentavos,
     priceLabel: input?.priceLabel ?? formatCatalogPrice(priceCentavos),
     productId: input?.productId ?? item.productId,
-    productName: input?.productName ?? (cleanText(item.productName) || "Product"),
+    productName:
+      input?.productName ?? (cleanText(item.productName) || "Product"),
     productSlug: input?.productSlug ?? item.productSlug,
     quantity,
     recoveryStatus: input?.recoveryStatus ?? "BLOCKED",
     variantId: input?.variantId ?? item.variantId,
-    variantLabel: input?.variantLabel ?? (cleanText(item.variantLabel) || "Option"),
+    variantLabel:
+      input?.variantLabel ?? (cleanText(item.variantLabel) || "Option"),
     variantOptions: input?.variantOptions ?? item.variantOptions ?? [],
     ...(input?.imageAlt ? { imageAlt: input.imageAlt } : {}),
     ...(input?.imageSrc ? { imageSrc: input.imageSrc } : {}),
     ...(input?.reason ? { reason: input.reason } : {}),
-    ...(input?.suggestedAction ? { suggestedAction: input.suggestedAction } : {}),
+    ...(input?.suggestedAction
+      ? { suggestedAction: input.suggestedAction }
+      : {}),
   };
 }
 
@@ -274,7 +328,8 @@ function blockedLine(input: {
       variantLabel:
         serverLine?.variantLabel ??
         (cleanText(input.item.variantLabel) || "Option"),
-      variantOptions: serverLine?.variantOptions ?? input.item.variantOptions ?? [],
+      variantOptions:
+        serverLine?.variantOptions ?? input.item.variantOptions ?? [],
     }),
     status: "BLOCKED",
   };
@@ -297,7 +352,6 @@ function validateLine(
       code: "PRODUCT_UNAVAILABLE",
       item,
       message: "This item is unavailable right now.",
-      serverLine,
     });
   }
 
@@ -306,7 +360,6 @@ function validateLine(
       code: "PRODUCT_VARIANT_MISMATCH",
       item,
       message: "Selected option does not match this product.",
-      serverLine,
     });
   }
 
@@ -315,7 +368,6 @@ function validateLine(
       code: "VARIANT_UNAVAILABLE",
       item,
       message: "This option is unavailable right now.",
-      serverLine,
     });
   }
 
@@ -421,7 +473,10 @@ export function validateCheckoutCart(input: {
     ])
   );
   const lineStates = input.items.map((item) =>
-    validateLine(item, serverLineByKey.get(lineKey(item.productId, item.variantId)))
+    validateLine(
+      item,
+      serverLineByKey.get(lineKey(item.productId, item.variantId))
+    )
   );
   const items = lineStates.map((state) => state.line);
   const issues = lineStates.flatMap((state) => state.issues);

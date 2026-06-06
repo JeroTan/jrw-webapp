@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { SNAPSHOT_VARIANT_OPTION_MAX_ITEMS } from "@/domain/snapshots/schemas";
 import {
   validateCheckoutCart,
   type CheckoutCartRequestItem,
@@ -64,6 +65,25 @@ describe("checkout cart validation rules", () => {
       items: [{ ...requestItem, quantity: 0 }],
       serverLines: [serverLine],
     });
+    const duplicate = validateCheckoutCart({
+      items: [requestItem, { ...requestItem, quantity: 1 }],
+      serverLines: [serverLine],
+    });
+    const tooManyOptions = validateCheckoutCart({
+      items: [
+        {
+          ...requestItem,
+          variantOptions: Array.from(
+            { length: SNAPSHOT_VARIANT_OPTION_MAX_ITEMS + 1 },
+            (_, index) => ({
+              group: `Group ${index}`,
+              name: `Name ${index}`,
+            })
+          ),
+        },
+      ],
+      serverLines: [serverLine],
+    });
 
     expect(empty.error).toMatchObject({
       code: "VALIDATION_FAILED",
@@ -73,15 +93,31 @@ describe("checkout cart validation rules", () => {
       code: "VALIDATION_FAILED",
       reasons: ["items[0].quantity:invalid_value"],
     });
+    expect(duplicate.error).toMatchObject({
+      code: "VALIDATION_FAILED",
+      reasons: ["items[1]:duplicate_item"],
+    });
+    expect(tooManyOptions.error).toMatchObject({
+      code: "VALIDATION_FAILED",
+      reasons: ["items[0].variantOptions:too_many_items"],
+    });
   });
 
   it("blocks missing, unpublished, mismatched, archived, and out-of-stock lines", () => {
     const result = validateCheckoutCart({
       items: [
-        { ...requestItem, productId: "prod_missing", variantId: "variant_missing" },
+        {
+          ...requestItem,
+          productId: "prod_missing",
+          variantId: "variant_missing",
+        },
         { ...requestItem, productId: "prod_draft", variantId: "variant_draft" },
         { ...requestItem, productId: "prod_mismatch" },
-        { ...requestItem, productId: "prod_archived", variantId: "variant_archived" },
+        {
+          ...requestItem,
+          productId: "prod_archived",
+          variantId: "variant_archived",
+        },
         { ...requestItem, productId: "prod_out", variantId: "variant_out" },
       ],
       serverLines: [
@@ -127,7 +163,44 @@ describe("checkout cart validation rules", () => {
       "VARIANT_UNAVAILABLE",
       "QUANTITY_UNAVAILABLE",
     ]);
-    expect(result.summary?.items.every((item) => item.availabilityStatus === "UNAVAILABLE")).toBe(true);
+    expect(
+      result.summary?.items.every(
+        (item) => item.availabilityStatus === "UNAVAILABLE"
+      )
+    ).toBe(true);
+  });
+
+  it("uses client snapshot fields for unpublished or inactive server lines", () => {
+    const result = validateCheckoutCart({
+      items: [
+        {
+          ...requestItem,
+          priceCentavos: 1234,
+          productName: "Cached Product",
+          productSlug: "cached-product",
+          variantLabel: "Cached Option",
+        },
+      ],
+      serverLines: [
+        {
+          ...serverLine,
+          priceCentavos: 9999,
+          productName: "Draft Secret",
+          productSlug: "draft-secret",
+          productStatus: "DRAFT",
+          variantLabel: "Draft Option",
+        },
+      ],
+    });
+
+    expect(result.summary?.items[0]).toMatchObject({
+      priceCentavos: 1234,
+      productName: "Cached Product",
+      productSlug: "cached-product",
+      variantLabel: "Cached Option",
+    });
+    expect(JSON.stringify(result.summary)).not.toContain("Draft Secret");
+    expect(JSON.stringify(result.summary)).not.toContain("draft-secret");
   });
 
   it("allows preorder and changed quantity to the safe storefront maximum", () => {

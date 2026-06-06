@@ -2,7 +2,11 @@ import * as React from "react";
 import { Button, ButtonLink, InputBox } from "@/components/ui";
 import type { CartState } from "@/domain/checkout/cart";
 import { validateCartBeforeCheckout } from "../api";
-import { applyCheckoutValidationSummaryToStore, useCartStore } from "../store";
+import {
+  applyCheckoutValidationSummaryToStore,
+  getCartSnapshot,
+  useCartStore,
+} from "../store";
 import { CartLineItems } from "./CartLineItems";
 import { CheckoutFlowShell } from "./CheckoutFlow";
 
@@ -31,6 +35,21 @@ const detailFields = [
     type: "text",
   },
 ] as const;
+
+function cartValidationFingerprint(state: CartState): string {
+  return state.items
+    .map((item) =>
+      [
+        item.productId,
+        item.variantId,
+        item.productSlug,
+        item.priceCentavos,
+        item.quantity,
+        item.availabilityStatus,
+      ].join(":")
+    )
+    .join("|");
+}
 
 export function CheckoutDetailsPageView({
   onRetryValidation,
@@ -120,7 +139,8 @@ export function CheckoutDetailsPageView({
 
 export function CheckoutDetailsPage() {
   const state = useCartStore();
-  const validationStartedRef = React.useRef(false);
+  const cartFingerprint = cartValidationFingerprint(state);
+  const lastValidationFingerprintRef = React.useRef<string | null>(null);
   const [validationStatus, setValidationStatus] = React.useState<
     "blocked" | "error" | "pending" | "valid"
   >("pending");
@@ -129,6 +149,9 @@ export function CheckoutDetailsPage() {
   >("Checking cart...");
 
   const validateDirectCheckout = React.useCallback(async () => {
+    const requestFingerprint = cartValidationFingerprint(state);
+    lastValidationFingerprintRef.current = requestFingerprint;
+
     if (state.items.length === 0) {
       setValidationStatus("blocked");
       setValidationMessage("Add an item before checkout.");
@@ -137,7 +160,8 @@ export function CheckoutDetailsPage() {
 
     setValidationStatus("pending");
     setValidationMessage("Checking cart...");
-    const result = await validateCartBeforeCheckout(state);
+    const requestState = state;
+    const result = await validateCartBeforeCheckout(requestState);
 
     if (result.kind === "failure") {
       setValidationStatus("error");
@@ -145,7 +169,21 @@ export function CheckoutDetailsPage() {
       return;
     }
 
-    applyCheckoutValidationSummaryToStore(result.summary);
+    const applied = applyCheckoutValidationSummaryToStore(
+      result.summary,
+      requestState
+    );
+
+    if (!applied) {
+      lastValidationFingerprintRef.current =
+        cartValidationFingerprint(getCartSnapshot());
+      setValidationStatus("blocked");
+      setValidationMessage("Cart changed. Check cart again.");
+      return;
+    }
+
+    lastValidationFingerprintRef.current =
+      cartValidationFingerprint(getCartSnapshot());
 
     if (result.kind === "valid") {
       setValidationStatus("valid");
@@ -162,17 +200,16 @@ export function CheckoutDetailsPage() {
   }, [state]);
 
   React.useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      if (validationStartedRef.current) {
-        return;
-      }
+    if (lastValidationFingerprintRef.current === cartFingerprint) {
+      return;
+    }
 
-      validationStartedRef.current = true;
+    const timeoutId = window.setTimeout(() => {
       void validateDirectCheckout();
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [state.items.length, validateDirectCheckout]);
+  }, [cartFingerprint, validateDirectCheckout]);
 
   return (
     <CheckoutDetailsPageView

@@ -1,10 +1,7 @@
 import * as React from "react";
 import { Button, ButtonLink, Input, Label } from "@/components/ui";
 import { StatusBadge } from "@/components/feedback";
-import {
-  cartItemKey,
-  type CartItemSnapshot,
-} from "@/domain/checkout/cart";
+import { cartItemKey, type CartItemSnapshot } from "@/domain/checkout/cart";
 import { formatCatalogPrice } from "@/domain/products/price-format";
 import { Minus, Plus, X } from "lucide-react";
 import { refreshCartItem } from "../api";
@@ -49,13 +46,22 @@ export function CartEmptyState() {
 }
 
 function CartLineItem({ item }: { item: CartItemSnapshot }) {
-  const [draftQuantity, setDraftQuantity] = React.useState(String(item.quantity));
-  const [status, setStatus] = React.useState<"idle" | "pending" | "success">("idle");
+  const [draftQuantity, setDraftQuantity] = React.useState(
+    String(item.quantity)
+  );
+  const [status, setStatus] = React.useState<"idle" | "pending" | "success">(
+    "idle"
+  );
   const [error, setError] = React.useState<string | null>(null);
   const key = cartItemKey(item);
   const errorId = `${key.replace(/[^a-zA-Z0-9_-]/g, "-")}-quantity-error`;
   const quantityInputId = `${errorId}-quantity`;
   const isBlocked = item.availabilityStatus !== "ACTIVE";
+  const blockingReason = item.staleReason ?? item.availabilityText;
+  const blockingAction =
+    item.suggestedAction && item.suggestedAction !== blockingReason
+      ? item.suggestedAction
+      : null;
 
   React.useEffect(() => {
     setDraftQuantity(String(item.quantity));
@@ -87,7 +93,9 @@ function CartLineItem({ item }: { item: CartItemSnapshot }) {
 
   const itemPath = `/products/${encodeURIComponent(item.productSlug)}`;
   const itemPriceLabel = formatCatalogPrice(item.priceCentavos);
-  const lineSubtotalLabel = formatCatalogPrice(item.priceCentavos * item.quantity);
+  const lineSubtotalLabel = formatCatalogPrice(
+    item.priceCentavos * item.quantity
+  );
 
   return (
     <article
@@ -129,17 +137,16 @@ function CartLineItem({ item }: { item: CartItemSnapshot }) {
                   {item.productName}
                 </a>
               </h3>
-              <p className="m-0 text-sm text-brand-muted">{item.variantLabel}</p>
+              <p className="m-0 text-sm text-brand-muted">
+                {item.variantLabel}
+              </p>
             </div>
           </div>
-
         </div>
 
         <div className="flex flex-wrap items-end gap-grid-xs">
           <div className="grid w-fit gap-1">
-            <Label htmlFor={quantityInputId}>
-              QUANTITY
-            </Label>
+            <Label htmlFor={quantityInputId}>QUANTITY</Label>
             <div
               aria-label={`Quantity for ${item.productName} ${item.variantLabel}`}
               className="flex items-stretch gap-1"
@@ -166,7 +173,9 @@ function CartLineItem({ item }: { item: CartItemSnapshot }) {
                     applyQuantity(draftQuantity);
                   }
                 }}
-                onChange={(event) => setDraftQuantity(event.currentTarget.value)}
+                onChange={(event) =>
+                  setDraftQuantity(event.currentTarget.value)
+                }
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     applyQuantity(draftQuantity);
@@ -200,17 +209,24 @@ function CartLineItem({ item }: { item: CartItemSnapshot }) {
               Cart updated.
             </p>
           ) : isBlocked ? (
-            <p className="m-0 text-sm font-bold text-brand-danger">
-              {item.staleReason ?? item.availabilityText}
-            </p>
-          ) : (
             <>
-              <p className="brand-title-secondary m-0">
-                Item price: {itemPriceLabel}
+              <p className="m-0 text-sm font-bold text-brand-danger">
+                {blockingReason}
               </p>
-              <p className="brand-title-big m-0">{lineSubtotalLabel}</p>
+              {blockingAction ? (
+                <p className="m-0 text-sm font-bold text-brand-muted">
+                  {blockingAction}
+                </p>
+              ) : null}
             </>
-          )}
+          ) : null}
+        </div>
+
+        <div className="grid gap-1">
+          <p className="brand-title-secondary m-0">
+            Item price: {itemPriceLabel}
+          </p>
+          <p className="brand-title-big m-0">{lineSubtotalLabel}</p>
         </div>
 
         {isBlocked ? (
@@ -253,4 +269,3 @@ export function CartLineItems({ items }: CartLineItemsProps) {
     </div>
   );
 }
-

@@ -116,6 +116,7 @@ function parseCartItem(value: unknown): CartItemSnapshot | null {
     : [];
   const availabilityStatus = safeAvailabilityStatus(value.availabilityStatus);
   const staleReason = safeOptionalString(value.staleReason);
+  const suggestedAction = safeOptionalString(value.suggestedAction);
 
   return {
     availabilityStatus,
@@ -130,12 +131,14 @@ function parseCartItem(value: unknown): CartItemSnapshot | null {
       : {}),
     maxQuantity,
     priceCentavos,
-    priceLabel: safeString(value.priceLabel) ?? formatCatalogPrice(priceCentavos),
+    priceLabel:
+      safeString(value.priceLabel) ?? formatCatalogPrice(priceCentavos),
     productId,
     productName,
     productSlug,
     quantity: quantity.quantity,
     ...(staleReason ? { staleReason } : {}),
+    ...(suggestedAction ? { suggestedAction } : {}),
     updatedAt: safeString(value.updatedAt) ?? new Date().toISOString(),
     variantId,
     variantLabel,
@@ -282,7 +285,12 @@ export function updateCartItemQuantityInStore(
   quantity: number | string | unknown
 ): CartMutationResult {
   ensureCartHydrated();
-  const result = updateCartItemQuantity(currentState, productId, variantId, quantity);
+  const result = updateCartItemQuantity(
+    currentState,
+    productId,
+    variantId,
+    quantity
+  );
 
   if (!result.error) {
     commitCartState(result.state);
@@ -345,7 +353,8 @@ function cartItemFromValidatedLine(
   fallback?: CartItemSnapshot,
   updatedAt = new Date().toISOString()
 ): CartItemSnapshot {
-  const quantity = line.quantity > 0 ? line.quantity : fallback?.quantity ?? 1;
+  const quantity =
+    line.quantity > 0 ? line.quantity : (fallback?.quantity ?? 1);
   const maxQuantity = normalizeCartLineQuantityMax(
     line.maxQuantity > 0 ? line.maxQuantity : fallback?.maxQuantity
   );
@@ -354,7 +363,11 @@ function cartItemFromValidatedLine(
   const staleReason =
     line.availabilityStatus === "ACTIVE"
       ? undefined
-      : line.reason ?? line.suggestedAction ?? availabilityTextForValidatedLine(line);
+      : (line.reason ??
+        line.suggestedAction ??
+        availabilityTextForValidatedLine(line));
+  const suggestedAction =
+    line.availabilityStatus === "ACTIVE" ? undefined : line.suggestedAction;
 
   return {
     availabilityStatus: line.availabilityStatus,
@@ -369,6 +382,7 @@ function cartItemFromValidatedLine(
     productSlug: line.productSlug,
     quantity,
     ...(staleReason ? { staleReason } : {}),
+    ...(suggestedAction ? { suggestedAction } : {}),
     updatedAt,
     variantId: line.variantId,
     variantLabel: line.variantLabel,
@@ -376,28 +390,60 @@ function cartItemFromValidatedLine(
   };
 }
 
+function cartStateMatchesValidationSnapshot(expectedState: CartState): boolean {
+  if (currentState.updatedAt !== expectedState.updatedAt) {
+    return false;
+  }
+
+  if (currentState.items.length !== expectedState.items.length) {
+    return false;
+  }
+
+  const expectedItemsByKey = new Map(
+    expectedState.items.map((item) => [cartItemKey(item), item])
+  );
+
+  return currentState.items.every((item) => {
+    const expected = expectedItemsByKey.get(cartItemKey(item));
+
+    return (
+      expected !== undefined &&
+      item.priceCentavos === expected.priceCentavos &&
+      item.productSlug === expected.productSlug &&
+      item.quantity === expected.quantity
+    );
+  });
+}
+
 export function applyCheckoutValidationSummaryToStore(
-  summary: CheckoutCartValidationSummary
-) {
+  summary: CheckoutCartValidationSummary,
+  expectedState?: CartState
+): boolean {
   ensureCartHydrated();
+
+  if (expectedState && !cartStateMatchesValidationSnapshot(expectedState)) {
+    return false;
+  }
+
   const updatedAt = new Date().toISOString();
   const linesByKey = new Map(
-    summary.items.map((item) => [cartLineKey(item.productId, item.variantId), item])
+    summary.items.map((item) => [
+      cartLineKey(item.productId, item.variantId),
+      item,
+    ])
   );
-  const existingKeys = new Set(currentState.items.map((item) => cartItemKey(item)));
   const updatedItems = currentState.items.map((item) => {
     const line = linesByKey.get(cartItemKey(item));
 
     return line ? cartItemFromValidatedLine(line, item, updatedAt) : item;
   });
-  const appendedItems = summary.items
-    .filter((line) => !existingKeys.has(cartLineKey(line.productId, line.variantId)))
-    .map((line) => cartItemFromValidatedLine(line, undefined, updatedAt));
 
   commitCartState({
-    items: [...updatedItems, ...appendedItems],
+    items: updatedItems,
     updatedAt,
   });
+
+  return true;
 }
 
 export function getCartSummary(state: CartState) {
@@ -421,4 +467,3 @@ export function resetCartStoreForTest(state = createEmptyCartState("test")) {
   storageListenerAttached = false;
   subscribers.clear();
 }
-

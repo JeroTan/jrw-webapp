@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CheckoutCartServerLine } from "@/domain/checkout/cart-validation";
+import { SNAPSHOT_VARIANT_OPTION_MAX_ITEMS } from "@/domain/snapshots/schemas";
 import { CheckoutService } from "./CheckoutService";
 
 const requestBody = {
@@ -134,6 +135,37 @@ describe("CheckoutService", () => {
       code: "VALIDATION_FAILED",
       data: {
         reasons: ["items[0].quantity:invalid_value"],
+      },
+    });
+  });
+
+  it("rejects oversized variant option payloads before repository access", async () => {
+    const repository = new CheckoutRepositoryStub();
+    const service = new CheckoutService({ repository });
+
+    const result = await service.validateCart({
+      body: {
+        items: [
+          {
+            ...requestBody.items[0],
+            variantOptions: Array.from(
+              { length: SNAPSHOT_VARIANT_OPTION_MAX_ITEMS + 1 },
+              (_, index) => ({
+                group: `Group ${index}`,
+                name: `Name ${index}`,
+              })
+            ),
+          },
+        ],
+      },
+      requestId: "req_checkout_invalid_options",
+    });
+
+    expect(repository.calls).toBe(0);
+    expect(result.error).toMatchObject({
+      code: "VALIDATION_FAILED",
+      data: {
+        reasons: ["items[0].variantOptions:too_many_items"],
       },
     });
   });

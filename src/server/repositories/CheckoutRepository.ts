@@ -15,7 +15,7 @@ import type {
   ProductVariantStatus,
 } from "@/domain/products/types";
 import { product_variants, products } from "@/domain/schema/catalog";
-import { and, inArray, eq } from "drizzle-orm";
+import { and, eq, gte, inArray } from "drizzle-orm";
 
 const ARCHIVED_STOCK_LOCK_VERSION = -1;
 
@@ -36,12 +36,16 @@ type CheckoutLineRow = {
 };
 
 export type CheckoutRepository = {
-  findCartLines(items: CheckoutCartRequestItem[]): Promise<CheckoutCartServerLine[]>;
+  findCartLines(
+    items: CheckoutCartRequestItem[]
+  ): Promise<CheckoutCartServerLine[]>;
 };
 
 function uniqueCleanValues(values: string[]): string[] {
   return Array.from(
-    new Set(values.map((value) => value.trim()).filter((value) => value.length > 0))
+    new Set(
+      values.map((value) => value.trim()).filter((value) => value.length > 0)
+    )
   );
 }
 
@@ -124,6 +128,8 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
       .innerJoin(products, eq(products.id, product_variants.product_id))
       .where(
         and(
+          eq(products.status, "PUBLISHED"),
+          gte(product_variants.stock_lock_version, 0),
           inArray(products.id, productIds),
           inArray(product_variants.id, variantIds)
         )
