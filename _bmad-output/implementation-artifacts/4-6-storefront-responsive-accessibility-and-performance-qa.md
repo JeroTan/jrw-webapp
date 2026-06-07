@@ -1,6 +1,6 @@
 # Story 4.6: Storefront Responsive, Accessibility, and Performance QA
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -22,70 +22,70 @@ so that JRW shopping feels fast, readable, and trustworthy.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock QA scope and preserve shipped behavior. (AC: 1-7)
-  - [ ] Re-read every UPDATE file listed in Current Code Intelligence before editing; worktree is heavily dirty and includes owner/refactor changes.
-  - [ ] Treat this story as a QA automation/evidence story first. Do not rebuild storefront UX, cart behavior, checkout validation, public catalog DTOs, product detail composition, or shared primitives unless QA exposes a concrete defect.
-  - [ ] Cite `_bmad-output/planning-artifacts/ux-design-directions.html` Direction 01 for storefront grid/card, Direction 02 for product detail/cart drawer, Direction 03 for mobile commerce parity, and Direction 04 for checkout entry checks.
-  - [ ] Preserve Storefront shell ownership: route/shell/home components compose hero content; `ProductCatalog` must not import or switch `StorefrontHero`.
-  - [ ] Preserve public storefront data rules: only published public catalog data in QA fixtures; no admin/private endpoints, no raw stock internals, no R2 keys, no provider details, no missing-seller language.
+- [x] Task 1: Lock QA scope and preserve shipped behavior. (AC: 1-7)
+  - [x] Re-read every UPDATE file listed in Current Code Intelligence before editing; worktree is heavily dirty and includes owner/refactor changes.
+  - [x] Treat this story as a QA automation/evidence story first. Do not rebuild storefront UX, cart behavior, checkout validation, public catalog DTOs, product detail composition, or shared primitives unless QA exposes a concrete defect.
+  - [x] Cite `_bmad-output/planning-artifacts/ux-design-directions.html` Direction 01 for storefront grid/card, Direction 02 for product detail/cart drawer, Direction 03 for mobile commerce parity, and Direction 04 for checkout entry checks.
+  - [x] Preserve Storefront shell ownership: route/shell/home components compose hero content; `ProductCatalog` must not import or switch `StorefrontHero`.
+  - [x] Preserve public storefront data rules: only published public catalog data in QA fixtures; no admin/private endpoints, no raw stock internals, no R2 keys, no provider details, no missing-seller language.
 
-- [ ] Task 2: Harden Playwright QA foundation. (AC: 1, 3-5, 7)
-  - [ ] Keep existing `playwright.config.ts` webServer pattern and `tests/qa/**` location; Vitest already excludes `tests/qa/**`.
-  - [ ] Add `@axe-core/playwright` as dev dependency unless a documented equivalent is chosen. Latest npm view on 2026-06-07 returned `4.11.3`.
-  - [ ] Keep installed `@playwright/test` at current project version `1.60.0`; do not upgrade Playwright in this story unless install conflict forces it.
-  - [ ] Add shared QA helpers under `tests/qa/` for required viewport widths, `expectNoHorizontalOverflow`, Astro island hydration wait, reduced-motion emulation, axe scan setup, console-error capture, and long-text fixture generation.
-  - [ ] Do not create snapshot baselines unless stable CI/OS baseline is agreed. Prefer assertions and screenshot attachments over noisy `toHaveScreenshot()` goldens.
-  - [ ] Add package scripts such as `qa:storefront`, `qa:accessibility`, and/or expand current `qa:checkout-viewports`; keep existing `qa:checkout-viewports` working.
+- [x] Task 2: Harden Playwright QA foundation. (AC: 1, 3-5, 7)
+  - [x] Keep existing `playwright.config.ts` webServer pattern and `tests/qa/**` location; Vitest already excludes `tests/qa/**`.
+  - [x] Add `@axe-core/playwright` as dev dependency unless a documented equivalent is chosen. Latest npm view on 2026-06-07 returned `4.11.3`.
+  - [x] Keep installed `@playwright/test` at current project version `1.60.0`; do not upgrade Playwright in this story unless install conflict forces it.
+  - [x] Add shared QA helpers under `tests/qa/` for required viewport widths, `expectNoHorizontalOverflow`, Astro island hydration wait, reduced-motion emulation, axe scan setup, console-error capture, and long-text fixture generation.
+  - [x] Do not create snapshot baselines unless stable CI/OS baseline is agreed. Prefer assertions and screenshot attachments over noisy `toHaveScreenshot()` goldens.
+  - [x] Add package scripts such as `qa:storefront`, `qa:accessibility`, and/or expand current `qa:checkout-viewports`; keep existing `qa:checkout-viewports` working.
 
-- [ ] Task 3: Add responsive and overflow coverage for storefront routes. (AC: 1-2, 7)
-  - [ ] Add Playwright coverage for `/`, `/products`, `/categories`, one category route when fixture allows, one brand route when fixture allows, one product detail route, `/cart`, and `/checkout`.
-  - [ ] Use route mocks or seeded local data where needed so QA is deterministic and does not depend on remote D1/R2 contents.
-  - [ ] Check widths exactly: `320`, `375`, `390`, `430`, `768`, `1024`, `1440`.
-  - [ ] Assert no horizontal overflow at document level and no visible clipping/overlap for product names, metadata, price tags, availability labels, cart quantity badge, checkout step labels, buttons, filter controls, and cart line rows.
-  - [ ] Assert sticky/mobile cart or action areas never cover checkout/cart content, validation messages, remove/edit controls, or pagination.
-  - [ ] Exercise long strings: product name, brand/category, price label, availability text, variant label, checkout message, and cart line reason.
-  - [ ] If any route lacks real fixture data, document route/data blocker in the QA report rather than faking live product claims in app code.
+- [x] Task 3: Add responsive and overflow coverage for storefront routes. (AC: 1-2, 7)
+  - [x] Add Playwright coverage for `/`, `/products`, `/categories`, one category route when fixture allows, one brand route when fixture allows, one product detail route, `/cart`, and `/checkout`.
+  - [x] Use route mocks or seeded local data where needed so QA is deterministic and does not depend on remote D1/R2 contents.
+  - [x] Check widths exactly: `320`, `375`, `390`, `430`, `768`, `1024`, `1440`.
+  - [x] Assert no horizontal overflow at document level and no visible clipping/overlap for product names, metadata, price tags, availability labels, cart quantity badge, checkout step labels, buttons, filter controls, and cart line rows.
+  - [x] Assert sticky/mobile cart or action areas never cover checkout/cart content, validation messages, remove/edit controls, or pagination.
+  - [x] Exercise long strings: product name, brand/category, price label, availability text, variant label, checkout message, and cart line reason.
+  - [x] If any route lacks real fixture data, document route/data blocker in the QA report rather than faking live product claims in app code.
 
-- [ ] Task 4: Add keyboard, focus, and reduced-motion coverage. (AC: 3, 5, 7)
-  - [ ] Keyboard path: header logo/nav/search/cart/account/menu, mobile menu, product filters, product links/cards, product detail variant chips, quantity controls, Buy/add-cart/share, cart drawer close/remove/quantity, cart validation, `/checkout` blocked/details entry.
-  - [ ] Assert focus-visible treatment uses cobalt 2px outline with 2px offset for shared `Button`, `ButtonLink`, product links, filter controls, quantity controls, drawer close, and checkout buttons.
-  - [ ] Assert `CartDrawer` traps focus while open, Escape closes it, and focus returns to cart trigger.
-  - [ ] Use `page.emulateMedia({ reducedMotion: "reduce" })` in at least one storefront/cart/detail path and assert UI remains usable without relying on animation completion.
-  - [ ] Add manual screen-reader spot-check items to the QA report for status labels, drawer dialog labels, checkout validation status, and product unavailable text.
+- [x] Task 4: Add keyboard, focus, and reduced-motion coverage. (AC: 3, 5, 7)
+  - [x] Keyboard path: header logo/nav/search/cart/account/menu, mobile menu, product filters, product links/cards, product detail variant chips, quantity controls, Buy/add-cart/share, cart drawer close/remove/quantity, cart validation, `/checkout` blocked/details entry.
+  - [x] Assert focus-visible treatment uses cobalt 2px outline with 2px offset for shared `Button`, `ButtonLink`, product links, filter controls, quantity controls, drawer close, and checkout buttons.
+  - [x] Assert `CartDrawer` traps focus while open, Escape closes it, and focus returns to cart trigger.
+  - [x] Use `page.emulateMedia({ reducedMotion: "reduce" })` in at least one storefront/cart/detail path and assert UI remains usable without relying on animation completion.
+  - [x] Add manual screen-reader spot-check items to the QA report for status labels, drawer dialog labels, checkout validation status, and product unavailable text.
 
-- [ ] Task 5: Add automated accessibility scan coverage. (AC: 4, 7)
-  - [ ] Add `tests/qa/accessibility.spec.ts` or shared accessibility checks inside storefront QA specs using `AxeBuilder`.
-  - [ ] Scan core states after UI reaches target state: home, product grid with filters visible, product detail with variants, cart drawer open, cart page, blocked checkout validation state, and checkout details form.
-  - [ ] Use WCAG A/AA axe tags matching Playwright docs unless a stricter axe config is documented.
-  - [ ] Fail on unexpected violations. If a violation cannot be fixed in this story, document exact rule, selector, page, user impact, and follow-up owner in `_bmad-output/implementation-artifacts/4-6-storefront-qa-report.md`.
-  - [ ] Keep manual accessibility note: automated axe does not prove full WCAG compliance; keyboard/focus/screen-reader checks remain required.
+- [x] Task 5: Add automated accessibility scan coverage. (AC: 4, 7)
+  - [x] Add `tests/qa/accessibility.spec.ts` or shared accessibility checks inside storefront QA specs using `AxeBuilder`.
+  - [x] Scan core states after UI reaches target state: home, product grid with filters visible, product detail with variants, cart drawer open, cart page, blocked checkout validation state, and checkout details form.
+  - [x] Use WCAG A/AA axe tags matching Playwright docs unless a stricter axe config is documented.
+  - [x] Fail on unexpected violations. If a violation cannot be fixed in this story, document exact rule, selector, page, user impact, and follow-up owner in `_bmad-output/implementation-artifacts/4-6-storefront-qa-report.md`.
+  - [x] Keep manual accessibility note: automated axe does not prove full WCAG compliance; keyboard/focus/screen-reader checks remain required.
 
-- [ ] Task 6: Add storefront performance evidence. (AC: 6-7)
-  - [ ] Add documented Lighthouse or WebPageTest evidence for `/` and one product detail route. If using Lighthouse CLI, latest npm view on 2026-06-07 returned `13.3.0`; adding it as dev dependency is optional if `npx lighthouse` is documented.
-  - [ ] Measure mobile-like profile where possible and record command, URL, date, environment, and result path.
-  - [ ] Record whether initial storefront usable load target under 2.5s p75 and product detail LCP under 2.5s p75 are met, blocked, or not yet measurable in local lab.
-  - [ ] Check rendered product-list image candidates target <= 250KB and detail primary image target <= 1MB after processing where assets are present. If image URLs are mocked or remote, record blocker.
-  - [ ] Do not optimize images by changing public data contracts in this story unless QA finds a small, localized image attribute/size defect.
+- [x] Task 6: Add storefront performance evidence. (AC: 6-7)
+  - [x] Add documented Lighthouse or WebPageTest evidence for `/` and one product detail route. If using Lighthouse CLI, latest npm view on 2026-06-07 returned `13.3.0`; adding it as dev dependency is optional if `npx lighthouse` is documented.
+  - [x] Measure mobile-like profile where possible and record command, URL, date, environment, and result path.
+  - [x] Record whether initial storefront usable load target under 2.5s p75 and product detail LCP under 2.5s p75 are met, blocked, or not yet measurable in local lab.
+  - [x] Check rendered product-list image candidates target <= 250KB and detail primary image target <= 1MB after processing where assets are present. If image URLs are mocked or remote, record blocker.
+  - [x] Do not optimize images by changing public data contracts in this story unless QA finds a small, localized image attribute/size defect.
 
-- [ ] Task 7: Write QA evidence report. (AC: 1-7)
-  - [ ] Create `_bmad-output/implementation-artifacts/4-6-storefront-qa-report.md`.
-  - [ ] Include viewport matrix with route, width, pass/fail/blocker, and screenshot/report artifact references where available.
-  - [ ] Include accessibility matrix with axe results, keyboard result, focus trap/restore, contrast/status text, reduced-motion result, and screen-reader spot-check note.
-  - [ ] Include performance matrix with Lighthouse/WebPageTest command, target, observed result or blocker, image-size evidence, and next action.
-  - [ ] Include "Fixes Applied" section for defects found during QA. Reference files and tests.
-  - [ ] Include "Accepted Blockers" only when implementation cannot fix without future story scope; be specific and honest.
+- [x] Task 7: Write QA evidence report. (AC: 1-7)
+  - [x] Create `_bmad-output/implementation-artifacts/4-6-storefront-qa-report.md`.
+  - [x] Include viewport matrix with route, width, pass/fail/blocker, and screenshot/report artifact references where available.
+  - [x] Include accessibility matrix with axe results, keyboard result, focus trap/restore, contrast/status text, reduced-motion result, and screen-reader spot-check note.
+  - [x] Include performance matrix with Lighthouse/WebPageTest command, target, observed result or blocker, image-size evidence, and next action.
+  - [x] Include "Fixes Applied" section for defects found during QA. Reference files and tests.
+  - [x] Include "Accepted Blockers" only when implementation cannot fix without future story scope; be specific and honest.
 
-- [ ] Task 8: Run validation gates. (AC: 1-7)
-  - [ ] Run `npm run check`.
-  - [ ] Run targeted Vitest suites touched by fixes, likely:
+- [x] Task 8: Run validation gates. (AC: 1-7)
+  - [x] Run `npm run check`.
+  - [x] Run targeted Vitest suites touched by fixes, likely:
     - `npx vitest run src/features/storefront-shell/storefront-shell-ui.test.tsx`
     - `npx vitest run src/features/product-catalog/components/product-catalog-ui.test.tsx`
     - `npx vitest run src/features/product-detail/components/product-detail-ui.test.tsx src/features/product-detail/lib/renderProductDescription.test.ts src/features/product-detail/lib/variant-options.test.ts`
     - `npx vitest run src/features/cart-checkout/components/cart-ui.test.tsx src/features/cart-checkout/store.test.ts`
-  - [ ] Run `npm run qa:checkout-viewports` to preserve Story 4.5 automation.
-  - [ ] Run new storefront/accessibility/performance QA scripts added by this story.
-  - [ ] Run styling guard: `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
-  - [ ] Run `npm run build-test` if targeted gates pass and no local-only blocker appears.
+  - [x] Run `npm run qa:checkout-viewports` to preserve Story 4.5 automation.
+  - [x] Run new storefront/accessibility/performance QA scripts added by this story.
+  - [x] Run styling guard: `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
+  - [x] Run `npm run build-test` if targeted gates pass and no local-only blocker appears.
 
 ## Endpoint Guard Checklist
 
@@ -329,11 +329,45 @@ Avoid:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
+- 2026-06-07: Installed `@axe-core/playwright@4.11.3`; npm reported 21 existing audit findings after install.
+- 2026-06-07: `npm run qa:storefront` initially exposed dev-server instability under parallel workers; set Playwright `workers: 1`.
+- 2026-06-07: `npm run qa:accessibility` exposed contrast failure for white text on `#3e96f4`; fixed accent token to `#0969da`.
+- 2026-06-07: `npm run qa:accessibility` exposed hidden desktop label for mobile-only filter checkbox; fixed `ResponsiveFilterPanel`.
+- 2026-06-07: `npm run build-test` blocked by unrelated full-suite failures in `admin-shell.test.tsx` and `src/domain/products/product.test.ts`; documented in QA report.
+
 ### Completion Notes List
+
+- Added Playwright QA helpers and storefront responsive, accessibility, and performance specs for required widths, long text, keyboard/focus, reduced motion, axe checks, and local lab performance evidence.
+- Added package scripts `qa:storefront` and `qa:accessibility` while preserving `qa:checkout-viewports`.
+- Fixed concrete QA defects: accessible accent contrast and mobile filter toggle label/focus behavior.
+- Wrote `_bmad-output/implementation-artifacts/4-6-storefront-qa-report.md` with viewport, accessibility, performance, fixes, and accepted blockers.
+- Marked performance image/LCP issues as blockers because large product assets are remote/generated relative to this repo and require asset pipeline work.
 
 ### File List
 
+- `_bmad-output/implementation-artifacts/4-6-lighthouse-home.json`
+- `_bmad-output/implementation-artifacts/4-6-lighthouse-product-water.json`
+- `_bmad-output/implementation-artifacts/4-6-storefront-qa-report.md`
+- `_bmad-output/implementation-artifacts/4-6-storefront-responsive-accessibility-and-performance-qa.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `package-lock.json`
+- `package.json`
+- `playwright.config.ts`
+- `src/components/ui/ResponsiveFilterPanel.tsx`
+- `src/styles/_colors.css`
+- `tests/qa/helpers/accessibility.ts`
+- `tests/qa/helpers/astro.ts`
+- `tests/qa/helpers/overflow.ts`
+- `tests/qa/helpers/storefront-fixtures.ts`
+- `tests/qa/helpers/viewports.ts`
+- `tests/qa/storefront-accessibility.spec.ts`
+- `tests/qa/storefront-performance.spec.ts`
+- `tests/qa/storefront-responsive.spec.ts`
+
+### Change Log
+
+- 2026-06-07: Added storefront QA automation, accessibility scans, performance evidence, QA report, and QA-found UI fixes; story moved to review.

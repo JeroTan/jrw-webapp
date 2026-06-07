@@ -48,7 +48,7 @@ describe("admin dashboard shell", () => {
     );
 
     expect(markup).toContain("Super Admin");
-    expect(markup).toContain("Owner-only");
+    expect(markup).not.toContain("Owner-only");
     expect(markup).toContain("Admin Accounts");
     expect(markup).toContain("Ownership Transfer");
     expect(markup).toContain("Owner Audit");

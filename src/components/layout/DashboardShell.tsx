@@ -94,7 +94,7 @@ export function SidebarNav({
 
       {isOwner ? (
         <section
-          aria-labelledby="owner-nav-title"
+          aria-label="Owner navigation"
           className="grid border-t border-brand-border"
         >
           {ownerNav.map((item) => (

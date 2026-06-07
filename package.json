@@ -25,6 +25,8 @@
     "check": "astro check",
     "qa:install-browsers": "playwright install chromium",
     "qa:checkout-viewports": "playwright test tests/qa/checkout-validation-viewports.spec.ts --project=chromium",
+    "qa:storefront": "playwright test tests/qa/storefront-responsive.spec.ts tests/qa/storefront-performance.spec.ts --project=chromium",
+    "qa:accessibility": "playwright test tests/qa/storefront-accessibility.spec.ts --project=chromium",
     "test": "vitest",
     "seed:super-admin": "node --env-file=.env --import tsx scripts/seed-super-admin.ts",
     "seed:admin": "node --env-file=.env --import tsx scripts/seed-admin.ts",
@@ -55,6 +57,7 @@
   "devDependencies": {
     "@astrojs/check": "^0.9.9",
     "@astrojs/sitemap": "^3.7.2",
+    "@axe-core/playwright": "^4.11.3",
     "@cloudflare/workers-types": "^4.20260426.1",
     "@playwright/test": "^1.60.0",
     "@tailwindcss/vite": "^4.2.4",

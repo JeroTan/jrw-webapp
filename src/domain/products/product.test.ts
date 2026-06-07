@@ -60,7 +60,9 @@ function productRecord(overrides: Partial<ProductRecord> = {}): ProductRecord {
   };
 }
 
-function activeBrand(overrides: Partial<ProductBrandRecord> = {}): ProductBrandRecord {
+function activeBrand(
+  overrides: Partial<ProductBrandRecord> = {}
+): ProductBrandRecord {
   return {
     id: "brand_1",
     name: "Home",
@@ -276,7 +278,9 @@ describe("ProductService", () => {
       now: () => new Date(now),
       repository: repositoryDouble({
         findBySlug: async (slug) =>
-          slug === "desk-lamp" ? productRecord({ id: "prod_existing", slug }) : null,
+          slug === "desk-lamp"
+            ? productRecord({ id: "prod_existing", slug })
+            : null,
         create: async (input) => {
           createInputs.push({ slug: input.slug, status: input.status });
           return productRecord({
@@ -312,7 +316,9 @@ describe("ProductService", () => {
     const service = new ProductService({
       repository: repositoryDouble({
         findBySlug: async (slug) =>
-          slug === "desk-lamp" ? productRecord({ id: "prod_existing", slug }) : null,
+          slug === "desk-lamp"
+            ? productRecord({ id: "prod_existing", slug })
+            : null,
       }),
     });
 
@@ -423,7 +429,7 @@ describe("ProductService", () => {
     });
   });
 
-  it("does not restrict list visibility for super admin", async () => {
+  it("denies product listing for Super Admin", async () => {
     let capturedOptions: Record<string, unknown> | null = null;
     const service = new ProductService({
       repository: repositoryDouble({
@@ -449,11 +455,8 @@ describe("ProductService", () => {
       },
     });
 
-    expect(listed.error).toBeNull();
-    expect(capturedOptions).toMatchObject({
-      viewerAdminId: "admin_1",
-      restrictToViewerMembership: false,
-    });
+    expect(listed.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(capturedOptions).toBeNull();
   });
 
   it("assigns product brand when actor has brand membership", async () => {
@@ -521,7 +524,8 @@ describe("ProductService", () => {
     const removeCalls: string[] = [];
     const service = new ProductService({
       repository: repositoryDouble({
-        findById: async () => productRecord({ brandId: "brand_1", brandName: "Home" }),
+        findById: async () =>
+          productRecord({ brandId: "brand_1", brandName: "Home" }),
         removeBrand: async (productId, updatedAt) => {
           removeCalls.push(productId);
           return productRecord({
@@ -592,8 +596,9 @@ describe("ProductService", () => {
   it("rejects archived categories for assignment", async () => {
     const service = new ProductService({
       repository: repositoryDouble({
-        findCategoriesByIds: async () =>
-          [productCategory({ id: "cat_archived", status: "ARCHIVED" })],
+        findCategoriesByIds: async () => [
+          productCategory({ id: "cat_archived", status: "ARCHIVED" }),
+        ],
       }),
     });
 

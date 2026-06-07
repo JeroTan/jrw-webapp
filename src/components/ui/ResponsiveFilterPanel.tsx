@@ -27,13 +27,13 @@ export function ResponsiveFilterPanel({
       )}
     >
       <input
-        className="peer sr-only"
+        className="peer sr-only md:hidden"
         defaultChecked={defaultExpanded}
         id={toggleId}
         type="checkbox"
       />
       <label
-        className="flex min-h-control-sm cursor-pointer items-center justify-between border border-brand-border bg-brand-surface px-grid-xs font-system text-xs font-bold uppercase md:hidden"
+        className="flex min-h-control-sm cursor-pointer items-center justify-between border border-brand-border bg-brand-surface px-grid-xs font-system text-xs font-bold uppercase peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-brand-accent md:hidden"
         htmlFor={toggleId}
       >
         <span>{title}</span>
