@@ -172,7 +172,7 @@ export function requireBrandMembershipForMutation(
     return Result.error(new GeneralError({}, "AUTH_REQUIRED"));
   }
 
-  if (input.actor.role !== "ADMIN" && input.actor.role !== "SUPER_ADMIN") {
+  if (input.actor.role !== "ADMIN") {
     return Result.error(
       new GeneralError(
         { reason: "BRAND_MEMBERSHIP_REQUIRED" },
@@ -211,28 +211,26 @@ export function requireBrandMembershipForMutation(
     }
   }
 
-  if (input.actor.role !== "SUPER_ADMIN") {
-    if (reassignment && !isActiveMutationMember(input.sourceMembership ?? null)) {
-      return Result.error(
-        new GeneralError(
-          { reason: "SOURCE_BRAND_PERMISSION_REQUIRED" },
-          "AUTH_FORBIDDEN"
-        )
-      );
-    }
+  if (reassignment && !isActiveMutationMember(input.sourceMembership ?? null)) {
+    return Result.error(
+      new GeneralError(
+        { reason: "SOURCE_BRAND_PERMISSION_REQUIRED" },
+        "AUTH_FORBIDDEN"
+      )
+    );
+  }
 
-    if (!isActiveMutationMember(input.targetMembership)) {
-      return Result.error(
-        new GeneralError(
-          {
-            reason: reassignment
-              ? "TARGET_BRAND_PERMISSION_REQUIRED"
-              : "BRAND_MEMBERSHIP_REQUIRED",
-          },
-          "AUTH_FORBIDDEN"
-        )
-      );
-    }
+  if (!isActiveMutationMember(input.targetMembership)) {
+    return Result.error(
+      new GeneralError(
+        {
+          reason: reassignment
+            ? "TARGET_BRAND_PERMISSION_REQUIRED"
+            : "BRAND_MEMBERSHIP_REQUIRED",
+        },
+        "AUTH_FORBIDDEN"
+      )
+    );
   }
 
   return Result.okay({
@@ -249,7 +247,7 @@ export function validateBrandlessProductMutation(
     return Result.error(new GeneralError({}, "AUTH_REQUIRED"));
   }
 
-  if (input.actor.role !== "ADMIN" && input.actor.role !== "SUPER_ADMIN") {
+  if (input.actor.role !== "ADMIN") {
     return Result.error(
       new GeneralError(
         { reason: "BRAND_MEMBERSHIP_REQUIRED" },
@@ -271,7 +269,7 @@ export function listBrandScopedProducts(
     return Result.error(new GeneralError({}, "AUTH_REQUIRED"));
   }
 
-  if (input.actor.role !== "ADMIN" && input.actor.role !== "SUPER_ADMIN") {
+  if (input.actor.role !== "ADMIN") {
     return Result.error(
       new GeneralError(
         { reason: "BRAND_MEMBERSHIP_REQUIRED" },
@@ -292,10 +290,7 @@ export function listBrandScopedProducts(
     );
   }
 
-  if (
-    input.actor.role !== "SUPER_ADMIN" &&
-    !isActiveBrandMember(input.membership)
-  ) {
+  if (!isActiveBrandMember(input.membership)) {
     return Result.error(
       new GeneralError(
         { reason: "BRAND_MEMBERSHIP_REQUIRED" },

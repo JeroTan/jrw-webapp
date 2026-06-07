@@ -26,12 +26,12 @@ import { Result, type AppResult } from "@/utils/general/result";
 
 type VariantAuth = {
   mode: "required";
-  roles: readonly ["ADMIN", "SUPER_ADMIN"];
+  roles: readonly ["ADMIN"];
 };
 
 const variantAuth: VariantAuth = {
   mode: "required",
-  roles: ["ADMIN", "SUPER_ADMIN"],
+  roles: ["ADMIN"],
 };
 
 const DEFAULT_PAGE = 1;
@@ -225,7 +225,7 @@ export class VariantService {
   private requireAdminActor(actor: VariantActorInput | undefined): AppResult<{
     actorId: string;
     safeActorId: string;
-    role: "ADMIN" | "SUPER_ADMIN";
+    role: "ADMIN";
   }> {
     const decision = evaluateRouteAccess({
       auth: variantAuth,
@@ -240,10 +240,7 @@ export class VariantService {
       return Result.error(serviceError("AUTH_REQUIRED"));
     }
 
-    if (
-      decision.actorRole !== "ADMIN" &&
-      decision.actorRole !== "SUPER_ADMIN"
-    ) {
+    if (decision.actorRole !== "ADMIN") {
       return Result.error(serviceError("AUTH_FORBIDDEN"));
     }
 
@@ -325,7 +322,7 @@ export class VariantService {
 
   private async requireBrandMutationPermission(input: {
     actorId: string;
-    role: "ADMIN" | "SUPER_ADMIN";
+    role: "ADMIN";
     brandId: string | null;
   }): Promise<AppResult<null>> {
     if (!input.brandId) {
@@ -343,10 +340,6 @@ export class VariantService {
       return Result.error(
         serviceError("CONFLICT_STATE", { reason: "BRAND_ARCHIVED" })
       );
-    }
-
-    if (input.role === "SUPER_ADMIN") {
-      return Result.okay(null);
     }
 
     const membership = await this.productRepository.findBrandMembership(

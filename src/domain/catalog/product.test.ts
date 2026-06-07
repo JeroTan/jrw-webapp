@@ -37,7 +37,7 @@ describe("listBrandScopedProducts", () => {
     });
   });
 
-  it("allows super admin without membership", () => {
+  it("denies Super Admin brand-scoped product listing", () => {
     const result = listBrandScopedProducts({
       actor: {
         authenticated: true,
@@ -49,13 +49,10 @@ describe("listBrandScopedProducts", () => {
       membership: null,
     });
 
-    expect(result.error).toBeNull();
-    if (result.error) {
-      throw result.error;
-    }
-
-    expect(result.content.page).toBe(1);
-    expect(result.content.pageSize).toBe(20);
+    expect(result.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(result.error?.data).toMatchObject({
+      reason: "BRAND_MEMBERSHIP_REQUIRED",
+    });
   });
 
   it("blocks archived brand", () => {

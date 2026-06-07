@@ -28,12 +28,12 @@ import { Result, type AppResult } from "@/utils/general/result";
 
 type ImageAuth = {
   mode: "required";
-  roles: readonly ["ADMIN", "SUPER_ADMIN"];
+  roles: readonly ["ADMIN"];
 };
 
 const imageAuth: ImageAuth = {
   mode: "required",
-  roles: ["ADMIN", "SUPER_ADMIN"],
+  roles: ["ADMIN"],
 };
 
 type ImageProductScopeRepository = {
@@ -386,7 +386,7 @@ export class ImageService {
   private requireAdminActor(actor: ImageActorInput | undefined): AppResult<{
     actorId: string;
     safeActorId: string;
-    role: "ADMIN" | "SUPER_ADMIN";
+    role: "ADMIN";
   }> {
     const decision = evaluateRouteAccess({
       auth: imageAuth,
@@ -401,10 +401,7 @@ export class ImageService {
       return Result.error(serviceError("AUTH_REQUIRED"));
     }
 
-    if (
-      decision.actorRole !== "ADMIN" &&
-      decision.actorRole !== "SUPER_ADMIN"
-    ) {
+    if (decision.actorRole !== "ADMIN") {
       return Result.error(serviceError("AUTH_FORBIDDEN"));
     }
 
@@ -418,7 +415,7 @@ export class ImageService {
   private async requireProductMutationPermission(input: {
     productId: string;
     actorId: string;
-    role: "ADMIN" | "SUPER_ADMIN";
+    role: "ADMIN";
   }): Promise<AppResult<{ productId: string; brandId: string | null }>> {
     const product = await this.productRepository.findById(input.productId);
     if (!product) {
@@ -445,13 +442,6 @@ export class ImageService {
       return Result.error(
         serviceError("CONFLICT_STATE", { reason: "BRAND_ARCHIVED" })
       );
-    }
-
-    if (input.role === "SUPER_ADMIN") {
-      return Result.okay({
-        productId: product.id,
-        brandId: brand.id,
-      });
     }
 
     const membership = await this.productRepository.findBrandMembership(

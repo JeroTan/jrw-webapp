@@ -19,7 +19,11 @@ export function AdminSignInPanel() {
     setSubmitting(false);
 
     if (result.ok) {
-      window.location.assign("/admin");
+      window.location.assign(
+        result.data.actor.role === "SUPER_ADMIN"
+          ? "/admin/owner/transfer"
+          : "/admin"
+      );
       return;
     }
 

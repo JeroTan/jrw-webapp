@@ -103,9 +103,11 @@ describe("images routes", () => {
     const list = body.paths?.["/api/admin/products/{productId}/images"]?.get;
     const upload = body.paths?.["/api/admin/products/{productId}/images"]?.post;
     const reorder =
-      body.paths?.["/api/admin/products/{productId}/images/{photoId}/order"]?.patch;
+      body.paths?.["/api/admin/products/{productId}/images/{photoId}/order"]
+        ?.patch;
     const primary =
-      body.paths?.["/api/admin/products/{productId}/images/{photoId}/primary"]?.patch;
+      body.paths?.["/api/admin/products/{productId}/images/{photoId}/primary"]
+        ?.patch;
     const remove =
       body.paths?.["/api/admin/products/{productId}/images/{photoId}"]?.delete;
 
@@ -113,7 +115,7 @@ describe("images routes", () => {
     expect(list?.tags).toContain("Products");
     expect(list?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(list?.["x-rate-limit-class"]).toBe("admin-read");
     expect(list?.responses).toHaveProperty("200");

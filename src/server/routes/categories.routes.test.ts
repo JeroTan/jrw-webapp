@@ -144,7 +144,7 @@ describe("categories routes", () => {
     expect(list?.tags).toContain("Categories");
     expect(list?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(list?.["x-rate-limit-class"]).toBe("admin-read");
     expect(list?.["x-error-codes"]).toEqual(

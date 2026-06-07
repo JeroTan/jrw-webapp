@@ -34,7 +34,9 @@ export type ImageRoutesOptions = {
   controllerFactory?: (input: ImageControllerFactoryInput) => ImageController;
 };
 
-function createRuntimeController(input: ImageControllerFactoryInput): ImageController {
+function createRuntimeController(
+  input: ImageControllerFactoryInput
+): ImageController {
   const db = input.runtimeEnv?.DB;
   const storage = input.runtimeEnv?.STORAGE;
 
@@ -89,7 +91,7 @@ function adminActor(
 
 const imageAuth = {
   mode: "required",
-  roles: ["ADMIN", "SUPER_ADMIN"],
+  roles: ["ADMIN"],
 } as const;
 
 const imageReadErrors = [
@@ -147,7 +149,9 @@ export function imagesRoutes(app: AnyElysia, options: ImageRoutesOptions = {}) {
         transform: rbacGuard(imageAuth),
         response: {
           200: tboxApiSuccess(tboxProductImageListData),
-          ...openApiErrorResponses([400, 401, 403, 404, 409, 413, 415, 500, 503]),
+          ...openApiErrorResponses([
+            400, 401, 403, 404, 409, 413, 415, 500, 503,
+          ]),
         },
       }
     )
@@ -198,7 +202,9 @@ export function imagesRoutes(app: AnyElysia, options: ImageRoutesOptions = {}) {
         transform: rbacGuard(imageAuth),
         response: {
           201: tboxApiSuccess(tboxProductImageData),
-          ...openApiErrorResponses([400, 401, 403, 404, 409, 413, 415, 500, 503]),
+          ...openApiErrorResponses([
+            400, 401, 403, 404, 409, 413, 415, 500, 503,
+          ]),
         },
       }
     )
@@ -249,7 +255,9 @@ export function imagesRoutes(app: AnyElysia, options: ImageRoutesOptions = {}) {
         transform: rbacGuard(imageAuth),
         response: {
           200: tboxApiSuccess(tboxProductImageData),
-          ...openApiErrorResponses([400, 401, 403, 404, 409, 413, 415, 500, 503]),
+          ...openApiErrorResponses([
+            400, 401, 403, 404, 409, 413, 415, 500, 503,
+          ]),
         },
       }
     )
@@ -290,7 +298,9 @@ export function imagesRoutes(app: AnyElysia, options: ImageRoutesOptions = {}) {
         transform: rbacGuard(imageAuth),
         response: {
           200: tboxApiSuccess(tboxProductImageData),
-          ...openApiErrorResponses([400, 401, 403, 404, 409, 413, 415, 500, 503]),
+          ...openApiErrorResponses([
+            400, 401, 403, 404, 409, 413, 415, 500, 503,
+          ]),
         },
       }
     )
@@ -331,7 +341,9 @@ export function imagesRoutes(app: AnyElysia, options: ImageRoutesOptions = {}) {
         transform: rbacGuard(imageAuth),
         response: {
           200: tboxApiSuccess(tboxProductImageData),
-          ...openApiErrorResponses([400, 401, 403, 404, 409, 413, 415, 500, 503]),
+          ...openApiErrorResponses([
+            400, 401, 403, 404, 409, 413, 415, 500, 503,
+          ]),
         },
       }
     );

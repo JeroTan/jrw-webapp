@@ -29,7 +29,9 @@ export type InventoryControllerFactoryInput = {
 };
 
 export type InventoryRoutesOptions = {
-  controllerFactory?: (input: InventoryControllerFactoryInput) => InventoryController;
+  controllerFactory?: (
+    input: InventoryControllerFactoryInput
+  ) => InventoryController;
 };
 
 function createRuntimeController(
@@ -78,7 +80,7 @@ function adminActor(
 
 const inventoryAuth = {
   mode: "required",
-  roles: ["ADMIN", "SUPER_ADMIN"],
+  roles: ["ADMIN"],
 } as const;
 
 const inventoryReadErrors = [

@@ -20,12 +20,12 @@ import { Result, type AppResult } from "@/utils/general/result";
 
 type SnapshotAuth = {
   mode: "required";
-  roles: readonly ["ADMIN", "SUPER_ADMIN"];
+  roles: readonly ["ADMIN"];
 };
 
 const snapshotAuth: SnapshotAuth = {
   mode: "required",
-  roles: ["ADMIN", "SUPER_ADMIN"],
+  roles: ["ADMIN"],
 };
 
 export type SnapshotActorInput = Pick<
@@ -139,7 +139,7 @@ export class SnapshotService {
   private requireAdminActor(actor: SnapshotActorInput | undefined): AppResult<{
     actorId: string;
     safeActorId: string;
-    role: "ADMIN" | "SUPER_ADMIN";
+    role: "ADMIN";
   }> {
     const decision = evaluateRouteAccess({
       auth: snapshotAuth,
@@ -154,10 +154,7 @@ export class SnapshotService {
       return Result.error(serviceError("AUTH_REQUIRED"));
     }
 
-    if (
-      decision.actorRole !== "ADMIN" &&
-      decision.actorRole !== "SUPER_ADMIN"
-    ) {
+    if (decision.actorRole !== "ADMIN") {
       return Result.error(serviceError("AUTH_FORBIDDEN"));
     }
 
@@ -181,10 +178,10 @@ export class SnapshotService {
 
   private async requireBrandReadPermission(input: {
     actorId: string;
-    role: "ADMIN" | "SUPER_ADMIN";
+    role: "ADMIN";
     brandId: string | null;
   }): Promise<AppResult<null>> {
-    if (!input.brandId || input.role === "SUPER_ADMIN") {
+    if (!input.brandId) {
       return Result.okay(null);
     }
 

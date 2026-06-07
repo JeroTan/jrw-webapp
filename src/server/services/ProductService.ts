@@ -41,12 +41,12 @@ import { Result, type AppResult } from "@/utils/general/result";
 
 type ProductAuth = {
   mode: "required";
-  roles: readonly ["ADMIN", "SUPER_ADMIN"];
+  roles: readonly ["ADMIN"];
 };
 
 const productAuth: ProductAuth = {
   mode: "required",
-  roles: ["ADMIN", "SUPER_ADMIN"],
+  roles: ["ADMIN"],
 };
 
 const MAX_SLUG_SUFFIX_ATTEMPTS = 10_000;
@@ -234,12 +234,10 @@ export class ProductService {
     this.now = options.now ?? (() => new Date());
   }
 
-  private requireAdminActor(
-    actor: ProductActorInput | undefined
-  ): AppResult<{
+  private requireAdminActor(actor: ProductActorInput | undefined): AppResult<{
     actorId: string;
     safeActorId: string;
-    role: "ADMIN" | "SUPER_ADMIN";
+    role: "ADMIN";
   }> {
     const decision = evaluateRouteAccess({
       auth: productAuth,
@@ -254,10 +252,7 @@ export class ProductService {
       return Result.error(serviceError("AUTH_REQUIRED"));
     }
 
-    if (
-      decision.actorRole !== "ADMIN" &&
-      decision.actorRole !== "SUPER_ADMIN"
-    ) {
+    if (decision.actorRole !== "ADMIN") {
       return Result.error(serviceError("AUTH_FORBIDDEN"));
     }
 
@@ -308,7 +303,9 @@ export class ProductService {
 
   private normalizeCategoryAssignmentBody(body: Record<string, unknown>) {
     return {
-      categoryIds: this.hasOwnField(body, "categoryIds") ? body.categoryIds : [],
+      categoryIds: this.hasOwnField(body, "categoryIds")
+        ? body.categoryIds
+        : [],
     };
   }
 
@@ -348,7 +345,9 @@ export class ProductService {
 
   private async validateCategoryAssignment(
     categoryIds: string[]
-  ): Promise<AppResult<{ categoryIds: string[]; categories: ProductCategoryRecord[] }>> {
+  ): Promise<
+    AppResult<{ categoryIds: string[]; categories: ProductCategoryRecord[] }>
+  > {
     const normalizedCategoryIds = Array.from(
       new Set(
         categoryIds
@@ -445,7 +444,10 @@ export class ProductService {
     productId: string;
     oldStatus: ProductRecord["status"];
     newStatus: ProductRecord["status"];
-    action: "catalog.product_published" | "catalog.product_updated" | "catalog.product_archived";
+    action:
+      | "catalog.product_published"
+      | "catalog.product_updated"
+      | "catalog.product_archived";
     operation: "publish_product" | "unpublish_product" | "archive_product";
     timestamp: string;
   }): Promise<void> {
@@ -562,7 +564,7 @@ export class ProductService {
 
   private async requireBrandMutationPermission(input: {
     actorId: string;
-    role: "ADMIN" | "SUPER_ADMIN";
+    role: "ADMIN";
     brandId: string | null;
   }): Promise<AppResult<null>> {
     if (!input.brandId) {
@@ -580,10 +582,6 @@ export class ProductService {
       return Result.error(
         serviceError("CONFLICT_STATE", { reason: "BRAND_ARCHIVED" })
       );
-    }
-
-    if (input.role === "SUPER_ADMIN") {
-      return Result.okay(null);
     }
 
     const membership = await this.repository.findBrandMembership(
@@ -720,7 +718,7 @@ export class ProductService {
         await this.repository.list({
           ...query.content,
           viewerAdminId: actor.content.actorId,
-          restrictToViewerMembership: actor.content.role !== "SUPER_ADMIN",
+          restrictToViewerMembership: true,
         })
       );
     } catch (error) {
@@ -798,7 +796,10 @@ export class ProductService {
         updatePatch.slug = slugResult.content;
       }
 
-      const product = await this.repository.update(input.productId, updatePatch);
+      const product = await this.repository.update(
+        input.productId,
+        updatePatch
+      );
       return Result.okay({ product });
     } catch (error) {
       if (isUniqueConstraintError(error)) {
@@ -859,7 +860,9 @@ export class ProductService {
         }
       }
 
-      const oldOrganization = await this.loadOrganizationOrError(input.productId);
+      const oldOrganization = await this.loadOrganizationOrError(
+        input.productId
+      );
       if (oldOrganization.error) {
         return Result.error(oldOrganization.error);
       }
@@ -873,7 +876,9 @@ export class ProductService {
           )
         : await this.repository.removeBrand(input.productId, timestamp);
 
-      const newOrganization = await this.loadOrganizationOrError(input.productId);
+      const newOrganization = await this.loadOrganizationOrError(
+        input.productId
+      );
       if (newOrganization.error) {
         return Result.error(newOrganization.error);
       }
@@ -957,7 +962,9 @@ export class ProductService {
         return Result.error(validatedCategories.error);
       }
 
-      const oldOrganization = await this.loadOrganizationOrError(input.productId);
+      const oldOrganization = await this.loadOrganizationOrError(
+        input.productId
+      );
       if (oldOrganization.error) {
         return Result.error(oldOrganization.error);
       }
@@ -976,7 +983,9 @@ export class ProductService {
         );
       }
 
-      const newOrganization = await this.loadOrganizationOrError(input.productId);
+      const newOrganization = await this.loadOrganizationOrError(
+        input.productId
+      );
       if (newOrganization.error) {
         return Result.error(newOrganization.error);
       }
@@ -1029,7 +1038,9 @@ export class ProductService {
         return Result.error(membership.error);
       }
 
-      const oldOrganization = await this.loadOrganizationOrError(input.productId);
+      const oldOrganization = await this.loadOrganizationOrError(
+        input.productId
+      );
       if (oldOrganization.error) {
         return Result.error(oldOrganization.error);
       }
@@ -1048,7 +1059,9 @@ export class ProductService {
         );
       }
 
-      const newOrganization = await this.loadOrganizationOrError(input.productId);
+      const newOrganization = await this.loadOrganizationOrError(
+        input.productId
+      );
       if (newOrganization.error) {
         return Result.error(newOrganization.error);
       }
@@ -1234,7 +1247,10 @@ export class ProductService {
       }
 
       const timestamp = this.now().toISOString();
-      const product = await this.repository.draftProduct(input.productId, timestamp);
+      const product = await this.repository.draftProduct(
+        input.productId,
+        timestamp
+      );
       if (!product) {
         return Result.error(
           await this.statusMutationConflict({

@@ -34,7 +34,9 @@ export type ProductControllerFactoryInput = {
 };
 
 export type ProductRoutesOptions = {
-  controllerFactory?: (input: ProductControllerFactoryInput) => ProductController;
+  controllerFactory?: (
+    input: ProductControllerFactoryInput
+  ) => ProductController;
 };
 
 function createRuntimeController(
@@ -81,7 +83,7 @@ function adminActor(
 
 const productAuth = {
   mode: "required",
-  roles: ["ADMIN", "SUPER_ADMIN"],
+  roles: ["ADMIN"],
 } as const;
 
 const productReadErrors = [
@@ -219,7 +221,8 @@ export function productsRoutes(
         params: tboxProductIdParams,
         detail: routeDetail({
           summary: "Get product detail",
-          description: "Loads one product identity record for admin management.",
+          description:
+            "Loads one product identity record for admin management.",
           tags: ["Products"],
           auth: productAuth,
           rateLimitClass: "admin-read",

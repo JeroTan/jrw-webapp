@@ -193,7 +193,7 @@ describe("requireBrandMembershipForMutation", () => {
     });
   });
 
-  it("allows SUPER_ADMIN without explicit memberships", () => {
+  it("denies Super Admin catalog mutation", () => {
     const result = requireBrandMembershipForMutation({
       actor: {
         authenticated: true,
@@ -205,7 +205,10 @@ describe("requireBrandMembershipForMutation", () => {
       targetMembership: null,
     });
 
-    expect(result.error).toBeNull();
+    expect(result.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(result.error?.data).toMatchObject({
+      reason: "BRAND_MEMBERSHIP_REQUIRED",
+    });
   });
 
   it("denies mutation on archived brand", () => {

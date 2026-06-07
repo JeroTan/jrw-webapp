@@ -303,7 +303,7 @@ function adminActor(
 
 const brandCreateAuth = {
   mode: "required",
-  roles: ["ADMIN", "SUPER_ADMIN"],
+  roles: ["ADMIN"],
 } as const;
 
 const brandCreateErrors = [
@@ -378,7 +378,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 
 **Path:** \`POST /brands\`
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Account must be active, email verified, and approved.
+**Authentication:** Required — \`ADMIN\` role. Account must be active, email verified, and approved.
 
 **Request Body:**
 - \`name\` (string, required): Brand display name (2-120 characters).
@@ -449,7 +449,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 **Path Parameters:**
 - \`id\` (string, required): The UUID of the brand to update (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a member of the brand.
+**Authentication:** Required — \`ADMIN\` role. Caller must be a member of the brand.
 
 **Request Body (at least one field required):**
 - \`name\` (string, optional): New brand display name (2-120 characters).
@@ -521,7 +521,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 **Path Parameters:**
 - \`id\` (string, required): The UUID of the brand to update (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+**Authentication:** Required — \`ADMIN\` role. Caller must be an active brand member.
 
 **Request Body:** Multipart form data with \`image\` file and optional \`name\` alt text.
 
@@ -583,7 +583,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 **Path Parameters:**
 - \`id\` (string, required): The UUID of the brand to invite an admin to (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+**Authentication:** Required — \`ADMIN\` role. Caller must be an active brand member.
 
 **Request Body (at least one field required):**
 - \`adminId\` (string, optional): The UUID of the existing admin account to invite (1-128 characters). Either \`adminId\` or \`email\` must be provided.
@@ -643,7 +643,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 **Path Parameters:**
 - \`id\` (string, required): The UUID of the brand whose invitation to accept (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. The calling admin must have a pending invitation for this brand.
+**Authentication:** Required — \`ADMIN\` role. The calling admin must have a pending invitation for this brand.
 
 **Request:** No body required.
 
@@ -701,7 +701,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 **Path Parameters:**
 - \`id\` (string, required): The UUID of the brand to request joining (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must NOT have an existing active or pending membership for this brand.
+**Authentication:** Required — \`ADMIN\` role. Caller must NOT have an existing active or pending membership for this brand.
 
 **Request:** No body required.
 
@@ -761,7 +761,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 - \`id\` (string, required): The UUID of the brand (1-128 characters).
 - \`adminId\` (string, required): The UUID of the admin whose join request to approve (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+**Authentication:** Required — \`ADMIN\` role. Caller must be an active brand member.
 
 **Request:** No body required.
 
@@ -821,7 +821,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 - \`id\` (string, required): The UUID of the brand (1-128 characters).
 - \`adminId\` (string, required): The UUID of the admin whose join request to reject (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+**Authentication:** Required — \`ADMIN\` role. Caller must be an active brand member.
 
 **Request:** No body required.
 
@@ -879,7 +879,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 **Path Parameters:**
 - \`id\` (string, required): The UUID of the brand scope to check product creation permission for (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role.
+**Authentication:** Required — \`ADMIN\` role.
 
 **Request:** No body required.
 
@@ -937,7 +937,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 - \`id\` (string, required): The UUID of the brand scope to check product update permission for (1-128 characters).
 - \`productId\` (string, required): The UUID of the product to check update permission for (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a member of the brand.
+**Authentication:** Required — \`ADMIN\` role. Caller must be a member of the brand.
 
 **Request:** No body required.
 
@@ -1003,7 +1003,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 **Path Parameters:**
 - \`productId\` (string, required): The UUID of the product to check reassignment permission for (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role.
+**Authentication:** Required — \`ADMIN\` role.
 
 **Request Body:**
 - \`targetBrandId\` (string, required): The UUID of the brand to reassign the product to (1-128 characters).
@@ -1054,7 +1054,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 
 **Path:** \`POST /brands/products/brandless/guard\`
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role.
+**Authentication:** Required — \`ADMIN\` role.
 
 **Request:** No body required.
 
@@ -1125,7 +1125,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 - \`pageSize\` (number, optional): Items per page (default: 20, min: 1, max: 100).
 - \`status\` (string, optional): Filter by product status (1-64 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be a member of the brand or be a SUPER_ADMIN.
+**Authentication:** Required — \`ADMIN\` role. Caller must be a member of the brand.
 
 **Response (200):**
 - \`data.items\` (array): Array of product objects.
@@ -1186,7 +1186,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 - \`pageSize\` (number, optional): Items per page (default: 20, min: 1, max: 100).
 - \`status\` (string, optional): Filter by product status (1-64 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role.
+**Authentication:** Required — \`ADMIN\` role.
 
 **Response (200):**
 - \`data.items\` (array): Array of brandless product objects.
@@ -1247,7 +1247,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 - \`pageSize\` (number, optional): Items per page (default: 20, min: 1, max: 100).
 - \`status\` (string, optional): Filter by brand status — \`ACTIVE\` or \`ARCHIVED\` (1-64 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role.
+**Authentication:** Required — \`ADMIN\` role.
 
 **Response (200):**
 - \`data.items\` (array): Array of brand objects where the caller is a member.
@@ -1308,7 +1308,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 **Path Parameters:**
 - \`id\` (string, required): The UUID of the brand to load (1-128 characters).
 
-**Authentication:** Required â€” \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+**Authentication:** Required â€” \`ADMIN\` role. Caller must be an active brand member.
 
 **Response (200):**
 - \`data.brand.id\` (string): Brand UUID.
@@ -1364,7 +1364,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 **Path Parameters:**
 - \`id\` (string, required): The UUID of the brand to inspect (1-128 characters).
 
-**Authentication:** Required â€” \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+**Authentication:** Required â€” \`ADMIN\` role. Caller must be an active brand member.
 
 **Response (200):**
 - \`data.items\` (array): Brand member records for this brand.
@@ -1423,7 +1423,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 **Path Parameters:**
 - \`id\` (string, required): The UUID of the brand to inspect (1-128 characters).
 
-**Authentication:** Required â€” \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+**Authentication:** Required â€” \`ADMIN\` role. Caller must be an active brand member.
 
 **Response (200):**
 - \`data.items\` (array): Invite records for this brand with invitee and inviter details when available.`,
@@ -1472,7 +1472,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 **Path Parameters:**
 - \`id\` (string, required): The UUID of the brand to inspect (1-128 characters).
 
-**Authentication:** Required â€” \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+**Authentication:** Required â€” \`ADMIN\` role. Caller must be an active brand member.
 
 **Response (200):**
 - \`data.items\` (array): Join request records for this brand with requester details when available.`,
@@ -1521,7 +1521,7 @@ export function brandsRoutes(app: AnyElysia, options: BrandRoutesOptions = {}) {
 **Path Parameters:**
 - \`id\` (string, required): The UUID of the brand to archive (1-128 characters).
 
-**Authentication:** Required — \`ADMIN\` or \`SUPER_ADMIN\` role. Caller must be an active brand member or have elevated permission.
+**Authentication:** Required — \`ADMIN\` role. Caller must be an active brand member.
 
 **Request:** No body required.
 

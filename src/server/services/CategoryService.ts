@@ -26,12 +26,12 @@ import { Result, type AppResult } from "@/utils/general/result";
 
 type CategoryAuth = {
   mode: "required";
-  roles: readonly ["ADMIN", "SUPER_ADMIN"];
+  roles: readonly ["ADMIN"];
 };
 
 const categoryAuth: CategoryAuth = {
   mode: "required",
-  roles: ["ADMIN", "SUPER_ADMIN"],
+  roles: ["ADMIN"],
 };
 
 const MAX_SLUG_SUFFIX_ATTEMPTS = 10_000;
@@ -151,7 +151,7 @@ export class CategoryService {
 
   private requireAdminActor(
     actor: CategoryActorInput | undefined
-  ): AppResult<{ actorId: string; role: "ADMIN" | "SUPER_ADMIN" }> {
+  ): AppResult<{ actorId: string; role: "ADMIN" }> {
     const decision = evaluateRouteAccess({
       auth: categoryAuth,
       actor,
@@ -165,10 +165,7 @@ export class CategoryService {
       return Result.error(serviceError("AUTH_REQUIRED"));
     }
 
-    if (
-      decision.actorRole !== "ADMIN" &&
-      decision.actorRole !== "SUPER_ADMIN"
-    ) {
+    if (decision.actorRole !== "ADMIN") {
       return Result.error(serviceError("AUTH_FORBIDDEN"));
     }
 

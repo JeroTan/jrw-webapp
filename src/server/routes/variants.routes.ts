@@ -86,7 +86,7 @@ function adminActor(
 
 const variantAuth = {
   mode: "required",
-  roles: ["ADMIN", "SUPER_ADMIN"],
+  roles: ["ADMIN"],
 } as const;
 
 const variantReadErrors = [

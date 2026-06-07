@@ -41,12 +41,12 @@ import { Result, type AppResult } from "@/utils/general/result";
 
 type BrandCreateAuth = {
   mode: "required";
-  roles: readonly ["ADMIN", "SUPER_ADMIN"];
+  roles: readonly ["ADMIN"];
 };
 
 const brandCreateAuth: BrandCreateAuth = {
   mode: "required",
-  roles: ["ADMIN", "SUPER_ADMIN"],
+  roles: ["ADMIN"],
 };
 
 const DEFAULT_PAGE = 1;
@@ -350,7 +350,7 @@ export class BrandService {
 
   private requireAdminActor(
     actor: BrandActorInput | undefined
-  ): AppResult<{ actorId: string; role: "ADMIN" | "SUPER_ADMIN" }> {
+  ): AppResult<{ actorId: string; role: "ADMIN" }> {
     const decision = evaluateRouteAccess({
       auth: brandCreateAuth,
       actor,
@@ -364,10 +364,7 @@ export class BrandService {
       return Result.error(serviceError("AUTH_REQUIRED"));
     }
 
-    if (
-      decision.actorRole !== "ADMIN" &&
-      decision.actorRole !== "SUPER_ADMIN"
-    ) {
+    if (decision.actorRole !== "ADMIN") {
       return Result.error(serviceError("AUTH_FORBIDDEN"));
     }
 
@@ -597,10 +594,6 @@ export class BrandService {
     }
   }
 
-  private hasElevatedPermission(role: "ADMIN" | "SUPER_ADMIN"): boolean {
-    return role === "SUPER_ADMIN";
-  }
-
   private validPositiveInteger(value: number | undefined): value is number {
     return (
       typeof value === "number" &&
@@ -664,7 +657,7 @@ export class BrandService {
   private async requireBrandReadAccess(input: {
     actorId: string;
     brandId: string;
-    role: "ADMIN" | "SUPER_ADMIN";
+    role: "ADMIN";
   }): Promise<AppResult<BrandRecord>> {
     const brand = await this.repository.findBrandByIdIncludingArchived(
       input.brandId
@@ -673,10 +666,6 @@ export class BrandService {
       return Result.error(
         serviceError("CONFLICT_STATE", { reason: "BRAND_NOT_FOUND" })
       );
-    }
-
-    if (this.hasElevatedPermission(input.role)) {
-      return Result.okay(brand);
     }
 
     const membership = await this.repository.findMembershipByBrandAndAdmin(
@@ -875,14 +864,12 @@ export class BrandService {
         );
       }
 
-      if (!this.hasElevatedPermission(actor.content.role)) {
-        const membership = await this.repository.findMembershipByBrandAndAdmin(
-          input.brandId,
-          actor.content.actorId
-        );
-        if (!this.isActiveBrandMember(membership)) {
-          return Result.error(serviceError("AUTH_FORBIDDEN"));
-        }
+      const membership = await this.repository.findMembershipByBrandAndAdmin(
+        input.brandId,
+        actor.content.actorId
+      );
+      if (!this.isActiveBrandMember(membership)) {
+        return Result.error(serviceError("AUTH_FORBIDDEN"));
       }
 
       const validation = this.validateBrandImageFile(input.file);
@@ -978,10 +965,7 @@ export class BrandService {
           actor.content.actorId
         );
 
-      if (
-        !this.hasElevatedPermission(actor.content.role) &&
-        !this.isActiveBrandMember(actorMembership)
-      ) {
+      if (!this.isActiveBrandMember(actorMembership)) {
         return Result.error(serviceError("AUTH_FORBIDDEN"));
       }
 
@@ -1295,12 +1279,11 @@ export class BrandService {
         );
       }
 
-      const approverMembership = this.hasElevatedPermission(actor.content.role)
-        ? null
-        : await this.repository.findMembershipByBrandAndAdmin(
-            input.brandId,
-            actor.content.actorId
-          );
+      const approverMembership =
+        await this.repository.findMembershipByBrandAndAdmin(
+          input.brandId,
+          actor.content.actorId
+        );
       const pendingJoinRequest =
         await this.repository.findPendingJoinRequestByAdminAndBrand(
           input.adminId,
@@ -1401,12 +1384,11 @@ export class BrandService {
         );
       }
 
-      const approverMembership = this.hasElevatedPermission(actor.content.role)
-        ? null
-        : await this.repository.findMembershipByBrandAndAdmin(
-            input.brandId,
-            actor.content.actorId
-          );
+      const approverMembership =
+        await this.repository.findMembershipByBrandAndAdmin(
+          input.brandId,
+          actor.content.actorId
+        );
       const pendingJoinRequest =
         await this.repository.findPendingJoinRequestByAdminAndBrand(
           input.adminId,
@@ -1631,12 +1613,10 @@ export class BrandService {
         );
       }
 
-      const membership = this.hasElevatedPermission(actor.content.role)
-        ? null
-        : await this.repository.findMembershipByBrandAndAdmin(
-            input.brandId,
-            actor.content.actorId
-          );
+      const membership = await this.repository.findMembershipByBrandAndAdmin(
+        input.brandId,
+        actor.content.actorId
+      );
 
       const decision = listBrandScopedProductsDecision({
         actor: {
@@ -1767,12 +1747,10 @@ export class BrandService {
       const targetBrand = await this.repository.findBrandByIdForMutation(
         input.brandId
       );
-      const targetMembership = this.hasElevatedPermission(actor.content.role)
-        ? null
-        : await this.repository.findMembershipForMutation(
-            input.brandId,
-            actor.content.actorId
-          );
+      const targetMembership = await this.repository.findMembershipForMutation(
+        input.brandId,
+        actor.content.actorId
+      );
 
       const decision = requireBrandMembershipForMutationDecision({
         actor: {
@@ -1819,12 +1797,10 @@ export class BrandService {
     try {
       const [targetBrand, targetMembership] = await Promise.all([
         this.repository.findBrandByIdForMutation(input.brandId),
-        this.hasElevatedPermission(actor.content.role)
-          ? Promise.resolve(null)
-          : this.repository.findMembershipForMutation(
-              input.brandId,
-              actor.content.actorId
-            ),
+        this.repository.findMembershipForMutation(
+          input.brandId,
+          actor.content.actorId
+        ),
       ]);
 
       const accessDecision = requireBrandMembershipForMutationDecision({
@@ -1896,12 +1872,10 @@ export class BrandService {
     try {
       const [targetBrand, targetMembership] = await Promise.all([
         this.repository.findBrandByIdForMutation(input.targetBrandId),
-        this.hasElevatedPermission(actor.content.role)
-          ? Promise.resolve(null)
-          : this.repository.findMembershipForMutation(
-              input.targetBrandId,
-              actor.content.actorId
-            ),
+        this.repository.findMembershipForMutation(
+          input.targetBrandId,
+          actor.content.actorId
+        ),
       ]);
 
       const targetAccessDecision = requireBrandMembershipForMutationDecision({
@@ -1951,12 +1925,10 @@ export class BrandService {
 
       const [sourceBrand, sourceMembership] = await Promise.all([
         this.repository.findBrandByIdForMutation(assignment.brandId),
-        this.hasElevatedPermission(actor.content.role)
-          ? Promise.resolve(null)
-          : this.repository.findMembershipForMutation(
-              assignment.brandId,
-              actor.content.actorId
-            ),
+        this.repository.findMembershipForMutation(
+          assignment.brandId,
+          actor.content.actorId
+        ),
       ]);
 
       const decision = requireBrandMembershipForMutationDecision({
@@ -2061,14 +2033,12 @@ export class BrandService {
         );
       }
 
-      if (!this.hasElevatedPermission(actor.content.role)) {
-        const membership = await this.repository.findMembershipByBrandAndAdmin(
-          input.brandId,
-          actor.content.actorId
-        );
-        if (!this.isActiveBrandMember(membership)) {
-          return Result.error(serviceError("AUTH_FORBIDDEN"));
-        }
+      const membership = await this.repository.findMembershipByBrandAndAdmin(
+        input.brandId,
+        actor.content.actorId
+      );
+      if (!this.isActiveBrandMember(membership)) {
+        return Result.error(serviceError("AUTH_FORBIDDEN"));
       }
 
       const [existingByName, existingBySlug, existingArchivedByName] =
@@ -2206,14 +2176,12 @@ export class BrandService {
         );
       }
 
-      if (!this.hasElevatedPermission(actor.content.role)) {
-        const membership = await this.repository.findMembershipByBrandAndAdmin(
-          input.brandId,
-          actor.content.actorId
-        );
-        if (!this.isActiveBrandMember(membership)) {
-          return Result.error(serviceError("AUTH_FORBIDDEN"));
-        }
+      const membership = await this.repository.findMembershipByBrandAndAdmin(
+        input.brandId,
+        actor.content.actorId
+      );
+      if (!this.isActiveBrandMember(membership)) {
+        return Result.error(serviceError("AUTH_FORBIDDEN"));
       }
 
       const timestamp = this.now().toISOString();

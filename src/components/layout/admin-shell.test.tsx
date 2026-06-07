@@ -53,6 +53,8 @@ describe("admin dashboard shell", () => {
     expect(markup).toContain("Ownership Transfer");
     expect(markup).toContain("Owner Audit");
     expect(markup).toContain("!text-brand-surface");
+    expect(markup).not.toContain("Products");
+    expect(markup).not.toContain('href="/admin/inventory"');
   });
 
   it("renders loading and safe forbidden states inside shell language", () => {

@@ -77,19 +77,22 @@ describe("inventory routes", () => {
     };
 
     const updateStock =
-      body.paths?.["/api/admin/products/{productId}/variants/{variantId}/stock"]?.patch;
+      body.paths?.["/api/admin/products/{productId}/variants/{variantId}/stock"]
+        ?.patch;
     const updateState =
       body.paths?.[
         "/api/admin/products/{productId}/variants/{variantId}/inventory-state"
       ]?.patch;
     const availability =
-      body.paths?.["/api/products/{productId}/variants/{variantId}/availability"]?.get;
+      body.paths?.[
+        "/api/products/{productId}/variants/{variantId}/availability"
+      ]?.get;
 
     expect(updateStock?.summary).toBe("Update variant stock quantity");
     expect(updateStock?.tags).toContain("Products");
     expect(updateStock?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(updateStock?.["x-rate-limit-class"]).toBe("admin-write");
     expect(updateStock?.["x-error-codes"]).toEqual(

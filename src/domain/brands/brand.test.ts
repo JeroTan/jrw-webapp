@@ -538,8 +538,12 @@ describe("brand domain rules", () => {
 
   it("rejects pending join request for authorized approver", () => {
     const rejected = rejectBrandJoinRequest({
-      approverRole: "SUPER_ADMIN",
-      approverMembership: null,
+      approverRole: "ADMIN",
+      approverMembership: {
+        adminId: "admin_owner",
+        role: "OWNER",
+        status: "ACTIVE",
+      },
       targetAdminId: "admin_joiner",
       joinRequestMembership: {
         adminId: "admin_joiner",

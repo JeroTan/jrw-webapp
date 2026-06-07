@@ -96,4 +96,24 @@ describe("admin page guard middleware", () => {
     expect(response.headers.get("location")).toBe("https://jrw.test/admin");
     expect(next).not.toHaveBeenCalled();
   });
+
+  it("redirects Super Admin away from Admin operation pages", async () => {
+    const next = vi.fn(async () => new Response("products"));
+    const guard = createAdminPageGuard({
+      inspectSession: async () => ({
+        actor: { id: "owner_1", role: "SUPER_ADMIN" },
+        authenticated: true,
+      }),
+    });
+
+    const response = expectResponse(
+      await guard(contextFor("https://jrw.test/admin/products"), next)
+    );
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      "https://jrw.test/admin/owner/transfer"
+    );
+    expect(next).not.toHaveBeenCalled();
+  });
 });

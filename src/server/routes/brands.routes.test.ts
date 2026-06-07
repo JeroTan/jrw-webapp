@@ -99,7 +99,7 @@ describe("brands routes", () => {
     expect(post?.tags).toContain("Brands");
     expect(post?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(post?.["x-rate-limit-class"]).toBe("admin-write");
     expect(post?.["x-error-codes"]).toEqual(
@@ -117,7 +117,7 @@ describe("brands routes", () => {
     expect(patch?.tags).toContain("Brands");
     expect(patch?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(patch?.["x-rate-limit-class"]).toBe("admin-write");
     expect(patch?.responses).toHaveProperty("409");
@@ -132,7 +132,7 @@ describe("brands routes", () => {
     expect(detail?.tags).toContain("Brands");
     expect(detail?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(detail?.["x-rate-limit-class"]).toBe("admin-read");
     expect(detail?.responses).toHaveProperty("200");
@@ -141,7 +141,7 @@ describe("brands routes", () => {
     expect(invite?.tags).toContain("Brands");
     expect(invite?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(invite?.["x-rate-limit-class"]).toBe("admin-write");
     expect(invite?.["x-error-codes"]).toEqual(
@@ -159,7 +159,7 @@ describe("brands routes", () => {
     expect(accept?.tags).toContain("Brands");
     expect(accept?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(accept?.["x-rate-limit-class"]).toBe("admin-write");
     expect(accept?.responses).toHaveProperty("409");
@@ -168,7 +168,7 @@ describe("brands routes", () => {
     expect(join?.tags).toContain("Brands");
     expect(join?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(join?.["x-rate-limit-class"]).toBe("admin-write");
     expect(join?.responses).toHaveProperty("409");
@@ -177,7 +177,7 @@ describe("brands routes", () => {
     expect(approve?.tags).toContain("Brands");
     expect(approve?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(approve?.["x-rate-limit-class"]).toBe("admin-write");
     expect(approve?.responses).toHaveProperty("409");
@@ -186,7 +186,7 @@ describe("brands routes", () => {
     expect(reject?.tags).toContain("Brands");
     expect(reject?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(reject?.["x-rate-limit-class"]).toBe("admin-write");
     expect(reject?.responses).toHaveProperty("409");
@@ -195,7 +195,7 @@ describe("brands routes", () => {
     expect(listMembers?.tags).toContain("Brands");
     expect(listMembers?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(listMembers?.["x-rate-limit-class"]).toBe("admin-read");
     expect(listMembers?.responses).toHaveProperty("200");
@@ -204,7 +204,7 @@ describe("brands routes", () => {
     expect(listInvites?.tags).toContain("Brands");
     expect(listInvites?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(listInvites?.["x-rate-limit-class"]).toBe("admin-read");
     expect(listInvites?.responses).toHaveProperty("200");
@@ -213,7 +213,7 @@ describe("brands routes", () => {
     expect(listJoinRequests?.tags).toContain("Brands");
     expect(listJoinRequests?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(listJoinRequests?.["x-rate-limit-class"]).toBe("admin-read");
     expect(listJoinRequests?.responses).toHaveProperty("200");
@@ -222,7 +222,7 @@ describe("brands routes", () => {
     expect(guardCreate?.tags).toContain("Brands");
     expect(guardCreate?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(guardCreate?.["x-rate-limit-class"]).toBe("admin-write");
     expect(guardCreate?.responses).toHaveProperty("200");
@@ -231,7 +231,7 @@ describe("brands routes", () => {
     expect(guardUpdate?.tags).toContain("Brands");
     expect(guardUpdate?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(guardUpdate?.["x-rate-limit-class"]).toBe("admin-write");
     expect(guardUpdate?.responses).toHaveProperty("200");
@@ -240,7 +240,7 @@ describe("brands routes", () => {
     expect(guardReassign?.tags).toContain("Brands");
     expect(guardReassign?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(guardReassign?.["x-rate-limit-class"]).toBe("admin-write");
     expect(guardReassign?.responses).toHaveProperty("200");
@@ -249,7 +249,7 @@ describe("brands routes", () => {
     expect(guardBrandless?.tags).toContain("Brands");
     expect(guardBrandless?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(guardBrandless?.["x-rate-limit-class"]).toBe("admin-write");
     expect(guardBrandless?.responses).toHaveProperty("200");
@@ -258,7 +258,7 @@ describe("brands routes", () => {
     expect(archive?.tags).toContain("Brands");
     expect(archive?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(archive?.["x-rate-limit-class"]).toBe("admin-write");
     expect(archive?.responses).toHaveProperty("503");
@@ -267,7 +267,7 @@ describe("brands routes", () => {
     expect(listBrandProducts?.tags).toContain("Brands");
     expect(listBrandProducts?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(listBrandProducts?.["x-rate-limit-class"]).toBe("admin-read");
     expect(listBrandProducts?.["x-error-codes"]).toEqual(
@@ -287,7 +287,7 @@ describe("brands routes", () => {
     expect(listBrandless?.tags).toContain("Brands");
     expect(listBrandless?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(listBrandless?.["x-rate-limit-class"]).toBe("admin-read");
     expect(listBrandless?.responses).toHaveProperty("200");
@@ -296,7 +296,7 @@ describe("brands routes", () => {
     expect(listMine?.tags).toContain("Brands");
     expect(listMine?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(listMine?.["x-rate-limit-class"]).toBe("admin-read");
     expect(listMine?.responses).toHaveProperty("200");

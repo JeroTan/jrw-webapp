@@ -1,4 +1,8 @@
-import { createAuditEvent, NoopAuditEventPublisher, type AuditEventPublisher } from "@/domain/audit/events";
+import {
+  createAuditEvent,
+  NoopAuditEventPublisher,
+  type AuditEventPublisher,
+} from "@/domain/audit/events";
 import { evaluateRouteAccess } from "@/domain/auth/rbac";
 import {
   deriveInventoryStateFromQuantity,
@@ -23,12 +27,12 @@ import { Result, type AppResult } from "@/utils/general/result";
 
 type InventoryAuth = {
   mode: "required";
-  roles: readonly ["ADMIN", "SUPER_ADMIN"];
+  roles: readonly ["ADMIN"];
 };
 
 const inventoryAuth: InventoryAuth = {
   mode: "required",
-  roles: ["ADMIN", "SUPER_ADMIN"],
+  roles: ["ADMIN"],
 };
 
 type InventoryProductScopeRepository = {
@@ -155,16 +159,15 @@ export class InventoryService {
   constructor(options: InventoryServiceOptions) {
     this.variantRepository = options.variantRepository;
     this.productRepository = options.productRepository;
-    this.auditPublisher = options.auditPublisher ?? new NoopAuditEventPublisher();
+    this.auditPublisher =
+      options.auditPublisher ?? new NoopAuditEventPublisher();
     this.now = options.now ?? (() => new Date());
   }
 
-  private requireAdminActor(
-    actor: InventoryActorInput | undefined
-  ): AppResult<{
+  private requireAdminActor(actor: InventoryActorInput | undefined): AppResult<{
     actorId: string;
     safeActorId: string;
-    role: "ADMIN" | "SUPER_ADMIN";
+    role: "ADMIN";
   }> {
     const decision = evaluateRouteAccess({
       auth: inventoryAuth,
@@ -179,10 +182,7 @@ export class InventoryService {
       return Result.error(serviceError("AUTH_REQUIRED"));
     }
 
-    if (
-      decision.actorRole !== "ADMIN" &&
-      decision.actorRole !== "SUPER_ADMIN"
-    ) {
+    if (decision.actorRole !== "ADMIN") {
       return Result.error(serviceError("AUTH_FORBIDDEN"));
     }
 
@@ -208,7 +208,7 @@ export class InventoryService {
 
   private async requireBrandMutationPermission(input: {
     actorId: string;
-    role: "ADMIN" | "SUPER_ADMIN";
+    role: "ADMIN";
     brandId: string | null;
   }): Promise<AppResult<null>> {
     if (!input.brandId) {
@@ -226,10 +226,6 @@ export class InventoryService {
       return Result.error(
         serviceError("CONFLICT_STATE", { reason: "BRAND_ARCHIVED" })
       );
-    }
-
-    if (input.role === "SUPER_ADMIN") {
-      return Result.okay(null);
     }
 
     const membership = await this.productRepository.findBrandMembership(
@@ -265,7 +261,9 @@ export class InventoryService {
   }): Promise<GeneralError> {
     const current = await this.variantRepository.findById(input.variantId);
     if (!current || current.productId !== input.productId) {
-      return serviceError("RESOURCE_NOT_FOUND", { reason: "VARIANT_NOT_FOUND" });
+      return serviceError("RESOURCE_NOT_FOUND", {
+        reason: "VARIANT_NOT_FOUND",
+      });
     }
 
     if (current.status === "ARCHIVED") {

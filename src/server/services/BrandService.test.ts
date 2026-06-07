@@ -599,7 +599,7 @@ class ImageRepoStub implements ImageRepository {
 }
 
 describe("BrandService", () => {
-  it("allows active approved ADMIN and SUPER_ADMIN to create brand", async () => {
+  it("allows active approved Admin and denies Super Admin brand creation", async () => {
     const repo = new RepoStub();
     const published: AuditEvent[] = [];
     const service = new BrandService({
@@ -631,9 +631,9 @@ describe("BrandService", () => {
     });
 
     expect(adminResult.error).toBeNull();
-    expect(superAdminResult.error).toBeNull();
-    expect(repo.createdMembershipCount).toBe(2);
-    expect(published).toHaveLength(2);
+    expect(superAdminResult.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(repo.createdMembershipCount).toBe(1);
+    expect(published).toHaveLength(1);
     expect(published[0]).toMatchObject({
       action: "brand.created",
       requestId: "req_admin_create_brand",
@@ -920,7 +920,7 @@ describe("BrandService", () => {
     });
   });
 
-  it("invites eligible admins for OWNER, MEMBER, and SUPER_ADMIN actor paths", async () => {
+  it("invites eligible admins for owner and member actor paths, and denies Super Admin", async () => {
     const repo = new RepoStub();
     repo.adminById.admin_target_2 = {
       id: "admin_target_2",
@@ -970,8 +970,8 @@ describe("BrandService", () => {
 
     expect(ownerInvite.error).toBeNull();
     expect(memberInvite.error).toBeNull();
-    expect(superAdminInvite.error).toBeNull();
-    expect(repo.createdMembershipCount).toBe(3);
+    expect(superAdminInvite.error?.code).toBe("AUTH_FORBIDDEN");
+    expect(repo.createdMembershipCount).toBe(2);
     expect(repo.createdMembershipInputs).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
@@ -986,12 +986,6 @@ describe("BrandService", () => {
           status: "PENDING",
           invitedByAdminId: "admin_member",
         }),
-        expect.objectContaining({
-          adminId: "admin_target_3",
-          role: "MEMBER",
-          status: "PENDING",
-          invitedByAdminId: "admin_owner",
-        }),
       ])
     );
     expect(published).toEqual(
@@ -1003,10 +997,6 @@ describe("BrandService", () => {
         expect.objectContaining({
           action: "brand.member_invited",
           requestId: "req_member_invite",
-        }),
-        expect.objectContaining({
-          action: "brand.member_invited",
-          requestId: "req_super_invite",
         }),
       ])
     );
@@ -1457,7 +1447,7 @@ describe("BrandService", () => {
     });
   });
 
-  it("approves join request for OWNER, MEMBER, and SUPER_ADMIN", async () => {
+  it("approves join request for owner and member, and denies Super Admin", async () => {
     const ownerRepo = new RepoStub();
     ownerRepo.membershipByAdminId.admin_target = {
       role: "MEMBER",
@@ -1519,9 +1509,7 @@ describe("BrandService", () => {
       brandId: "brand_1",
       adminId: "admin_target",
     });
-    expect(superApproved.error).toBeNull();
-    if (superApproved.error) throw superApproved.error;
-    expect(superApproved.content.membership.status).toBe("ACTIVE");
+    expect(superApproved.error?.code).toBe("AUTH_FORBIDDEN");
   });
 
   it("denies unauthorized approval and supports rejection flow", async () => {
@@ -1682,7 +1670,7 @@ describe("BrandService", () => {
       invitedByAdminId: null,
     };
     await service.approveBrandJoinRequest({
-      actor: adminActor({ actorId: "admin_owner", role: "SUPER_ADMIN" }),
+      actor: adminActor({ actorId: "admin_member" }),
       requestId: "req_join_audit_approve",
       brandId: "brand_1",
       adminId: "admin_target",
@@ -1694,7 +1682,7 @@ describe("BrandService", () => {
       invitedByAdminId: null,
     };
     await service.rejectBrandJoinRequest({
-      actor: adminActor({ actorId: "admin_owner", role: "SUPER_ADMIN" }),
+      actor: adminActor({ actorId: "admin_member" }),
       requestId: "req_join_audit_reject",
       brandId: "brand_1",
       adminId: "admin_target",
@@ -1976,7 +1964,7 @@ describe("BrandService", () => {
     expect(update.error?.code).toBe("CONFLICT_STATE");
   });
 
-  it("lists brand-scoped products for member and super admin", async () => {
+  it("lists brand-scoped products for member and denies Super Admin", async () => {
     const memberRepo = new RepoStub();
     const memberService = new BrandService({
       repository: memberRepo,
@@ -2015,7 +2003,7 @@ describe("BrandService", () => {
       brandId: "brand_1",
       query: { page: 1, pageSize: 20 },
     });
-    expect(superResult.error).toBeNull();
+    expect(superResult.error?.code).toBe("AUTH_FORBIDDEN");
   });
 
   it("denies non-member scope and blocks archived brand visibility", async () => {
@@ -2171,7 +2159,7 @@ describe("BrandService", () => {
       requestId: "req_guard_create_super",
       brandId: "brand_2",
     });
-    expect(superGuard.error).toBeNull();
+    expect(superGuard.error?.code).toBe("AUTH_FORBIDDEN");
   });
 
   it("denies invalid mutation guard cases with stable reasons", async () => {

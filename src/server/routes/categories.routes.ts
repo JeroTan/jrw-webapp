@@ -1,7 +1,4 @@
-import {
-  tboxApiSuccess,
-  openApiErrorResponses,
-} from "@/lib/typebox/api";
+import { tboxApiSuccess, openApiErrorResponses } from "@/lib/typebox/api";
 import {
   tboxCategoryData,
   tboxCategoryIdParams,
@@ -80,7 +77,7 @@ function adminActor(
 
 const categoryAuth = {
   mode: "required",
-  roles: ["ADMIN", "SUPER_ADMIN"],
+  roles: ["ADMIN"],
 } as const;
 
 const categoryReadErrors = [

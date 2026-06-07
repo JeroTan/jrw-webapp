@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { GeneralError } from "@/utils/general/error";
 import { Result } from "@/utils/general/result";
 import { createApp } from "@/server/app";
@@ -38,6 +38,23 @@ const customerContext = {
   role: "CUSTOMER",
   actorId: "customer_1",
   safeActorId: "customer_1",
+  accountStatus: {
+    status: "ACTIVE" as const,
+    emailVerified: true,
+    approved: true,
+  },
+  eligibility: {
+    active: true,
+    emailVerified: true,
+    approved: true,
+  },
+} satisfies RequestActorContext;
+
+const superAdminContext = {
+  authenticated: true,
+  role: "SUPER_ADMIN",
+  actorId: "owner_1",
+  safeActorId: "owner_1",
   accountStatus: {
     status: "ACTIVE" as const,
     emailVerified: true,
@@ -131,7 +148,7 @@ describe("products routes", () => {
     expect(list?.tags).toContain("Products");
     expect(list?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(list?.["x-rate-limit-class"]).toBe("admin-read");
     expect(list?.["x-error-codes"]).toEqual(
@@ -222,6 +239,46 @@ describe("products routes", () => {
       },
       meta: { requestId: "req_product_create_success" },
     });
+  });
+
+  it("denies Super Admin access to Admin product operations before controller", async () => {
+    const listProducts = vi.fn(async () =>
+      Result.okay({
+        items: [productRecord()],
+        page: 1,
+        pageSize: 20,
+        totalItems: 1,
+        totalPages: 1,
+      })
+    );
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => superAdminContext,
+      },
+      routes: {
+        products: {
+          controllerFactory: () =>
+            createController({
+              listProducts,
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/admin/products", {
+        headers: {
+          cookie: "jrw_admin_session=owner-token",
+          "x-request-id": "req_super_admin_products_denied",
+        },
+      })
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "AUTH_FORBIDDEN" },
+    });
+    expect(listProducts).not.toHaveBeenCalled();
   });
 
   it("lists products with pagination envelope metadata", async () => {

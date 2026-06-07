@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "@/server/app";
 import { SnapshotController } from "@/server/controllers/SnapshotController";
-import type { BuiltOrderSnapshot, OrderSnapshot } from "@/domain/snapshots/types";
+import type {
+  BuiltOrderSnapshot,
+  OrderSnapshot,
+} from "@/domain/snapshots/types";
 import type { RequestActorContext } from "@/server/context/request-context";
 import type { SnapshotService } from "@/server/services/SnapshotService";
 import { GeneralError } from "@/utils/general/error";
@@ -108,14 +111,13 @@ describe("snapshots routes", () => {
 
     const build = body.paths?.["/api/admin/snapshots/build"]?.post;
     const read = body.paths?.["/api/admin/snapshots/{snapshotId}"]?.get;
-    const byOrder =
-      body.paths?.["/api/admin/orders/{orderId}/snapshots"]?.get;
+    const byOrder = body.paths?.["/api/admin/orders/{orderId}/snapshots"]?.get;
 
     expect(build?.summary).toBe("Build product snapshot");
     expect(build?.tags).toContain("Snapshots");
     expect(build?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(build?.["x-rate-limit-class"]).toBe("admin-write");
     expect(build?.["x-error-codes"]).toEqual(

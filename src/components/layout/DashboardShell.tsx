@@ -58,7 +58,7 @@ export function SidebarNav({
     >
       <a
         className="relative grid gap-[0.15rem] mx-4 my-4 no-underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
-        href="/admin"
+        href={isOwner ? "/admin/owner/transfer" : "/admin"}
       >
         <span className="font-identity text-[1.6rem] font-black leading-none">
           JRW.
@@ -71,24 +71,26 @@ export function SidebarNav({
         </span>
       </a>
 
-      <div className="grid border-t border-brand-border" role="list">
-        {dailyNav.map((item) => (
-          <CleanLinkButton
-            active={item.href === activeHref}
-            aria-current={item.href === activeHref ? "page" : undefined}
-            className={mergeClassNames(
-              "justify-start px-grid-sm py-grid-sm text-xs uppercase",
-              item.href === activeHref && "text-brand-surface",
-              item.href !== activeHref && "text-brand-content"
-            )}
-            href={item.href}
-            key={item.href}
-            role="listitem"
-          >
-            {item.label}
-          </CleanLinkButton>
-        ))}
-      </div>
+      {!isOwner ? (
+        <div className="grid border-t border-brand-border" role="list">
+          {dailyNav.map((item) => (
+            <CleanLinkButton
+              active={item.href === activeHref}
+              aria-current={item.href === activeHref ? "page" : undefined}
+              className={mergeClassNames(
+                "justify-start px-grid-sm py-grid-sm text-xs uppercase",
+                item.href === activeHref && "text-brand-surface",
+                item.href !== activeHref && "text-brand-content"
+              )}
+              href={item.href}
+              key={item.href}
+              role="listitem"
+            >
+              {item.label}
+            </CleanLinkButton>
+          ))}
+        </div>
+      ) : null}
 
       {isOwner ? (
         <section

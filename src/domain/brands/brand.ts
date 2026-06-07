@@ -37,7 +37,10 @@ export type BrandCreationResult = AppResult<
   { reasons: string[] }
 >;
 
-type BrandConflictReason = Extract<BrandConflictDecision, { ok: false }>["reason"];
+type BrandConflictReason = Extract<
+  BrandConflictDecision,
+  { ok: false }
+>["reason"];
 
 export type BrandUpdateResult = AppResult<
   BrandUpdateDraft,
@@ -243,10 +246,6 @@ function invitationConflictError(
 }
 
 function actorCanInvite(actor: BrandInvitationActor): boolean {
-  if (actor.role === "SUPER_ADMIN") {
-    return true;
-  }
-
   if (!actor.currentMembership) {
     return false;
   }
@@ -298,20 +297,17 @@ function joinForbiddenError(
 }
 
 function approverCanManageJoinRequest(
-  approverRole: BrandInvitationActorRole,
+  _approverRole: BrandInvitationActorRole,
   approverMembership: BrandInvitationMembershipState | null
 ): boolean {
-  if (approverRole === "SUPER_ADMIN") {
-    return true;
-  }
-
   if (!approverMembership) {
     return false;
   }
 
   return (
     approverMembership.status === "ACTIVE" &&
-    (approverMembership.role === "OWNER" || approverMembership.role === "MEMBER")
+    (approverMembership.role === "OWNER" ||
+      approverMembership.role === "MEMBER")
   );
 }
 
@@ -359,7 +355,9 @@ export function requestBrandJoin(
 export function approveBrandJoinRequest(
   input: ApproveBrandJoinRequestInput
 ): ApproveBrandJoinRequestResult {
-  if (!approverCanManageJoinRequest(input.approverRole, input.approverMembership)) {
+  if (
+    !approverCanManageJoinRequest(input.approverRole, input.approverMembership)
+  ) {
     return joinForbiddenError("APPROVER_NOT_AUTHORIZED");
   }
 
@@ -381,7 +379,9 @@ export function approveBrandJoinRequest(
 export function rejectBrandJoinRequest(
   input: RejectBrandJoinRequestInput
 ): RejectBrandJoinRequestResult {
-  if (!approverCanManageJoinRequest(input.approverRole, input.approverMembership)) {
+  if (
+    !approverCanManageJoinRequest(input.approverRole, input.approverMembership)
+  ) {
     return joinForbiddenError("APPROVER_NOT_AUTHORIZED");
   }
 
@@ -501,10 +501,7 @@ export function createBrand(input: BrandCreateInput): BrandCreationResult {
     typeof input.description === "string" ? input.description.trim() : "";
   if (description.length > BRAND_DESCRIPTION_MAX_LENGTH) {
     return Result.error(
-      new GeneralError(
-        { reasons: ["description:length"] },
-        "VALIDATION_FAILED"
-      )
+      new GeneralError({ reasons: ["description:length"] }, "VALIDATION_FAILED")
     );
   }
 
@@ -587,7 +584,9 @@ function hasUpdateValue<T extends object>(
   return Object.prototype.hasOwnProperty.call(input, key);
 }
 
-export function validateBrandUpdate(input: BrandUpdateInput): BrandUpdateResult {
+export function validateBrandUpdate(
+  input: BrandUpdateInput
+): BrandUpdateResult {
   const hasName = hasUpdateValue(input, "name");
   const hasSlug = hasUpdateValue(input, "slug");
   const hasDescription = hasUpdateValue(input, "description");

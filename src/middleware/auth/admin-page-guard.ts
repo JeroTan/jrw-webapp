@@ -37,8 +37,14 @@ function requiredRole(pathname: string): DashboardRole {
 }
 
 function hasRole(actorRole: DashboardRole, required: DashboardRole): boolean {
-  if (required === "SUPER_ADMIN") return actorRole === "SUPER_ADMIN";
-  return actorRole === "ADMIN" || actorRole === "SUPER_ADMIN";
+  return actorRole === required;
+}
+
+function roleHome(actorRole: DashboardRole, url: URL): URL {
+  return new URL(
+    actorRole === "SUPER_ADMIN" ? "/admin/owner/transfer" : "/admin",
+    url
+  );
 }
 
 function redirectResponse(target: URL, requestId: string): Response {
@@ -101,7 +107,7 @@ export function createAdminPageGuard({
     }
 
     if (!hasRole(session.actor.role, requiredRole(pathname))) {
-      return redirectResponse(new URL("/admin", url), requestId);
+      return redirectResponse(roleHome(session.actor.role, url), requestId);
     }
 
     context.locals.adminActor = session.actor;

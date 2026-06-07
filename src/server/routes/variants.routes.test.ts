@@ -93,14 +93,14 @@ describe("variants routes", () => {
       >;
     };
 
-    const list =
-      body.paths?.["/api/admin/products/{productId}/variants"]?.get;
+    const list = body.paths?.["/api/admin/products/{productId}/variants"]?.get;
     const create =
       body.paths?.["/api/admin/products/{productId}/variants"]?.post;
     const detail =
       body.paths?.["/api/admin/products/{productId}/variants/{variantId}"]?.get;
     const update =
-      body.paths?.["/api/admin/products/{productId}/variants/{variantId}"]?.patch;
+      body.paths?.["/api/admin/products/{productId}/variants/{variantId}"]
+        ?.patch;
     const archive =
       body.paths?.[
         "/api/admin/products/{productId}/variants/{variantId}/archive"
@@ -110,7 +110,7 @@ describe("variants routes", () => {
     expect(list?.tags).toContain("Products");
     expect(list?.["x-auth"]).toEqual({
       mode: "required",
-      roles: ["ADMIN", "SUPER_ADMIN"],
+      roles: ["ADMIN"],
     });
     expect(list?.["x-rate-limit-class"]).toBe("admin-read");
     expect(list?.["x-error-codes"]).toEqual(
@@ -252,20 +252,17 @@ describe("variants routes", () => {
     });
 
     const updated = await app.handle(
-      new Request(
-        "https://jrw.test/api/admin/products/prod_1/variants/var_1",
-        {
-          method: "PATCH",
-          headers: {
-            cookie: "jrw_admin_session=admin-token",
-            "content-type": "application/json",
-            "x-request-id": "req_variant_update_success",
-          },
-          body: JSON.stringify({
-            priceCentavos: 2599,
-          }),
-        }
-      )
+      new Request("https://jrw.test/api/admin/products/prod_1/variants/var_1", {
+        method: "PATCH",
+        headers: {
+          cookie: "jrw_admin_session=admin-token",
+          "content-type": "application/json",
+          "x-request-id": "req_variant_update_success",
+        },
+        body: JSON.stringify({
+          priceCentavos: 2599,
+        }),
+      })
     );
 
     expect(updated.status).toBe(200);
