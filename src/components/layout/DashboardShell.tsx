@@ -95,14 +95,8 @@ export function SidebarNav({
       {isOwner ? (
         <section
           aria-labelledby="owner-nav-title"
-          className="grid gap-1 border-t border-brand-border pt-grid-sm"
+          className="grid border-t border-brand-border"
         >
-          <h2
-            className="m-0 font-system text-[0.65rem] font-bold uppercase text-brand-muted"
-            id="owner-nav-title"
-          >
-            Owner-only
-          </h2>
           {ownerNav.map((item) => (
             <CleanLinkButton
               active={item.href === activeHref}
