@@ -8,12 +8,14 @@ import {
 } from "./helpers/storefront-fixtures";
 
 async function gotoReady(page: Page, path: string) {
+  await page.setViewportSize({ height: 1000, width: 1440 });
   await page.goto(path, { waitUntil: "domcontentloaded" });
   await waitForAstroIslands(page);
 }
 
 for (const route of ["/", "/products", "/categories", "/brands"]) {
-  const routeName = route === "/" ? "home" : route.replaceAll("/", "-").slice(1);
+  const routeName =
+    route === "/" ? "home" : route.replaceAll("/", "-").slice(1);
 
   test(`${routeName} has no automated accessibility violations`, async ({
     page,
@@ -45,7 +47,9 @@ test("checkout blocked and details states have no automated accessibility violat
   await seedQaCart(page);
   await mockQaCheckoutValidation(page, "blocked");
   await gotoReady(page, "/checkout");
-  await expect(page.getByRole("heading", { name: "Review cart" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Review cart" })
+  ).toBeVisible();
   await expectNoAccessibilityViolations(page, "checkout-blocked");
 
   await seedQaCart(page);
@@ -70,6 +74,8 @@ test("product detail has no automated accessibility violations when live data ex
   test.skip(!href, "Live public catalog has no product detail link.");
 
   await gotoReady(page, href!);
-  await expect(page.locator("[data-product-detail-module=product-details]")).toBeVisible();
+  await expect(
+    page.locator("[data-product-detail-module=product-details]")
+  ).toBeVisible();
   await expectNoAccessibilityViolations(page, "product-detail");
 });

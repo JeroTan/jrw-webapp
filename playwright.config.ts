@@ -1,5 +1,12 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const qaPort = process.env.QA_PORT ?? "4321";
+const qaBaseUrl = `http://127.0.0.1:${qaPort}`;
+const qaServerTimeout = Number.parseInt(
+  process.env.QA_SERVER_TIMEOUT_MS ?? "360000",
+  10
+);
+
 export default defineConfig({
   expect: {
     timeout: 10_000,
@@ -18,13 +25,13 @@ export default defineConfig({
   testDir: "tests/qa",
   timeout: 60_000,
   use: {
-    baseURL: "http://127.0.0.1:4321",
+    baseURL: qaBaseUrl,
     trace: "retain-on-failure",
   },
   webServer: {
-    command: "npm run dev -- --host 127.0.0.1 --port 4321",
+    command: `npm run dev -- --host 127.0.0.1 --port ${qaPort}`,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    url: "http://127.0.0.1:4321",
+    timeout: qaServerTimeout,
+    url: qaBaseUrl,
   },
 });
