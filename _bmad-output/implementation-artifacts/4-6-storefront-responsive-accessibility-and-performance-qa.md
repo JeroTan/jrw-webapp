@@ -1,6 +1,6 @@
 # Story 4.6: Storefront Responsive, Accessibility, and Performance QA
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -86,6 +86,15 @@ so that JRW shopping feels fast, readable, and trustworthy.
   - [x] Run new storefront/accessibility/performance QA scripts added by this story.
   - [x] Run styling guard: `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
   - [x] Run `npm run build-test` if targeted gates pass and no local-only blocker appears.
+
+### Review Findings
+
+- [x] [Review][Patch] Playwright server config was too brittle for local QA. Hard-coded port `4321` collided with another dev server, and the 120s timeout was shorter than cold Astro/Cloudflare type generation. [playwright.config.ts:3]
+- [x] [Review][Patch] Focus QA helper allowed `outline-offset: 0`, so the required 2px focus offset was not actually enforced. [tests/qa/helpers/overflow.ts:109]
+- [x] [Review][Patch] Text-overflow QA skipped list and table-like text nodes, leaving part of AC2 untested. [tests/qa/helpers/overflow.ts:22]
+- [x] [Review][Patch] Responsive QA covered product detail only at 390px and did not cover category or brand detail routes across the required widths. [tests/qa/storefront-responsive.spec.ts:23]
+- [x] [Review][Patch] Keyboard focus QA used programmatic `.focus()`, which does not prove `:focus-visible` behavior. [tests/qa/storefront-responsive.spec.ts:70]
+- [x] [Review][Patch] Accessibility scans used Playwright's implicit 1280px viewport; `/brands` left the header island in SSR state there, while required explicit QA widths hydrated cleanly. [tests/qa/storefront-accessibility.spec.ts:10]
 
 ## Endpoint Guard Checklist
 
@@ -344,6 +353,7 @@ GPT-5 Codex
 - Added Playwright QA helpers and storefront responsive, accessibility, and performance specs for required widths, long text, keyboard/focus, reduced motion, axe checks, and local lab performance evidence.
 - Added package scripts `qa:storefront` and `qa:accessibility` while preserving `qa:checkout-viewports`.
 - Fixed concrete QA defects: accessible accent contrast and mobile filter toggle label/focus behavior.
+- Fixed review-discovered QA gaps: configurable Playwright port/server timeout, stricter focus offset assertions, list/table overflow scanning, dynamic category/brand/product detail responsive coverage, keyboard-driven focus checks, and stable accessibility scan viewport.
 - Wrote `_bmad-output/implementation-artifacts/4-6-storefront-qa-report.md` with viewport, accessibility, performance, fixes, and accepted blockers.
 - Marked performance image/LCP issues as blockers because large product assets are remote/generated relative to this repo and require asset pipeline work.
 

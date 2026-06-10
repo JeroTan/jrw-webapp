@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { waitForAstroIslands } from "./helpers/astro";
 import {
   expectActiveElementHasFocusOutline,
@@ -23,6 +23,24 @@ const storefrontRoutes = [
   { name: "brands", path: "/brands" },
 ] as const;
 
+const dynamicStorefrontRoutes = [
+  {
+    indexPath: "/categories",
+    linkPrefix: "/categories/",
+    name: "category detail",
+  },
+  {
+    indexPath: "/brands",
+    linkPrefix: "/brands/",
+    name: "brand detail",
+  },
+  {
+    indexPath: "/products",
+    linkPrefix: "/products/",
+    name: "product detail",
+  },
+] as const;
+
 async function openAtWidth(page: Page, path: string, width: number) {
   await page.setViewportSize({
     height: width < 768 ? 900 : 1000,
@@ -32,17 +50,36 @@ async function openAtWidth(page: Page, path: string, width: number) {
   await waitForAstroIslands(page);
 }
 
-async function findFirstProductHref(page: Page): Promise<string | null> {
-  await openAtWidth(page, "/products", 1024);
+async function findFirstHref(
+  page: Page,
+  indexPath: string,
+  linkPrefix: string
+): Promise<string | null> {
+  await openAtWidth(page, indexPath, 1024);
   const href = await page
-    .locator('main a[href^="/products/"]')
-    .evaluateAll((links) =>
-      links
-        .map((link) => link.getAttribute("href"))
-        .find((value) => Boolean(value && value !== "/products"))
+    .locator(`main a[href^="${linkPrefix}"]`)
+    .evaluateAll(
+      (links, currentIndexPath) =>
+        links
+          .map((link) => link.getAttribute("href"))
+          .find((value) => Boolean(value && value !== currentIndexPath)),
+      indexPath
     );
 
   return href ?? null;
+}
+
+async function focusLocatorByTab(page: Page, locator: Locator, maxTabs = 40) {
+  for (let tabIndex = 0; tabIndex < maxTabs; tabIndex += 1) {
+    if (
+      await locator.evaluate((element) => element === document.activeElement)
+    ) {
+      return;
+    }
+    await page.keyboard.press("Tab");
+  }
+
+  await expect(locator).toBeFocused();
 }
 
 for (const width of storefrontViewports) {
@@ -53,6 +90,26 @@ for (const width of storefrontViewports) {
       await expectNoHorizontalOverflow(page);
       await expectNoVisibleTextOverflow(page);
       await expect(page.getByRole("banner")).toBeVisible();
+      await expectLocatorWithinViewport(page.getByRole("main"));
+    });
+  }
+
+  for (const route of dynamicStorefrontRoutes) {
+    test(`${route.name} route fits viewport ${width}px when live link exists`, async ({
+      page,
+    }) => {
+      const href = await findFirstHref(page, route.indexPath, route.linkPrefix);
+      test.skip(!href, `Live public catalog has no ${route.name} link.`);
+
+      await openAtWidth(page, href!, width);
+
+      if (route.linkPrefix === "/products/") {
+        await expect(
+          page.locator("[data-product-detail-module=product-details]")
+        ).toBeVisible();
+      }
+      await expectNoHorizontalOverflow(page);
+      await expectNoVisibleTextOverflow(page);
       await expectLocatorWithinViewport(page.getByRole("main"));
     });
   }
@@ -70,7 +127,9 @@ for (const width of storefrontViewports) {
     await waitForAstroIslands(page);
 
     await expect(page.getByText("JRW Modular Weatherproof")).toBeVisible();
-    await expect(page.getByRole("button", { name: "Check cart" })).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Check cart" })
+    ).toBeVisible();
     await expectNoHorizontalOverflow(page);
     await expectNoVisibleTextOverflow(page);
   });
@@ -90,24 +149,16 @@ for (const width of storefrontViewports) {
     await validationResponse;
     await waitForAstroIslands(page);
 
-    await expect(page.getByRole("heading", { name: "Review cart" })).toBeVisible();
-    await expect(page.getByText("Resolve unavailable items before checkout.")).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Review cart" })
+    ).toBeVisible();
+    await expect(
+      page.getByText("Resolve unavailable items before checkout.")
+    ).toBeVisible();
     await expectNoHorizontalOverflow(page);
     await expectNoVisibleTextOverflow(page);
   });
 }
-
-test("product detail route fits when a live product is available", async ({
-  page,
-}) => {
-  const href = await findFirstProductHref(page);
-  test.skip(!href, "Live public catalog has no product detail link.");
-
-  await openAtWidth(page, href!, 390);
-  await expect(page.locator("[data-product-detail-module=product-details]")).toBeVisible();
-  await expectNoHorizontalOverflow(page);
-  await expectNoVisibleTextOverflow(page);
-});
 
 test("header, filter, drawer, and checkout keyboard path stays focus-visible", async ({
   page,
@@ -126,7 +177,9 @@ test("header, filter, drawer, and checkout keyboard path stays focus-visible", a
 
   const menu = page.getByText("Menu").first();
   await menu.click();
-  await expect(page.getByRole("searchbox", { name: "Search products" })).toBeVisible();
+  await expect(
+    page.getByRole("searchbox", { name: "Search products" })
+  ).toBeVisible();
 
   const cartButton = page.getByRole("button", { name: /Open cart/ });
   await page.keyboard.press("Shift+Tab");
@@ -147,6 +200,6 @@ test("header, filter, drawer, and checkout keyboard path stays focus-visible", a
   await page.goto("/cart");
   await waitForAstroIslands(page);
   const checkCart = page.getByRole("button", { name: "Check cart" });
-  await checkCart.focus();
+  await focusLocatorByTab(page, checkCart);
   await expectActiveElementHasFocusOutline(page);
 });

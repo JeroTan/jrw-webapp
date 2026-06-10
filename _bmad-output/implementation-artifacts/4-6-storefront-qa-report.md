@@ -13,11 +13,13 @@ Date: 2026-06-07
 
 | Route or state | Widths | Result | Evidence |
 | --- | --- | --- | --- |
-| Home | 320, 375, 390, 430, 768, 1024, 1440 | Pass | `npm run qa:storefront`, 46 passed |
-| Product grid | 320, 375, 390, 430, 768, 1024, 1440 | Pass | `npm run qa:storefront`, 46 passed |
-| Categories index | 320, 375, 390, 430, 768, 1024, 1440 | Pass | `npm run qa:storefront`, 46 passed |
-| Brands index | 320, 375, 390, 430, 768, 1024, 1440 | Pass | `npm run qa:storefront`, 46 passed |
-| Product detail live route | 390 smoke | Pass | `npm run qa:storefront`, 46 passed |
+| Home | 320, 375, 390, 430, 768, 1024, 1440 | Pass | storefront QA, 66-test run covered base routes |
+| Product grid | 320, 375, 390, 430, 768, 1024, 1440 | Pass | storefront QA, 66-test run covered product grid |
+| Categories index | 320, 375, 390, 430, 768, 1024, 1440 | Pass | storefront QA, 66-test run covered category index |
+| Brands index | 320, 375, 390, 430, 768, 1024, 1440 | Pass | storefront QA, 66-test run covered brand index |
+| Category detail live route | 320, 375, 390, 430, 768, 1024, 1440 when live link exists | Pass | dynamic route subset, 21 passed |
+| Brand detail live route | 320, 375, 390, 430, 768, 1024, 1440 when live link exists | Pass | dynamic route subset, 21 passed |
+| Product detail live route | 320, 375, 390, 430, 768, 1024, 1440 when live link exists | Pass | dynamic route subset, 21 passed |
 | Cart with long item data | 320, 375, 390, 430, 768, 1024, 1440 | Pass | seeded cart fixture, no horizontal/text overflow |
 | Checkout blocked state | 320, 375, 390, 430, 768, 1024, 1440 | Pass | mocked validation fixture, no horizontal/text overflow |
 | Story 4.5 checkout regression | 320, 375, 390, 430, 768, 1024, 1440 | Pass | `npm run qa:checkout-viewports`, 14 passed |
@@ -68,6 +70,7 @@ Image-size note: large product image URL is served from dev asset route but was 
 - Fixed QA-discovered contrast defect by darkening `--color-brand-accent` from `#3e96f4` to `#0969da`; white-on-accent contrast is now 5.19:1.
 - Fixed QA-discovered hidden-label defect in `ResponsiveFilterPanel` by hiding the mobile-only checkbox on desktop and adding peer focus-visible styling to the visible label.
 - Hardened accessibility route scans as one route per test with `domcontentloaded` navigation.
+- Fixed review-discovered QA gaps by adding `QA_PORT` and `QA_SERVER_TIMEOUT_MS` Playwright config support, expanding responsive coverage to category/brand/product detail routes at every required width, enforcing 2px focus offset, scanning list/table text for overflow, using keyboard Tab for focus-visible checks, and setting a stable 1440px accessibility scan viewport.
 
 ## Accepted Blockers
 
@@ -76,15 +79,16 @@ Image-size note: large product image URL is served from dev asset route but was 
 
 ## Validation
 
-- `npm run check`: pass, 0 errors.
+- `npm run check` under Node 22.22.3: pass, 0 errors, 10 hints.
 - `npx vitest run src/features/storefront-shell/storefront-shell-ui.test.tsx`: 7 passed.
 - `npx vitest run src/features/product-catalog/components/product-catalog-ui.test.tsx`: 7 passed.
 - `npx vitest run src/features/product-detail/components/product-detail-ui.test.tsx src/features/product-detail/lib/renderProductDescription.test.ts src/features/product-detail/lib/variant-options.test.ts`: 13 passed.
 - `npx vitest run src/features/cart-checkout/components/cart-ui.test.tsx src/features/cart-checkout/store.test.ts`: 14 passed.
 - `npx vitest run src/components/primitives.test.ts`: 19 passed.
-- `npm run qa:checkout-viewports`: 14 passed.
-- `npm run qa:storefront`: 46 passed.
-- `npm run qa:accessibility`: 7 passed.
+- `npm run qa:checkout-viewports` equivalent under Node 22.22.3 with `QA_PORT=4327`: 14 passed.
+- Storefront responsive/performance QA under Node 22.22.3 with `QA_PORT=4325`: 65 passed, 1 focus-test failure exposed programmatic `.focus()` as an invalid focus-visible assertion; after patch, targeted keyboard path passed.
+- Dynamic category/brand/product detail responsive subset under Node 22.22.3 with `QA_PORT=4323`: 21 passed.
+- `npm run qa:accessibility` equivalent under Node 22.22.3 with `QA_PORT=4324`: 7 passed.
 - Lighthouse home/product JSON artifacts written to `_bmad-output/implementation-artifacts/4-6-lighthouse-home.json` and `_bmad-output/implementation-artifacts/4-6-lighthouse-product-water.json`.
 - Styling guard command run. Hits are `jrw-studio` slug fixtures and negative assertions; no runtime `--jrw`, `color-jrw`, `spacing-jrw`, or `font-jrw` style tokens introduced.
 - `npm run build-test`: blocked by unrelated full-suite failures listed above.

@@ -87,7 +87,7 @@ development_status:
   # Approved UI correction: 4-8, 4-9, and 4-10 must run before 4-4 implementation.
   4-4-cart-add-update-remove: done
   4-5-availability-blocking-before-checkout: done
-  4-6-storefront-responsive-accessibility-and-performance-qa: review
+  4-6-storefront-responsive-accessibility-and-performance-qa: done
   4-7-storefront-and-cart-ui-primitive-extensions: ready-for-dev
   4-8-shared-primitive-visual-contract: done
   4-9-storefront-product-card-and-detail-fidelity: done

@@ -22,13 +22,18 @@ export async function expectNoVisibleTextOverflow(page: Page) {
     const selectors = [
       "a",
       "button",
+      "dd",
+      "dt",
       "h1",
       "h2",
       "h3",
       "label",
+      "li",
       "p",
       "span",
       "strong",
+      "td",
+      "th",
     ].join(",");
 
     return Array.from(document.querySelectorAll<HTMLElement>(selectors))
@@ -104,6 +109,11 @@ export async function expectActiveElementHasFocusOutline(page: Page) {
 
   expect(outline).not.toBeNull();
   expect(outline?.outlineStyle).not.toBe("none");
-  expect(Number.parseFloat(outline?.outlineWidth ?? "0")).toBeGreaterThanOrEqual(2);
-  expect(Number.parseFloat(outline?.outlineOffset ?? "0")).toBeGreaterThanOrEqual(0);
+  expect(
+    Number.parseFloat(outline?.outlineWidth ?? "0")
+  ).toBeGreaterThanOrEqual(2);
+  expect(outline?.outlineColor).not.toBe("rgba(0, 0, 0, 0)");
+  expect(
+    Number.parseFloat(outline?.outlineOffset ?? "0")
+  ).toBeGreaterThanOrEqual(2);
 }
