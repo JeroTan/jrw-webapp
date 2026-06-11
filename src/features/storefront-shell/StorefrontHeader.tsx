@@ -118,6 +118,7 @@ export function StorefrontHeader({
           className="
             h-full inline-flex items-center 
             font-identity text-3xl font-extrabold leading-none text-brand-content no-underline hover:text-brand-accent
+            focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent
             motion-safe:transition-colors motion-safe:duration-120"
           href="/"
         >
@@ -137,7 +138,7 @@ export function StorefrontHeader({
             SIGN IN
           </ButtonLink>
           <details className="md:hidden  group relative">
-            <summary className="inline-flex min-h-control-md min-w-control-md list-none items-center justify-center gap-1.5 border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase marker:hidden group-open:border-brand-accent max-[374px]:px-1.5 max-[374px]:text-[0.6875rem] [&::-webkit-details-marker]:hidden">
+            <summary className="inline-flex min-h-control-md min-w-control-md list-none items-center justify-center gap-1.5 border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase marker:hidden group-open:border-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent max-[374px]:px-1.5 max-[374px]:text-[0.6875rem] [&::-webkit-details-marker]:hidden">
               <span>Menu</span>
               <span aria-hidden="true" className="group-open:hidden">
                 +

@@ -27,7 +27,7 @@ const buttonBaseClass =
   "inline-flex items-center justify-center gap-grid-xs rounded-none border font-system font-bold leading-none no-underline shadow-none whitespace-nowrap filter-none aria-busy:border-dashed";
 
 const buttonInteractiveClass =
-  "enabled:hover:outline-2 enabled:hover:outline-offset-2 enabled:hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
+  "enabled:hover:outline-2 enabled:hover:outline-offset-2 enabled:hover:outline-brand-accent focus:outline-2 focus:outline-offset-2 focus:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
 
 const buttonSizeClass: Record<ButtonSize, string> = {
   sm: "min-h-control-sm",

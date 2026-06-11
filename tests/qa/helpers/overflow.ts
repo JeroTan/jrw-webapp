@@ -8,6 +8,38 @@ type TextOverflowOffender = {
   text: string;
 };
 
+type FocusOutlineSnapshot = {
+  className: string | null;
+  focusVisible: boolean;
+  outlineColor: string;
+  outlineOffset: string;
+  outlineStyle: string;
+  outlineWidth: string;
+  tagName: string;
+  text: string;
+};
+
+async function getActiveElementFocusOutline(page: Page) {
+  return page.evaluate<FocusOutlineSnapshot | null>(() => {
+    const element = document.activeElement;
+    if (!(element instanceof HTMLElement)) {
+      return null;
+    }
+
+    const style = window.getComputedStyle(element);
+    return {
+      className: element.getAttribute("class"),
+      focusVisible: element.matches(":focus-visible"),
+      outlineColor: style.outlineColor,
+      outlineOffset: style.outlineOffset,
+      outlineStyle: style.outlineStyle,
+      outlineWidth: style.outlineWidth,
+      tagName: element.tagName,
+      text: element.innerText,
+    };
+  });
+}
+
 export async function expectNoHorizontalOverflow(page: Page) {
   const overflow = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
@@ -90,23 +122,24 @@ export async function expectLocatorWithinViewport(locator: Locator) {
 }
 
 export async function expectActiveElementHasFocusOutline(page: Page) {
-  const outline = await page.evaluate(() => {
-    const element = document.activeElement;
-    if (!(element instanceof HTMLElement)) {
-      return null;
-    }
+  await expect
+    .poll(
+      async () => {
+        const outline = await getActiveElementFocusOutline(page);
 
-    const style = window.getComputedStyle(element);
-    return {
-      outlineColor: style.outlineColor,
-      outlineOffset: style.outlineOffset,
-      outlineStyle: style.outlineStyle,
-      outlineWidth: style.outlineWidth,
-      tagName: element.tagName,
-      text: element.innerText,
-    };
-  });
+        return Boolean(
+          outline &&
+            outline.outlineStyle !== "none" &&
+            Number.parseFloat(outline.outlineWidth) >= 2 &&
+            outline.outlineColor !== "rgba(0, 0, 0, 0)" &&
+            Number.parseFloat(outline.outlineOffset) >= 2
+        );
+      },
+      { timeout: 1_000 }
+    )
+    .toBe(true);
 
+  const outline = await getActiveElementFocusOutline(page);
   expect(outline).not.toBeNull();
   expect(outline?.outlineStyle).not.toBe("none");
   expect(
@@ -114,6 +147,7 @@ export async function expectActiveElementHasFocusOutline(page: Page) {
   ).toBeGreaterThanOrEqual(2);
   expect(outline?.outlineColor).not.toBe("rgba(0, 0, 0, 0)");
   expect(
-    Number.parseFloat(outline?.outlineOffset ?? "0")
+    Number.parseFloat(outline?.outlineOffset ?? "0"),
+    JSON.stringify(outline)
   ).toBeGreaterThanOrEqual(2);
 }

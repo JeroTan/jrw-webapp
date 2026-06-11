@@ -13,6 +13,8 @@ export * from "./Pagination";
 export * from "./ResponsiveFilterPanel";
 export * from "./Select";
 export * from "./SearchInput";
+export * from "./SegmentedControl";
+export * from "./SidePanel";
 export * from "./Tabs";
 export * from "./Textarea";
 export * from "./Toggle";

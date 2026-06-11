@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-12T08:38:32+08:00"
-last_updated: "2026-06-10T00:00:00+08:00"
+last_updated: "2026-06-11T00:00:00+08:00"
 project: jrw-webapp
 project_key: NOKEY
 tracking_system: file-system
@@ -88,7 +88,7 @@ development_status:
   4-4-cart-add-update-remove: done
   4-5-availability-blocking-before-checkout: done
   4-6-storefront-responsive-accessibility-and-performance-qa: done
-  4-7-storefront-and-cart-ui-primitive-extensions: ready-for-dev
+  4-7-storefront-and-cart-ui-primitive-extensions: review
   4-8-shared-primitive-visual-contract: done
   4-9-storefront-product-card-and-detail-fidelity: done
   4-10-future-story-ui-fidelity-gate: done

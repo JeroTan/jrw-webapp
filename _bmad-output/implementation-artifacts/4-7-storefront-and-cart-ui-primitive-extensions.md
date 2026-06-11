@@ -1,6 +1,6 @@
 # Story 4.7: Storefront and Cart UI Primitive Extensions
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,71 +23,71 @@ so that storefront, checkout, dashboard, and governance flows behave predictably
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock scope and inventory current primitives before coding. (AC: 1-8)
-  - [ ] Re-read every UPDATE file listed in Current Code Intelligence before editing.
-  - [ ] Confirm current shared exports in `src/components/ui/index.ts`, `src/components/feedback/index.ts`, `src/components/data-display/index.ts`, and `src/components/index.ts`.
-  - [ ] Add only generic primitive work. Do not change product data flows, cart domain rules, checkout validation, admin auth, PayMongo, inventory reservation, order flows, or route contracts.
-  - [ ] Keep feature components under `src/features/**`: `ProductCard`, `ProductGrid`, `ProductCatalogFilters`, `ProductDetailPage`, `CartDrawer`, `CartSummary`, `CheckoutFlow`.
-  - [ ] Update `src/components/_readme.md` with concise inventory notes for any added primitive and exact usage boundaries.
-  - [ ] Do not add a new UI library, CSS module, page CSS layer, or runtime `jrw-*` selector.
+- [x] Task 1: Lock scope and inventory current primitives before coding. (AC: 1-8)
+  - [x] Re-read every UPDATE file listed in Current Code Intelligence before editing.
+  - [x] Confirm current shared exports in `src/components/ui/index.ts`, `src/components/feedback/index.ts`, `src/components/data-display/index.ts`, and `src/components/index.ts`.
+  - [x] Add only generic primitive work. Do not change product data flows, cart domain rules, checkout validation, admin auth, PayMongo, inventory reservation, order flows, or route contracts.
+  - [x] Keep feature components under `src/features/**`: `ProductCard`, `ProductGrid`, `ProductCatalogFilters`, `ProductDetailPage`, `CartDrawer`, `CartSummary`, `CheckoutFlow`.
+  - [x] Update `src/components/_readme.md` with concise inventory notes for any added primitive and exact usage boundaries.
+  - [x] Do not add a new UI library, CSS module, page CSS layer, or runtime `jrw-*` selector.
 
-- [ ] Task 2: Add `SegmentedControl` for generic two-or-more option selection. (AC: 1-5, 7-8)
-  - [ ] Create `src/components/ui/SegmentedControl.tsx` and export it from `src/components/ui/index.ts`.
-  - [ ] Use `role="group"` plus `aria-pressed` buttons for toggle/choice controls that do not own tab panels. Do not misuse `Tabs` for plain view/filter toggles.
-  - [ ] Keep option labels stable while state changes; expose selected state through `aria-pressed`, visible text/color, and token-driven classes.
-  - [ ] Support controlled `value`, `onChange`, `options`, `label`, disabled options, optional `size`/`textSize`/`borderTone` only if needed by current callers.
-  - [ ] Include 4.8 outline contract: `hover:outline-2`, `hover:outline-offset-2`, `hover:outline-brand-accent`, `focus-visible:outline-2`, `focus-visible:outline-offset-2`, `focus-visible:outline-brand-accent`.
-  - [ ] Decide whether `ViewToggle` composes `SegmentedControl` internally. Preserve `ViewToggle` public API and current admin call sites if refactoring it.
-  - [ ] Add tests in `src/components/primitives.test.ts` for role, label, selected state, disabled option, no text overflow class, and 2px outline contract.
+- [x] Task 2: Add `SegmentedControl` for generic two-or-more option selection. (AC: 1-5, 7-8)
+  - [x] Create `src/components/ui/SegmentedControl.tsx` and export it from `src/components/ui/index.ts`.
+  - [x] Use `role="group"` plus `aria-pressed` buttons for toggle/choice controls that do not own tab panels. Do not misuse `Tabs` for plain view/filter toggles.
+  - [x] Keep option labels stable while state changes; expose selected state through `aria-pressed`, visible text/color, and token-driven classes.
+  - [x] Support controlled `value`, `onChange`, `options`, `label`, disabled options, optional `size`/`textSize`/`borderTone` only if needed by current callers.
+  - [x] Include 4.8 outline contract: `hover:outline-2`, `hover:outline-offset-2`, `hover:outline-brand-accent`, `focus-visible:outline-2`, `focus-visible:outline-offset-2`, `focus-visible:outline-brand-accent`.
+  - [x] Decide whether `ViewToggle` composes `SegmentedControl` internally. Preserve `ViewToggle` public API and current admin call sites if refactoring it.
+  - [x] Add tests in `src/components/primitives.test.ts` for role, label, selected state, disabled option, no text overflow class, and 2px outline contract.
 
-- [ ] Task 3: Add `SidePanel` without duplicating modal/drawer focus logic. (AC: 2, 4, 6-8)
-  - [ ] Create `src/components/ui/SidePanel.tsx` and export it from `src/components/ui/index.ts`.
-  - [ ] Make it a generic focused work panel for admin/product/order editing and possible future storefront detail panels, not a cart-specific component.
-  - [ ] Required props: `open`, `onClose`, `title`, optional `description`, optional `footer`, `closeLabel`, `children`, `className`.
-  - [ ] Semantics: `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, optional `aria-describedby` only for simple descriptions.
-  - [ ] Behavior: move focus inside on open, trap `Tab` and `Shift+Tab`, close on `Escape`, restore focus on close, include visible close `Button`.
-  - [ ] Responsive shape: desktop right-side panel with width constraints suitable for dense work; narrow viewports become full-screen panel. Use 0px radius, 1px borders, no shadow/blur.
-  - [ ] Reuse or extract focus-trap helpers from `Modal` and `Drawer` only if it reduces duplication without changing their behavior. Do not create hidden global mutable focus state.
-  - [ ] Add tests for dialog semantics, title/description IDs, close label/title, full-screen narrow classes, and focus-helper behavior where testable.
+- [x] Task 3: Add `SidePanel` without duplicating modal/drawer focus logic. (AC: 2, 4, 6-8)
+  - [x] Create `src/components/ui/SidePanel.tsx` and export it from `src/components/ui/index.ts`.
+  - [x] Make it a generic focused work panel for admin/product/order editing and possible future storefront detail panels, not a cart-specific component.
+  - [x] Required props: `open`, `onClose`, `title`, optional `description`, optional `footer`, `closeLabel`, `children`, `className`.
+  - [x] Semantics: `role="dialog"`, `aria-modal="true"`, `aria-labelledby`, optional `aria-describedby` only for simple descriptions.
+  - [x] Behavior: move focus inside on open, trap `Tab` and `Shift+Tab`, close on `Escape`, restore focus on close, include visible close `Button`.
+  - [x] Responsive shape: desktop right-side panel with width constraints suitable for dense work; narrow viewports become full-screen panel. Use 0px radius, 1px borders, no shadow/blur.
+  - [x] Reuse or extract focus-trap helpers from `Modal` and `Drawer` only if it reduces duplication without changing their behavior. Do not create hidden global mutable focus state.
+  - [x] Add tests for dialog semantics, title/description IDs, close label/title, full-screen narrow classes, and focus-helper behavior where testable.
 
-- [ ] Task 4: Tighten `Drawer`, `Modal`, and `ConfirmDialog` overlay contract. (AC: 4, 6-8)
-  - [ ] Preserve existing `Drawer` API because `CartDrawer` already depends on it.
-  - [ ] Preserve existing `Modal` and `ConfirmDialog` APIs.
-  - [ ] If focus helper is extracted, prove `Drawer` and `Modal` still render `role="dialog"`, `aria-modal="true"`, visible close action, and same public labels.
-  - [ ] Keep `ConfirmDialog` deliberate for destructive/high-impact actions: danger tone, explicit confirm label, cancel action, no silent close-only destructive path.
-  - [ ] Do not change cart drawer copy, best-effort refresh behavior, or checkout validation flow in this task.
+- [x] Task 4: Tighten `Drawer`, `Modal`, and `ConfirmDialog` overlay contract. (AC: 4, 6-8)
+  - [x] Preserve existing `Drawer` API because `CartDrawer` already depends on it.
+  - [x] Preserve existing `Modal` and `ConfirmDialog` APIs.
+  - [x] If focus helper is extracted, prove `Drawer` and `Modal` still render `role="dialog"`, `aria-modal="true"`, visible close action, and same public labels.
+  - [x] Keep `ConfirmDialog` deliberate for destructive/high-impact actions: danger tone, explicit confirm label, cancel action, no silent close-only destructive path.
+  - [x] Do not change cart drawer copy, best-effort refresh behavior, or checkout validation flow in this task.
 
-- [ ] Task 5: Normalize pagination without breaking SSR catalog links or admin callbacks. (AC: 1-2, 4-8)
-  - [ ] Re-read `src/components/ui/Pagination.tsx`, `src/features/product-catalog/components/CatalogPagination.tsx`, `src/features/admin-products/components/AdminInventoryDashboard.tsx`, and `src/features/admin-products/components/ProductListDashboard.tsx`.
-  - [ ] Keep callback-driven `Pagination` working for admin/product dashboards.
-  - [ ] Update shared `Pagination` page controls to match 4.8 outline contract and accessible disabled/selected states. Raw page buttons must not use border-color-only hover.
-  - [ ] For storefront SSR query links, either extend shared pagination with link-item support or refactor `CatalogPagination` to compose shared `ButtonLink`/pagination constants. Preserve crawlable `<a href>` pagination and current `buildCatalogHref` behavior.
-  - [ ] Keep page size selector visible/labelled through existing `Select`; do not hide form semantics from assistive tech.
-  - [ ] Add tests proving selected page uses `aria-current="page"`, disabled prev/next are non-interactive, long totals do not overflow, and storefront pagination keeps real links.
+- [x] Task 5: Normalize pagination without breaking SSR catalog links or admin callbacks. (AC: 1-2, 4-8)
+  - [x] Re-read `src/components/ui/Pagination.tsx`, `src/features/product-catalog/components/CatalogPagination.tsx`, `src/features/admin-products/components/AdminInventoryDashboard.tsx`, and `src/features/admin-products/components/ProductListDashboard.tsx`.
+  - [x] Keep callback-driven `Pagination` working for admin/product dashboards.
+  - [x] Update shared `Pagination` page controls to match 4.8 outline contract and accessible disabled/selected states. Raw page buttons must not use border-color-only hover.
+  - [x] For storefront SSR query links, either extend shared pagination with link-item support or refactor `CatalogPagination` to compose shared `ButtonLink`/pagination constants. Preserve crawlable `<a href>` pagination and current `buildCatalogHref` behavior.
+  - [x] Keep page size selector visible/labelled through existing `Select`; do not hide form semantics from assistive tech.
+  - [x] Add tests proving selected page uses `aria-current="page"`, disabled prev/next are non-interactive, long totals do not overflow, and storefront pagination keeps real links.
 
-- [ ] Task 6: Confirm existing primitives handle status, error, loading, empty, and skeleton states. (AC: 1, 4-8)
-  - [ ] Re-read `Badge`, `StatusBadge`, `EmptyState`, `Skeleton`, `Input`, `InputBox`, `Select`, `Checkbox`, `Toggle`, `Tabs`, `DataTable`, `ResourceCard`, and `ResourceList`.
-  - [ ] Add only missing tests or tiny props needed by storefront/cart flows. Do not redesign visual anatomy.
-  - [ ] Ensure statuses include text labels and do not rely on color alone.
-  - [ ] Ensure errors use `aria-invalid`/`aria-describedby` where fields are involved.
-  - [ ] Ensure skeletons have stable dimensions and respect reduced motion through Tailwind `motion-safe:`.
+- [x] Task 6: Confirm existing primitives handle status, error, loading, empty, and skeleton states. (AC: 1, 4-8)
+  - [x] Re-read `Badge`, `StatusBadge`, `EmptyState`, `Skeleton`, `Input`, `InputBox`, `Select`, `Checkbox`, `Toggle`, `Tabs`, `DataTable`, `ResourceCard`, and `ResourceList`.
+  - [x] Add only missing tests or tiny props needed by storefront/cart flows. Do not redesign visual anatomy.
+  - [x] Ensure statuses include text labels and do not rely on color alone.
+  - [x] Ensure errors use `aria-invalid`/`aria-describedby` where fields are involved.
+  - [x] Ensure skeletons have stable dimensions and respect reduced motion through Tailwind `motion-safe:`.
 
-- [ ] Task 7: Keep feature consumers local and remove duplicate control styling only where safe. (AC: 1-3, 7-8)
-  - [ ] `CartDrawer` remains feature-local and composes shared `Drawer`.
-  - [ ] `CheckoutFlow` local stepper remains local in this story. Do not add shared `Stepper` until Epic 5 needs reuse across checkout/payment/order surfaces.
-  - [ ] `ProductDetailPage` and child modules remain under `src/features/product-detail/**`; do not move them to shared components.
-  - [ ] `ProductCatalogFilters` continues to use shared `CheckboxGroup`, `Input`, `Button`, and `ButtonLink`.
-  - [ ] Replace one-off page/control classes in `CatalogPagination` only if replacement preserves SSR link semantics and product catalog tests.
-  - [ ] Do not touch public catalog repositories/services/routes unless a UI test proves current pagination/control data contract is broken. No endpoint work expected.
+- [x] Task 7: Keep feature consumers local and remove duplicate control styling only where safe. (AC: 1-3, 7-8)
+  - [x] `CartDrawer` remains feature-local and composes shared `Drawer`.
+  - [x] `CheckoutFlow` local stepper remains local in this story. Do not add shared `Stepper` until Epic 5 needs reuse across checkout/payment/order surfaces.
+  - [x] `ProductDetailPage` and child modules remain under `src/features/product-detail/**`; do not move them to shared components.
+  - [x] `ProductCatalogFilters` continues to use shared `CheckboxGroup`, `Input`, `Button`, and `ButtonLink`.
+  - [x] Replace one-off page/control classes in `CatalogPagination` only if replacement preserves SSR link semantics and product catalog tests.
+  - [x] Do not touch public catalog repositories/services/routes unless a UI test proves current pagination/control data contract is broken. No endpoint work expected.
 
-- [ ] Task 8: Update tests and QA evidence. (AC: 4-8)
-  - [ ] Extend `src/components/primitives.test.ts` for `SegmentedControl`, `SidePanel`, pagination outline contract, overlay semantics, status/empty/loading primitives, and inventory/readme export coverage.
-  - [ ] Update `src/features/product-catalog/components/product-catalog-ui.test.tsx` if `CatalogPagination` changes.
-  - [ ] Run `npx vitest run src/components/primitives.test.ts src/features/product-catalog/components/product-catalog-ui.test.tsx src/features/cart-checkout/components/cart-ui.test.tsx`.
-  - [ ] Run `npm run check`.
-  - [ ] Run styling guard: `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
-  - [ ] If `Drawer`, `SidePanel`, `CatalogPagination`, or cart-visible controls change, run `npm run qa:checkout-viewports`; run `npm run qa:storefront` and `npm run qa:accessibility` when local Playwright is available.
-  - [ ] Record any QA blocker honestly in this story under Dev Agent Record.
+- [x] Task 8: Update tests and QA evidence. (AC: 4-8)
+  - [x] Extend `src/components/primitives.test.ts` for `SegmentedControl`, `SidePanel`, pagination outline contract, overlay semantics, status/empty/loading primitives, and inventory/readme export coverage.
+  - [x] Update `src/features/product-catalog/components/product-catalog-ui.test.tsx` if `CatalogPagination` changes.
+  - [x] Run `npx vitest run src/components/primitives.test.ts src/features/product-catalog/components/product-catalog-ui.test.tsx src/features/cart-checkout/components/cart-ui.test.tsx`.
+  - [x] Run `npm run check`.
+  - [x] Run styling guard: `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
+  - [x] If `Drawer`, `SidePanel`, `CatalogPagination`, or cart-visible controls change, run `npm run qa:checkout-viewports`; run `npm run qa:storefront` and `npm run qa:accessibility` when local Playwright is available.
+  - [x] Record any QA blocker honestly in this story under Dev Agent Record.
 
 ## Endpoint Guard Checklist
 
@@ -363,10 +363,53 @@ Run conditional Playwright gates if visible storefront/cart controls, overlays, 
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
+- `npx vitest run src/components/primitives.test.ts src/features/product-catalog/components/product-catalog-ui.test.tsx` - red then green after primitive implementation.
+- `npx vitest run src/components/primitives.test.ts src/features/product-catalog/components/product-catalog-ui.test.tsx src/features/cart-checkout/components/cart-ui.test.tsx src/features/storefront-shell/storefront-shell-ui.test.tsx` - 49 tests passed.
+- `npm run check` - passed; 0 errors, existing hints remain in unrelated files.
+- `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` - only slugs and negative assertions; no runtime `jrw-*` selector additions.
+- `npm run qa:accessibility` - 7 passed.
+- `npm run qa:checkout-viewports` - 14 passed.
+- `npm run qa:storefront` - latest full run 65/66 with live product detail 390px navigation timeout; targeted rerun of `product detail route fits viewport 390px` passed.
+- `npx playwright test tests/qa/storefront-responsive.spec.ts --project=chromium --grep "header, filter"` - passed after focus helper/base outline fixes.
+
 ### Completion Notes List
 
+- Added shared `SegmentedControl` and refactored `ViewToggle` to compose it without changing public API.
+- Added shared `SidePanel` and extracted dialog focus trap helper used by `Modal`, `Drawer`, and `SidePanel`.
+- Aligned `Button`, `ButtonLink`, `Pagination`, and storefront `CatalogPagination` with 2px cobalt outline and 2px offset behavior.
+- Hardened global focus-visible CSS for reduced-motion QA and improved Playwright focus polling/navigation stability.
+- Updated component inventory docs and tests for primitive boundaries, SSR pagination links, overlay semantics, focus, disabled state, and docs coverage.
+- Preserved cart, checkout, product detail, endpoint, inventory, payment, and route contracts.
+
 ### File List
+
+- `_bmad-output/implementation-artifacts/4-7-storefront-and-cart-ui-primitive-extensions.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/components/_readme.md`
+- `src/components/primitives.test.ts`
+- `src/components/ui/Button.tsx`
+- `src/components/ui/ButtonLink.tsx`
+- `src/components/ui/Drawer.tsx`
+- `src/components/ui/Modal.tsx`
+- `src/components/ui/Pagination.tsx`
+- `src/components/ui/SegmentedControl.tsx`
+- `src/components/ui/SidePanel.tsx`
+- `src/components/ui/ViewToggle.tsx`
+- `src/components/ui/dialog-focus.ts`
+- `src/components/ui/index.ts`
+- `src/features/product-catalog/components/CatalogPagination.tsx`
+- `src/features/product-catalog/components/product-catalog-ui.test.tsx`
+- `src/features/storefront-shell/StorefrontHeader.tsx`
+- `src/features/storefront-shell/storefront-shell-ui.test.tsx`
+- `src/layouts/StorefrontLayout.astro`
+- `src/styles/_base.css`
+- `tests/qa/helpers/overflow.ts`
+- `tests/qa/storefront-responsive.spec.ts`
+
+## Change Log
+
+- 2026-06-11: Implemented storefront/cart primitive extensions and moved story to review.

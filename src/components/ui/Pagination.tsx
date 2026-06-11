@@ -20,7 +20,7 @@ const summaryClass =
   "m-0 inline-flex min-h-control-sm items-center font-system text-xs font-bold uppercase text-brand-muted";
 const controlsClass = "inline-flex flex-wrap gap-grid-xs";
 const pageButtonClass =
-  "min-h-control-sm min-w-11 rounded-none border border-brand-border-strong bg-brand-surface px-grid-xs font-system text-xs font-bold text-brand-content hover:enabled:border-brand-accent";
+  "min-h-control-sm min-w-11 rounded-none border border-brand-border-strong bg-brand-surface px-grid-xs font-system text-xs font-bold text-brand-content hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent disabled:cursor-not-allowed disabled:opacity-50";
 const pageButtonActiveClass =
   "!border-brand-content !bg-brand-content !text-brand-surface";
 const pageSizeClass = "w-[min(100%,140px)]";

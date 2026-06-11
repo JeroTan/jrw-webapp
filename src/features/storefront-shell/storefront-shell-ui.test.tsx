@@ -37,6 +37,9 @@ describe("storefront shell UI", () => {
       const className = rawClassName.replaceAll("&amp;", "&");
       expect(className).toContain("text-brand-content");
       expect(className).toContain("hover:text-brand-accent");
+      expect(className).toContain("focus-visible:outline-2");
+      expect(className).toContain("focus-visible:outline-offset-2");
+      expect(className).toContain("focus-visible:outline-brand-accent");
       expect(className).not.toContain("hover:border-brand-accent");
       expect(className).not.toContain("hover:outline");
     }

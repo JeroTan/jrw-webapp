@@ -6,19 +6,21 @@ import { describe, expect, it } from "vitest";
 
 import {
   Button,
+  ButtonLink,
   Checkbox,
   CleanButton,
   CleanLinkButton,
   DataTable,
   Drawer,
-  Input,
   Modal,
   Pagination,
   PageToolbar,
   ResourceCard,
   ResourceList,
   SearchInput,
+  SegmentedControl,
   Skeleton,
+  SidePanel,
   StatusBadge,
   ViewToggle,
 } from "./index";
@@ -42,6 +44,9 @@ describe("shared UI primitives", () => {
       "hover:outline-2",
       "hover:outline-offset-2",
       "hover:outline-brand-accent",
+      "focus:outline-2",
+      "focus:outline-offset-2",
+      "focus:outline-brand-accent",
       "focus-visible:outline-2",
       "focus-visible:outline-offset-2",
       "focus-visible:outline-brand-accent",
@@ -78,6 +83,9 @@ describe("shared UI primitives", () => {
       "hover:outline-2",
       "hover:outline-offset-2",
       "hover:outline-brand-accent",
+      "focus:outline-2",
+      "focus:outline-offset-2",
+      "focus:outline-brand-accent",
       "focus-visible:outline-2",
       "focus-visible:outline-offset-2",
       "focus-visible:outline-brand-accent",
@@ -94,6 +102,26 @@ describe("shared UI primitives", () => {
     expect(markup).toContain("border-brand-accent");
     expect(markup).toContain("bg-brand-accent");
     expect(markup).toContain("text-brand-surface");
+  });
+
+  it("renders button link hover and focus outline contract", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ButtonLink, { href: "/products" }, "Products")
+    );
+
+    for (const token of [
+      "hover:outline-2",
+      "hover:outline-offset-2",
+      "hover:outline-brand-accent",
+      "focus:outline-2",
+      "focus:outline-offset-2",
+      "focus:outline-brand-accent",
+      "focus-visible:outline-2",
+      "focus-visible:outline-offset-2",
+      "focus-visible:outline-brand-accent",
+    ]) {
+      expect(markup).toContain(token);
+    }
   });
 
   it("renders clean button and link button with low-border visual contract", () => {
@@ -220,8 +248,44 @@ describe("shared UI primitives", () => {
     expect(markup).toContain("Page 1 of 1 - 2 items");
     expect(markup).toContain("sr-only");
     expect(markup).toContain("Rows per page");
+    expect(markup).toContain("hover:outline-2");
+    expect(markup).toContain("hover:outline-offset-2");
+    expect(markup).toContain("hover:outline-brand-accent");
+    expect(markup).toContain("focus-visible:outline-2");
+    expect(markup).toContain("focus-visible:outline-offset-2");
+    expect(markup).toContain("focus-visible:outline-brand-accent");
     expect(markup).toContain("!bg-brand-content");
     expect(markup).toContain("!text-brand-surface");
+  });
+
+  it("renders segmented control with pressed state, disabled option, and outline contract", () => {
+    const markup = renderToStaticMarkup(
+      createElement(SegmentedControl, {
+        label: "Catalog density",
+        onChange: () => undefined,
+        options: [
+          { label: "Compact", value: "compact" },
+          { disabled: true, label: "Comfortable", value: "comfortable" },
+        ],
+        value: "compact",
+      })
+    );
+
+    expect(markup).toContain('role="group"');
+    expect(markup).toContain('aria-label="Catalog density"');
+    expect(markup).toContain('aria-pressed="true"');
+    expect(markup).toContain('aria-pressed="false"');
+    expect(markup).toContain("disabled");
+    expect(markup).toContain("Compact");
+    expect(markup).toContain("Comfortable");
+    expect(markup).toContain("hover:outline-2");
+    expect(markup).toContain("hover:outline-offset-2");
+    expect(markup).toContain("hover:outline-brand-accent");
+    expect(markup).toContain("focus-visible:outline-2");
+    expect(markup).toContain("focus-visible:outline-offset-2");
+    expect(markup).toContain("focus-visible:outline-brand-accent");
+    expect(markup).toContain("max-w-full");
+    expect(markup).toContain("[overflow-wrap:anywhere]");
   });
 
   it("renders modal dialog semantics when open", () => {
@@ -261,6 +325,33 @@ describe("shared UI primitives", () => {
     expect(markup).toContain("Close drawer");
   });
 
+  it("renders side panel dialog semantics with responsive full-screen shell", () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        SidePanel,
+        {
+          description: "Edit selected record.",
+          footer: createElement(Button, { variant: "primary" }, "Save"),
+          onClose: () => undefined,
+          open: true,
+          title: "Edit product",
+        },
+        "Panel content"
+      )
+    );
+
+    expect(markup).toContain('role="dialog"');
+    expect(markup).toContain('aria-modal="true"');
+    expect(markup).toContain("Edit product");
+    expect(markup).toContain("Edit selected record.");
+    expect(markup).toContain("Panel content");
+    expect(markup).toContain("Save");
+    expect(markup).toContain("Close panel");
+    expect(markup).toContain("max-md:grid-cols-1");
+    expect(markup).toContain("shadow-none");
+    expect(markup).toContain("filter-none");
+  });
+
   it("renders search input with search semantics", () => {
     const markup = renderToStaticMarkup(
       createElement(SearchInput, {
@@ -297,6 +388,10 @@ describe("shared UI primitives", () => {
     expect(markup).toContain("text-brand-surface");
     expect(markup).toContain("bg-brand-surface");
     expect(markup).toContain("text-brand-content");
+    expect(markup).toContain("hover:outline-2");
+    expect(markup).toContain("hover:outline-offset-2");
+    expect(markup).toContain("focus-visible:outline-2");
+    expect(markup).toContain("focus-visible:outline-offset-2");
     expect(markup).toContain("Cards");
     expect(markup).toContain("List");
   });
@@ -369,5 +464,29 @@ describe("shared UI primitives", () => {
 
     expect(tokenCss).toContain("--spacing-control-md: 44px");
     expect(tokenCss).not.toContain("--jrw-control-height");
+  });
+
+  it("keeps global focus-visible outline independent from generated utilities", () => {
+    const baseCss = readFileSync(
+      join(process.cwd(), "src/styles/_base.css"),
+      "utf8"
+    );
+
+    expect(baseCss).toContain(
+      "outline: 2px solid var(--color-brand-accent);"
+    );
+    expect(baseCss).toContain("outline-offset: 2px;");
+  });
+
+  it("documents storefront and overlay primitive boundaries", () => {
+    const readme = readFileSync(
+      join(process.cwd(), "src/components/_readme.md"),
+      "utf8"
+    );
+
+    expect(readme).toContain("ui/SegmentedControl");
+    expect(readme).toContain("ui/Drawer");
+    expect(readme).toContain("ui/SidePanel");
+    expect(readme).toContain("ui/Pagination");
   });
 });

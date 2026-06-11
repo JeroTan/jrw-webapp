@@ -259,6 +259,45 @@ describe("product catalog UI", () => {
     expect(markup).not.toContain("seller of record");
   });
 
+  it("renders crawlable catalog pagination links with shared outline contract", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ProductCatalog, {
+        basePath: "/products",
+        brands,
+        categories,
+        catalog: {
+          ...catalog,
+          pagination: {
+            page: 2,
+            pageSize: 20,
+            totalItems: 44,
+            totalPages: 3,
+          },
+          query: {
+            ...catalog.query,
+            page: 2,
+          },
+        },
+        categoryNavigationMode: "query",
+        error: null,
+        showCategoryDirectory: false,
+      })
+    );
+
+    expect(markup).toContain('aria-label="Pagination"');
+    expect(markup).toContain("Page 2 of 3 - 44 items");
+    expect(markup).toContain('aria-current="page"');
+    expect(markup).toContain('href="/products?');
+    expect(markup).toContain("Previous");
+    expect(markup).toContain("page=3");
+    expect(markup).toContain("hover:outline-2");
+    expect(markup).toContain("hover:outline-offset-2");
+    expect(markup).toContain("hover:outline-brand-accent");
+    expect(markup).toContain("focus-visible:outline-2");
+    expect(markup).toContain("focus-visible:outline-offset-2");
+    expect(markup).toContain("focus-visible:outline-brand-accent");
+  });
+
   it("hides collection action when category section has no products", () => {
     const markup = renderToStaticMarkup(
       createElement(ProductCollectionSection, {

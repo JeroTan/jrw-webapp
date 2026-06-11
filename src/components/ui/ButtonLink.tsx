@@ -28,7 +28,7 @@ const buttonLinkBaseClass =
   "inline-flex items-center justify-center gap-grid-xs rounded-none border font-system font-bold leading-none no-underline shadow-none whitespace-nowrap filter-none aria-busy:border-dashed aria-disabled:pointer-events-none aria-disabled:opacity-50";
 
 const buttonLinkInteractiveClass =
-  "hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
+  "hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus:outline-2 focus:outline-offset-2 focus:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
 
 const buttonLinkSizeClass: Record<ButtonLinkSize, string> = {
   sm: "min-h-control-sm",

@@ -18,8 +18,9 @@ const summaryClass =
   "m-0 font-system text-xs font-bold uppercase text-brand-muted";
 const controlsClass = "inline-flex flex-wrap gap-grid-xs";
 const pageLinkClass =
-  "inline-flex min-h-control-sm min-w-11 items-center justify-center border border-brand-border-strong bg-brand-surface px-grid-xs font-system text-xs font-bold text-brand-content no-underline hover:border-brand-accent focus-visible:border-brand-accent";
+  "inline-flex min-h-control-sm min-w-11 items-center justify-center border border-brand-border-strong bg-brand-surface px-grid-xs font-system text-xs font-bold text-brand-content no-underline hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent";
 const pageLinkActiveClass = "bg-brand-content text-brand-surface";
+const pageLinkDisabledClass = "pointer-events-none opacity-50";
 
 function clampPage(page: number, totalPages: number): number {
   if (totalPages <= 0) {
@@ -79,7 +80,7 @@ export function CatalogPagination({
         ) : (
           <span
             aria-disabled="true"
-            className={mergeClassNames(pageLinkClass, "opacity-50")}
+            className={mergeClassNames(pageLinkClass, pageLinkDisabledClass)}
           >
             Previous
           </span>
@@ -116,7 +117,7 @@ export function CatalogPagination({
         ) : (
           <span
             aria-disabled="true"
-            className={mergeClassNames(pageLinkClass, "opacity-50")}
+            className={mergeClassNames(pageLinkClass, pageLinkDisabledClass)}
           >
             Next
           </span>
