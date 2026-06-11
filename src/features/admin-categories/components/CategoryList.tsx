@@ -451,6 +451,7 @@ export function CategoryList(props: CategoryListProps) {
       ) : null}
 
       <ConfirmDialog
+        confirmLabel="Archive category"
         message={
           archiveTarget
             ? categoryArchiveMessage(archiveTarget.name)

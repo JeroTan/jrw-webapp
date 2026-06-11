@@ -12,7 +12,14 @@ const focusableSelector = [
 function getFocusableElements(container: HTMLElement) {
   return Array.from(container.querySelectorAll<HTMLElement>(focusableSelector))
     .filter((element) => !element.hasAttribute("disabled"))
-    .filter((element) => element.getAttribute("aria-hidden") !== "true");
+    .filter((element) => element.tabIndex >= 0)
+    .filter(
+      (element) => !element.closest("[hidden],[inert],[aria-hidden='true']")
+    )
+    .filter((element) => {
+      const style = window.getComputedStyle(element);
+      return style.display !== "none" && style.visibility !== "hidden";
+    });
 }
 
 function isTopmostDialog(dialog: HTMLElement): boolean {
@@ -74,13 +81,24 @@ export function useDialogFocusTrap({
 
       const first = currentFocusable[0];
       const last = currentFocusable[currentFocusable.length - 1];
+      const activeElement =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null;
 
-      if (event.shiftKey && document.activeElement === first) {
+      if (!activeElement || !dialog.contains(activeElement)) {
         event.preventDefault();
-        last.focus();
+        (event.shiftKey ? last : first).focus();
+        return;
       }
 
-      if (!event.shiftKey && document.activeElement === last) {
+      if (event.shiftKey && activeElement === first) {
+        event.preventDefault();
+        last.focus();
+        return;
+      }
+
+      if (!event.shiftKey && activeElement === last) {
         event.preventDefault();
         first.focus();
       }
@@ -90,7 +108,16 @@ export function useDialogFocusTrap({
 
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
-      previousFocus?.focus();
+      const activeDialog = document.querySelector<HTMLElement>(
+        "[role='dialog'][aria-modal='true']"
+      );
+
+      if (
+        previousFocus?.isConnected &&
+        (!activeDialog || activeDialog.contains(previousFocus))
+      ) {
+        previousFocus.focus();
+      }
     };
   }, [open]);
 

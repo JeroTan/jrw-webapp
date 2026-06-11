@@ -1,6 +1,6 @@
 # Story 4.7: Storefront and Cart UI Primitive Extensions
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -88,6 +88,16 @@ so that storefront, checkout, dashboard, and governance flows behave predictably
   - [x] Run styling guard: `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
   - [x] If `Drawer`, `SidePanel`, `CatalogPagination`, or cart-visible controls change, run `npm run qa:checkout-viewports`; run `npm run qa:storefront` and `npm run qa:accessibility` when local Playwright is available.
   - [x] Record any QA blocker honestly in this story under Dev Agent Record.
+
+### Review Findings
+
+- [x] [Review][Patch] Dialog focus trap could select non-tabbable or hidden controls and restore focus into a replaced dialog [src/components/ui/dialog-focus.ts:12] — patched focusable filtering, focus leak recovery, and guarded restore behavior.
+- [x] [Review][Patch] Storefront pagination duplicated shared control styling instead of composing shared primitives [src/features/product-catalog/components/CatalogPagination.tsx:2] — patched to use shared pagination helpers and `ButtonLink` while preserving real SSR `href` links.
+- [x] [Review][Patch] Pagination summaries and edge states lacked long-total and disabled-control coverage [src/components/ui/Pagination.tsx:19] — patched overflow-safe summary classes plus long-total and first/last edge tests.
+- [x] [Review][Patch] Disabled pagination and segmented controls kept hover outline styling [src/components/ui/Pagination.tsx:23] — patched button controls to use `enabled:hover:*` and added assertions.
+- [x] [Review][Patch] Responsive QA could check overflow before font/layout settling [tests/qa/storefront-responsive.spec.ts:49] — patched route open helper to wait for full load and `document.fonts.ready`; full storefront QA now passes.
+- [x] [Review][Patch] Category archive confirmation used generic danger confirm label [src/features/admin-categories/components/CategoryList.tsx:453] — patched explicit `Archive category` confirm label.
+- [x] [Review][Dismiss] Hover outline utility style concern — existing project contract and passing visual/test guard use Tailwind outline utilities; no separate patch needed.
 
 ## Endpoint Guard Checklist
 
@@ -369,11 +379,13 @@ GPT-5 Codex
 
 - `npx vitest run src/components/primitives.test.ts src/features/product-catalog/components/product-catalog-ui.test.tsx` - red then green after primitive implementation.
 - `npx vitest run src/components/primitives.test.ts src/features/product-catalog/components/product-catalog-ui.test.tsx src/features/cart-checkout/components/cart-ui.test.tsx src/features/storefront-shell/storefront-shell-ui.test.tsx` - 49 tests passed.
+- `npx vitest run src/components/primitives.test.ts src/features/product-catalog/components/product-catalog-ui.test.tsx` - 35 tests passed after review patches.
+- `npx vitest run src/features/admin-categories/components/categories-ui.test.ts` - 6 tests passed after archive confirmation label patch.
 - `npm run check` - passed; 0 errors, existing hints remain in unrelated files.
 - `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` - only slugs and negative assertions; no runtime `jrw-*` selector additions.
-- `npm run qa:accessibility` - 7 passed.
-- `npm run qa:checkout-viewports` - 14 passed.
-- `npm run qa:storefront` - latest full run 65/66 with live product detail 390px navigation timeout; targeted rerun of `product detail route fits viewport 390px` passed.
+- `npm run qa:accessibility` - 7 passed after review patches.
+- `npm run qa:checkout-viewports` - 14 passed after review patches; one earlier parallel attempt failed with `EADDRINUSE` on inspector port, then solo rerun passed.
+- `npm run qa:storefront` - 66 passed after route helper now waits for full load plus font readiness.
 - `npx playwright test tests/qa/storefront-responsive.spec.ts --project=chromium --grep "header, filter"` - passed after focus helper/base outline fixes.
 
 ### Completion Notes List
@@ -401,6 +413,7 @@ GPT-5 Codex
 - `src/components/ui/ViewToggle.tsx`
 - `src/components/ui/dialog-focus.ts`
 - `src/components/ui/index.ts`
+- `src/features/admin-categories/components/CategoryList.tsx`
 - `src/features/product-catalog/components/CatalogPagination.tsx`
 - `src/features/product-catalog/components/product-catalog-ui.test.tsx`
 - `src/features/storefront-shell/StorefrontHeader.tsx`

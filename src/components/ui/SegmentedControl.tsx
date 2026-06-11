@@ -42,7 +42,7 @@ const segmentedControlBorderClass: Record<SegmentedControlBorderTone, string> =
     strong: "border-brand-border-strong",
   };
 const segmentedControlOptionClass =
-  "min-w-[88px] max-w-full border-0 border-r px-grid-xs font-system font-bold uppercase last:border-r-0 hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent disabled:cursor-not-allowed disabled:opacity-50 max-md:min-w-0 [overflow-wrap:anywhere]";
+  "min-w-[88px] max-w-full border-0 border-r px-grid-xs font-system font-bold uppercase last:border-r-0 enabled:hover:outline-2 enabled:hover:outline-offset-2 enabled:hover:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent disabled:cursor-not-allowed disabled:opacity-50 max-md:min-w-0 [overflow-wrap:anywhere]";
 const segmentedControlOptionIdleClass = "bg-brand-surface text-brand-content";
 const segmentedControlOptionSelectedClass =
   "bg-brand-content text-brand-surface";

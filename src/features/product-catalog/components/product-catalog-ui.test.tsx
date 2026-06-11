@@ -298,6 +298,38 @@ describe("product catalog UI", () => {
     expect(markup).toContain("focus-visible:outline-brand-accent");
   });
 
+  it("renders catalog pagination edge controls without overflow-prone totals", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ProductCatalog, {
+        basePath: "/products",
+        brands,
+        categories,
+        catalog: {
+          ...catalog,
+          pagination: {
+            page: 1,
+            pageSize: 20,
+            totalItems: 123456789012345,
+            totalPages: 9999,
+          },
+          query: {
+            ...catalog.query,
+            page: 1,
+          },
+        },
+        categoryNavigationMode: "query",
+        error: null,
+        showCategoryDirectory: false,
+      })
+    );
+
+    expect(markup).toContain("Page 1 of 9999 - 123456789012345 items");
+    expect(markup).toContain("[overflow-wrap:anywhere]");
+    expect(markup).toContain('aria-disabled="true"');
+    expect(markup).toContain("page=2");
+    expect(markup).not.toContain("page=0");
+  });
+
   it("hides collection action when category section has no products", () => {
     const markup = renderToStaticMarkup(
       createElement(ProductCollectionSection, {

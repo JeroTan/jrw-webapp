@@ -248,14 +248,35 @@ describe("shared UI primitives", () => {
     expect(markup).toContain("Page 1 of 1 - 2 items");
     expect(markup).toContain("sr-only");
     expect(markup).toContain("Rows per page");
-    expect(markup).toContain("hover:outline-2");
-    expect(markup).toContain("hover:outline-offset-2");
-    expect(markup).toContain("hover:outline-brand-accent");
+    expect(markup).toContain("enabled:hover:outline-2");
+    expect(markup).toContain("enabled:hover:outline-offset-2");
+    expect(markup).toContain("enabled:hover:outline-brand-accent");
     expect(markup).toContain("focus-visible:outline-2");
     expect(markup).toContain("focus-visible:outline-offset-2");
     expect(markup).toContain("focus-visible:outline-brand-accent");
     expect(markup).toContain("!bg-brand-content");
     expect(markup).toContain("!text-brand-surface");
+    expect(markup).toContain("[overflow-wrap:anywhere]");
+    expect(markup).toContain("disabled");
+  });
+
+  it("renders pagination long totals without overflow-prone summary", () => {
+    const markup = renderToStaticMarkup(
+      createElement(Pagination, {
+        onPageChange: () => undefined,
+        onPageSizeChange: () => undefined,
+        page: 9999,
+        pageSize: 20,
+        totalItems: 123456789012345,
+        totalPages: 9999,
+      })
+    );
+
+    expect(markup).toContain("Page 9999 of 9999 - 123456789012345 items");
+    expect(markup).toContain("max-w-full");
+    expect(markup).toContain("[overflow-wrap:anywhere]");
+    expect(markup).toContain("enabled:hover:outline-2");
+    expect(markup).toContain("disabled");
   });
 
   it("renders segmented control with pressed state, disabled option, and outline contract", () => {
@@ -278,9 +299,9 @@ describe("shared UI primitives", () => {
     expect(markup).toContain("disabled");
     expect(markup).toContain("Compact");
     expect(markup).toContain("Comfortable");
-    expect(markup).toContain("hover:outline-2");
-    expect(markup).toContain("hover:outline-offset-2");
-    expect(markup).toContain("hover:outline-brand-accent");
+    expect(markup).toContain("enabled:hover:outline-2");
+    expect(markup).toContain("enabled:hover:outline-offset-2");
+    expect(markup).toContain("enabled:hover:outline-brand-accent");
     expect(markup).toContain("focus-visible:outline-2");
     expect(markup).toContain("focus-visible:outline-offset-2");
     expect(markup).toContain("focus-visible:outline-brand-accent");
@@ -350,6 +371,21 @@ describe("shared UI primitives", () => {
     expect(markup).toContain("max-md:grid-cols-1");
     expect(markup).toContain("shadow-none");
     expect(markup).toContain("filter-none");
+  });
+
+  it("keeps dialog focus trap from leaking when active element leaves overlay", () => {
+    const focusTrapSource = readFileSync(
+      join(process.cwd(), "src/components/ui/dialog-focus.ts"),
+      "utf8"
+    );
+
+    expect(focusTrapSource).toContain("dialog.contains(activeElement)");
+    expect(focusTrapSource).toContain(
+      "(event.shiftKey ? last : first).focus()"
+    );
+    expect(focusTrapSource).toContain("element.tabIndex >= 0");
+    expect(focusTrapSource).toContain("[hidden],[inert],[aria-hidden='true']");
+    expect(focusTrapSource).toContain("activeDialog.contains(previousFocus)");
   });
 
   it("renders search input with search semantics", () => {
@@ -472,9 +508,7 @@ describe("shared UI primitives", () => {
       "utf8"
     );
 
-    expect(baseCss).toContain(
-      "outline: 2px solid var(--color-brand-accent);"
-    );
+    expect(baseCss).toContain("outline: 2px solid var(--color-brand-accent);");
     expect(baseCss).toContain("outline-offset: 2px;");
   });
 

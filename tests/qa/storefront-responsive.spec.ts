@@ -46,7 +46,12 @@ async function openAtWidth(page: Page, path: string, width: number) {
     height: width < 768 ? 900 : 1000,
     width,
   });
-  await page.goto(path, { waitUntil: "domcontentloaded" });
+  await page.goto(path, { waitUntil: "load" });
+  await page.evaluate(async () => {
+    if ("fonts" in document) {
+      await document.fonts.ready;
+    }
+  });
   await waitForAstroIslands(page);
 }
 
