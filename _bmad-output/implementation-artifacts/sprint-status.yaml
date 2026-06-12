@@ -80,7 +80,7 @@ development_status:
   3-10-admin-shell-navigation-and-session-ui: done
   3-11-admin-dashboard-console-fidelity: done
   epic-3-retrospective: done
-  epic-4: in-progress
+  epic-4: done
   4-1-storefront-shell-design-tokens-and-public-navigation: done
   4-2-product-grid-category-browsing-search-and-filters: done
   4-3-product-detail-experience: done
@@ -94,7 +94,7 @@ development_status:
   4-10-future-story-ui-fidelity-gate: done
   # Product detail correction from 2026-05-26 direct-adjustment request. Run before checkout validation/payment expansion.
   4-11-product-detail-composition-content-and-recommendations: done
-  epic-4-retrospective: optional
+  epic-4-retrospective: done
   epic-5: backlog
   5-1-checkout-identity-contact-and-delivery-validation: backlog
   5-2-server-cart-validation-and-inventory-reservation: backlog
