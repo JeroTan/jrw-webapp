@@ -133,16 +133,16 @@ const tboxCheckoutCartValidationData = t.Object({
 
 const tboxCheckoutDetailsBody = t.Object(
   {
-    email: t.String({ format: "email", minLength: 3, maxLength: 254 }),
-    fullName: t.String({ minLength: 1, maxLength: 160 }),
-    phone: t.String({ minLength: 7, maxLength: 32 }),
-    streetAddress: t.String({ minLength: 1, maxLength: 240 }),
-    barangay: t.String({ minLength: 1, maxLength: 120 }),
-    cityProvince: t.String({ minLength: 1, maxLength: 120 }),
-    postalCode: t.String({ minLength: 1, maxLength: 24 }),
-    privacyAcknowledged: t.Literal(true),
+    email: t.Optional(t.Unknown()),
+    fullName: t.Optional(t.Unknown()),
+    phone: t.Optional(t.Unknown()),
+    streetAddress: t.Optional(t.Unknown()),
+    barangay: t.Optional(t.Unknown()),
+    cityProvince: t.Optional(t.Unknown()),
+    postalCode: t.Optional(t.Unknown()),
+    privacyAcknowledged: t.Optional(t.Unknown()),
   },
-  { additionalProperties: false }
+  { additionalProperties: true }
 );
 
 const tboxCheckoutContactSnapshot = t.Object({

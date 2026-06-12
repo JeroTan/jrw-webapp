@@ -1,6 +1,6 @@
 # Story 5.1: Checkout Identity, Contact, and Delivery Validation
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -318,3 +318,7 @@ GPT-5 Codex
 ### Change Log
 
 - 2026-06-12: Implemented Story 5.1 checkout details validation, optional customer prefill/account assist, persisted checkout attempts, route/service/repository contracts, and regression/viewport QA; status moved to review.
+
+### Review Findings
+
+- [x] [Review][Patch] Checkout details transport rejected inputs before domain validation [src/server/routes/checkout.routes.ts:134] -- fixed by letting checkout service return stable validation reasons and normalize details before persistence.

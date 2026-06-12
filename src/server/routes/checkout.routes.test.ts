@@ -6,6 +6,7 @@ import {
   CheckoutController,
   type CheckoutServiceLike,
 } from "@/server/controllers/CheckoutController";
+import { CheckoutService } from "@/server/services/CheckoutService";
 import { GeneralError } from "@/utils/general/error";
 import { Result } from "@/utils/general/result";
 
@@ -253,7 +254,7 @@ describe("checkout routes", () => {
           "x-request-id": "req_checkout_details_guest",
         },
         body: JSON.stringify({
-          email: "nina@example.com",
+          email: " Nina@Example.COM ",
           fullName: "Nina Reyes",
           phone: "+63 917 555 1212",
           streetAddress: "12 Sampaguita Street",
@@ -270,7 +271,7 @@ describe("checkout routes", () => {
       role: "PROSPECT",
     });
     expect(receivedBody).toMatchObject({
-      email: "nina@example.com",
+      email: " Nina@Example.COM ",
       privacyAcknowledged: true,
     });
     expect(response.status).toBe(200);
@@ -386,15 +387,31 @@ describe("checkout routes", () => {
     });
   });
 
-  it("rejects browser-supplied customer identity fields before controller work", async () => {
-    let controllerCreated = false;
+  it("rejects browser-supplied customer identity fields with stable reasons before persistence", async () => {
+    let persisted = false;
     const app = createApp({
       routes: {
         checkout: {
-          controllerFactory: () => {
-            controllerCreated = true;
-            return checkoutController({});
-          },
+          controllerFactory: () =>
+            new CheckoutController(
+              new CheckoutService({
+                repository: {
+                  createCheckoutAttempt: async (input) => {
+                    persisted = true;
+                    return {
+                      id: "attempt_unreachable",
+                      customerId: input.customerId,
+                      checkoutEmail: input.details.email,
+                      createdAt: "2026-06-12T00:00:00.000Z",
+                      fullName: input.details.fullName,
+                      status: "DETAILS_CAPTURED",
+                      updatedAt: "2026-06-12T00:00:00.000Z",
+                    };
+                  },
+                  findCartLines: async () => [],
+                },
+              })
+            ),
         },
       },
     });
@@ -419,12 +436,13 @@ describe("checkout routes", () => {
       })
     );
 
-    expect(controllerCreated).toBe(false);
+    expect(persisted).toBe(false);
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toMatchObject({
       error: {
         code: "VALIDATION_FAILED",
         details: {
+          reasons: expect.arrayContaining(["customerId:unknown"]),
           requestId: "req_checkout_details_unknown",
         },
       },
