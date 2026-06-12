@@ -24,11 +24,90 @@ export type CartRefreshResult =
 type PublicCatalogDetailEnvelope = ApiResponse<PublicCatalogDetailResult>;
 type CheckoutCartValidationEnvelope = ApiResponse<CheckoutCartValidationSummary>;
 
+export type CheckoutDetailsFormValues = {
+  barangay: string;
+  cityProvince: string;
+  email: string;
+  fullName: string;
+  phone: string;
+  postalCode: string;
+  privacyAcknowledged: boolean;
+  streetAddress: string;
+};
+
+export type CheckoutContactSnapshot = CheckoutDetailsFormValues & {
+  firstName: string | null;
+  lastName: string | null;
+  privacyAcknowledged: true;
+};
+
+export type CheckoutDetailsResult = {
+  attempt: {
+    attemptId: string;
+    status: "DETAILS_CAPTURED";
+  };
+  customer: {
+    customerId: string | null;
+    mode: "guest" | "signed-in";
+  };
+  details: CheckoutContactSnapshot;
+  next: {
+    cartValidationRequired: true;
+    paymentAllowed: false;
+  };
+};
+
+export type CheckoutDetailsClientResult =
+  | (CheckoutDetailsResult & { kind: "saved" })
+  | { kind: "invalid"; reason: string; reasons: string[] }
+  | { kind: "failure"; reason: string };
+
+export type CustomerSessionSummary = {
+  authenticated: boolean;
+  actor: null | {
+    id: string;
+    role: "CUSTOMER" | "PROSPECT" | "ADMIN" | "SUPER_ADMIN";
+    accountStatus: {
+      approved: boolean;
+      emailVerified: boolean;
+      status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
+    };
+  };
+  session: null | {
+    expiresAt: string;
+  };
+};
+
+export type CustomerProfileSummary = {
+  avatarUrl: string | null;
+  barangay: string | null;
+  cityProvince: string | null;
+  displayName: string | null;
+  email: string;
+  emailMarketingOptIn: boolean;
+  emailVerified: boolean;
+  firstName: string | null;
+  id: string;
+  lastName: string | null;
+  phone: string | null;
+  postalCode: string | null;
+  role: "CUSTOMER";
+  streetAddress: string | null;
+};
+
+type CustomerSessionEnvelope = ApiResponse<CustomerSessionSummary>;
+type CustomerProfileEnvelope = ApiResponse<CustomerProfileSummary>;
+type CheckoutDetailsEnvelope = ApiResponse<CheckoutDetailsResult>;
+
 export type CheckoutCartValidationClientResult =
   | { kind: "valid"; summary: CheckoutCartValidationSummary }
   | { kind: "changed"; summary: CheckoutCartValidationSummary }
   | { kind: "blocked"; summary: CheckoutCartValidationSummary }
   | { kind: "failure"; reason: string };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 function variantImageAlt(
   detail: PublicCatalogDetailResult,
@@ -223,6 +302,43 @@ function isValidationSummary(value: unknown): value is CheckoutCartValidationSum
   );
 }
 
+function isCustomerSessionSummary(value: unknown): value is CustomerSessionSummary {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return typeof value.authenticated === "boolean";
+}
+
+function isCustomerProfile(value: unknown): value is CustomerProfileSummary {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return (
+    typeof value.email === "string" &&
+    value.role === "CUSTOMER" &&
+    typeof value.emailVerified === "boolean"
+  );
+}
+
+function isCheckoutDetailsResult(value: unknown): value is CheckoutDetailsResult {
+  if (!isRecord(value) || !isRecord(value.details) || !isRecord(value.customer)) {
+    return false;
+  }
+
+  return (
+    isRecord(value.attempt) &&
+    typeof value.attempt.attemptId === "string" &&
+    value.attempt.status === "DETAILS_CAPTURED" &&
+    typeof value.details.email === "string" &&
+    typeof value.details.fullName === "string" &&
+    (value.customer.customerId === null ||
+      typeof value.customer.customerId === "string") &&
+    (value.customer.mode === "guest" || value.customer.mode === "signed-in")
+  );
+}
+
 function validationResultFromSummary(
   summary: CheckoutCartValidationSummary
 ): CheckoutCartValidationClientResult {
@@ -300,6 +416,192 @@ export async function validateCartBeforeCheckout(
     return {
       kind: "failure",
       reason: "Could not verify cart. Try again.",
+    };
+  }
+}
+
+export async function fetchCustomerCheckoutSession(
+  fetcher: typeof fetch = fetch
+): Promise<
+  | { kind: "loaded"; session: CustomerSessionSummary }
+  | { kind: "failure"; reason: string }
+> {
+  try {
+    const response = await fetcher("/api/customer/auth/session", {
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    const body = (await response.json()) as CustomerSessionEnvelope;
+
+    if ("data" in body && isCustomerSessionSummary(body.data)) {
+      return { kind: "loaded", session: body.data };
+    }
+
+    return { kind: "failure", reason: "Could not check account session." };
+  } catch {
+    return { kind: "failure", reason: "Could not check account session." };
+  }
+}
+
+export async function fetchCurrentCustomerProfile(
+  fetcher: typeof fetch = fetch
+): Promise<
+  | { kind: "loaded"; profile: CustomerProfileSummary }
+  | { kind: "forbidden"; reason: string }
+  | { kind: "failure"; reason: string }
+> {
+  try {
+    const response = await fetcher("/api/customers/me", {
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    const body = (await response.json()) as CustomerProfileEnvelope;
+
+    if ("data" in body && isCustomerProfile(body.data)) {
+      return { kind: "loaded", profile: body.data };
+    }
+
+    if ("error" in body && response.status === 403) {
+      return {
+        kind: "forbidden",
+        reason: "Account details are unavailable; checkout can continue here.",
+      };
+    }
+
+    return { kind: "failure", reason: "Could not load account details." };
+  } catch {
+    return { kind: "failure", reason: "Could not load account details." };
+  }
+}
+
+function checkoutDetailsRequestBody(details: CheckoutDetailsFormValues) {
+  return {
+    barangay: details.barangay,
+    cityProvince: details.cityProvince,
+    email: details.email,
+    fullName: details.fullName,
+    phone: details.phone,
+    postalCode: details.postalCode,
+    privacyAcknowledged: details.privacyAcknowledged,
+    streetAddress: details.streetAddress,
+  };
+}
+
+function safeReasonsFromErrorDetails(details: unknown): string[] {
+  if (!isRecord(details) || !Array.isArray(details.reasons)) {
+    return [];
+  }
+
+  return details.reasons.filter(
+    (reason): reason is string => typeof reason === "string"
+  );
+}
+
+export async function submitCheckoutDetails(
+  details: CheckoutDetailsFormValues,
+  fetcher: typeof fetch = fetch
+): Promise<CheckoutDetailsClientResult> {
+  try {
+    const response = await fetcher("/api/checkout/details", {
+      body: JSON.stringify(checkoutDetailsRequestBody(details)),
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const body = (await response.json()) as CheckoutDetailsEnvelope;
+
+    if ("data" in body && isCheckoutDetailsResult(body.data)) {
+      return {
+        kind: "saved",
+        ...body.data,
+      };
+    }
+
+    if ("error" in body && body.error.code === "VALIDATION_FAILED") {
+      return {
+        kind: "invalid",
+        reason: "Complete required checkout details.",
+        reasons: safeReasonsFromErrorDetails(body.error.details),
+      };
+    }
+
+    return {
+      kind: "failure",
+      reason: "Could not save checkout details. Try again.",
+    };
+  } catch {
+    return {
+      kind: "failure",
+      reason: "Could not save checkout details. Try again.",
+    };
+  }
+}
+
+export async function signInCustomerForCheckout(
+  input: { email: string; password: string },
+  fetcher: typeof fetch = fetch
+): Promise<{ kind: "signed-in" } | { kind: "failure"; reason: string }> {
+  try {
+    const response = await fetcher("/api/customer/auth/sessions", {
+      body: JSON.stringify(input),
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+
+    if (response.ok) {
+      return { kind: "signed-in" };
+    }
+
+    return {
+      kind: "failure",
+      reason: "Sign in did not change checkout. Continue as guest.",
+    };
+  } catch {
+    return {
+      kind: "failure",
+      reason: "Sign in did not change checkout. Continue as guest.",
+    };
+  }
+}
+
+export async function registerCustomerForCheckout(
+  input: { email: string; password: string },
+  fetcher: typeof fetch = fetch
+): Promise<{ kind: "created" } | { kind: "failure"; reason: string }> {
+  try {
+    const response = await fetcher("/api/customers", {
+      body: JSON.stringify(input),
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+
+    if (response.ok) {
+      return { kind: "created" };
+    }
+
+    return {
+      kind: "failure",
+      reason: "Account was not created. Checkout can continue as guest.",
+    };
+  } catch {
+    return {
+      kind: "failure",
+      reason: "Account was not created. Checkout can continue as guest.",
     };
   }
 }

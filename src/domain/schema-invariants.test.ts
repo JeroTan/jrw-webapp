@@ -11,6 +11,7 @@ import {
   password_reset_tokens,
   sessions,
 } from "./schema/identity";
+import { checkout_attempts, orders } from "./schema/transactions";
 
 function getColumnName(column: unknown): string | undefined {
   if (typeof column !== "object" || column === null || !("name" in column)) {
@@ -349,5 +350,61 @@ describe("identity schema invariants", () => {
         getColumnName(column)
       )
     ).toEqual(["provider", "provider_user_id"]);
+  });
+});
+
+describe("checkout schema invariants", () => {
+  it("keeps order customer reference nullable for guest checkout", () => {
+    const orderConfig = getTableConfig(orders);
+    const customerIdColumn = orderConfig.columns.find(
+      (column) => getColumnName(column) === "customer_id"
+    );
+
+    expect(customerIdColumn?.notNull).toBe(false);
+  });
+
+  it("stores checkout attempt contact snapshot without role or provider fields", () => {
+    const attemptConfig = getTableConfig(checkout_attempts);
+    const columnNames = attemptConfig.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const indexNames = attemptConfig.indexes.map((index) => index.config.name);
+    const customerIdColumn = attemptConfig.columns.find(
+      (column) => getColumnName(column) === "customer_id"
+    );
+
+    expect(columnNames).toEqual(
+      expect.arrayContaining([
+        "customer_id",
+        "checkout_email",
+        "full_name",
+        "first_name",
+        "last_name",
+        "phone",
+        "street_address",
+        "barangay",
+        "city_province",
+        "postal_code",
+        "privacy_acknowledged_at",
+        "created_request_id",
+      ])
+    );
+    expect(columnNames).not.toEqual(
+      expect.arrayContaining([
+        "role",
+        "email_verified",
+        "provider_metadata",
+        "payment_payload",
+        "card_data",
+      ])
+    );
+    expect(customerIdColumn?.notNull).toBe(false);
+    expect(indexNames).toEqual(
+      expect.arrayContaining([
+        "idx_checkout_attempts_customer_id",
+        "idx_checkout_attempts_checkout_email",
+        "idx_checkout_attempts_created_at",
+      ])
+    );
   });
 });

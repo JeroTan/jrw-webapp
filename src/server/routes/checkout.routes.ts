@@ -131,6 +131,49 @@ const tboxCheckoutCartValidationData = t.Object({
   totalQuantity: t.Integer({ minimum: 0 }),
 });
 
+const tboxCheckoutDetailsBody = t.Object(
+  {
+    email: t.String({ format: "email", minLength: 3, maxLength: 254 }),
+    fullName: t.String({ minLength: 1, maxLength: 160 }),
+    phone: t.String({ minLength: 7, maxLength: 32 }),
+    streetAddress: t.String({ minLength: 1, maxLength: 240 }),
+    barangay: t.String({ minLength: 1, maxLength: 120 }),
+    cityProvince: t.String({ minLength: 1, maxLength: 120 }),
+    postalCode: t.String({ minLength: 1, maxLength: 24 }),
+    privacyAcknowledged: t.Literal(true),
+  },
+  { additionalProperties: false }
+);
+
+const tboxCheckoutContactSnapshot = t.Object({
+  barangay: t.String(),
+  cityProvince: t.String(),
+  email: t.String({ format: "email" }),
+  firstName: t.Nullable(t.String()),
+  fullName: t.String(),
+  lastName: t.Nullable(t.String()),
+  phone: t.String(),
+  postalCode: t.String(),
+  privacyAcknowledged: t.Literal(true),
+  streetAddress: t.String(),
+});
+
+const tboxCheckoutDetailsData = t.Object({
+  attempt: t.Object({
+    attemptId: t.String(),
+    status: t.Literal("DETAILS_CAPTURED"),
+  }),
+  customer: t.Object({
+    customerId: t.Nullable(t.String()),
+    mode: t.Union([t.Literal("guest"), t.Literal("signed-in")]),
+  }),
+  details: tboxCheckoutContactSnapshot,
+  next: t.Object({
+    cartValidationRequired: t.Literal(true),
+    paymentAllowed: t.Literal(false),
+  }),
+});
+
 function createRuntimeController(
   input: CheckoutControllerFactoryInput
 ): CheckoutController {
@@ -176,41 +219,86 @@ export function checkoutRoutes(
   app: AnyElysia,
   options: CheckoutRoutesOptions = {}
 ) {
-  return app.post(
-    "/checkout/cart-validations",
-    async (ctx) => {
-      const { body, request, requestId, runtimeEnv, set } = ctx as typeof ctx &
-        RequestContextDecorations & {
-          body: unknown;
-          runtimeEnv?: Partial<Env> & Record<string, unknown>;
-        };
-      const controller = getController(
-        { request, requestId, runtimeEnv },
-        options
-      );
-      const result = await controller.validateCart({
-        body,
-        requestId,
-      });
+  return app
+    .post(
+      "/checkout/cart-validations",
+      async (ctx) => {
+        const { body, request, requestId, runtimeEnv, set } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              body: unknown;
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+            };
+        const controller = getController(
+          { request, requestId, runtimeEnv },
+          options
+        );
+        const result = await controller.validateCart({
+          body,
+          requestId,
+        });
 
-      set.status = result.status;
-      return result.body as never;
-    },
-    {
-      body: tboxCheckoutCartValidationBody,
-      detail: routeDetail({
-        summary: "Validate cart before checkout",
-        description:
-          "Validates the browser cart against current JRW product and variant availability before checkout details or payment handoff. Brand membership is not required because only customer-safe published storefront sellability data is used, and this endpoint creates no payment, order, reservation, webhook, email, or inventory lock.",
-        tags: ["Checkout"],
-        auth: checkoutAuth,
-        rateLimitClass: "checkout-payment",
-        errorCodes: [...checkoutValidationErrors],
-      }),
-      response: {
-        200: tboxApiSuccess(tboxCheckoutCartValidationData),
-        ...openApiErrorResponses([400, 404, 409, 500, 503]),
+        set.status = result.status;
+        return result.body as never;
       },
-    }
-  );
+      {
+        body: tboxCheckoutCartValidationBody,
+        detail: routeDetail({
+          summary: "Validate cart before checkout",
+          description:
+            "Validates the browser cart against current JRW product and variant availability before checkout details or payment handoff. Brand membership is not required because only customer-safe published storefront sellability data is used, and this endpoint creates no payment, order, reservation, webhook, email, or inventory lock.",
+          tags: ["Checkout"],
+          auth: checkoutAuth,
+          rateLimitClass: "checkout-payment",
+          errorCodes: [...checkoutValidationErrors],
+        }),
+        response: {
+          200: tboxApiSuccess(tboxCheckoutCartValidationData),
+          ...openApiErrorResponses([400, 404, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/checkout/details",
+      async (ctx) => {
+        const { body, request, requestContext, requestId, runtimeEnv, set } =
+          ctx as typeof ctx &
+            RequestContextDecorations & {
+              body: unknown;
+              runtimeEnv?: Partial<Env> & Record<string, unknown>;
+            };
+        const controller = getController(
+          { request, requestId, runtimeEnv },
+          options
+        );
+        const result = await controller.saveDetails({
+          actor: requestContext.actor,
+          body,
+          requestId,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        body: tboxCheckoutDetailsBody,
+        detail: routeDetail({
+          summary: "Validate checkout details",
+          description:
+            "Validates required checkout email/contact/delivery details for guest or signed-in shopper checkout. Customer auth is optional: a valid Customer session can attach the server-side customer reference, while guests keep a nullable customer reference. The browser cannot submit customer ID, role, email verification state, payment state, order state, provider fields, or raw PII beyond required fulfillment/contact fields. This endpoint creates no payment, order, reservation, webhook, email, or inventory lock.",
+          tags: ["Checkout"],
+          auth: checkoutAuth,
+          rateLimitClass: "checkout-payment",
+          errorCodes: [
+            "VALIDATION_FAILED",
+            "PROVIDER_UNAVAILABLE",
+            "INTERNAL_ERROR",
+          ],
+        }),
+        response: {
+          200: tboxApiSuccess(tboxCheckoutDetailsData),
+          ...openApiErrorResponses([400, 500, 503]),
+        },
+      }
+    );
 }

@@ -154,4 +154,42 @@ describe("request context plugin", () => {
     expect(observedToken).toBe("customer-token");
     expect(observedRealm).toBe("CUSTOMER");
   });
+
+  it("uses customer cookie for checkout-routed requests and ignores admin cookie", async () => {
+    let observedToken: string | undefined;
+    let observedRealm: string | undefined;
+    const app = new Elysia()
+      .use(
+        createRequestContextPlugin({
+          resolveActorFromSession: async ({ sessionToken, sessionRealm }) => {
+            observedToken = sessionToken;
+            observedRealm = sessionRealm;
+            return undefined;
+          },
+        })
+      )
+      .post("/api/checkout/details", (ctx) => {
+        const { requestContext } = ctx as typeof ctx & RequestContextDecorations;
+        return requestContext.actor;
+      });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/checkout/details", {
+        method: "POST",
+        headers: {
+          cookie:
+            "jrw_admin_session=admin-token; jrw_customer_session=customer-token",
+          "x-request-id": "req_checkout_realm",
+        },
+      })
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      authenticated: false,
+      role: "PROSPECT",
+    });
+    expect(observedToken).toBe("customer-token");
+    expect(observedRealm).toBe("CUSTOMER");
+  });
 });

@@ -1,6 +1,6 @@
 # Story 5.1: Checkout Identity, Contact, and Delivery Validation
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -23,72 +23,72 @@ so that JRW has enough trusted information before payment.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock scope and reuse points before coding. (AC: 1-8)
-  - [ ] Re-read every UPDATE file named in Current Code Intelligence before editing. Worktree is dirty; preserve owner edits.
-  - [ ] Do not create PayMongo checkout sessions, payment intents, orders, reservations, webhooks, emails, or inventory locks in this story.
-  - [ ] Keep `POST /api/checkout/cart-validations` from Story 4.5 as cart authority; this story captures email/contact/delivery before payment/reservation stories expand the flow.
-  - [ ] Treat checkout email as required order identity. Customer account is optional.
-  - [ ] Reuse Customer auth/profile endpoints only for optional prefill/account convenience, not as prerequisite for ordering.
-  - [ ] Show the same required checkout details form for guest and signed-in shoppers; signed-in profile data only prefills available safe fields and never removes required completion.
-  - [ ] Keep cart in `jrw.cart.v1` intact through optional auth prompts, registration, Google OAuth return, validation errors, and retry.
-  - [ ] Do not use legacy `src/api/**`, Admin auth endpoints, Admin repositories, or cross-realm email lookup for checkout.
+- [x] Task 1: Lock scope and reuse points before coding. (AC: 1-8)
+  - [x] Re-read every UPDATE file named in Current Code Intelligence before editing. Worktree is dirty; preserve owner edits.
+  - [x] Do not create PayMongo checkout sessions, payment intents, orders, reservations, webhooks, emails, or inventory locks in this story.
+  - [x] Keep `POST /api/checkout/cart-validations` from Story 4.5 as cart authority; this story captures email/contact/delivery before payment/reservation stories expand the flow.
+  - [x] Treat checkout email as required order identity. Customer account is optional.
+  - [x] Reuse Customer auth/profile endpoints only for optional prefill/account convenience, not as prerequisite for ordering.
+  - [x] Show the same required checkout details form for guest and signed-in shoppers; signed-in profile data only prefills available safe fields and never removes required completion.
+  - [x] Keep cart in `jrw.cart.v1` intact through optional auth prompts, registration, Google OAuth return, validation errors, and retry.
+  - [x] Do not use legacy `src/api/**`, Admin auth endpoints, Admin repositories, or cross-realm email lookup for checkout.
 
-- [ ] Task 2: Add checkout details validation contract. (AC: 1-6)
-  - [ ] Add pure validation under `src/domain/checkout/**`, recommended `contact-delivery.ts` plus tests, unless existing customer profile validation can be reused without ambiguity.
-  - [ ] Validate required checkout fields: email, name, phone, street address, barangay, city/province, postal code, and privacy acknowledgement when required by UX/legal copy.
-  - [ ] Use existing profile fields where possible: `displayName`, `firstName`, `lastName`, `phone`, `streetAddress`, `barangay`, `cityProvince`, `postalCode`.
-  - [ ] If UI keeps one visible "Full name" field for Direction 04, map it explicitly and safely; do not silently corrupt `firstName`/`lastName`.
-  - [ ] Reject unknown checkout fields server-side if a new endpoint is added. Do not accept role, email verification, account status, customer ID, payment, order status, or provider fields from the browser.
-  - [ ] Return stable validation reasons usable by field-level UI; do not expose DB rows or raw schema errors.
+- [x] Task 2: Add checkout details validation contract. (AC: 1-6)
+  - [x] Add pure validation under `src/domain/checkout/**`, recommended `contact-delivery.ts` plus tests, unless existing customer profile validation can be reused without ambiguity.
+  - [x] Validate required checkout fields: email, name, phone, street address, barangay, city/province, postal code, and privacy acknowledgement when required by UX/legal copy.
+  - [x] Use existing profile fields where possible: `displayName`, `firstName`, `lastName`, `phone`, `streetAddress`, `barangay`, `cityProvince`, `postalCode`.
+  - [x] If UI keeps one visible "Full name" field for Direction 04, map it explicitly and safely; do not silently corrupt `firstName`/`lastName`.
+  - [x] Reject unknown checkout fields server-side if a new endpoint is added. Do not accept role, email verification, account status, customer ID, payment, order status, or provider fields from the browser.
+  - [x] Return stable validation reasons usable by field-level UI; do not expose DB rows or raw schema errors.
 
-- [ ] Task 3: Implement guest-email checkout and optional account assist in checkout UI. (AC: 1, 2, 7, 8)
-  - [ ] Create or extend customer-facing auth UI under `src/features/customer-account/**` or `src/features/cart-checkout/**` based on reuse. Keep checkout-specific orchestration in `cart-checkout`.
-  - [ ] Inspect session/profile through existing endpoints only when Customer session exists: `GET /api/customer/auth/session` and `GET /api/customers/me`.
-  - [ ] For guest shoppers, show email/contact/delivery form immediately plus optional sign-in/register/Google link to `/api/oauth/google/sessions?returnTo=/checkout`.
-  - [ ] For signed-in Customers with partial or empty profile data, prefill only available safe fields and keep missing required checkout fields blank/editable with validation.
-  - [ ] For unverified Customer accounts, allow checkout with entered checkout email/contact details; show verification as account-help, not order blocker.
-  - [ ] For Admin/Super Admin/wrong realm actors, do not treat admin cookies as checkout customer identity. Continue as guest checkout unless a Customer session exists.
-  - [ ] Preserve local cart state across all auth UI transitions and redirects.
+- [x] Task 3: Implement guest-email checkout and optional account assist in checkout UI. (AC: 1, 2, 7, 8)
+  - [x] Create or extend customer-facing auth UI under `src/features/customer-account/**` or `src/features/cart-checkout/**` based on reuse. Keep checkout-specific orchestration in `cart-checkout`.
+  - [x] Inspect session/profile through existing endpoints only when Customer session exists: `GET /api/customer/auth/session` and `GET /api/customers/me`.
+  - [x] For guest shoppers, show email/contact/delivery form immediately plus optional sign-in/register/Google link to `/api/oauth/google/sessions?returnTo=/checkout`.
+  - [x] For signed-in Customers with partial or empty profile data, prefill only available safe fields and keep missing required checkout fields blank/editable with validation.
+  - [x] For unverified Customer accounts, allow checkout with entered checkout email/contact details; show verification as account-help, not order blocker.
+  - [x] For Admin/Super Admin/wrong realm actors, do not treat admin cookies as checkout customer identity. Continue as guest checkout unless a Customer session exists.
+  - [x] Preserve local cart state across all auth UI transitions and redirects.
 
-- [ ] Task 4: Save or use checkout contact/delivery details. (AC: 2-6)
-  - [ ] Preferred path: add checkout-specific `POST /api/checkout/details` or similarly focused route using Route -> Controller -> Service -> Domain/Repository, optional auth, TypeBox body/response schemas, OpenAPI metadata, and safe envelopes.
-  - [ ] If signed-in Customer chooses to save defaults, use protected `PATCH /api/customers/me` separately after successful checkout-details validation.
-  - [ ] Checkout details route must accept guest requests and signed-in Customer requests; signed-in Customer ID comes from server session only, never from browser body.
-  - [ ] Response should return only safe checkout details, optional customer link state, and request ID metadata. Do not return cookies, token hashes, raw sessions, or provider metadata.
-  - [ ] Persistence must support nullable `customer_id` and order/checkout contact snapshot fields for guest checkout.
-  - [ ] After valid details save/use, run or allow next server cart validation step; do not start PayMongo handoff.
+- [x] Task 4: Save or use checkout contact/delivery details. (AC: 2-6)
+  - [x] Preferred path: add checkout-specific `POST /api/checkout/details` or similarly focused route using Route -> Controller -> Service -> Domain/Repository, optional auth, TypeBox body/response schemas, OpenAPI metadata, and safe envelopes.
+  - [x] If signed-in Customer chooses to save defaults, use protected `PATCH /api/customers/me` separately after successful checkout-details validation.
+  - [x] Checkout details route must accept guest requests and signed-in Customer requests; signed-in Customer ID comes from server session only, never from browser body.
+  - [x] Response should return only safe checkout details, optional customer link state, and request ID metadata. Do not return cookies, token hashes, raw sessions, or provider metadata.
+  - [x] Persistence must support nullable `customer_id` and order/checkout contact snapshot fields for guest checkout.
+  - [x] After valid details save/use, run or allow next server cart validation step; do not start PayMongo handoff.
 
-- [ ] Task 5: Complete checkout details UI with Direction 04 fidelity. (AC: 1-5, 7)
-  - [ ] Update `CheckoutDetailsPage.tsx` from placeholder to real form state, validation, pending, success, error, and blocked states.
-  - [ ] Keep `CheckoutFlowShell` step labels stable: `01 Cart`, `02 Details`, `03 Payment`, `04 Receipt` or explicit confirmation wording aligned with UX spec.
-  - [ ] Keep current step exposed with `aria-current="step"` and only one current step at a time.
-  - [ ] Group email/contact/delivery fields by address logic; keep checkout copy short and practical.
-  - [ ] Add field-level errors linked with `aria-describedby`, summary with focus on submit failure, and retry-safe pending state.
-  - [ ] Keep payment CTA disabled/blocked until valid details and cart validation pass. Do not show fake payment/order status.
-  - [ ] Preserve shared primitives: `Button`, `ButtonLink`, `InputBox`/`Input`, `Textarea` only if needed, no duplicate one-off button/link class strings.
+- [x] Task 5: Complete checkout details UI with Direction 04 fidelity. (AC: 1-5, 7)
+  - [x] Update `CheckoutDetailsPage.tsx` from placeholder to real form state, validation, pending, success, error, and blocked states.
+  - [x] Keep `CheckoutFlowShell` step labels stable: `01 Cart`, `02 Details`, `03 Payment`, `04 Receipt` or explicit confirmation wording aligned with UX spec.
+  - [x] Keep current step exposed with `aria-current="step"` and only one current step at a time.
+  - [x] Group email/contact/delivery fields by address logic; keep checkout copy short and practical.
+  - [x] Add field-level errors linked with `aria-describedby`, summary with focus on submit failure, and retry-safe pending state.
+  - [x] Keep payment CTA disabled/blocked until valid details and cart validation pass. Do not show fake payment/order status.
+  - [x] Preserve shared primitives: `Button`, `ButtonLink`, `InputBox`/`Input`, `Textarea` only if needed, no duplicate one-off button/link class strings.
 
-- [ ] Task 6: Add tests and QA. (AC: 1-8)
-  - [ ] Add domain tests for valid guest details, valid signed-in Customer details, missing required fields, invalid email, invalid phone, overlong address fields, empty privacy acknowledgement, unknown fields if endpoint exists, and safe normalized output.
-  - [ ] Add route/service tests for any new or changed endpoint: OpenAPI metadata, request ID propagation, optional auth metadata, guest success, signed-in success, validation failure, nullable Customer reference, success envelope, and PII-safe error details.
-  - [ ] Add UI tests for guest checkout form, optional account prompt, Google link return target, signed-in full prefill, signed-in partial/no-profile fill-required behavior, unverified account not blocking guest checkout, invalid field errors, valid submit, payment blocked until valid, and cart preservation.
-  - [ ] Keep existing suites green: `src/features/cart-checkout/**/*.test.tsx`, `src/server/routes/customer.routes.test.ts`, `src/server/routes/auth.routes.test.ts`, `src/server/routes/google-oauth.routes.test.ts`, and checkout domain/route tests.
-  - [ ] Run `npm run check`.
-  - [ ] Run targeted Vitest for changed files. Run `npm run build-test` if server route/domain behavior changes beyond UI-only work.
-  - [ ] Run styling guard: `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
-  - [ ] Manual QA at 320, 375, 390, 430, 768, 1024, and 1440px for checkout steps, form error summary, keyboard-only flow, focus-visible states, text overflow, and cart preservation through auth prompts.
+- [x] Task 6: Add tests and QA. (AC: 1-8)
+  - [x] Add domain tests for valid guest details, valid signed-in Customer details, missing required fields, invalid email, invalid phone, overlong address fields, empty privacy acknowledgement, unknown fields if endpoint exists, and safe normalized output.
+  - [x] Add route/service tests for any new or changed endpoint: OpenAPI metadata, request ID propagation, optional auth metadata, guest success, signed-in success, validation failure, nullable Customer reference, success envelope, and PII-safe error details.
+  - [x] Add UI tests for guest checkout form, optional account prompt, Google link return target, signed-in full prefill, signed-in partial/no-profile fill-required behavior, unverified account not blocking guest checkout, invalid field errors, valid submit, payment blocked until valid, and cart preservation.
+  - [x] Keep existing suites green: `src/features/cart-checkout/**/*.test.tsx`, `src/server/routes/customer.routes.test.ts`, `src/server/routes/auth.routes.test.ts`, `src/server/routes/google-oauth.routes.test.ts`, and checkout domain/route tests.
+  - [x] Run `npm run check`.
+  - [x] Run targeted Vitest for changed files. Run `npm run build-test` if server route/domain behavior changes beyond UI-only work.
+  - [x] Run styling guard: `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`.
+  - [x] Manual QA at 320, 375, 390, 430, 768, 1024, and 1440px for checkout steps, form error summary, keyboard-only flow, focus-visible states, text overflow, and cart preservation through auth prompts.
 
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint. Mark non-applicable items as `N/A` with reason.
 
-- [ ] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
-- [ ] Route-level RBAC guard runs before validation or side effects for protected endpoints.
-- [ ] Service/controller enforces actor state before mutation: authenticated, active, verified, approved where applicable.
-- [ ] Brand-scoped reads or writes enforce active brand membership or elevated permission server-side.
-- [ ] Public/customer endpoints explicitly document why brand membership is not required.
-- [ ] Denial tests cover unauthenticated actor, wrong role, invalid account state, missing brand membership, and elevated actor path where applicable.
-- [ ] Error response uses safe envelope codes and does not leak provider/internal authorization details.
-- [ ] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
+- [x] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
+- [x] N/A - Route-level RBAC guard runs before validation or side effects for protected endpoints; `/api/checkout/details` is optional-auth guest/customer and protected side effects are not exposed.
+- [x] Service/controller enforces actor state before mutation: authenticated, active, verified, approved where applicable.
+- [x] N/A - Brand-scoped reads or writes enforce active brand membership or elevated permission server-side; checkout details has no brand-scoped read/write.
+- [x] Public/customer endpoints explicitly document why brand membership is not required.
+- [x] N/A - Denial tests cover unauthenticated actor, wrong role, invalid account state, missing brand membership, and elevated actor path where applicable; guest checkout is allowed, wrong-realm Admin cookies are ignored, and browser-supplied customer identity is rejected before controller work.
+- [x] Error response uses safe envelope codes and does not leak provider/internal authorization details.
+- [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
 
 ## Dev Notes
 
@@ -281,6 +281,40 @@ GPT-5 Codex
 
 ### Debug Log References
 
+- `npx vitest run src/server/repositories/CheckoutRepository.test.ts src/server/services/CheckoutService.test.ts src/server/routes/checkout.routes.test.ts src/domain/schema-invariants.test.ts src/features/cart-checkout/components/cart-ui.test.tsx src/server/context/request-context.test.ts src/domain/checkout/contact-delivery.test.ts` - passed 53 tests.
+- `npm run check` - passed with 0 errors; existing 9 hints outside story scope.
+- `npm run build-test` - passed: `astro check`, 107 Vitest files / 668 tests, and Astro build.
+- `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` - no runtime class/token regression; matches are brand slug test data and negative assertions.
+- `npm run qa:checkout-viewports` - passed 14 Playwright viewport checks at 320, 375, 390, 430, 768, 1024, and 1440px.
+
 ### Completion Notes List
 
+- Added required guest-or-customer checkout details validation with stable field reasons, unknown-field rejection, safe full-name mapping, normalized email/strings, and privacy acknowledgement.
+- Added optional-auth `POST /api/checkout/details`; Customer ID links only from server Customer session, never browser body; Admin/wrong-realm cookies are ignored for checkout identity.
+- Added persisted `checkout_attempts` contact/delivery snapshot with nullable `customer_id`; no PayMongo, order, reservation, webhook, email, or inventory lock was created.
+- Replaced checkout details placeholder with real Direction 04 form state, guest account assist, Google return link, signed-in safe prefill, field errors, summary focus, and disabled payment handoff.
+- Preserved existing cart validation authority at `POST /api/checkout/cart-validations` and reruns cart validation after successful details save.
+
 ### File List
+
+- `migrations/0024_checkout_attempts.sql`
+- `src/domain/checkout/contact-delivery.ts`
+- `src/domain/checkout/contact-delivery.test.ts`
+- `src/domain/schema/transactions.ts`
+- `src/domain/schema-invariants.test.ts`
+- `src/features/cart-checkout/api.ts`
+- `src/features/cart-checkout/components/CheckoutDetailsPage.tsx`
+- `src/features/cart-checkout/components/cart-ui.test.tsx`
+- `src/server/context/request-context.ts`
+- `src/server/context/request-context.test.ts`
+- `src/server/controllers/CheckoutController.ts`
+- `src/server/repositories/CheckoutRepository.ts`
+- `src/server/repositories/CheckoutRepository.test.ts`
+- `src/server/routes/checkout.routes.ts`
+- `src/server/routes/checkout.routes.test.ts`
+- `src/server/services/CheckoutService.ts`
+- `src/server/services/CheckoutService.test.ts`
+
+### Change Log
+
+- 2026-06-12: Implemented Story 5.1 checkout details validation, optional customer prefill/account assist, persisted checkout attempts, route/service/repository contracts, and regression/viewport QA; status moved to review.

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { CheckoutCartServerLine } from "@/domain/checkout/cart-validation";
+import type {
+  CheckoutAttemptRecord,
+  CreateCheckoutAttemptInput,
+} from "@/server/repositories/CheckoutRepository";
 import { SNAPSHOT_VARIANT_OPTION_MAX_ITEMS } from "@/domain/snapshots/schemas";
 import { CheckoutService } from "./CheckoutService";
 
@@ -35,9 +39,29 @@ const serverLine: CheckoutCartServerLine = {
 };
 
 class CheckoutRepositoryStub {
+  attempts: CreateCheckoutAttemptInput[] = [];
   calls = 0;
   lines: CheckoutCartServerLine[] = [serverLine];
   throwProviderFailure = false;
+  throwSaveFailure = false;
+
+  async createCheckoutAttempt(input: CreateCheckoutAttemptInput) {
+    if (this.throwSaveFailure) {
+      throw new Error("D1_ERROR: insert failed");
+    }
+
+    this.attempts.push(input);
+
+    return {
+      id: `attempt_${this.attempts.length}`,
+      customerId: input.customerId,
+      checkoutEmail: input.details.email,
+      createdAt: "2026-06-12T00:00:00.000Z",
+      fullName: input.details.fullName,
+      status: "DETAILS_CAPTURED",
+      updatedAt: "2026-06-12T00:00:00.000Z",
+    } satisfies CheckoutAttemptRecord;
+  }
 
   async findCartLines() {
     this.calls += 1;
@@ -178,6 +202,139 @@ describe("CheckoutService", () => {
     const result = await service.validateCart({
       body: requestBody,
       requestId: "req_checkout_provider_failure",
+    });
+
+    expect(result.error?.code).toBe("PROVIDER_UNAVAILABLE");
+  });
+
+  it("accepts guest checkout details with nullable customer reference", async () => {
+    const repository = new CheckoutRepositoryStub();
+    const service = new CheckoutService({ repository });
+
+    const result = await service.saveDetails({
+      actor: { authenticated: false, role: "PROSPECT" },
+      body: {
+        email: "nina@example.com",
+        fullName: "Nina Reyes",
+        phone: "+63 917 555 1212",
+        streetAddress: "12 Sampaguita Street",
+        barangay: "Barangay 456",
+        cityProvince: "Quezon City",
+        postalCode: "1100",
+        privacyAcknowledged: true,
+      },
+      requestId: "req_checkout_details_guest",
+    });
+
+    expect(result.error).toBeNull();
+    expect(repository.attempts).toHaveLength(1);
+    expect(repository.attempts[0]).toMatchObject({
+      customerId: null,
+      requestId: "req_checkout_details_guest",
+      details: {
+        email: "nina@example.com",
+        fullName: "Nina Reyes",
+      },
+    });
+    expect(result.content).toMatchObject({
+      attempt: {
+        attemptId: "attempt_1",
+        status: "DETAILS_CAPTURED",
+      },
+      customer: {
+        customerId: null,
+        mode: "guest",
+      },
+      details: {
+        email: "nina@example.com",
+        fullName: "Nina Reyes",
+      },
+      next: {
+        cartValidationRequired: true,
+        paymentAllowed: false,
+      },
+    });
+  });
+
+  it("links signed-in customer details from server actor only", async () => {
+    const repository = new CheckoutRepositoryStub();
+    const service = new CheckoutService({ repository });
+
+    const result = await service.saveDetails({
+      actor: {
+        authenticated: true,
+        actorId: "customer_server",
+        role: "CUSTOMER",
+      },
+      body: {
+        email: "nina@example.com",
+        fullName: "Nina Reyes",
+        phone: "+63 917 555 1212",
+        streetAddress: "12 Sampaguita Street",
+        barangay: "Barangay 456",
+        cityProvince: "Quezon City",
+        postalCode: "1100",
+        privacyAcknowledged: true,
+      },
+      requestId: "req_checkout_details_customer",
+    });
+
+    expect(result.error).toBeNull();
+    expect(repository.attempts[0]).toMatchObject({
+      customerId: "customer_server",
+    });
+    expect(result.content?.customer).toEqual({
+      customerId: "customer_server",
+      mode: "signed-in",
+    });
+  });
+
+  it("rejects checkout details with unknown customer identity fields", async () => {
+    const repository = new CheckoutRepositoryStub();
+    const service = new CheckoutService({ repository });
+
+    const result = await service.saveDetails({
+      actor: { authenticated: false, role: "PROSPECT" },
+      body: {
+        email: "nina@example.com",
+        fullName: "Nina Reyes",
+        phone: "+63 917 555 1212",
+        streetAddress: "12 Sampaguita Street",
+        barangay: "Barangay 456",
+        cityProvince: "Quezon City",
+        postalCode: "1100",
+        privacyAcknowledged: true,
+        customerId: "customer_browser",
+      },
+      requestId: "req_checkout_details_unknown",
+    });
+
+    expect(result.error).toMatchObject({
+      code: "VALIDATION_FAILED",
+      data: {
+        reasons: ["customerId:unknown"],
+      },
+    });
+  });
+
+  it("maps checkout attempt persistence failures to provider unavailable", async () => {
+    const repository = new CheckoutRepositoryStub();
+    repository.throwSaveFailure = true;
+    const service = new CheckoutService({ repository });
+
+    const result = await service.saveDetails({
+      actor: { authenticated: false, role: "PROSPECT" },
+      body: {
+        email: "nina@example.com",
+        fullName: "Nina Reyes",
+        phone: "+63 917 555 1212",
+        streetAddress: "12 Sampaguita Street",
+        barangay: "Barangay 456",
+        cityProvince: "Quezon City",
+        postalCode: "1100",
+        privacyAcknowledged: true,
+      },
+      requestId: "req_checkout_details_save_failure",
     });
 
     expect(result.error?.code).toBe("PROVIDER_UNAVAILABLE");

@@ -56,6 +56,27 @@ const requestBody = {
 function checkoutController(service: Partial<CheckoutServiceLike>) {
   return new CheckoutController({
     validateCart: async () => Result.okay(validatedSummary),
+    saveDetails: async () =>
+      Result.okay({
+        attempt: {
+          attemptId: "attempt_checkout_details",
+          status: "DETAILS_CAPTURED",
+        },
+        customer: { customerId: null, mode: "guest" },
+        details: {
+          barangay: "Barangay 456",
+          cityProvince: "Quezon City",
+          email: "nina@example.com",
+          firstName: "Nina",
+          fullName: "Nina Reyes",
+          lastName: "Reyes",
+          phone: "+63 917 555 1212",
+          postalCode: "1100",
+          privacyAcknowledged: true,
+          streetAddress: "12 Sampaguita Street",
+        },
+        next: { cartValidationRequired: true, paymentAllowed: false },
+      }),
     ...service,
   });
 }
@@ -107,6 +128,45 @@ describe("checkout routes", () => {
     expect(validation?.responses).toHaveProperty("409");
   });
 
+  it("documents checkout details endpoint as optional guest-or-customer auth", async () => {
+    const app = createApp();
+    const response = await app.handle(
+      new Request("https://jrw.test/api/openapi/json")
+    );
+    const body = (await response.json()) as {
+      paths?: Record<
+        string,
+        Record<
+          string,
+          {
+            summary?: string;
+            tags?: string[];
+            "x-auth"?: { mode?: string; roles?: string[] };
+            "x-rate-limit-class"?: string;
+            "x-error-codes"?: string[];
+          }
+        >
+      >;
+    };
+
+    const details = body.paths?.["/api/checkout/details"]?.post;
+
+    expect(details?.summary).toBe("Validate checkout details");
+    expect(details?.tags).toContain("Checkout");
+    expect(details?.["x-auth"]).toEqual({
+      mode: "optional",
+      roles: ["PROSPECT", "CUSTOMER"],
+    });
+    expect(details?.["x-rate-limit-class"]).toBe("checkout-payment");
+    expect(details?.["x-error-codes"]).toEqual(
+      expect.arrayContaining([
+        "VALIDATION_FAILED",
+        "PROVIDER_UNAVAILABLE",
+        "INTERNAL_ERROR",
+      ])
+    );
+  });
+
   it("returns validated cart success envelope with request id", async () => {
     let receivedBody: unknown;
     const app = createApp({
@@ -144,6 +204,229 @@ describe("checkout routes", () => {
       meta: {
         code: "SUCCESS",
         requestId: "req_checkout_route_success",
+      },
+    });
+  });
+
+  it("returns guest checkout details with nullable customer reference", async () => {
+    let receivedActor: unknown;
+    let receivedBody: unknown;
+    const app = createApp({
+      routes: {
+        checkout: {
+          controllerFactory: () =>
+            checkoutController({
+              saveDetails: async (input) => {
+                receivedActor = input.actor;
+                receivedBody = input.body;
+                return Result.okay({
+                  attempt: {
+                    attemptId: "attempt_guest",
+                    status: "DETAILS_CAPTURED",
+                  },
+                  customer: { customerId: null, mode: "guest" },
+                  details: {
+                    barangay: "Barangay 456",
+                    cityProvince: "Quezon City",
+                    email: "nina@example.com",
+                    firstName: "Nina",
+                    fullName: "Nina Reyes",
+                    lastName: "Reyes",
+                    phone: "+63 917 555 1212",
+                    postalCode: "1100",
+                    privacyAcknowledged: true,
+                    streetAddress: "12 Sampaguita Street",
+                  },
+                  next: { cartValidationRequired: true, paymentAllowed: false },
+                });
+              },
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/checkout/details", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req_checkout_details_guest",
+        },
+        body: JSON.stringify({
+          email: "nina@example.com",
+          fullName: "Nina Reyes",
+          phone: "+63 917 555 1212",
+          streetAddress: "12 Sampaguita Street",
+          barangay: "Barangay 456",
+          cityProvince: "Quezon City",
+          postalCode: "1100",
+          privacyAcknowledged: true,
+        }),
+      })
+    );
+
+    expect(receivedActor).toMatchObject({
+      authenticated: false,
+      role: "PROSPECT",
+    });
+    expect(receivedBody).toMatchObject({
+      email: "nina@example.com",
+      privacyAcknowledged: true,
+    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        attempt: {
+          attemptId: "attempt_guest",
+          status: "DETAILS_CAPTURED",
+        },
+        customer: { customerId: null, mode: "guest" },
+        details: { email: "nina@example.com" },
+        next: { cartValidationRequired: true, paymentAllowed: false },
+      },
+      meta: {
+        code: "SUCCESS",
+        requestId: "req_checkout_details_guest",
+      },
+    });
+  });
+
+  it("passes signed-in customer actor to checkout details without browser customer id", async () => {
+    let receivedActor: unknown;
+    const app = createApp({
+      requestContext: {
+        resolveActorFromSession: async ({ sessionRealm, sessionToken }) =>
+          sessionRealm === "CUSTOMER" && sessionToken === "customer-token"
+            ? {
+                authenticated: true,
+                role: "CUSTOMER",
+                actorId: "customer_server",
+                safeActorId: "customer_server",
+                accountStatus: {
+                  approved: true,
+                  emailVerified: true,
+                  status: "ACTIVE",
+                },
+                eligibility: {
+                  active: true,
+                  approved: true,
+                  emailVerified: true,
+                },
+              }
+            : undefined,
+      },
+      routes: {
+        checkout: {
+          controllerFactory: () =>
+            checkoutController({
+              saveDetails: async (input) => {
+                receivedActor = input.actor;
+                return Result.okay({
+                  attempt: {
+                    attemptId: "attempt_customer",
+                    status: "DETAILS_CAPTURED",
+                  },
+                  customer: {
+                    customerId: input.actor?.actorId ?? null,
+                    mode: "signed-in",
+                  },
+                  details: {
+                    barangay: "Barangay 456",
+                    cityProvince: "Quezon City",
+                    email: "nina@example.com",
+                    firstName: "Nina",
+                    fullName: "Nina Reyes",
+                    lastName: "Reyes",
+                    phone: "+63 917 555 1212",
+                    postalCode: "1100",
+                    privacyAcknowledged: true,
+                    streetAddress: "12 Sampaguita Street",
+                  },
+                  next: { cartValidationRequired: true, paymentAllowed: false },
+                });
+              },
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/checkout/details", {
+        method: "POST",
+        headers: {
+          cookie: "jrw_customer_session=customer-token",
+          "content-type": "application/json",
+          "x-request-id": "req_checkout_details_customer",
+        },
+        body: JSON.stringify({
+          email: "nina@example.com",
+          fullName: "Nina Reyes",
+          phone: "+63 917 555 1212",
+          streetAddress: "12 Sampaguita Street",
+          barangay: "Barangay 456",
+          cityProvince: "Quezon City",
+          postalCode: "1100",
+          privacyAcknowledged: true,
+        }),
+      })
+    );
+
+    expect(receivedActor).toMatchObject({
+      actorId: "customer_server",
+      role: "CUSTOMER",
+    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        customer: {
+          customerId: "customer_server",
+          mode: "signed-in",
+        },
+      },
+    });
+  });
+
+  it("rejects browser-supplied customer identity fields before controller work", async () => {
+    let controllerCreated = false;
+    const app = createApp({
+      routes: {
+        checkout: {
+          controllerFactory: () => {
+            controllerCreated = true;
+            return checkoutController({});
+          },
+        },
+      },
+    });
+    const response = await app.handle(
+      new Request("https://jrw.test/api/checkout/details", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req_checkout_details_unknown",
+        },
+        body: JSON.stringify({
+          email: "nina@example.com",
+          fullName: "Nina Reyes",
+          phone: "+63 917 555 1212",
+          streetAddress: "12 Sampaguita Street",
+          barangay: "Barangay 456",
+          cityProvince: "Quezon City",
+          postalCode: "1100",
+          privacyAcknowledged: true,
+          customerId: "browser_customer",
+        }),
+      })
+    );
+
+    expect(controllerCreated).toBe(false);
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "VALIDATION_FAILED",
+        details: {
+          requestId: "req_checkout_details_unknown",
+        },
       },
     });
   });

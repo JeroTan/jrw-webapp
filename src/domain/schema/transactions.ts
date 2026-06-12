@@ -22,6 +22,35 @@ export const orders = sqliteTable("orders", {
   updated_at: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const checkout_attempts = sqliteTable(
+  "checkout_attempts",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    customer_id: text("customer_id").references(() => customers.id, {
+      onDelete: "set null",
+    }),
+    checkout_email: text("checkout_email").notNull(),
+    full_name: text("full_name").notNull(),
+    first_name: text("first_name"),
+    last_name: text("last_name"),
+    phone: text("phone").notNull(),
+    street_address: text("street_address").notNull(),
+    barangay: text("barangay").notNull(),
+    city_province: text("city_province").notNull(),
+    postal_code: text("postal_code").notNull(),
+    privacy_acknowledged_at: text("privacy_acknowledged_at").notNull(),
+    status: text("status").notNull().default("DETAILS_CAPTURED"),
+    created_request_id: text("created_request_id").notNull(),
+    created_at: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("idx_checkout_attempts_customer_id").on(table.customer_id),
+    index("idx_checkout_attempts_checkout_email").on(table.checkout_email),
+    index("idx_checkout_attempts_created_at").on(table.created_at),
+  ]
+);
+
 export const order_snapshots = sqliteTable(
   "order_snapshots",
   {
@@ -76,6 +105,16 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
   snapshots: many(order_snapshots),
   reviews: many(reviews),
 }));
+
+export const checkoutAttemptsRelations = relations(
+  checkout_attempts,
+  ({ one }) => ({
+    customer: one(customers, {
+      fields: [checkout_attempts.customer_id],
+      references: [customers.id],
+    }),
+  })
+);
 
 export const orderSnapshotsRelations = relations(order_snapshots, ({ one }) => ({
   order: one(orders, { fields: [order_snapshots.order_id], references: [orders.id] }),

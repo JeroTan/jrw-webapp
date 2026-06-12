@@ -4,6 +4,10 @@ import {
   type CheckoutCartRequestItem,
   type CheckoutCartValidationSummary,
 } from "@/domain/checkout/cart-validation";
+import {
+  validateCheckoutContactDetails,
+  type CheckoutContactSnapshot,
+} from "@/domain/checkout/contact-delivery";
 import type { CheckoutRepository } from "@/server/repositories/CheckoutRepository";
 import { GeneralError } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
@@ -11,6 +15,34 @@ import { Result, type AppResult } from "@/utils/general/result";
 export type CheckoutCartValidationServiceInput = {
   body: unknown;
   requestId: string;
+};
+
+export type CheckoutDetailsActorInput = {
+  authenticated: boolean;
+  role: string;
+  actorId?: string;
+};
+
+export type CheckoutDetailsServiceInput = {
+  actor?: CheckoutDetailsActorInput;
+  body: unknown;
+  requestId: string;
+};
+
+export type CheckoutDetailsResult = {
+  attempt: {
+    attemptId: string;
+    status: "DETAILS_CAPTURED";
+  };
+  customer: {
+    customerId: string | null;
+    mode: "guest" | "signed-in";
+  };
+  details: CheckoutContactSnapshot;
+  next: {
+    cartValidationRequired: true;
+    paymentAllowed: false;
+  };
 };
 
 export type CheckoutServiceOptions = {
@@ -159,6 +191,51 @@ export class CheckoutService {
         return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
       }
 
+      return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async saveDetails(
+    input: CheckoutDetailsServiceInput
+  ): Promise<AppResult<CheckoutDetailsResult>> {
+    const validation = validateCheckoutContactDetails(input.body);
+
+    if (!validation.ok) {
+      return Result.error(
+        new GeneralError({ reasons: validation.reasons }, "VALIDATION_FAILED")
+      );
+    }
+
+    const customerId =
+      input.actor?.authenticated &&
+      input.actor.role === "CUSTOMER" &&
+      input.actor.actorId
+        ? input.actor.actorId
+        : null;
+
+    try {
+      const attempt = await this.repository.createCheckoutAttempt({
+        customerId,
+        details: validation.value,
+        requestId: input.requestId,
+      });
+
+      return Result.okay({
+        attempt: {
+          attemptId: attempt.id,
+          status: attempt.status,
+        },
+        customer: {
+          customerId,
+          mode: customerId ? "signed-in" : "guest",
+        },
+        details: validation.value,
+        next: {
+          cartValidationRequired: true,
+          paymentAllowed: false,
+        },
+      });
+    } catch {
       return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
     }
   }

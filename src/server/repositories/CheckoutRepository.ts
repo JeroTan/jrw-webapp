@@ -3,6 +3,7 @@ import type {
   CheckoutCartRequestItem,
   CheckoutCartServerLine,
 } from "@/domain/checkout/cart-validation";
+import type { CheckoutContactSnapshot } from "@/domain/checkout/contact-delivery";
 import {
   availabilityLabelFromState,
   deriveInventoryStateFromQuantity,
@@ -15,6 +16,7 @@ import type {
   ProductVariantStatus,
 } from "@/domain/products/types";
 import { product_variants, products } from "@/domain/schema/catalog";
+import { checkout_attempts } from "@/domain/schema/transactions";
 import { and, eq, gte, inArray } from "drizzle-orm";
 
 const ARCHIVED_STOCK_LOCK_VERSION = -1;
@@ -36,9 +38,29 @@ type CheckoutLineRow = {
 };
 
 export type CheckoutRepository = {
+  createCheckoutAttempt(
+    input: CreateCheckoutAttemptInput
+  ): Promise<CheckoutAttemptRecord>;
   findCartLines(
     items: CheckoutCartRequestItem[]
   ): Promise<CheckoutCartServerLine[]>;
+};
+
+export type CreateCheckoutAttemptInput = {
+  customerId: string | null;
+  details: CheckoutContactSnapshot;
+  now?: string;
+  requestId: string;
+};
+
+export type CheckoutAttemptRecord = {
+  id: string;
+  customerId: string | null;
+  checkoutEmail: string;
+  createdAt: string;
+  fullName: string;
+  status: "DETAILS_CAPTURED";
+  updatedAt: string;
 };
 
 function uniqueCleanValues(values: string[]): string[] {
@@ -95,8 +117,54 @@ function rowToServerLine(row: CheckoutLineRow): CheckoutCartServerLine {
   };
 }
 
+type CheckoutAttemptRow = typeof checkout_attempts.$inferSelect;
+
+function rowToCheckoutAttempt(row: CheckoutAttemptRow): CheckoutAttemptRecord {
+  return {
+    id: row.id,
+    customerId: row.customer_id,
+    checkoutEmail: row.checkout_email,
+    createdAt: row.created_at,
+    fullName: row.full_name,
+    status: "DETAILS_CAPTURED",
+    updatedAt: row.updated_at,
+  };
+}
+
 export class DrizzleCheckoutRepository implements CheckoutRepository {
   constructor(private readonly db: AppDb) {}
+
+  async createCheckoutAttempt(
+    input: CreateCheckoutAttemptInput
+  ): Promise<CheckoutAttemptRecord> {
+    const acknowledgedAt = input.now ?? new Date().toISOString();
+    const rows = await this.db
+      .insert(checkout_attempts)
+      .values({
+        customer_id: input.customerId,
+        checkout_email: input.details.email,
+        full_name: input.details.fullName,
+        first_name: input.details.firstName,
+        last_name: input.details.lastName,
+        phone: input.details.phone,
+        street_address: input.details.streetAddress,
+        barangay: input.details.barangay,
+        city_province: input.details.cityProvince,
+        postal_code: input.details.postalCode,
+        privacy_acknowledged_at: acknowledgedAt,
+        status: "DETAILS_CAPTURED",
+        created_request_id: input.requestId,
+        created_at: acknowledgedAt,
+        updated_at: acknowledgedAt,
+      })
+      .returning();
+
+    if (!rows[0]) {
+      throw new Error("CHECKOUT_ATTEMPT_NOT_CREATED");
+    }
+
+    return rowToCheckoutAttempt(rows[0]);
+  }
 
   async findCartLines(
     items: CheckoutCartRequestItem[]

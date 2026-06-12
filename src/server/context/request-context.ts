@@ -88,6 +88,7 @@ function sessionRealmForPath(pathname: string): AuthActorKind {
   if (
     pathname.startsWith("/api/customer/") ||
     pathname.startsWith("/api/customers") ||
+    pathname.startsWith("/api/checkout") ||
     pathname.startsWith("/api/oauth/google") ||
     pathname.startsWith("/api/email-verifications")
   ) {

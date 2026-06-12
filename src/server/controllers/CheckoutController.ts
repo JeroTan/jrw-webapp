@@ -6,6 +6,8 @@ import {
 } from "@/lib/api/response";
 import type { CheckoutCartValidationSummary } from "@/domain/checkout/cart-validation";
 import type {
+  CheckoutDetailsResult,
+  CheckoutDetailsServiceInput,
   CheckoutCartValidationServiceInput,
 } from "@/server/services/CheckoutService";
 import type { AppResult } from "@/utils/general/result";
@@ -14,6 +16,9 @@ export type CheckoutServiceLike = {
   validateCart(
     input: CheckoutCartValidationServiceInput
   ): Promise<AppResult<CheckoutCartValidationSummary>>;
+  saveDetails(
+    input: CheckoutDetailsServiceInput
+  ): Promise<AppResult<CheckoutDetailsResult>>;
 };
 
 export type CheckoutControllerResult<T> = {
@@ -25,6 +30,8 @@ export type CheckoutCartValidationControllerInput = {
   body: unknown;
   requestId: string;
 };
+
+export type CheckoutDetailsControllerInput = CheckoutDetailsServiceInput;
 
 function errorResult<T>(
   result: AppResult<unknown>,
@@ -59,6 +66,23 @@ export class CheckoutController {
     input: CheckoutCartValidationControllerInput
   ): Promise<CheckoutControllerResult<CheckoutCartValidationSummary>> {
     const result = await this.service.validateCart(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+      status: 200,
+    };
+  }
+
+  async saveDetails(
+    input: CheckoutDetailsControllerInput
+  ): Promise<CheckoutControllerResult<CheckoutDetailsResult>> {
+    const result = await this.service.saveDetails(input);
 
     if (result.error) {
       return errorResult(result, input.requestId);

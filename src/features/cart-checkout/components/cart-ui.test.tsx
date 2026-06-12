@@ -11,6 +11,7 @@ import {
 import {
   fetchCartProductDetail,
   refreshCartItem,
+  submitCheckoutDetails,
   validateCartBeforeCheckout,
 } from "../api";
 import {
@@ -167,7 +168,7 @@ describe("cart checkout UI", () => {
     expect(markup).not.toContain("Verified display item");
   });
 
-  it("renders checkout details placeholder as step two", () => {
+  it("renders checkout details form as step two with guest account assist", () => {
     const markup = renderToStaticMarkup(
       createElement(CheckoutDetailsPageView, { state: activeCart })
     );
@@ -179,10 +180,40 @@ describe("cart checkout UI", () => {
     expect(markup).toContain("Full name");
     expect(markup).toContain("Email");
     expect(markup).toContain("Phone");
-    expect(markup).toContain("City");
+    expect(markup).toContain("Street address");
+    expect(markup).toContain("City / Province");
     expect(markup).toContain("Barangay");
     expect(markup).toContain("Postal code");
+    expect(markup).toContain("I agree JRW can use these details");
+    expect(markup).toContain("Save details");
+    expect(markup).toContain("Email sign in");
+    expect(markup).toContain("Create account");
+    expect(markup).toContain("/api/oauth/google/sessions?returnTo=/checkout");
     expect(markup).toContain("Continue to Payment");
+  });
+
+  it("renders signed-in prefill while keeping missing checkout fields editable", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CheckoutDetailsPageView, {
+        detailsValues: {
+          barangay: "",
+          cityProvince: "",
+          email: "nina@example.com",
+          fullName: "Nina Reyes",
+          phone: "",
+          postalCode: "",
+          privacyAcknowledged: false,
+          streetAddress: "",
+        },
+        state: activeCart,
+      })
+    );
+
+    expect(markup).toContain('value="nina@example.com"');
+    expect(markup).toContain('value="Nina Reyes"');
+    expect(markup).toContain('name="phone"');
+    expect(markup).toContain('required=""');
+    expect(markup).not.toContain("EMAIL_NOT_VERIFIED");
   });
 
   it("renders empty cart state without checkout action", () => {
@@ -422,6 +453,72 @@ describe("cart checkout UI", () => {
     expect(failureResult).toEqual({
       kind: "failure",
       reason: "Could not verify cart. Try again.",
+    });
+  });
+
+  it("posts checkout details without browser customer identity fields", async () => {
+    let capturedUrl = "";
+    let capturedBody: unknown;
+    const result = await submitCheckoutDetails(
+      {
+        barangay: "Barangay 456",
+        cityProvince: "Quezon City",
+        email: "nina@example.com",
+        fullName: "Nina Reyes",
+        phone: "+63 917 555 1212",
+        postalCode: "1100",
+        privacyAcknowledged: true,
+        streetAddress: "12 Sampaguita Street",
+      },
+      async (url, init) => {
+        capturedUrl = String(url);
+        capturedBody = JSON.parse(String(init?.body));
+
+        return new Response(
+          JSON.stringify({
+            data: {
+              attempt: {
+                attemptId: "attempt_checkout_details",
+                status: "DETAILS_CAPTURED",
+              },
+              customer: { customerId: null, mode: "guest" },
+              details: {
+                barangay: "Barangay 456",
+                cityProvince: "Quezon City",
+                email: "nina@example.com",
+                firstName: "Nina",
+                fullName: "Nina Reyes",
+                lastName: "Reyes",
+                phone: "+63 917 555 1212",
+                postalCode: "1100",
+                privacyAcknowledged: true,
+                streetAddress: "12 Sampaguita Street",
+              },
+              next: { cartValidationRequired: true, paymentAllowed: false },
+            },
+            meta: { requestId: "req_checkout_details_client" },
+          }),
+          { status: 200 }
+        );
+      }
+    );
+
+    expect(capturedUrl).toBe("/api/checkout/details");
+    expect(capturedBody).toEqual({
+      barangay: "Barangay 456",
+      cityProvince: "Quezon City",
+      email: "nina@example.com",
+      fullName: "Nina Reyes",
+      phone: "+63 917 555 1212",
+      postalCode: "1100",
+      privacyAcknowledged: true,
+      streetAddress: "12 Sampaguita Street",
+    });
+    expect(result).toMatchObject({
+      kind: "saved",
+      details: {
+        email: "nina@example.com",
+      },
     });
   });
 
