@@ -31,7 +31,7 @@ export function ProductActions({
         Buy
       </Button>
       <Button
-        aria-label="Add to cart"
+        aria-label={addToCartLabel}
         className="w-full uppercase disabled:cursor-not-allowed disabled:opacity-70"
         disabled={disabled}
         fullWidth

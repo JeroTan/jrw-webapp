@@ -1,6 +1,6 @@
 # Story 4.11: Product Detail Composition, Content, and Recommendations
 
-Status: review
+Status: done
 
 <!-- Correct-course follow-up for Story 4.3 product detail refinement. -->
 
@@ -138,6 +138,17 @@ so that I can choose and act on the right product without guessing.
   - [x] Run targeted Vitest suites for product detail and any changed public catalog service/route files.
   - [x] Run `npm run check`.
   - [x] Manual QA at 320, 375, 390, 430, 768, 1024, and 1440px for layout, carousel, variant chips, quantity, CTA row, markdown, brand module, related products, keyboard-only flow, and text overflow.
+
+### Review Findings
+
+- [x] [Review][Patch] Raw stock count is exposed through public max quantity and availability copy [`src/server/repositories/PublicCatalogRepository.ts:146`]
+- [x] [Review][Patch] High-level product detail modules lack required 1px brand surface framing [`src/features/product-detail/ProductDetailPage.tsx:28`]
+- [x] [Review][Patch] Brand summary falls back to a product image as brand image [`src/server/repositories/PublicCatalogRepository.ts:705`]
+- [x] [Review][Patch] Brand summary region references missing `product-brand-title` label target [`src/features/product-detail/components/product-brand-summary/ProductBrandSummary.tsx:17`]
+- [x] [Review][Patch] Recommendation source label renders raw enum text [`src/features/product-detail/components/product-recommendations/RecommendationHeader.tsx:16`]
+- [x] [Review][Patch] Share action does not handle `navigator.share` rejection or cancel [`src/features/product-detail/components/product-details/ProductDetailsPanel.tsx:254`]
+- [x] [Review][Patch] Add-to-cart accessible name stays `Add to cart` when visible disabled label is unavailable [`src/features/product-detail/components/product-actions/ProductActions.tsx:34`]
+- [x] [Review][Patch] Quantity control displays `1` when selected variant has zero remaining cart capacity [`src/features/product-detail/components/product-details/ProductDetailsPanel.tsx:164`]
 
 ## Endpoint Guard Checklist
 

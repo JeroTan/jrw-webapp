@@ -39,7 +39,7 @@ export function ProductGallery({
   return (
     <section
       aria-label={`${productName} images`}
-      className="grid content-start gap-grid-sm"
+      className="grid content-start gap-grid-sm border border-brand-border bg-brand-background p-grid-sm"
       data-product-detail-module="product-gallery"
     >
       <ProductImage image={selectedImage} productName={productName} />

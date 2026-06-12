@@ -10,7 +10,13 @@ type ProductQuantityControlProps = {
 };
 
 function clampQuantity(value: number, maxQuantity: number): number {
-  const max = Math.max(1, Math.trunc(maxQuantity));
+  const safeMax = Math.trunc(maxQuantity);
+
+  if (!Number.isFinite(safeMax) || safeMax <= 0) {
+    return 0;
+  }
+
+  const max = Math.max(1, safeMax);
   const quantity = Number.isFinite(value) ? Math.trunc(value) : 1;
 
   return Math.min(Math.max(quantity, 1), max);
@@ -21,6 +27,10 @@ export function nextQuantityFromInputValue(
   currentQuantity: number,
   maxQuantity: number
 ): number {
+  if (maxQuantity <= 0) {
+    return 0;
+  }
+
   const cleanValue = value.trim();
 
   if (!cleanValue) {
@@ -42,7 +52,8 @@ export function ProductQuantityControl({
   onQuantityChange,
   quantity,
 }: ProductQuantityControlProps) {
-  const max = Math.max(1, Math.trunc(maxQuantity));
+  const safeMax = Math.trunc(maxQuantity);
+  const max = Number.isFinite(safeMax) && safeMax > 0 ? safeMax : 0;
 
   return (
     <div className="grid mb-2">
@@ -66,7 +77,8 @@ export function ProductQuantityControl({
           disabled={disabled}
           id="product-quantity"
           inputMode="numeric"
-          max={max && max < 99 ? max : 99}
+          max={max > 0 ? Math.min(max, 99) : 0}
+          min={max > 0 ? 1 : 0}
           interactive={false}
           onChange={(event) =>
             onQuantityChange(

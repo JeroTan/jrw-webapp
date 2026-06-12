@@ -181,6 +181,7 @@ describe("product detail UI", () => {
     expect(markup).toContain("<strong>linen</strong>");
     expect(markup).toContain("JRW Studio");
     expect(markup).toContain("4 products");
+    expect(markup).toContain('id="product-brand-title"');
     expect(markup).toContain("Related products");
     expect(markup).toContain("Linen Pants");
     expect(markup).toContain("Buy");
@@ -344,17 +345,18 @@ describe("product detail UI", () => {
     expect(nextQuantityFromInputValue("99", 3, 12)).toBe(12);
     expect(nextQuantityFromInputValue("150", 3, 99)).toBe(99);
     expect(nextQuantityFromInputValue("0", 3, 12)).toBe(1);
+    expect(nextQuantityFromInputValue("1", 3, 0)).toBe(0);
   });
 
-  it("shows remaining add-to-cart capacity when item already exists in cart", () => {
+  it("shows cart capacity without exposing exact public stock count", () => {
     expect(availabilityLabelForCartCapacity("Available", 12, 0)).toBe(
-      "Available (12 available)"
+      "Available"
     );
     expect(availabilityLabelForCartCapacity("Available", 12, 5)).toBe(
-      "Available (7 left, 5 in cart)"
+      "Available (5 in cart)"
     );
     expect(availabilityLabelForCartCapacity("Available", 12, 12)).toBe(
-      "Available (0 left, 12 in cart)"
+      "Available (cart limit reached)"
     );
   });
 

@@ -18,7 +18,7 @@ export function ProductRecommendations({
   return (
     <section
       aria-labelledby="product-recommendations-title"
-      className="grid gap-grid-sm bg-brand-surface "
+      className="grid gap-grid-sm border border-brand-border bg-brand-surface p-grid-sm"
       data-product-detail-module="recommendations"
     >
       <RecommendationHeader recommendations={recommendations} />

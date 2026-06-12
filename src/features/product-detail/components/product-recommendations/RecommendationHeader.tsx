@@ -5,6 +5,12 @@ type RecommendationHeaderProps = {
   recommendations: PublicCatalogRecommendations;
 };
 
+function recommendationSourceLabel(
+  source: PublicCatalogRecommendations["source"]
+): string {
+  return source === "related" ? "Related products" : "Latest products";
+}
+
 export function RecommendationHeader({
   recommendations,
 }: RecommendationHeaderProps) {
@@ -14,7 +20,7 @@ export function RecommendationHeader({
         {recommendations.title}
       </h2>
       <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-        {recommendations.source}
+        {recommendationSourceLabel(recommendations.source)}
       </p>
     </div>
   );

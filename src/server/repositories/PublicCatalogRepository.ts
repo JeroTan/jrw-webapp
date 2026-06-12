@@ -32,7 +32,7 @@ import {
   product_variants,
   products,
 } from "@/domain/schema/catalog";
-import { SNAPSHOT_QUANTITY_MAX } from "@/domain/snapshots/schemas";
+import { STOREFRONT_CART_LINE_QUANTITY_MAX } from "@/domain/checkout/cart";
 import {
   DrizzleCategoryRepository,
   type CategoryRepository,
@@ -135,19 +135,10 @@ function productImageSrc(r2Key: string | null): string | undefined {
   return publicProductAssetUrl(cleanKey);
 }
 
-function maxQuantityForVariant(input: {
-  availability: PublicCatalogAvailability;
-  variant: ProductVariantRecord;
-}): number {
-  if (!input.availability.inStock) {
-    return 0;
-  }
-
-  if (input.variant.stock > 0) {
-    return Math.min(input.variant.stock, SNAPSHOT_QUANTITY_MAX);
-  }
-
-  return SNAPSHOT_QUANTITY_MAX;
+function maxQuantityForAvailability(
+  availability: PublicCatalogAvailability
+): number {
+  return availability.inStock ? STOREFRONT_CART_LINE_QUANTITY_MAX : 0;
 }
 
 function priceLabel(product: ProductRecord): string {
@@ -368,7 +359,7 @@ function detailResultFromSource(input: {
         name: variant.name,
         optionValues: variant.variationChain,
       }),
-      maxQuantity: maxQuantityForVariant({ availability, variant }),
+      maxQuantity: maxQuantityForAvailability(availability),
       optionValues: variant.variationChain.map((option) => ({
         group: option.group,
         name: option.name,
@@ -705,18 +696,17 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
     const brandProducts = await this.listPublishedProductCards({
       brandIds: [brand.id],
       page: 1,
-      pageSize: 4,
+      pageSize: 1,
     });
-    const brandImage = brandProducts.items.find((item) => item.imageSrc);
 
     return {
       href: brandHref(brand.slug),
       id: brand.id,
-      ...(brandWithImage.imageAlt || brandImage?.imageAlt
-        ? { imageAlt: brandWithImage.imageAlt ?? brandImage?.imageAlt }
+      ...(brandWithImage.imageAlt
+        ? { imageAlt: brandWithImage.imageAlt }
         : {}),
-      ...(brandWithImage.imageSrc || brandImage?.imageSrc
-        ? { imageSrc: brandWithImage.imageSrc ?? brandImage?.imageSrc }
+      ...(brandWithImage.imageSrc
+        ? { imageSrc: brandWithImage.imageSrc }
         : {}),
       name: brand.name,
       productCount: brandProducts.pagination.totalItems,

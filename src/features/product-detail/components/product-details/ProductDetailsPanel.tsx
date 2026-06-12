@@ -108,6 +108,10 @@ function maxQuantityFromVariant(
 }
 
 function clampQuantity(quantity: number, maxQuantity: number): number {
+  if (maxQuantity <= 0) {
+    return 0;
+  }
+
   const max = Math.max(1, maxQuantity);
   const cleanQuantity = Number.isFinite(quantity) ? Math.trunc(quantity) : 1;
 
@@ -123,13 +127,24 @@ export function availabilityLabelForCartCapacity(
     return label;
   }
 
-  if (existingCartQuantity > 0) {
-    const remainingQuantity = Math.max(0, maxQuantity - existingCartQuantity);
-
-    return `${label} (${remainingQuantity} left, ${existingCartQuantity} in cart)`;
+  if (existingCartQuantity >= maxQuantity) {
+    return `${label} (cart limit reached)`;
   }
 
-  return `${label} (${maxQuantity} available)`;
+  if (existingCartQuantity > 0) {
+    return `${label} (${existingCartQuantity} in cart)`;
+  }
+
+  return label;
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "name" in error &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
 }
 
 export function ProductDetailsPanel({
@@ -252,21 +267,31 @@ export function ProductDetailsPanel({
     const shareUrl = window.location.href;
 
     if (navigator.share) {
-      await navigator.share({
-        title: detail.product.name,
-        url: shareUrl,
-      });
-      return;
+      try {
+        await navigator.share({
+          title: detail.product.name,
+          url: shareUrl,
+        });
+        return;
+      } catch (error) {
+        if (isAbortError(error)) {
+          return;
+        }
+      }
     }
 
     if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(shareUrl);
-      setToast({
-        message: "Product link copied.",
-        title: "Link copied",
-        tone: "info",
-      });
-      return;
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setToast({
+          message: "Product link copied.",
+          title: "Link copied",
+          tone: "info",
+        });
+        return;
+      } catch {
+        // Fall through to manual-copy guidance.
+      }
     }
 
     setToast({
@@ -278,7 +303,7 @@ export function ProductDetailsPanel({
 
   return (
     <section
-      className="grid content-start gap-y-5 "
+      className="grid content-start gap-y-5 border border-brand-border bg-brand-background p-grid-sm"
       aria-label="Product details"
     >
       <section>
