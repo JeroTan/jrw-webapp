@@ -50,14 +50,14 @@ _This document builds collaboratively through step-by-step discovery. Sections a
 ### Requirements Overview
 
 **Functional Requirements:**
-JRW Webapp is single-store ecommerce with four active user states: `SUPER_ADMIN`, `ADMIN`, `CUSTOMER`, and `PROSPECT`. `STORE_ADMIN` is deprecated and must map into `ADMIN`, not remain separate.
+JRW Webapp is single-store ecommerce with four active user states: `SUPER_ADMIN`, `ADMIN`, `CUSTOMER`, and `PROSPECT`. `STORE_ADMIN` is deprecated and must map into `ADMIN`, not remain separate. Checkout supports guest shoppers: a Prospect can place an order by providing required checkout email/contact/delivery details without creating a Customer account.
 
 Architecturally, requirements split into nine capability areas: identity/RBAC, owner governance, brand collaboration, catalog/inventory, storefront shopping, checkout/payments, orders/returns/refunds, notifications, audit/observability, and architecture/API documentation.
 
 Core domain rule: JRW is seller of record. Brands are catalog/collaboration groups only, not stores, tenants, merchants, PayMongo accounts, sellers, or payout owners.
 
 **Non-Functional Requirements:**
-Architecture must support inventory-safe checkout, PayMongo webhook verification/idempotency, email verification, Google OAuth customer login, role and brand authorization, consistent API envelopes, OpenAPI contracts, request IDs, safe logs, WCAG 2.2 AA, responsive storefront parity, and dense admin dashboard workflows.
+Architecture must support inventory-safe guest-or-customer checkout, PayMongo webhook verification/idempotency, email verification for account flows, Google OAuth customer login, role and brand authorization, consistent API envelopes, OpenAPI contracts, request IDs, safe logs, WCAG 2.2 AA, responsive storefront parity, and dense admin dashboard workflows.
 
 Business rules must stay testable without HTTP, D1, Durable Objects, R2, PayMongo, Resend, Google OAuth, Astro, Elysia, or React.
 
@@ -602,7 +602,7 @@ Frontend features call typed API clients. Routes call controllers. Controllers c
 PayMongo, Resend, Google OAuth, R2, Durable Objects, D1/Drizzle, and error tracking integrations are wrapped in `src/lib/**` and adapted through `src/adapter/infrastructure/**`.
 
 **Data Flow:**
-Prospect storefront reads published catalog. Customer checkout validates cart and reserves inventory before PayMongo handoff. Webhooks reconcile payment state. Services update payment/order/fulfillment lanes separately. Admin actions mutate catalog, orders, returns/refunds, and audit logs through server-side guards.
+Prospect storefront reads published catalog. Guest or signed-in Customer checkout captures required email/contact/delivery details, validates cart, and reserves inventory before PayMongo handoff. Guest orders keep order email/contact/delivery snapshots with nullable `customer_id`; signed-in Customer orders also link to the Customer account. Webhooks reconcile payment state. Services update payment/order/fulfillment lanes separately. Admin actions mutate catalog, orders, returns/refunds, and audit logs through server-side guards.
 
 ### File Organization Patterns
 

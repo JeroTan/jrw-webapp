@@ -96,17 +96,17 @@ FR33: Prospect can browse product categories.
 
 FR34: Prospect can view product details, images, prices, variants, and availability.
 
-FR35: Customer can add available variants to cart.
+FR35: Shopper can add available variants to cart.
 
-FR36: Customer can update cart item quantities.
+FR36: Shopper can update cart item quantities.
 
-FR37: Customer can remove cart items.
+FR37: Shopper can remove cart items.
 
 FR38: System can block unavailable variants from checkout.
 
-FR39: Customer can submit checkout for cart items.
+FR39: Shopper can submit checkout for cart items with required email/contact/delivery details, with or without a Customer account.
 
-FR40: Customer can view order confirmation after checkout.
+FR40: Shopper can view order confirmation after checkout through safe receipt/status access.
 
 FR41: System can create PayMongo payment for JRW customer purchase.
 
@@ -124,7 +124,7 @@ FR47: System can reserve or validate inventory during checkout.
 
 FR48: System can release reserved inventory after failed or cancelled payment.
 
-FR49: Customer can view own order status.
+FR49: Shopper can view order status through signed-in Customer order history or safe guest receipt/status access tied to checkout email.
 
 FR50: Admin can view order list.
 
@@ -473,9 +473,9 @@ FR37: Epic 4 - Cart item removal.
 
 FR38: Epic 4 - Checkout blocking for unavailable variants.
 
-FR39: Epic 5 - Customer checkout submission.
+FR39: Epic 5 - Guest-or-customer checkout submission with required email/contact/delivery details.
 
-FR40: Epic 5 - Checkout order confirmation.
+FR40: Epic 5 - Checkout order confirmation and safe receipt/status access.
 
 FR41: Epic 5 - PayMongo payment creation for JRW purchases.
 
@@ -593,7 +593,7 @@ Prospects browse JRW storefront, inspect products, understand availability, and 
 
 ### Epic 5: Inventory-Safe Checkout and PayMongo Payments
 
-Customers submit checkout, inventory is reserved/validated, PayMongo payment state reconciles safely, webhooks are verified/idempotent, and payment emails send.
+Guest or signed-in shoppers submit checkout with required email/contact/delivery details, inventory is reserved/validated, PayMongo payment state reconciles safely, webhooks are verified/idempotent, and payment emails send to checkout email.
 
 **FRs covered:** FR39, FR40, FR41, FR42, FR43, FR44, FR45, FR46, FR47, FR48, FR62, FR63
 
@@ -2858,30 +2858,40 @@ So that storefront, checkout, dashboard, and governance flows behave predictably
 
 ## Epic 5: Inventory-Safe Checkout and PayMongo Payments
 
-Customers submit checkout, inventory is reserved/validated, PayMongo payment state reconciles safely, webhooks are verified/idempotent, and payment emails send.
+Guest or signed-in shoppers submit checkout with required email/contact/delivery details, inventory is reserved/validated, PayMongo payment state reconciles safely, webhooks are verified/idempotent, and payment emails send to checkout email.
 
 ### Story 5.1: Checkout Identity, Contact, and Delivery Validation
 
-As a Customer,
-I want checkout to collect and validate identity, contact, and delivery details,
+As a Shopper,
+I want checkout to collect and validate email, contact, and delivery details without forcing account creation,
 So that JRW has enough trusted information before payment.
 
 **Requirements covered:** FR39; supports FR5, FR6, FR7, FR8; UX-DR7, UX-DR22.
 
 **Acceptance Criteria:**
 
-**Given** Customer starts checkout
-**When** Customer is not signed in or email is not verified where required
-**Then** checkout prompts sign-in, registration, verification, or Google sign-in
-**And** cart contents remain intact.
+**Given** Shopper starts checkout
+**When** Shopper is not signed in
+**Then** checkout collects required email/contact/delivery details
+**And** offers optional sign-in, registration, or Google sign-in without blocking guest checkout.
 
-**Given** authenticated verified Customer enters contact/delivery details
+**Given** signed-in Customer starts checkout
+**When** Customer profile/contact details exist
+**Then** checkout can prefill matching customer-safe email/contact/delivery fields
+**And** Customer can edit checkout details for this order.
+
+**Given** signed-in Customer profile/contact details are partial or empty
+**When** checkout details step loads
+**Then** available safe fields prefill and missing required fields remain blank/editable
+**And** payment handoff remains blocked until required checkout details are complete and valid.
+
+**Given** guest Shopper or signed-in Customer enters email/contact/delivery details
 **When** details are valid
 **Then** checkout can proceed to server cart validation
-**And** details are stored or used only for checkout/account purposes.
+**And** details are stored or used only for checkout, fulfillment, support, order status, and optional account profile purposes.
 
 **Given** contact/delivery details are invalid or missing
-**When** Customer submits checkout step
+**When** Shopper submits checkout step
 **Then** field-level errors and form-level summary appear
 **And** payment handoff is blocked.
 
@@ -2890,6 +2900,11 @@ So that JRW has enough trusted information before payment.
 **Then** only required fields for checkout/fulfillment/support are collected
 **And** logs do not emit unnecessary PII.
 
+**Given** guest checkout creates an order
+**When** order is persisted
+**Then** order keeps checkout email/contact/delivery snapshot and nullable Customer reference
+**And** later account linking is allowed only through safe email verification.
+
 **Given** checkout UI renders
 **When** desktop and mobile layouts are used
 **Then** steps show cart, contact/delivery, payment, and confirmation
@@ -2897,12 +2912,12 @@ So that JRW has enough trusted information before payment.
 
 **Given** implementation finishes
 **When** tests/QA run
-**Then** checks cover unauthenticated gate, unverified email gate, valid details, invalid details, PII minimization, mobile/desktop layout, and `npm run check`
+**Then** checks cover guest email checkout, optional sign-in, verified Customer prefill, invalid details, order contact snapshot, PII minimization, mobile/desktop layout, and `npm run check`
 **And** blockers are documented if validation cannot pass.
 
 ### Story 5.2: Server Cart Validation and Inventory Reservation
 
-As a Customer,
+As a Shopper,
 I want JRW to validate and reserve inventory before payment,
 So that checkout cannot oversell limited stock.
 
@@ -2910,7 +2925,7 @@ So that checkout cannot oversell limited stock.
 
 **Acceptance Criteria:**
 
-**Given** Customer submits checkout for cart items
+**Given** Shopper submits checkout for cart items
 **When** server validation runs
 **Then** product status, variant status, current price, stock quantity, and inventory state are validated
 **And** unavailable items block checkout.
@@ -2942,7 +2957,7 @@ So that checkout cannot oversell limited stock.
 
 ### Story 5.3: PayMongo Payment Creation and Handoff
 
-As a Customer,
+As a Shopper,
 I want to pay through PayMongo under JRW seller account,
 So that payment is handled by a provider while JRW never collects raw card details.
 
@@ -2962,7 +2977,7 @@ So that payment is handled by a provider while JRW never collects raw card detai
 
 **Given** PayMongo returns handoff URL or payment reference
 **When** response returns
-**Then** Customer can proceed to PayMongo-controlled payment
+**Then** Shopper can proceed to PayMongo-controlled payment
 **And** response uses standard envelope or safe redirect behavior.
 
 **Given** provider fails, times out, or rejects request
@@ -3022,7 +3037,7 @@ So that payment events cannot be spoofed or duplicated.
 
 ### Story 5.5: Payment Reconciliation and Order Confirmation
 
-As a Customer,
+As a Shopper,
 I want JRW to reconcile payment state before confirming my order,
 So that checkout success reflects server truth, not redirect parameters.
 
@@ -3048,12 +3063,12 @@ So that checkout success reflects server truth, not redirect parameters.
 **Given** payment fails or is cancelled
 **When** reconciliation runs
 **Then** payment status becomes `PAYMENT_FAILED` or `PAYMENT_CANCELLED`
-**And** Customer sees safe retry/return-to-cart action.
+**And** Shopper sees safe retry/return-to-cart action.
 
 **Given** order confirmation is created
 **When** email notification runs
 **Then** order confirmation email is sent or queued
-**And** email payload contains only safe order/customer details.
+**And** email payload contains only safe order/shopper details.
 
 **Given** implementation finishes
 **When** tests run
@@ -3102,7 +3117,7 @@ So that stock does not remain stuck and future customers can buy available produ
 
 ### Story 5.7: Checkout Receipt, Payment Status, and Payment Emails
 
-As a Customer,
+As a Shopper,
 I want checkout receipt and payment status updates that are clear and safe,
 So that I know what happened after payment without seeing provider internals.
 
@@ -3110,19 +3125,19 @@ So that I know what happened after payment without seeing provider internals.
 
 **Acceptance Criteria:**
 
-**Given** Customer reaches confirmation page
+**Given** Shopper reaches confirmation page
 **When** payment is paid
 **Then** receipt shows order number/reference, items, totals, payment status, fulfillment status, and next action
 **And** provider internals are hidden.
 
 **Given** payment is pending, failed, or cancelled
-**When** Customer views receipt/status
+**When** Shopper views receipt/status
 **Then** UI shows safe status label and next action
 **And** no raw PayMongo error appears.
 
 **Given** payment success or failure email is triggered
 **When** email sends
-**Then** Customer receives safe payment status email
+**Then** checkout email receives safe payment status email
 **And** operational failures are logged and retryable where action remains valid.
 
 **Given** receipt/status UI renders
@@ -3135,14 +3150,14 @@ So that I know what happened after payment without seeing provider internals.
 **Then** checks cover paid receipt, pending status, failed status, cancelled status, email success/failure, mobile/desktop layout, and safe messaging
 **And** `npm run check` passes or blocker is documented.
 
-## Epic 6: Orders, Fulfillment, Returns, Refunds, and Customer Status
+## Epic 6: Orders, Fulfillment, Returns, Refunds, and Shopper Status
 
-Customers and Admins can track orders; Admins can progress fulfillment and record manual return/refund history with safe customer labels.
+Guest shoppers, signed-in Customers, and Admins can track orders; Admins can progress fulfillment and record manual return/refund history with safe shopper labels.
 
-### Story 6.1: Customer Own-Order Status View
+### Story 6.1: Shopper Own-Order Status View
 
-As a Customer,
-I want to view my own order status,
+As a Shopper,
+I want to view my own order status through account history or safe guest receipt/status access,
 So that I can track payment, fulfillment, return, and refund state safely.
 
 **Requirements covered:** FR49, FR58; supports FR31; UX-DR9, UX-DR26.
@@ -3151,11 +3166,16 @@ So that I can track payment, fulfillment, return, and refund state safely.
 
 **Given** Customer is authenticated
 **When** Customer lists own orders
-**Then** only that Customer's orders are returned
+**Then** only orders linked to that Customer account are returned
 **And** response uses standard envelope.
 
-**Given** Customer opens order detail
-**When** order belongs to Customer
+**Given** guest Shopper opens order receipt/status link
+**When** signed access token or equivalent safe lookup is valid
+**Then** only that order detail is returned
+**And** raw email-only lookup does not expose orders.
+
+**Given** Shopper opens order detail
+**When** order belongs to signed-in Customer or guest status access is valid
 **Then** order items, totals, payment status, fulfillment status, return status, refund status, and timestamps are shown with safe labels
 **And** provider/internal details are hidden.
 
@@ -3171,7 +3191,7 @@ So that I can track payment, fulfillment, return, and refund state safely.
 
 **Given** implementation finishes
 **When** tests/QA run
-**Then** checks cover own-order list, own-order detail, cross-customer denial, snapshot display, safe labels, and `npm run check`
+**Then** checks cover signed-in order list, signed-in order detail, guest receipt/status access, raw email lookup denial, cross-customer denial, snapshot display, safe labels, and `npm run check`
 **And** blockers are documented if validation cannot pass.
 
 ### Story 6.2: Admin Order List and Detail

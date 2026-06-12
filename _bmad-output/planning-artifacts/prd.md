@@ -84,7 +84,7 @@ JRW Webapp is a brownfield rebuild of the current JRW Simple E-commerce codebase
 
 The rebuild keeps the useful product intent from Tangram and the current codebase while replacing scattered partial implementation with clear product boundaries: owner governance, admin operations, brand collaboration, customer identity, public storefront browsing, inventory-safe checkout, payment reconciliation, order fulfillment, and manual return/refund recording.
 
-Primary users are Super Admin, Admin, Customer, and Prospect. `STORE_ADMIN` is not a separate active role; its responsibilities are folded into `ADMIN`. Super Admin owns platform governance and manages Admin accounts. Admins manage JRW catalog and operations. Customers register, verify email, optionally use Google sign-in, and purchase products. Prospects browse the storefront before registering or buying.
+Primary users are Super Admin, Admin, Customer, and Prospect. `STORE_ADMIN` is not a separate active role; its responsibilities are folded into `ADMIN`. Super Admin owns platform governance and manages Admin accounts. Admins manage JRW catalog and operations. Shoppers can purchase products as guests with required email/contact/delivery details or as Customers with optional registration, email verification, and Google sign-in. Prospects browse the storefront and can complete guest checkout before creating an account.
 
 ### What Makes This Special
 
@@ -114,9 +114,9 @@ Brand-collaborating Admin succeeds when they can create a brand, join an existin
 
 Super Admin succeeds when one owner account can manage Admin accounts, transfer ownership when needed, and preserve platform control without becoming the daily operator.
 
-Customer succeeds when they can register or use Google sign-in, verify email when needed, browse storefront content, purchase products, and track order status with low friction.
+Shopper succeeds when they can browse storefront content, buy with required email/contact/delivery details, optionally register or use Google sign-in, and track order status with low friction.
 
-Prospect succeeds when they can browse public storefront content and product details before registering or buying.
+Prospect succeeds when they can browse public storefront content, add products to cart, and buy as a guest using email before deciding whether to create an account.
 
 ### Business Success
 
@@ -128,7 +128,7 @@ Targets:
 - JRW storefront can be published and browsed publicly.
 - Brands can be created, joined, skipped, and used to group products without affecting payment ownership.
 - Brand members can see, add, and modify products inside brands they belong to.
-- Customer can complete purchase flow with inventory-safe checkout.
+- Shopper can complete purchase flow with required email and inventory-safe checkout, whether guest or signed-in Customer.
 - Admin can manage catalog, inventory, orders, and brand membership without direct database intervention.
 - Super Admin remains unique, can create/manage Admins, and can transfer ownership to another eligible Admin while preserving exactly one owner.
 - Single PayMongo merchant account can process JRW store payments because JRW is the seller of record.
@@ -165,7 +165,7 @@ MVP complete when:
 - Brand member Admin can see, add, and modify products within that brand.
 - Admin can add product, variant, image, stock, and price.
 - Prospect can browse storefront and product details.
-- Customer can register, verify email, use Google sign-in, and place order.
+- Shopper can place order with email; Customer can register, verify email, use Google sign-in, and reuse account details.
 - Inventory cannot oversell during checkout under concurrent purchase attempts.
 - Order statuses are visible to Admin and Customer.
 - Unauthorized role/brand access returns a consistent forbidden response.
@@ -185,7 +185,7 @@ MVP complete when:
 - Brand creation, brand membership, and optional brandless catalog work.
 - Product/category/brand/variant/image/inventory/price management.
 - Public storefront browsing for Prospects.
-- Customer cart, checkout, order creation, order status tracking.
+- Cart, email-required checkout, order creation, and order status tracking for guest and signed-in shoppers.
 - PayMongo payment integration for JRW customer purchases under the single JRW merchant account.
 - Resend email verification and transactional emails.
 - Role/brand authorization middleware or equivalent server-side enforcement.
@@ -236,15 +236,15 @@ The value moment happens when brand collaboration improves catalog organization 
 
 This journey reveals requirements for brand creation, brand membership, brand-scoped permissions, brandless product support, product-to-brand association, and membership audit logs.
 
-### Journey 3: Customer Purchase - JRW as Seller
+### Journey 3: Shopper Purchase - JRW as Seller
 
-Nina browses the JRW storefront as a Prospect, views product details, selects a variant, signs in with Google or email, verifies email if needed, pays through PayMongo, and tracks order status.
+Nina browses the JRW storefront as a Prospect, views product details, selects a variant, enters required checkout email/contact/delivery details or signs in as a Customer, pays through PayMongo, and tracks order status from a safe receipt/status link. Account creation improves repeat purchase and order history, but it is not required to place the order.
 
 Payment goes to the single JRW PayMongo merchant account because JRW is the seller of record.
 
 The value moment happens when Nina moves from browsing to purchase without confusion, and stock, payment, and order state remain clear.
 
-This journey reveals requirements for storefront browsing, customer auth, email verification, Google OAuth, cart, PayMongo checkout, inventory lock, order creation, order status tracking, and transactional email.
+This journey reveals requirements for storefront browsing, guest checkout email capture, optional customer auth, optional email verification/Google OAuth for account flows, cart, PayMongo checkout, inventory lock, order creation, order status tracking, and transactional email.
 
 ### Journey 4: Super Admin Governance - Owner Controls Admins
 
@@ -474,12 +474,14 @@ Rendering requirements:
 - `SUPER_ADMIN`: seeded owner, manages Admins, and can transfer ownership to another eligible Admin.
 - `ADMIN`: manages JRW catalog, brands, inventory, prices, orders, and manual return/refund records.
 - `CUSTOMER`: registered buyer using email/password or Google sign-in.
-- `PROSPECT`: anonymous storefront browser.
+- `PROSPECT`: anonymous storefront browser who can become a guest checkout shopper by providing required email/contact/delivery details.
 - `STORE_ADMIN`: deprecated alias migrated to `ADMIN`.
 - Admin and Customer accounts are separate even when the email string matches in both tables. Same-email records must not auto-link, promote, share password state, or imply same identity.
 - Admin auth and Customer auth use separate route groups, repositories, and cookies: `jrw_admin_session` for Admin realm and `jrw_customer_session` for Customer realm.
 - Admin dashboard access requires a Super Admin-created active Admin account.
-- Customer email verification gates trusted checkout/account flows.
+- Customer email verification gates account/profile trust flows, but guest checkout can proceed with required checkout email and delivery/contact details.
+- Checkout email is order identity for guest orders. A Customer account is optional; guest orders keep email/contact/delivery snapshots and may link to a Customer account later only after safe email verification.
+- Checkout details are required for every order. Signed-in Customer profile data may prefill matching safe fields when available, but missing profile fields remain blank/editable and must be completed in checkout before payment handoff.
 - Ownership transfer must preserve exactly one owner, require deliberate confirmation, require current Super Admin re-authentication or password confirmation, require an active eligible target Admin, record an audit trail, and demote the old owner to Admin unless explicitly disabled.
 
 ### API Endpoint Areas
@@ -491,7 +493,7 @@ Required route groups and endpoint expectations:
 - `brands`: brand create/read/update/archive, membership list, invitation, join request, approval/rejection, member removal.
 - `catalog`: categories, products, variants, product images, publish/archive, brand assignment.
 - `inventory`: stock updates, stock state, reservation, release, reconciliation.
-- `checkout`: cart validation, payment creation, order creation, checkout status lookup.
+- `checkout`: cart validation, required checkout email/contact/delivery capture, payment creation, order creation, checkout status lookup.
 - `payments`: PayMongo webhook verification and reconciliation.
 - `orders`: customer order tracking, Admin order list/detail, fulfillment transitions, cancellation/refund state display.
 - `returns-refunds`: manual return/refund status changes, reason, amount, notes, reference ID, history.
@@ -519,8 +521,8 @@ Core entity groups:
 - Brand: brand profile, archived state, membership, invitation/join request, member role within brand.
 - Catalog: category, product, product status, product-brand association, variant, price, image reference, storefront visibility.
 - Inventory: stock quantity, stock state, reservation, release/reconciliation record.
-- Checkout: cart validation result, checkout attempt, payment creation result, inventory reservation result.
-- Order: order header, order item snapshot, fulfillment status, payment status, customer-safe status.
+- Checkout: cart validation result, required checkout email/contact/delivery snapshot, optional customer reference, checkout attempt, payment creation result, inventory reservation result.
+- Order: order header, optional customer reference, order email/contact/delivery snapshot, order item snapshot, fulfillment status, payment status, customer-safe status.
 - Return/refund: manual status, reason, amount, notes, reference ID, actor, timestamps.
 - Audit: actor, action, target type/id, safe metadata, request ID, timestamp.
 
@@ -557,7 +559,7 @@ MVP rate limit classes:
 
 - Auth password attempts: max 5 failed attempts per 15 minutes per account/email and source IP.
 - Email verification/password reset requests: max 3 requests per hour per email.
-- Customer checkout/payment creation: max 10 attempts per 10 minutes per customer or source IP.
+- Checkout/payment creation: max 10 attempts per 10 minutes per checkout email, signed-in Customer, or source IP.
 - Admin write actions: max 60 mutation requests per minute per Admin.
 - Product image uploads: max 30 uploads per hour per Admin and max configured file size from architecture.
 - Public catalog reads: max 120 requests per minute per source IP before throttling or cache-first response.
@@ -739,12 +741,12 @@ Resource risks:
 - FR32: Prospect can view JRW storefront.
 - FR33: Prospect can browse product categories.
 - FR34: Prospect can view product details, images, prices, variants, and availability.
-- FR35: Customer can add available variants to cart.
-- FR36: Customer can update cart item quantities.
-- FR37: Customer can remove cart items.
+- FR35: Shopper can add available variants to cart.
+- FR36: Shopper can update cart item quantities.
+- FR37: Shopper can remove cart items.
 - FR38: System can block unavailable variants from checkout.
-- FR39: Customer can submit checkout for cart items.
-- FR40: Customer can view order confirmation after checkout.
+- FR39: Shopper can submit checkout for cart items with required email/contact/delivery details, with or without a Customer account.
+- FR40: Shopper can view order confirmation after checkout through safe receipt/status access.
 - FR81: Product detail page can render an image-first detail composition with square gallery, thumbnail carousel, dynamic variant option groups, constrained quantity selector, Buy/cart/share actions, markdown description, optional brand summary, related/latest product recommendations, and hidden reviews placeholder until reviews are in scope.
 
 ### Payments & Checkout
@@ -760,7 +762,7 @@ Resource risks:
 
 ### Orders, Fulfillment, Returns & Refunds
 
-- FR49: Customer can view own order status.
+- FR49: Shopper can view order status through signed-in Customer order history or safe guest receipt/status access tied to checkout email.
 - FR50: Admin can view order list.
 - FR51: Admin can view order details.
 - FR52: Admin can move order through valid fulfillment statuses.
@@ -823,7 +825,7 @@ Resource risks:
 - Automated log/event tests or review checklist must verify raw passwords, JWTs, OAuth tokens, PayMongo secrets, raw card data, and unnecessary PII are not emitted.
 - JRW app must not collect raw card details; payment capture must use PayMongo-hosted or PayMongo-controlled flow.
 - PayMongo webhooks must reject unsigned or invalid-signature requests before any state mutation.
-- Customer PII fields must be documented, minimized to registration/checkout/fulfillment/support needs, and covered by retention rules before production launch.
+- Shopper/customer PII fields must be documented, minimized to registration/checkout/fulfillment/support needs, and covered by retention rules before production launch.
 - Ownership transfer must require deliberate confirmation and record an audit trail for actor, target Admin, old role, new role, timestamp, and request ID.
 - Customer-facing auth/profile/recovery code must not query or import Admin account storage. Admin auth code must not query or import Customer account storage. Exceptions require explicit owner/admin management documentation and regression tests.
 - Same email in `admins` and `customers` is treated as two unrelated account records. Realm-specific login endpoint and cookie decide which account can authenticate.

@@ -35,7 +35,7 @@ JRW. is seller of record. Brands organize catalog collaboration only; they are n
 
 Prospects browse storefront without account and need fast product discovery.
 
-Customers register, verify email or use Google sign-in, buy products through PayMongo, and track order status.
+Shoppers can buy through PayMongo with required checkout email/contact/delivery details. Customers can also register, verify email or use Google sign-in, reuse account details, and track order status from account history.
 
 Admins manage catalog, brands, inventory, prices, orders, manual returns/refunds, and brand-scoped products.
 
@@ -62,7 +62,7 @@ Super Admin manages Admin accounts, ownership transfer, and owner-only controls.
 
 Core JRW experience is two connected loops: customer browse-to-buy loop and admin operate-the-store loop.
 
-Customer loop: browse lifestyle products, inspect details, choose variant, add to cart, verify identity when needed, pay through PayMongo, track order.
+Shopper loop: browse lifestyle products, inspect details, choose variant, add to cart, provide checkout email/contact/delivery details or sign in, pay through PayMongo, track order.
 
 Admin loop: manage products, brands, inventory, prices, orders, returns/refunds, and audit activity from one precise dashboard.
 
@@ -371,7 +371,7 @@ For Admins, core action is operational control. They can update catalog, stock, 
 
 Prospects think like shoppers: "Show me what JRW sells, what is available, how much it costs, and why I should trust it."
 
-Customers think in checkout stages: cart, details, payment, confirmation, status.
+Shoppers think in checkout stages: cart, details, payment, confirmation, status.
 
 Admins think in operations: product exists, stock changes, price changes, order moves, exception gets recorded.
 
@@ -596,9 +596,9 @@ Implement direction as one system:
 
 ## User Journey Flows
 
-### Prospect To Customer Purchase
+### Prospect To Guest Or Customer Purchase
 
-Prospect browses first, account comes later only when checkout needs identity.
+Prospect browses first. Checkout always shows required email/contact/delivery details, while account sign-in or account creation remains optional for reuse and order history. Signed-in Customer details prefill when available; missing account fields stay blank/editable and must be completed before payment.
 
 ```mermaid
 flowchart TD
@@ -609,9 +609,9 @@ flowchart TD
   D -- "Yes" --> F["Add to cart"]
   F --> G["Cart drawer or sticky cart"]
   G --> H{"Checkout"}
-  H --> I{"Signed in and email verified?"}
-  I -- "No" --> J["Register, verify email, or Google sign-in"]
-  I -- "Yes" --> K["Delivery/contact details"]
+  H --> I{"Checkout email/contact ready?"}
+  I -- "No" --> J["Enter required email/contact or sign in"]
+  I -- "Yes" --> K["Review delivery/contact details"]
   J --> K
   K --> L["Server validates cart and stock"]
   L --> M{"Still available?"}
@@ -807,11 +807,11 @@ All primitives use JRW tokens: 0px radius, 1px borders, no shadows, visible focu
 
 ### CheckoutSteps
 
-**Purpose:** Show progress through cart, contact/delivery, payment, confirmation.
+**Purpose:** Show progress through cart, required email/contact/delivery, payment, confirmation.
 
 **Usage:** Checkout flow desktop and mobile.
 
-**Anatomy:** Step labels, current step, completed steps, safe error summary.
+**Anatomy:** Step labels, current step, completed steps, required email/contact/delivery form, optional account sign-in prompt, signed-in prefill for available safe Customer fields, blank required fields for missing data, safe error summary.
 
 **States:** Current, complete, blocked, payment pending, payment failed.
 

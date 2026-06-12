@@ -41,7 +41,7 @@ _Critical rules and patterns AI agents must follow when implementing code in thi
 - Super Admin is unique owner. Exactly one owner must exist.
 - Super Admin manages Admin accounts and ownership transfer. Daily catalog/order operations belong to Admin.
 - Admin manages products, brands, variants, stock, prices, orders, manual returns/refunds, and audit-visible operational work.
-- Customers register or use Google sign-in for purchase and order tracking. Prospects browse storefront before account creation.
+- Shoppers can purchase as guests with required checkout email/contact/delivery details. Customers may register or use Google sign-in for repeat purchase, profile reuse, and account order history. Prospects browse storefront and can become guest checkout shoppers before account creation.
 - Payment state and fulfillment/order state must stay separate in data, API, and UI.
 - Manual refund/return recording is not automated PayMongo refund unless a later story explicitly adds provider refund execution.
 
@@ -295,4 +295,4 @@ For humans:
 - Remove rules once code structure makes them obvious.
 - Review after architecture artifact or major source reorganization.
 
-Last Updated: 2026-05-26
+Last Updated: 2026-06-12
