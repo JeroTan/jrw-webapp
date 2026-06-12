@@ -29,7 +29,7 @@ const checkoutCta: Record<
 > = {
   cart: { href: "/checkout", label: "Checkout" },
   details: { label: "Continue to Payment" },
-  payment: { label: "Continue to PayMongo" },
+  payment: { label: "Payment ready" },
   receipt: { label: "View Receipt" },
 };
 

@@ -9,7 +9,9 @@ import type {
   CheckoutDetailsResult,
   CheckoutDetailsServiceInput,
   CheckoutCartValidationServiceInput,
+  CheckoutReservationServiceInput,
 } from "@/server/services/CheckoutService";
+import type { CheckoutReservationResponse } from "@/domain/checkout/inventory-reservation";
 import type { AppResult } from "@/utils/general/result";
 
 export type CheckoutServiceLike = {
@@ -19,6 +21,9 @@ export type CheckoutServiceLike = {
   saveDetails(
     input: CheckoutDetailsServiceInput
   ): Promise<AppResult<CheckoutDetailsResult>>;
+  reserveInventory(
+    input: CheckoutReservationServiceInput
+  ): Promise<AppResult<CheckoutReservationResponse>>;
 };
 
 export type CheckoutControllerResult<T> = {
@@ -32,6 +37,7 @@ export type CheckoutCartValidationControllerInput = {
 };
 
 export type CheckoutDetailsControllerInput = CheckoutDetailsServiceInput;
+export type CheckoutReservationControllerInput = CheckoutReservationServiceInput;
 
 function errorResult<T>(
   result: AppResult<unknown>,
@@ -83,6 +89,23 @@ export class CheckoutController {
     input: CheckoutDetailsControllerInput
   ): Promise<CheckoutControllerResult<CheckoutDetailsResult>> {
     const result = await this.service.saveDetails(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+      status: 200,
+    };
+  }
+
+  async reserveInventory(
+    input: CheckoutReservationControllerInput
+  ): Promise<CheckoutControllerResult<CheckoutReservationResponse>> {
+    const result = await this.service.reserveInventory(input);
 
     if (result.error) {
       return errorResult(result, input.requestId);

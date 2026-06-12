@@ -11,6 +11,7 @@ import {
 import {
   fetchCartProductDetail,
   refreshCartItem,
+  reserveCheckoutInventory,
   submitCheckoutDetails,
   validateCartBeforeCheckout,
 } from "../api";
@@ -191,6 +192,22 @@ describe("cart checkout UI", () => {
     expect(markup).toContain("/api/oauth/google/sessions?returnTo=/checkout");
     expect(markup).toContain("Continue to Payment");
   });
+
+  it("renders reserved checkout as payment step without provider handoff", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CheckoutDetailsPageView, {
+        detailsStatus: "reserved",
+        state: activeCart,
+      })
+    );
+
+    expect(markup).toContain("03 Payment");
+    expect(markup).toContain('aria-current="step"');
+    expect(markup).toContain("Items reserved. Payment is next.");
+    expect(markup).toContain("Payment ready");
+    expect(markup).not.toContain("Continue to PayMongo");
+  });
+
 
   it("renders signed-in prefill while keeping missing checkout fields editable", () => {
     const markup = renderToStaticMarkup(
@@ -479,6 +496,7 @@ describe("cart checkout UI", () => {
             data: {
               attempt: {
                 attemptId: "attempt_checkout_details",
+                attemptToken: "attempt_token_checkout_details",
                 status: "DETAILS_CAPTURED",
               },
               customer: { customerId: null, mode: "guest" },
@@ -516,10 +534,104 @@ describe("cart checkout UI", () => {
     });
     expect(result).toMatchObject({
       kind: "saved",
+      attempt: {
+        attemptToken: "attempt_token_checkout_details",
+      },
       details: {
         email: "nina@example.com",
       },
     });
+  });
+
+  it("posts reservation request with attempt token and maps safe success", async () => {
+    let capturedUrl = "";
+    let capturedBody: unknown;
+    const result = await reserveCheckoutInventory(
+      {
+        attemptId: "attempt_checkout_details",
+        attemptToken: "attempt_token_checkout_details",
+        state: activeCart,
+      },
+      async (url, init) => {
+        capturedUrl = String(url);
+        capturedBody = JSON.parse(String(init?.body));
+
+        return new Response(
+          JSON.stringify({
+            data: {
+              attempt: {
+                attemptId: "attempt_checkout_details",
+                status: "INVENTORY_RESERVED",
+              },
+              cart: {
+                issues: [],
+                items: [
+                  {
+                    availabilityLabel: "Available",
+                    availabilityStatus: "ACTIVE",
+                    lineSubtotalCentavos: 299800,
+                    lineSubtotalLabel: "PHP 2,998.00",
+                    maxQuantity: 8,
+                    priceCentavos: 149900,
+                    priceLabel: "PHP 1,499.00",
+                    productId: "prod_linen",
+                    productName: "Linen Shirt",
+                    productSlug: "linen-shirt",
+                    quantity: 2,
+                    recoveryStatus: "READY",
+                    variantId: "variant_linen_small",
+                    variantLabel: "Size: Small",
+                    variantOptions: [{ group: "Size", name: "Small" }],
+                  },
+                ],
+                lineItemCount: 1,
+                requiresCustomerAcceptance: false,
+                status: "VALID",
+                subtotalCentavos: 299800,
+                subtotalLabel: "PHP 2,998.00",
+                totalQuantity: 2,
+              },
+              next: {
+                payMongoCreationRequired: true,
+                paymentAllowed: true,
+              },
+              reservation: {
+                expiresAt: "2026-06-12T08:15:00.000Z",
+                reservationId: "reservation_checkout_details",
+                status: "ACTIVE",
+              },
+            },
+          }),
+          { status: 200 }
+        );
+      }
+    );
+
+    expect(capturedUrl).toBe(
+      "/api/checkout/attempts/attempt_checkout_details/reservations"
+    );
+    expect(capturedBody).toMatchObject({
+      attemptToken: "attempt_token_checkout_details",
+      items: [
+        {
+          priceCentavos: 149900,
+          productId: "prod_linen",
+          productSlug: "linen-shirt",
+          quantity: 2,
+          variantId: "variant_linen_small",
+        },
+      ],
+    });
+    expect(result).toMatchObject({
+      kind: "reserved",
+      next: {
+        paymentAllowed: true,
+      },
+      reservation: {
+        reservationId: "reservation_checkout_details",
+      },
+    });
+    expect(JSON.stringify(result)).not.toMatch(/hash|stock_version/i);
   });
 
   it("marks cart item unavailable when refreshed detail no longer sells variant", async () => {

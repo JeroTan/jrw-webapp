@@ -6,6 +6,7 @@ import {
   fetchCurrentCustomerProfile,
   fetchCustomerCheckoutSession,
   registerCustomerForCheckout,
+  reserveCheckoutInventory,
   signInCustomerForCheckout,
   submitCheckoutDetails,
   validateCartBeforeCheckout,
@@ -23,7 +24,7 @@ import { CheckoutFlowShell } from "./CheckoutFlow";
 type CheckoutDetailsPageViewProps = {
   accountMessage?: string | null;
   authValues?: AccountAssistValues;
-  detailsStatus?: "idle" | "saved" | "saving";
+  detailsStatus?: CheckoutDetailsStatus;
   detailsValues?: CheckoutDetailsFormValues;
   fieldErrors?: CheckoutDetailsFieldErrors;
   formMessage?: string | null;
@@ -44,6 +45,13 @@ type CheckoutDetailsPageViewProps = {
   validationMessage?: string | null;
   validationStatus?: "blocked" | "error" | "pending" | "valid";
 };
+
+type CheckoutDetailsStatus =
+  | "idle"
+  | "reserved"
+  | "reserving"
+  | "saved"
+  | "saving";
 
 type AccountAssistValues = {
   registerEmail: string;
@@ -285,7 +293,7 @@ export function CheckoutDetailsPageView({
 
   return (
     <CheckoutFlowShell
-      currentStep="details"
+      currentStep={detailsStatus === "reserved" ? "payment" : "details"}
       state={state}
       title="Checkout details"
       titleId="checkout-details-title"
@@ -429,14 +437,29 @@ export function CheckoutDetailsPageView({
           />
           <div className="flex flex-wrap gap-grid-xs">
             <Button
-              loading={detailsStatus === "saving"}
-              loadingLabel="Saving details"
+              disabled={detailsStatus === "reserved"}
+              loading={detailsStatus === "saving" || detailsStatus === "reserving"}
+              loadingLabel={
+                detailsStatus === "reserving"
+                  ? "Reserving items"
+                  : "Saving details"
+              }
               textSize="xs"
               type="submit"
               variant="primary"
             >
-              Save details
+              {detailsStatus === "reserved" ? "Items reserved" : "Save details"}
             </Button>
+            {detailsStatus === "reserving" ? (
+              <p className="m-0 self-center text-sm font-bold text-brand-muted">
+                Reserving items for payment.
+              </p>
+            ) : null}
+            {detailsStatus === "reserved" ? (
+              <p className="m-0 self-center text-sm font-bold text-brand-muted">
+                Items reserved. Payment is next.
+              </p>
+            ) : null}
             {detailsStatus === "saved" ? (
               <p className="m-0 self-center text-sm font-bold text-brand-muted">
                 Details saved for checkout.
@@ -534,18 +557,21 @@ export function CheckoutDetailsPage() {
     null
   );
   const [detailsStatus, setDetailsStatus] = React.useState<
-    "idle" | "saved" | "saving"
+    CheckoutDetailsStatus
   >("idle");
   const formSummaryRef = React.useRef<HTMLDivElement | null>(null);
 
-  const validateDirectCheckout = React.useCallback(async () => {
+  const validateDirectCheckout = React.useCallback(async (): Promise<
+    | { kind: "valid"; state: CartState }
+    | { kind: "blocked" | "failure" }
+  > => {
     const requestFingerprint = cartValidationFingerprint(state);
     lastValidationFingerprintRef.current = requestFingerprint;
 
     if (state.items.length === 0) {
       setValidationStatus("blocked");
       setValidationMessage("Add an item before checkout.");
-      return;
+      return { kind: "blocked" };
     }
 
     setValidationStatus("pending");
@@ -556,7 +582,7 @@ export function CheckoutDetailsPage() {
     if (result.kind === "failure") {
       setValidationStatus("error");
       setValidationMessage(result.reason);
-      return;
+      return { kind: "failure" };
     }
 
     const applied = applyCheckoutValidationSummaryToStore(
@@ -569,7 +595,7 @@ export function CheckoutDetailsPage() {
         cartValidationFingerprint(getCartSnapshot());
       setValidationStatus("blocked");
       setValidationMessage("Cart changed. Check cart again.");
-      return;
+      return { kind: "blocked" };
     }
 
     lastValidationFingerprintRef.current =
@@ -578,7 +604,7 @@ export function CheckoutDetailsPage() {
     if (result.kind === "valid") {
       setValidationStatus("valid");
       setValidationMessage(null);
-      return;
+      return { kind: "valid", state: getCartSnapshot() };
     }
 
     setValidationStatus("blocked");
@@ -587,6 +613,7 @@ export function CheckoutDetailsPage() {
         ? "Review cart updates before checkout."
         : "Resolve unavailable items before checkout."
     );
+    return { kind: "blocked" };
   }, [state]);
 
   const loadCustomerPrefill = React.useCallback(async () => {
@@ -700,8 +727,46 @@ export function CheckoutDetailsPage() {
         streetAddress: result.details.streetAddress,
       });
       setFormMessage(null);
+      setDetailsStatus("reserving");
+
+      const validationResult = await validateDirectCheckout();
+
+      if (validationResult.kind !== "valid") {
+        setDetailsStatus("saved");
+        return;
+      }
+
+      const reservationResult = await reserveCheckoutInventory({
+        attemptId: result.attempt.attemptId,
+        attemptToken: result.attempt.attemptToken,
+        state: validationResult.state,
+      });
+
+      if (reservationResult.kind === "reserved") {
+        applyCheckoutValidationSummaryToStore(
+          reservationResult.cart,
+          validationResult.state
+        );
+        setDetailsStatus("reserved");
+        setFormMessage(null);
+        return;
+      }
+
+      if (
+        reservationResult.kind === "changed" ||
+        reservationResult.kind === "blocked"
+      ) {
+        applyCheckoutValidationSummaryToStore(
+          reservationResult.summary,
+          validationResult.state
+        );
+        setValidationStatus("blocked");
+        setValidationMessage(reservationResult.reason);
+      }
+
       setDetailsStatus("saved");
-      await validateDirectCheckout();
+      setFormMessage(reservationResult.reason);
+      focusFormSummary();
     },
     [detailsValues, focusFormSummary, validateDirectCheckout]
   );

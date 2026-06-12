@@ -39,15 +39,70 @@ export const checkout_attempts = sqliteTable(
     city_province: text("city_province").notNull(),
     postal_code: text("postal_code").notNull(),
     privacy_acknowledged_at: text("privacy_acknowledged_at").notNull(),
+    attempt_token_hash: text("attempt_token_hash").notNull().default(""),
+    cart_fingerprint: text("cart_fingerprint"),
+    reservation_id: text("reservation_id"),
+    reservation_expires_at: text("reservation_expires_at"),
     status: text("status").notNull().default("DETAILS_CAPTURED"),
     created_request_id: text("created_request_id").notNull(),
+    updated_request_id: text("updated_request_id"),
     created_at: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
     updated_at: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
     index("idx_checkout_attempts_customer_id").on(table.customer_id),
     index("idx_checkout_attempts_checkout_email").on(table.checkout_email),
+    index("idx_checkout_attempts_reservation_id").on(table.reservation_id),
     index("idx_checkout_attempts_created_at").on(table.created_at),
+  ]
+);
+
+export const checkout_reservations = sqliteTable(
+  "checkout_reservations",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    checkout_attempt_id: text("checkout_attempt_id")
+      .notNull()
+      .references(() => checkout_attempts.id, { onDelete: "cascade" }),
+    status: text("status").notNull().default("ACTIVE"),
+    cart_fingerprint: text("cart_fingerprint").notNull(),
+    subtotal_centavos: integer("subtotal_centavos").notNull().default(0),
+    expires_at: text("expires_at").notNull(),
+    created_request_id: text("created_request_id").notNull(),
+    created_at: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("idx_checkout_reservations_attempt_id").on(table.checkout_attempt_id),
+    index("idx_checkout_reservations_status").on(table.status),
+    index("idx_checkout_reservations_expires_at").on(table.expires_at),
+    uniqueIndex("uq_checkout_reservations_active_attempt_cart")
+      .on(table.checkout_attempt_id, table.cart_fingerprint)
+      .where(sql`${table.status} = 'ACTIVE'`),
+  ]
+);
+
+export const checkout_reservation_items = sqliteTable(
+  "checkout_reservation_items",
+  {
+    id: text("id").primaryKey().$defaultFn(() => createId()),
+    reservation_id: text("reservation_id")
+      .notNull()
+      .references(() => checkout_reservations.id, { onDelete: "cascade" }),
+    product_id: text("product_id").references(() => products.id, {
+      onDelete: "set null",
+    }),
+    variant_id: text("variant_id").references(() => product_variants.id, {
+      onDelete: "set null",
+    }),
+    quantity: integer("quantity").notNull(),
+    price_centavos: integer("price_centavos").notNull(),
+    reservation_mode: text("reservation_mode").notNull().default("STOCK"),
+    created_at: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("idx_checkout_reservation_items_reservation_id").on(table.reservation_id),
+    index("idx_checkout_reservation_items_variant_id").on(table.variant_id),
   ]
 );
 
@@ -108,10 +163,40 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
 
 export const checkoutAttemptsRelations = relations(
   checkout_attempts,
-  ({ one }) => ({
+  ({ one, many }) => ({
     customer: one(customers, {
       fields: [checkout_attempts.customer_id],
       references: [customers.id],
+    }),
+    reservations: many(checkout_reservations),
+  })
+);
+
+export const checkoutReservationsRelations = relations(
+  checkout_reservations,
+  ({ one, many }) => ({
+    attempt: one(checkout_attempts, {
+      fields: [checkout_reservations.checkout_attempt_id],
+      references: [checkout_attempts.id],
+    }),
+    items: many(checkout_reservation_items),
+  })
+);
+
+export const checkoutReservationItemsRelations = relations(
+  checkout_reservation_items,
+  ({ one }) => ({
+    reservation: one(checkout_reservations, {
+      fields: [checkout_reservation_items.reservation_id],
+      references: [checkout_reservations.id],
+    }),
+    product: one(products, {
+      fields: [checkout_reservation_items.product_id],
+      references: [products.id],
+    }),
+    variant: one(product_variants, {
+      fields: [checkout_reservation_items.variant_id],
+      references: [product_variants.id],
     }),
   })
 );

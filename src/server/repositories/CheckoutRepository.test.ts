@@ -33,14 +33,73 @@ async function createCheckoutTestD1() {
       city_province text NOT NULL,
       postal_code text NOT NULL,
       privacy_acknowledged_at text NOT NULL,
+      attempt_token_hash text DEFAULT '' NOT NULL,
+      cart_fingerprint text,
+      reservation_id text,
+      reservation_expires_at text,
       status text DEFAULT 'DETAILS_CAPTURED' NOT NULL,
       created_request_id text NOT NULL,
+      updated_request_id text,
       created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
       updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
       FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE set null
     )`,
     `CREATE INDEX idx_checkout_attempts_customer_id ON checkout_attempts(customer_id)`,
     `CREATE INDEX idx_checkout_attempts_checkout_email ON checkout_attempts(checkout_email)`,
+    `CREATE INDEX idx_checkout_attempts_reservation_id ON checkout_attempts(reservation_id)`,
+    `CREATE TABLE products (
+      id text PRIMARY KEY NOT NULL,
+      name text NOT NULL,
+      slug text NOT NULL,
+      description text NOT NULL,
+      status text DEFAULT 'DRAFT' NOT NULL,
+      created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+    `CREATE TABLE product_variants (
+      id text PRIMARY KEY NOT NULL,
+      name text NOT NULL,
+      stock integer DEFAULT 0 NOT NULL,
+      inventory_state text DEFAULT 'OUT_OF_STOCK' NOT NULL,
+      price integer NOT NULL,
+      sku text NOT NULL,
+      is_preorder integer DEFAULT 0 NOT NULL,
+      expected_release text,
+      stock_version integer DEFAULT 0 NOT NULL,
+      stock_lock_version integer DEFAULT 0 NOT NULL,
+      variation_chain text DEFAULT '[]' NOT NULL,
+      image_reference_id text,
+      product_id text NOT NULL
+    )`,
+    `CREATE TABLE checkout_reservations (
+      id text PRIMARY KEY NOT NULL,
+      checkout_attempt_id text NOT NULL,
+      status text DEFAULT 'ACTIVE' NOT NULL,
+      cart_fingerprint text NOT NULL,
+      subtotal_centavos integer DEFAULT 0 NOT NULL,
+      expires_at text NOT NULL,
+      created_request_id text NOT NULL,
+      created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+    `CREATE INDEX idx_checkout_reservations_attempt_id ON checkout_reservations(checkout_attempt_id)`,
+    `CREATE INDEX idx_checkout_reservations_status ON checkout_reservations(status)`,
+    `CREATE INDEX idx_checkout_reservations_expires_at ON checkout_reservations(expires_at)`,
+    `CREATE UNIQUE INDEX uq_checkout_reservations_active_attempt_cart
+      ON checkout_reservations(checkout_attempt_id, cart_fingerprint)
+      WHERE status = 'ACTIVE'`,
+    `CREATE TABLE checkout_reservation_items (
+      id text PRIMARY KEY NOT NULL,
+      reservation_id text NOT NULL,
+      product_id text,
+      variant_id text,
+      quantity integer NOT NULL,
+      price_centavos integer NOT NULL,
+      reservation_mode text DEFAULT 'STOCK' NOT NULL,
+      created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+    `CREATE INDEX idx_checkout_reservation_items_reservation_id ON checkout_reservation_items(reservation_id)`,
+    `CREATE INDEX idx_checkout_reservation_items_variant_id ON checkout_reservation_items(variant_id)`,
   ];
 
   for (const statement of statements) {
@@ -53,6 +112,42 @@ async function createCheckoutTestD1() {
        VALUES (?, ?, ?, ?)`
     )
     .bind("customer_1", "nina@example.com", now, now)
+    .run();
+  await d1
+    .prepare(
+      `INSERT INTO products (id, name, slug, description, status, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      "prod_linen",
+      "Linen Shirt",
+      "linen-shirt",
+      "Lightweight linen shirt.",
+      "PUBLISHED",
+      now,
+      now
+    )
+    .run();
+  await d1
+    .prepare(
+      `INSERT INTO product_variants (
+        id, name, stock, inventory_state, price, sku, is_preorder,
+        stock_version, stock_lock_version, variation_chain, product_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      "variant_linen_small",
+      "Size: Small",
+      3,
+      "IN_STOCK",
+      1999,
+      "LINEN-S",
+      0,
+      7,
+      0,
+      JSON.stringify([{ group: "Size", name: "Small" }]),
+      "prod_linen"
+    )
     .run();
 
   return { d1, mf };
@@ -80,6 +175,7 @@ describe("CheckoutRepository", { timeout: 20_000 }, () => {
     try {
       const repository = new DrizzleCheckoutRepository(createDb(d1));
       const created = await repository.createCheckoutAttempt({
+        attemptTokenHash: "hashed_attempt_token",
         customerId: null,
         details: checkoutDetails(),
         now,
@@ -109,7 +205,11 @@ describe("CheckoutRepository", { timeout: 20_000 }, () => {
         city_province: "Quezon City",
         postal_code: "1100",
         privacy_acknowledged_at: now,
+        attempt_token_hash: "hashed_attempt_token",
         created_request_id: "req_checkout_attempt_guest",
+      });
+      expect(row).not.toMatchObject({
+        attempt_token: expect.anything(),
       });
     } finally {
       await mf.dispose();
@@ -122,6 +222,7 @@ describe("CheckoutRepository", { timeout: 20_000 }, () => {
     try {
       const repository = new DrizzleCheckoutRepository(createDb(d1));
       const created = await repository.createCheckoutAttempt({
+        attemptTokenHash: "hashed_customer_attempt_token",
         customerId: "customer_1",
         details: checkoutDetails(),
         now,
@@ -137,6 +238,110 @@ describe("CheckoutRepository", { timeout: 20_000 }, () => {
       expect(row).toEqual({
         customer_id: "customer_1",
         checkout_email: "nina@example.com",
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("atomically reserves stock, writes reservation items, and updates attempt state", async () => {
+    const { d1, mf } = await createCheckoutTestD1();
+
+    try {
+      const repository = new DrizzleCheckoutRepository(createDb(d1));
+      const attempt = await repository.createCheckoutAttempt({
+        attemptTokenHash: "hashed_attempt_token",
+        customerId: null,
+        details: checkoutDetails(),
+        now,
+        requestId: "req_checkout_attempt_guest",
+      });
+      const reserved = await repository.reserveStockLine({
+        mode: "STOCK",
+        priceCentavos: 1999,
+        productId: "prod_linen",
+        quantity: 2,
+        variantId: "variant_linen_small",
+      });
+      const reservation = await repository.createCheckoutReservation({
+        attemptId: attempt.id,
+        cartFingerprint: "prod_linen:variant_linen_small:1999:2:3998",
+        expiresAt: "2026-06-12T08:15:00.000Z",
+        lines: [
+          {
+            mode: "STOCK",
+            priceCentavos: 1999,
+            productId: "prod_linen",
+            quantity: 2,
+            variantId: "variant_linen_small",
+          },
+        ],
+        now,
+        requestId: "req_checkout_reservation",
+        subtotalCentavos: 3998,
+      });
+
+      const variant = await d1
+        .prepare(
+          `SELECT stock, stock_version, inventory_state
+           FROM product_variants WHERE id = ?`
+        )
+        .bind("variant_linen_small")
+        .first<Record<string, unknown>>();
+      const item = await d1
+        .prepare(
+          `SELECT product_id, variant_id, quantity, price_centavos, reservation_mode
+           FROM checkout_reservation_items WHERE reservation_id = ?`
+        )
+        .bind(reservation.id)
+        .first<Record<string, unknown>>();
+      const updatedAttempt = await repository.findCheckoutAttempt(attempt.id);
+
+      expect(reserved).toBe(true);
+      expect(variant).toEqual({
+        inventory_state: "LOW_STOCK",
+        stock: 1,
+        stock_version: 8,
+      });
+      expect(item).toEqual({
+        price_centavos: 1999,
+        product_id: "prod_linen",
+        quantity: 2,
+        reservation_mode: "STOCK",
+        variant_id: "variant_linen_small",
+      });
+      expect(updatedAttempt).toMatchObject({
+        cartFingerprint: "prod_linen:variant_linen_small:1999:2:3998",
+        reservationExpiresAt: "2026-06-12T08:15:00.000Z",
+        reservationId: reservation.id,
+        status: "INVENTORY_RESERVED",
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("rejects stock-backed reservations that would oversell", async () => {
+    const { d1, mf } = await createCheckoutTestD1();
+
+    try {
+      const repository = new DrizzleCheckoutRepository(createDb(d1));
+      const reserved = await repository.reserveStockLine({
+        mode: "STOCK",
+        priceCentavos: 1999,
+        productId: "prod_linen",
+        quantity: 4,
+        variantId: "variant_linen_small",
+      });
+      const variant = await d1
+        .prepare("SELECT stock, stock_version FROM product_variants WHERE id = ?")
+        .bind("variant_linen_small")
+        .first<Record<string, unknown>>();
+
+      expect(reserved).toBe(false);
+      expect(variant).toEqual({
+        stock: 3,
+        stock_version: 7,
       });
     } finally {
       await mf.dispose();

@@ -11,7 +11,12 @@ import {
   password_reset_tokens,
   sessions,
 } from "./schema/identity";
-import { checkout_attempts, orders } from "./schema/transactions";
+import {
+  checkout_attempts,
+  checkout_reservation_items,
+  checkout_reservations,
+  orders,
+} from "./schema/transactions";
 
 function getColumnName(column: unknown): string | undefined {
   if (typeof column !== "object" || column === null || !("name" in column)) {
@@ -386,7 +391,12 @@ describe("checkout schema invariants", () => {
         "city_province",
         "postal_code",
         "privacy_acknowledged_at",
+        "attempt_token_hash",
+        "cart_fingerprint",
+        "reservation_id",
+        "reservation_expires_at",
         "created_request_id",
+        "updated_request_id",
       ])
     );
     expect(columnNames).not.toEqual(
@@ -395,6 +405,10 @@ describe("checkout schema invariants", () => {
         "email_verified",
         "provider_metadata",
         "payment_payload",
+        "payment_response",
+        "attempt_token",
+        "raw_token",
+        "token",
         "card_data",
       ])
     );
@@ -403,7 +417,71 @@ describe("checkout schema invariants", () => {
       expect.arrayContaining([
         "idx_checkout_attempts_customer_id",
         "idx_checkout_attempts_checkout_email",
+        "idx_checkout_attempts_reservation_id",
         "idx_checkout_attempts_created_at",
+      ])
+    );
+  });
+
+  it("stores reservation records without raw provider, payment, or token material", () => {
+    const reservationConfig = getTableConfig(checkout_reservations);
+    const itemConfig = getTableConfig(checkout_reservation_items);
+    const reservationColumns = reservationConfig.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const itemColumns = itemConfig.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const reservationIndexes = reservationConfig.indexes.map(
+      (index) => index.config.name
+    );
+    const itemIndexes = itemConfig.indexes.map((index) => index.config.name);
+
+    expect(reservationColumns).toEqual(
+      expect.arrayContaining([
+        "checkout_attempt_id",
+        "status",
+        "cart_fingerprint",
+        "subtotal_centavos",
+        "expires_at",
+        "created_request_id",
+      ])
+    );
+    expect(itemColumns).toEqual(
+      expect.arrayContaining([
+        "reservation_id",
+        "product_id",
+        "variant_id",
+        "quantity",
+        "price_centavos",
+        "reservation_mode",
+      ])
+    );
+    expect([...reservationColumns, ...itemColumns]).not.toEqual(
+      expect.arrayContaining([
+        "token",
+        "token_hash",
+        "raw_token",
+        "payment_payload",
+        "provider_payload",
+        "paymongo_payload",
+        "card_data",
+        "stock_version",
+        "stock_lock_version",
+      ])
+    );
+    expect(reservationIndexes).toEqual(
+      expect.arrayContaining([
+        "idx_checkout_reservations_attempt_id",
+        "idx_checkout_reservations_status",
+        "idx_checkout_reservations_expires_at",
+        "uq_checkout_reservations_active_attempt_cart",
+      ])
+    );
+    expect(itemIndexes).toEqual(
+      expect.arrayContaining([
+        "idx_checkout_reservation_items_reservation_id",
+        "idx_checkout_reservation_items_variant_id",
       ])
     );
   });

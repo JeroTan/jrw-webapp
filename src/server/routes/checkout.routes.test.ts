@@ -61,6 +61,7 @@ function checkoutController(service: Partial<CheckoutServiceLike>) {
       Result.okay({
         attempt: {
           attemptId: "attempt_checkout_details",
+          attemptToken: "attempt_token_checkout_details",
           status: "DETAILS_CAPTURED",
         },
         customer: { customerId: null, mode: "guest" },
@@ -77,6 +78,20 @@ function checkoutController(service: Partial<CheckoutServiceLike>) {
           streetAddress: "12 Sampaguita Street",
         },
         next: { cartValidationRequired: true, paymentAllowed: false },
+      }),
+    reserveInventory: async () =>
+      Result.okay({
+        attempt: {
+          attemptId: "attempt_checkout_details",
+          status: "INVENTORY_RESERVED",
+        },
+        cart: validatedSummary,
+        next: { payMongoCreationRequired: true, paymentAllowed: true },
+        reservation: {
+          expiresAt: "2026-06-12T08:15:00.000Z",
+          reservationId: "reservation_checkout_details",
+          status: "ACTIVE",
+        },
       }),
     ...service,
   });
@@ -168,6 +183,47 @@ describe("checkout routes", () => {
     );
   });
 
+  it("documents reservation endpoint with optional auth and safe denial codes", async () => {
+    const app = createApp();
+    const response = await app.handle(
+      new Request("https://jrw.test/api/openapi/json")
+    );
+    const body = (await response.json()) as {
+      paths?: Record<
+        string,
+        Record<
+          string,
+          {
+            summary?: string;
+            tags?: string[];
+            "x-auth"?: { mode?: string; roles?: string[] };
+            "x-rate-limit-class"?: string;
+            "x-error-codes"?: string[];
+          }
+        >
+      >;
+    };
+
+    const reservation =
+      body.paths?.["/api/checkout/attempts/{attemptId}/reservations"]?.post;
+
+    expect(reservation?.summary).toBe("Reserve checkout inventory");
+    expect(reservation?.tags).toContain("Checkout");
+    expect(reservation?.["x-auth"]).toEqual({
+      mode: "optional",
+      roles: ["PROSPECT", "CUSTOMER"],
+    });
+    expect(reservation?.["x-rate-limit-class"]).toBe("checkout-payment");
+    expect(reservation?.["x-error-codes"]).toEqual(
+      expect.arrayContaining([
+        "AUTH_FORBIDDEN",
+        "IDEMPOTENCY_CONFLICT",
+        "INVENTORY_UNAVAILABLE",
+        "CONFLICT_STATE",
+      ])
+    );
+  });
+
   it("returns validated cart success envelope with request id", async () => {
     let receivedBody: unknown;
     const app = createApp({
@@ -223,6 +279,7 @@ describe("checkout routes", () => {
                 return Result.okay({
                   attempt: {
                     attemptId: "attempt_guest",
+                    attemptToken: "attempt_token_guest",
                     status: "DETAILS_CAPTURED",
                   },
                   customer: { customerId: null, mode: "guest" },
@@ -279,6 +336,7 @@ describe("checkout routes", () => {
       data: {
         attempt: {
           attemptId: "attempt_guest",
+          attemptToken: "attempt_token_guest",
           status: "DETAILS_CAPTURED",
         },
         customer: { customerId: null, mode: "guest" },
@@ -325,6 +383,7 @@ describe("checkout routes", () => {
                 return Result.okay({
                   attempt: {
                     attemptId: "attempt_customer",
+                    attemptToken: "attempt_token_customer",
                     status: "DETAILS_CAPTURED",
                   },
                   customer: {
@@ -404,11 +463,23 @@ describe("checkout routes", () => {
                       checkoutEmail: input.details.email,
                       createdAt: "2026-06-12T00:00:00.000Z",
                       fullName: input.details.fullName,
+                      attemptTokenHash: input.attemptTokenHash,
+                      cartFingerprint: null,
+                      reservationExpiresAt: null,
+                      reservationId: null,
                       status: "DETAILS_CAPTURED",
                       updatedAt: "2026-06-12T00:00:00.000Z",
                     };
                   },
+                  createCheckoutReservation: async () => {
+                    throw new Error("unreachable");
+                  },
+                  failReservationAndAttempt: async () => undefined,
+                  findActiveReservationForAttempt: async () => null,
+                  findCheckoutAttempt: async () => null,
                   findCartLines: async () => [],
+                  releaseStockLine: async () => undefined,
+                  reserveStockLine: async () => false,
                 },
               })
             ),
@@ -516,6 +587,122 @@ describe("checkout routes", () => {
               message: "This option is unavailable right now.",
             },
           ],
+        },
+      },
+    });
+  });
+
+  it("returns reservation success envelope with request id", async () => {
+    let receivedAttemptId = "";
+    let receivedActor: unknown;
+    let receivedBody: unknown;
+    const app = createApp({
+      routes: {
+        checkout: {
+          controllerFactory: () =>
+            checkoutController({
+              reserveInventory: async (input) => {
+                receivedAttemptId = input.attemptId;
+                receivedActor = input.actor;
+                receivedBody = input.body;
+                return Result.okay({
+                  attempt: {
+                    attemptId: input.attemptId,
+                    status: "INVENTORY_RESERVED",
+                  },
+                  cart: validatedSummary,
+                  next: { payMongoCreationRequired: true, paymentAllowed: true },
+                  reservation: {
+                    expiresAt: "2026-06-12T08:15:00.000Z",
+                    reservationId: "reservation_guest",
+                    status: "ACTIVE",
+                  },
+                });
+              },
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/checkout/attempts/attempt_guest/reservations", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req_checkout_reserve_guest",
+        },
+        body: JSON.stringify({
+          attemptToken: "attempt_token_guest",
+          ...requestBody,
+        }),
+      })
+    );
+
+    expect(receivedAttemptId).toBe("attempt_guest");
+    expect(receivedActor).toMatchObject({
+      authenticated: false,
+      role: "PROSPECT",
+    });
+    expect(receivedBody).toMatchObject({
+      attemptToken: "attempt_token_guest",
+      items: requestBody.items,
+    });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        attempt: {
+          attemptId: "attempt_guest",
+          status: "INVENTORY_RESERVED",
+        },
+        next: {
+          payMongoCreationRequired: true,
+          paymentAllowed: true,
+        },
+        reservation: {
+          reservationId: "reservation_guest",
+          status: "ACTIVE",
+        },
+      },
+      meta: {
+        code: "SUCCESS",
+        requestId: "req_checkout_reserve_guest",
+      },
+    });
+  });
+
+  it("returns safe reservation denial envelope", async () => {
+    const app = createApp({
+      routes: {
+        checkout: {
+          controllerFactory: () =>
+            checkoutController({
+              reserveInventory: async () =>
+                Result.error(new GeneralError({}, "AUTH_FORBIDDEN")),
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request("https://jrw.test/api/checkout/attempts/attempt_guest/reservations", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-request-id": "req_checkout_reserve_denied",
+        },
+        body: JSON.stringify({
+          attemptToken: "wrong",
+          ...requestBody,
+        }),
+      })
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "AUTH_FORBIDDEN",
+        details: {
+          requestId: "req_checkout_reserve_denied",
         },
       },
     });

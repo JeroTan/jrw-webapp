@@ -9,8 +9,13 @@ import { CheckoutController } from "@/server/controllers/CheckoutController";
 import type { RequestContextDecorations } from "@/server/context/request-context";
 import { routeDetail } from "@/server/openapi/route-metadata";
 import { createCheckoutRepositories } from "@/server/repositories/CheckoutRepository";
-import { CheckoutService } from "@/server/services/CheckoutService";
-import { GeneralError } from "@/utils/general/error";
+import {
+  CheckoutService,
+  type CheckoutReservationServiceInput,
+} from "@/server/services/CheckoutService";
+import { GeneralError, type ErrorCodeType } from "@/utils/general/error";
+import { Result, type AppResult } from "@/utils/general/result";
+import type { CheckoutReservationResponse } from "@/domain/checkout/inventory-reservation";
 import type { AnyElysia } from "elysia";
 
 export type CheckoutControllerFactoryInput = {
@@ -161,6 +166,7 @@ const tboxCheckoutContactSnapshot = t.Object({
 const tboxCheckoutDetailsData = t.Object({
   attempt: t.Object({
     attemptId: t.String(),
+    attemptToken: t.String(),
     status: t.Literal("DETAILS_CAPTURED"),
   }),
   customer: t.Object({
@@ -173,6 +179,94 @@ const tboxCheckoutDetailsData = t.Object({
     paymentAllowed: t.Literal(false),
   }),
 });
+
+const tboxCheckoutReservationParams = t.Object({
+  attemptId: t.String({ minLength: 1, maxLength: 128 }),
+});
+
+const tboxCheckoutReservationBody = t.Object(
+  {
+    attemptToken: t.Optional(t.String({ minLength: 1, maxLength: 512 })),
+    cartUpdatedAt: t.Optional(t.String()),
+    items: t.Array(tboxCheckoutCartValidationItem, {
+      maxItems: STOREFRONT_CART_LINE_ITEM_MAX,
+      minItems: 1,
+    }),
+  },
+  { additionalProperties: false }
+);
+
+const tboxCheckoutReservationData = t.Object({
+  attempt: t.Object({
+    attemptId: t.String(),
+    status: t.Literal("INVENTORY_RESERVED"),
+  }),
+  reservation: t.Object({
+    reservationId: t.String(),
+    status: t.Literal("ACTIVE"),
+    expiresAt: t.String(),
+  }),
+  cart: tboxCheckoutCartValidationData,
+  next: t.Object({
+    paymentAllowed: t.Literal(true),
+    payMongoCreationRequired: t.Literal(true),
+  }),
+});
+
+type InventoryDurableObjectEnvelope =
+  | { data: CheckoutReservationResponse }
+  | { error: { code: ErrorCodeType; details?: unknown } };
+
+function isInventoryDurableObjectEnvelope(
+  value: unknown
+): value is InventoryDurableObjectEnvelope {
+  return typeof value === "object" && value !== null;
+}
+
+function createInventoryReservationExecutor(
+  namespace: DurableObjectNamespace | undefined
+):
+  | ((
+      input: CheckoutReservationServiceInput
+    ) => Promise<AppResult<CheckoutReservationResponse>>)
+  | undefined {
+  if (!namespace) {
+    return undefined;
+  }
+
+  return async (input) => {
+    try {
+      const id = namespace.idFromName("checkout-inventory");
+      const stub = namespace.get(id);
+      const response = await stub.fetch(
+        new Request("https://inventory-reservation.internal/reserve", {
+          body: JSON.stringify(input),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+        })
+      );
+      const body = (await response.json()) as unknown;
+
+      if (!isInventoryDurableObjectEnvelope(body)) {
+        return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+      }
+
+      if ("data" in body && response.ok) {
+        return Result.okay(body.data);
+      }
+
+      if ("error" in body) {
+        return Result.error(
+          new GeneralError(body.error.details ?? {}, body.error.code)
+        );
+      }
+
+      return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+    } catch {
+      return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+    }
+  };
+}
 
 function createRuntimeController(
   input: CheckoutControllerFactoryInput
@@ -189,6 +283,11 @@ function createRuntimeController(
   const repositories = createCheckoutRepositories(db as D1Database);
   const service = new CheckoutService({
     ...repositories,
+    reservationExecutor: createInventoryReservationExecutor(
+      input.runtimeEnv?.INVENTORY_DURABLE_OBJECT as
+        | DurableObjectNamespace
+        | undefined
+    ),
   });
 
   return new CheckoutController(service);
@@ -209,6 +308,17 @@ const checkoutAuth = {
 const checkoutValidationErrors = [
   "VALIDATION_FAILED",
   "CONFLICT_STATE",
+  "INVENTORY_UNAVAILABLE",
+  "RESOURCE_NOT_FOUND",
+  "PROVIDER_UNAVAILABLE",
+  "INTERNAL_ERROR",
+] as const;
+
+const checkoutReservationErrors = [
+  "VALIDATION_FAILED",
+  "AUTH_FORBIDDEN",
+  "CONFLICT_STATE",
+  "IDEMPOTENCY_CONFLICT",
   "INVENTORY_UNAVAILABLE",
   "RESOURCE_NOT_FOUND",
   "PROVIDER_UNAVAILABLE",
@@ -298,6 +408,55 @@ export function checkoutRoutes(
         response: {
           200: tboxApiSuccess(tboxCheckoutDetailsData),
           ...openApiErrorResponses([400, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/checkout/attempts/:attemptId/reservations",
+      async (ctx) => {
+        const {
+          body,
+          params,
+          request,
+          requestContext,
+          requestId,
+          runtimeEnv,
+          set,
+        } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            body: unknown;
+            params: { attemptId: string };
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+          };
+        const controller = getController(
+          { request, requestId, runtimeEnv },
+          options
+        );
+        const result = await controller.reserveInventory({
+          actor: requestContext.actor,
+          attemptId: params.attemptId,
+          body,
+          requestId,
+        });
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        body: tboxCheckoutReservationBody,
+        detail: routeDetail({
+          summary: "Reserve checkout inventory",
+          description:
+            "Validates a captured checkout attempt and current cart before reserving public storefront inventory for guest or signed-in Customer checkout. Brand membership is not required because reservation uses only published storefront catalog state. The browser cannot submit customer identity, payment, order, reservation status, provider fields, stock versions, or lock data. This endpoint creates no PayMongo session, order, webhook, email, or fulfillment transition.",
+          tags: ["Checkout"],
+          auth: checkoutAuth,
+          rateLimitClass: "checkout-payment",
+          errorCodes: [...checkoutReservationErrors],
+        }),
+        params: tboxCheckoutReservationParams,
+        response: {
+          200: tboxApiSuccess(tboxCheckoutReservationData),
+          ...openApiErrorResponses([400, 403, 404, 409, 500, 503]),
         },
       }
     );

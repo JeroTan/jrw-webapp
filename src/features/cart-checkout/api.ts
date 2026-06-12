@@ -44,6 +44,7 @@ export type CheckoutContactSnapshot = CheckoutDetailsFormValues & {
 export type CheckoutDetailsResult = {
   attempt: {
     attemptId: string;
+    attemptToken: string;
     status: "DETAILS_CAPTURED";
   };
   customer: {
@@ -60,6 +61,31 @@ export type CheckoutDetailsResult = {
 export type CheckoutDetailsClientResult =
   | (CheckoutDetailsResult & { kind: "saved" })
   | { kind: "invalid"; reason: string; reasons: string[] }
+  | { kind: "failure"; reason: string };
+
+export type CheckoutReservationResult = {
+  attempt: {
+    attemptId: string;
+    status: "INVENTORY_RESERVED";
+  };
+  reservation: {
+    expiresAt: string;
+    reservationId: string;
+    status: "ACTIVE";
+  };
+  cart: CheckoutCartValidationSummary;
+  next: {
+    payMongoCreationRequired: true;
+    paymentAllowed: true;
+  };
+};
+
+export type CheckoutReservationClientResult =
+  | (CheckoutReservationResult & { kind: "reserved" })
+  | { kind: "changed"; reason: string; summary: CheckoutCartValidationSummary }
+  | { kind: "blocked"; reason: string; summary: CheckoutCartValidationSummary }
+  | { kind: "conflict"; reason: string }
+  | { kind: "denied"; reason: string }
   | { kind: "failure"; reason: string };
 
 export type CustomerSessionSummary = {
@@ -98,6 +124,7 @@ export type CustomerProfileSummary = {
 type CustomerSessionEnvelope = ApiResponse<CustomerSessionSummary>;
 type CustomerProfileEnvelope = ApiResponse<CustomerProfileSummary>;
 type CheckoutDetailsEnvelope = ApiResponse<CheckoutDetailsResult>;
+type CheckoutReservationEnvelope = ApiResponse<CheckoutReservationResult>;
 
 export type CheckoutCartValidationClientResult =
   | { kind: "valid"; summary: CheckoutCartValidationSummary }
@@ -330,12 +357,32 @@ function isCheckoutDetailsResult(value: unknown): value is CheckoutDetailsResult
   return (
     isRecord(value.attempt) &&
     typeof value.attempt.attemptId === "string" &&
+    typeof value.attempt.attemptToken === "string" &&
     value.attempt.status === "DETAILS_CAPTURED" &&
     typeof value.details.email === "string" &&
     typeof value.details.fullName === "string" &&
     (value.customer.customerId === null ||
       typeof value.customer.customerId === "string") &&
     (value.customer.mode === "guest" || value.customer.mode === "signed-in")
+  );
+}
+
+function isCheckoutReservationResult(
+  value: unknown
+): value is CheckoutReservationResult {
+  return (
+    isRecord(value) &&
+    isRecord(value.attempt) &&
+    isRecord(value.reservation) &&
+    isRecord(value.next) &&
+    isValidationSummary(value.cart) &&
+    typeof value.attempt.attemptId === "string" &&
+    value.attempt.status === "INVENTORY_RESERVED" &&
+    typeof value.reservation.reservationId === "string" &&
+    value.reservation.status === "ACTIVE" &&
+    typeof value.reservation.expiresAt === "string" &&
+    value.next.paymentAllowed === true &&
+    value.next.payMongoCreationRequired === true
   );
 }
 
@@ -540,6 +587,86 @@ export async function submitCheckoutDetails(
     return {
       kind: "failure",
       reason: "Could not save checkout details. Try again.",
+    };
+  }
+}
+
+export async function reserveCheckoutInventory(
+  input: {
+    attemptId: string;
+    attemptToken: string;
+    state: { items: CartItemSnapshot[]; updatedAt: string };
+  },
+  fetcher: typeof fetch = fetch
+): Promise<CheckoutReservationClientResult> {
+  try {
+    const response = await fetcher(
+      `/api/checkout/attempts/${encodeURIComponent(input.attemptId)}/reservations`,
+      {
+        body: JSON.stringify({
+          attemptToken: input.attemptToken,
+          ...cartValidationRequestBody(input.state),
+        }),
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      }
+    );
+    const body = (await response.json()) as CheckoutReservationEnvelope;
+
+    if ("data" in body && isCheckoutReservationResult(body.data)) {
+      return { kind: "reserved", ...body.data };
+    }
+
+    if ("error" in body) {
+      if (
+        body.error.code === "CONFLICT_STATE" &&
+        isValidationSummary(body.error.details)
+      ) {
+        return {
+          kind: "changed",
+          reason: "Review cart updates before payment.",
+          summary: body.error.details,
+        };
+      }
+
+      if (
+        body.error.code === "INVENTORY_UNAVAILABLE" &&
+        isValidationSummary(body.error.details)
+      ) {
+        return {
+          kind: "blocked",
+          reason: "Item is unavailable. Review cart.",
+          summary: body.error.details,
+        };
+      }
+
+      if (body.error.code === "AUTH_FORBIDDEN") {
+        return {
+          kind: "denied",
+          reason: "Checkout session expired. Save details again.",
+        };
+      }
+
+      if (body.error.code === "IDEMPOTENCY_CONFLICT") {
+        return {
+          kind: "conflict",
+          reason: "Cart changed. Save details again.",
+        };
+      }
+    }
+
+    return {
+      kind: "failure",
+      reason: "Could not reserve items. Try again.",
+    };
+  } catch {
+    return {
+      kind: "failure",
+      reason: "Could not reserve items. Try again.",
     };
   }
 }
