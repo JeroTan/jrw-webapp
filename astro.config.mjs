@@ -46,6 +46,10 @@ function optimizeWorkerServerDeps() {
 // https://astro.build/config
 export default defineConfig({
   output: "server",
+  server: {
+    port: 7777,
+    host: true,
+  },
   devToolbar: {
     enabled: false,
   },
