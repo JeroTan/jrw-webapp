@@ -598,7 +598,7 @@ Implement direction as one system:
 
 ### Prospect To Guest Or Customer Purchase
 
-Prospect browses first. Checkout always shows required email/contact/delivery details, while account sign-in or account creation remains optional for reuse and order history. Signed-in Customer details prefill when available; missing account fields stay blank/editable and must be completed before payment.
+Prospect browses first. Checkout details only asks for required email/contact/delivery details. Account sign-in or account creation must not compete with checkout details. Signed-in Customer details may prefill silently when available; missing fields stay blank/editable and must be completed before payment. Guest account creation belongs after successful order/receipt, paired with delivery-status email reassurance.
 
 ```mermaid
 flowchart TD
@@ -610,7 +610,7 @@ flowchart TD
   F --> G["Cart drawer or sticky cart"]
   G --> H{"Checkout"}
   H --> I{"Checkout email/contact ready?"}
-  I -- "No" --> J["Enter required email/contact or sign in"]
+  I -- "No" --> J["Enter required email/contact"]
   I -- "Yes" --> K["Review delivery/contact details"]
   J --> K
   K --> L["Server validates cart and stock"]
@@ -618,7 +618,7 @@ flowchart TD
   M -- "No" --> N["Block checkout and update cart"]
   M -- "Yes" --> O["PayMongo handoff"]
   O --> P["JRW reconciles payment"]
-  P --> Q["Receipt and order tracking"]
+  P --> Q["Receipt, inbox update, optional account CTA"]
 ```
 
 ### Admin Catalog And Brand Work
@@ -811,7 +811,7 @@ All primitives use JRW tokens: 0px radius, 1px borders, no shadows, visible focu
 
 **Usage:** Checkout flow desktop and mobile.
 
-**Anatomy:** Step labels, current step, completed steps, required email/contact/delivery form, optional account sign-in prompt, signed-in prefill for available safe Customer fields, blank required fields for missing data, safe error summary.
+**Anatomy:** Step labels, current step, completed steps, required email/contact/delivery form, silent signed-in prefill for available safe Customer fields, blank required fields for missing data, safe error summary. Do not show sign-in, Google OAuth, account creation prompts, or a separate "Save details" button in checkout details. The only primary action is "Continue to Payment"; it stays disabled until details debounce-validate as complete and correct, then saves details, revalidates cart, and reserves inventory behind the scenes. The privacy acknowledgement is a plain checkbox row, not a bordered panel.
 
 **States:** Current, complete, blocked, payment pending, payment failed.
 
@@ -823,7 +823,7 @@ All primitives use JRW tokens: 0px radius, 1px borders, no shadows, visible focu
 
 **Usage:** Post-payment confirmation.
 
-**Anatomy:** Order number, items, totals, payment status, fulfillment status, next action.
+**Anatomy:** Order number, items, totals, payment status, fulfillment status, next action, inbox reminder, and optional account CTA after success. Account CTA copy should reassure first, for example: "We sent order updates to your email. Create an account with this email to track delivery faster next time." CTA: "Create account".
 
 **States:** Payment pending, paid, failed, reconciliation delayed.
 

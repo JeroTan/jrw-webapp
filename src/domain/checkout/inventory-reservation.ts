@@ -56,17 +56,21 @@ export type CheckoutReservationRetryDecision = "reuse" | "conflict" | "reserve";
 export function createCheckoutCartFingerprint(
   summary: CheckoutCartValidationSummary
 ): string {
-  return summary.items
-    .map((item) =>
-      [
-        item.productId,
-        item.variantId,
-        item.priceCentavos,
-        item.quantity,
-        item.lineSubtotalCentavos,
-      ].join(":")
-    )
-    .join("|");
+  return JSON.stringify(
+    summary.items
+      .map((item) => ({
+        lineSubtotalCentavos: item.lineSubtotalCentavos,
+        priceCentavos: item.priceCentavos,
+        productId: item.productId,
+        quantity: item.quantity,
+        variantId: item.variantId,
+      }))
+      .sort((left, right) =>
+        `${left.productId}\u0000${left.variantId}`.localeCompare(
+          `${right.productId}\u0000${right.variantId}`
+        )
+      )
+  );
 }
 
 export function checkoutReservationExpiresAt(
@@ -89,13 +93,15 @@ export function planCheckoutReservation(
 
   const lines = summary.items
     .filter((item) => item.quantity > 0)
-    .map((item): CheckoutReservationPlanLine => ({
-      mode: item.availabilityLabel === "Preorder" ? "PREORDER" : "STOCK",
-      priceCentavos: item.priceCentavos,
-      productId: item.productId,
-      quantity: item.quantity,
-      variantId: item.variantId,
-    }));
+    .map(
+      (item): CheckoutReservationPlanLine => ({
+        mode: item.availabilityLabel === "Preorder" ? "PREORDER" : "STOCK",
+        priceCentavos: item.priceCentavos,
+        productId: item.productId,
+        quantity: item.quantity,
+        variantId: item.variantId,
+      })
+    );
 
   return {
     fingerprint: createCheckoutCartFingerprint(summary),
@@ -116,7 +122,9 @@ export function decideCheckoutReservationRetry({
     return "reserve";
   }
 
-  return activeReservationFingerprint === requestedFingerprint ? "reuse" : "conflict";
+  return activeReservationFingerprint === requestedFingerprint
+    ? "reuse"
+    : "conflict";
 }
 
 export function toCheckoutReservationResponse({

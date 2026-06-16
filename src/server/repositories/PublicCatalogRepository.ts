@@ -135,10 +135,23 @@ function productImageSrc(r2Key: string | null): string | undefined {
   return publicProductAssetUrl(cleanKey);
 }
 
-function maxQuantityForAvailability(
+export function maxQuantityForPublicVariant(
+  variant: Pick<ProductVariantRecord, "isPreorder" | "stock">,
   availability: PublicCatalogAvailability
 ): number {
-  return availability.inStock ? STOREFRONT_CART_LINE_QUANTITY_MAX : 0;
+  if (!availability.inStock) {
+    return 0;
+  }
+
+  if (variant.isPreorder) {
+    return STOREFRONT_CART_LINE_QUANTITY_MAX;
+  }
+
+  if (!Number.isFinite(variant.stock) || variant.stock <= 0) {
+    return 0;
+  }
+
+  return Math.min(Math.trunc(variant.stock), STOREFRONT_CART_LINE_QUANTITY_MAX);
 }
 
 function priceLabel(product: ProductRecord): string {
@@ -359,7 +372,7 @@ function detailResultFromSource(input: {
         name: variant.name,
         optionValues: variant.variationChain,
       }),
-      maxQuantity: maxQuantityForAvailability(availability),
+      maxQuantity: maxQuantityForPublicVariant(variant, availability),
       optionValues: variant.variationChain.map((option) => ({
         group: option.group,
         name: option.name,
@@ -702,12 +715,8 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
     return {
       href: brandHref(brand.slug),
       id: brand.id,
-      ...(brandWithImage.imageAlt
-        ? { imageAlt: brandWithImage.imageAlt }
-        : {}),
-      ...(brandWithImage.imageSrc
-        ? { imageSrc: brandWithImage.imageSrc }
-        : {}),
+      ...(brandWithImage.imageAlt ? { imageAlt: brandWithImage.imageAlt } : {}),
+      ...(brandWithImage.imageSrc ? { imageSrc: brandWithImage.imageSrc } : {}),
       name: brand.name,
       productCount: brandProducts.pagination.totalItems,
       slug: brand.slug,

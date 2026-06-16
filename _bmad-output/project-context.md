@@ -42,6 +42,7 @@ _Critical rules and patterns AI agents must follow when implementing code in thi
 - Super Admin manages Admin accounts and ownership transfer. Daily catalog/order operations belong to Admin.
 - Admin manages products, brands, variants, stock, prices, orders, manual returns/refunds, and audit-visible operational work.
 - Shoppers can purchase as guests with required checkout email/contact/delivery details. Customers may register or use Google sign-in for repeat purchase, profile reuse, and account order history. Prospects browse storefront and can become guest checkout shoppers before account creation.
+- Guest account creation belongs after successful order/receipt, never in checkout details. Receipt must reassure that order and delivery updates were sent to the checkout email inbox, then show optional "Create account" CTA for faster delivery tracking next time.
 - Payment state and fulfillment/order state must stay separate in data, API, and UI.
 - Manual refund/return recording is not automated PayMongo refund unless a later story explicitly adds provider refund execution.
 

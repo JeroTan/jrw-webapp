@@ -21,9 +21,25 @@ import {
   checkout_reservation_items,
   checkout_reservations,
 } from "@/domain/schema/transactions";
-import { and, eq, gte, inArray, sql } from "drizzle-orm";
+import { and, eq, gte, inArray, isNull, sql } from "drizzle-orm";
 
 const ARCHIVED_STOCK_LOCK_VERSION = -1;
+
+function errorSearchText(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return "";
+  }
+
+  const causeText = "cause" in error ? ` ${errorSearchText(error.cause)}` : "";
+
+  return `${error.message}${causeText}`;
+}
+
+function isD1ExplicitTransactionUnsupported(error: unknown): boolean {
+  return /Failed query:\s*begin|SQL BEGIN|SAVEPOINT|state\.storage\.transaction/i.test(
+    errorSearchText(error)
+  );
+}
 
 type CheckoutLineRow = {
   inventoryState: string;
@@ -57,6 +73,9 @@ export type CheckoutRepository = {
     items: CheckoutCartRequestItem[]
   ): Promise<CheckoutCartServerLine[]>;
   releaseStockLine(line: CheckoutReservationPlanLine): Promise<void>;
+  reserveStockAndCreateCheckoutReservation(
+    input: CreateCheckoutReservationInput
+  ): Promise<CheckoutReservationRecord | null>;
   reserveStockLine(line: CheckoutReservationPlanLine): Promise<boolean>;
 };
 
@@ -71,7 +90,9 @@ export type CreateCheckoutAttemptInput = {
 export type CheckoutAttemptStatus =
   | "DETAILS_CAPTURED"
   | "INVENTORY_RESERVED"
-  | "RESERVATION_FAILED";
+  | "PAYMENT_CREATED"
+  | "RESERVATION_FAILED"
+  | "UNKNOWN";
 
 export type CheckoutAttemptRecord = {
   attemptTokenHash: string;
@@ -92,8 +113,16 @@ export type CheckoutReservationRecord = {
   checkoutAttemptId: string;
   expiresAt: string;
   id: string;
+  items?: CheckoutReservationItemRecord[];
   status: "ACTIVE" | "RELEASED" | "EXPIRED" | "FAILED";
   subtotalCentavos: number;
+};
+
+export type CheckoutReservationItemRecord = {
+  productId: string | null;
+  quantity: number;
+  reservationMode: "STOCK" | "PREORDER";
+  variantId: string | null;
 };
 
 export type CreateCheckoutReservationInput = {
@@ -112,6 +141,12 @@ export type FailReservationInput = {
   requestId: string;
   reservationId?: string;
 };
+
+class InventoryReservationUnavailableError extends Error {
+  constructor() {
+    super("INVENTORY_RESERVATION_UNAVAILABLE");
+  }
+}
 
 function uniqueCleanValues(values: string[]): string[] {
   return Array.from(
@@ -172,9 +207,15 @@ type CheckoutAttemptRow = typeof checkout_attempts.$inferSelect;
 type CheckoutReservationRow = typeof checkout_reservations.$inferSelect;
 
 function attemptStatus(value: string): CheckoutAttemptStatus {
-  return value === "INVENTORY_RESERVED" || value === "RESERVATION_FAILED"
-    ? value
-    : "DETAILS_CAPTURED";
+  switch (value) {
+    case "DETAILS_CAPTURED":
+    case "INVENTORY_RESERVED":
+    case "PAYMENT_CREATED":
+    case "RESERVATION_FAILED":
+      return value;
+    default:
+      return "UNKNOWN";
+  }
 }
 
 function rowToCheckoutAttempt(row: CheckoutAttemptRow): CheckoutAttemptRecord {
@@ -193,12 +234,16 @@ function rowToCheckoutAttempt(row: CheckoutAttemptRow): CheckoutAttemptRecord {
   };
 }
 
-function rowToReservation(row: CheckoutReservationRow): CheckoutReservationRecord {
+function rowToReservation(
+  row: CheckoutReservationRow,
+  items: CheckoutReservationItemRecord[] = []
+): CheckoutReservationRecord {
   return {
     cartFingerprint: row.cart_fingerprint,
     checkoutAttemptId: row.checkout_attempt_id,
     expiresAt: row.expires_at,
     id: row.id,
+    items,
     status:
       row.status === "RELEASED" ||
       row.status === "EXPIRED" ||
@@ -271,7 +316,30 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
       )
       .limit(1);
 
-    return rows[0] ? rowToReservation(rows[0]) : null;
+    if (!rows[0]) {
+      return null;
+    }
+
+    const itemRows = await this.db
+      .select({
+        productId: checkout_reservation_items.product_id,
+        quantity: checkout_reservation_items.quantity,
+        reservationMode: checkout_reservation_items.reservation_mode,
+        variantId: checkout_reservation_items.variant_id,
+      })
+      .from(checkout_reservation_items)
+      .where(eq(checkout_reservation_items.reservation_id, rows[0].id));
+
+    return rowToReservation(
+      rows[0],
+      itemRows.map((item) => ({
+        productId: item.productId,
+        quantity: Number(item.quantity),
+        reservationMode:
+          item.reservationMode === "PREORDER" ? "PREORDER" : "STOCK",
+        variantId: item.variantId,
+      }))
+    );
   }
 
   async findCartLines(
@@ -316,28 +384,111 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
 
   async reserveStockLine(line: CheckoutReservationPlanLine): Promise<boolean> {
     if (line.mode === "PREORDER") {
-      return true;
-    }
-
-    const expectedVersionRows = await this.db
-      .select({ stockVersion: product_variants.stock_version })
-      .from(product_variants)
-      .where(
-        and(
-          eq(product_variants.id, line.variantId),
-          eq(product_variants.product_id, line.productId),
-          eq(product_variants.is_preorder, false),
-          gte(product_variants.stock_lock_version, 0)
+      const rows = await this.db
+        .select({ id: product_variants.id })
+        .from(product_variants)
+        .innerJoin(products, eq(products.id, product_variants.product_id))
+        .where(
+          and(
+            eq(products.status, "PUBLISHED"),
+            eq(product_variants.id, line.variantId),
+            eq(product_variants.product_id, line.productId),
+            eq(product_variants.is_preorder, true),
+            eq(product_variants.inventory_state, "PREORDER"),
+            eq(product_variants.price, line.priceCentavos),
+            gte(product_variants.stock_lock_version, 0)
+          )
         )
-      )
-      .limit(1);
-    const expectedStockVersion = expectedVersionRows[0]?.stockVersion;
+        .limit(1);
 
-    if (typeof expectedStockVersion !== "number") {
-      return false;
+      return rows.length === 1;
     }
 
-    const nextStock = sql`${product_variants.stock} - ${line.quantity}`;
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const expectedVersionRows = await this.db
+        .select({
+          stockQuantity: product_variants.stock,
+          stockVersion: product_variants.stock_version,
+        })
+        .from(product_variants)
+        .where(
+          and(
+            eq(product_variants.id, line.variantId),
+            eq(product_variants.product_id, line.productId),
+            eq(product_variants.is_preorder, false),
+            inArray(product_variants.inventory_state, [
+              "IN_STOCK",
+              "LOW_STOCK",
+            ]),
+            eq(product_variants.price, line.priceCentavos),
+            gte(product_variants.stock_lock_version, 0),
+            sql`EXISTS (
+              SELECT 1 FROM ${products}
+              WHERE ${products.id} = ${product_variants.product_id}
+                AND ${products.status} = 'PUBLISHED'
+            )`
+          )
+        )
+        .limit(1);
+      const expectedStockVersion = expectedVersionRows[0]?.stockVersion;
+      const stockQuantity = expectedVersionRows[0]?.stockQuantity;
+
+      if (
+        typeof expectedStockVersion !== "number" ||
+        typeof stockQuantity !== "number" ||
+        stockQuantity < line.quantity
+      ) {
+        return false;
+      }
+
+      const nextStock = sql`${product_variants.stock} - ${line.quantity}`;
+      const rows = await this.db
+        .update(product_variants)
+        .set({
+          stock: nextStock,
+          stock_version: sql`${product_variants.stock_version} + 1`,
+          inventory_state: sql`CASE
+            WHEN ${nextStock} <= 0 THEN 'OUT_OF_STOCK'
+            WHEN ${nextStock} <= 10 THEN 'LOW_STOCK'
+            ELSE 'IN_STOCK'
+          END`,
+        })
+        .where(
+          and(
+            eq(product_variants.id, line.variantId),
+            eq(product_variants.product_id, line.productId),
+            eq(product_variants.is_preorder, false),
+            inArray(product_variants.inventory_state, [
+              "IN_STOCK",
+              "LOW_STOCK",
+            ]),
+            eq(product_variants.price, line.priceCentavos),
+            eq(product_variants.stock_version, expectedStockVersion),
+            gte(product_variants.stock, line.quantity),
+            gte(product_variants.stock_lock_version, 0),
+            sql`EXISTS (
+              SELECT 1 FROM ${products}
+              WHERE ${products.id} = ${product_variants.product_id}
+                AND ${products.status} = 'PUBLISHED'
+            )`
+          )
+        )
+        .returning({ id: product_variants.id });
+
+      if (rows.length === 1) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  async releaseStockLine(line: CheckoutReservationPlanLine): Promise<void> {
+    if (line.mode === "PREORDER") {
+      return;
+    }
+
+    const nextStock = sql`${product_variants.stock} + ${line.quantity}`;
     const rows = await this.db
       .update(product_variants)
       .set({
@@ -353,42 +504,14 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
         and(
           eq(product_variants.id, line.variantId),
           eq(product_variants.product_id, line.productId),
-          eq(product_variants.is_preorder, false),
-          eq(product_variants.stock_version, expectedStockVersion),
-          gte(product_variants.stock, line.quantity),
-          gte(product_variants.stock_lock_version, 0)
+          eq(product_variants.is_preorder, false)
         )
       )
       .returning({ id: product_variants.id });
 
-    return rows.length === 1;
-  }
-
-  async releaseStockLine(line: CheckoutReservationPlanLine): Promise<void> {
-    if (line.mode === "PREORDER") {
-      return;
+    if (rows.length !== 1) {
+      throw new Error("D1_ROLLBACK_FAILED");
     }
-
-    const nextStock = sql`${product_variants.stock} + ${line.quantity}`;
-    await this.db
-      .update(product_variants)
-      .set({
-        stock: nextStock,
-        stock_version: sql`${product_variants.stock_version} + 1`,
-        inventory_state: sql`CASE
-          WHEN ${nextStock} <= 0 THEN 'OUT_OF_STOCK'
-          WHEN ${nextStock} <= 10 THEN 'LOW_STOCK'
-          ELSE 'IN_STOCK'
-        END`,
-      })
-      .where(
-        and(
-          eq(product_variants.id, line.variantId),
-          eq(product_variants.product_id, line.productId),
-          eq(product_variants.is_preorder, false),
-          gte(product_variants.stock_lock_version, 0)
-        )
-      );
   }
 
   async createCheckoutReservation(
@@ -433,7 +556,7 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
         );
       }
 
-      await this.db
+      const attemptRows = await this.db
         .update(checkout_attempts)
         .set({
           status: "INVENTORY_RESERVED",
@@ -443,16 +566,107 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
           updated_request_id: input.requestId,
           updated_at: now,
         })
-        .where(eq(checkout_attempts.id, input.attemptId));
+        .where(
+          and(
+            eq(checkout_attempts.id, input.attemptId),
+            inArray(checkout_attempts.status, [
+              "DETAILS_CAPTURED",
+              "RESERVATION_FAILED",
+            ]),
+            isNull(checkout_attempts.reservation_id)
+          )
+        )
+        .returning({ id: checkout_attempts.id });
 
-      return rowToReservation(reservation);
+      if (attemptRows.length !== 1) {
+        throw new Error("D1_CHECKOUT_ATTEMPT_NOT_RESERVABLE");
+      }
+
+      return rowToReservation(
+        reservation,
+        input.lines.map((line) => ({
+          productId: line.productId,
+          quantity: line.quantity,
+          reservationMode: line.mode,
+          variantId: line.variantId,
+        }))
+      );
     } catch (error) {
-      await this.failReservationAndAttempt({
-        attemptId: input.attemptId,
-        now,
-        requestId: input.requestId,
-        reservationId,
+      if (reservationId) {
+        await this.failReservationAndAttempt({
+          attemptId: input.attemptId,
+          now,
+          requestId: input.requestId,
+          reservationId,
+        });
+      }
+
+      throw error;
+    }
+  }
+
+  async reserveStockAndCreateCheckoutReservation(
+    input: CreateCheckoutReservationInput
+  ): Promise<CheckoutReservationRecord | null> {
+    if (process.env.CLOUDFLARE_ENV === "development") {
+      return this.reserveStockAndCreateCheckoutReservationSequential(input);
+    }
+
+    try {
+      return await this.db.transaction(async (tx) => {
+        const transactionalRepository = new DrizzleCheckoutRepository(
+          tx as unknown as AppDb
+        );
+
+        for (const line of input.lines) {
+          const reserved = await transactionalRepository.reserveStockLine(line);
+
+          if (!reserved) {
+            throw new InventoryReservationUnavailableError();
+          }
+        }
+
+        return transactionalRepository.createCheckoutReservation(input);
       });
+    } catch (error) {
+      if (error instanceof InventoryReservationUnavailableError) {
+        return null;
+      }
+
+      if (isD1ExplicitTransactionUnsupported(error)) {
+        return this.reserveStockAndCreateCheckoutReservationSequential(input);
+      }
+
+      throw error;
+    }
+  }
+
+  private async reserveStockAndCreateCheckoutReservationSequential(
+    input: CreateCheckoutReservationInput
+  ): Promise<CheckoutReservationRecord | null> {
+    const reservedLines: CheckoutReservationPlanLine[] = [];
+
+    for (const line of input.lines) {
+      const reserved = await this.reserveStockLine(line);
+
+      if (!reserved) {
+        for (const reservedLine of reservedLines.reverse()) {
+          await this.releaseStockLine(reservedLine);
+        }
+
+        return null;
+      }
+
+      reservedLines.push(line);
+    }
+
+    try {
+      return await this.createCheckoutReservation(input);
+    } catch (error) {
+      for (const reservedLine of reservedLines.reverse()) {
+        await this.releaseStockLine(reservedLine);
+      }
+
       throw error;
     }
   }
@@ -477,7 +691,16 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
         updated_request_id: input.requestId,
         updated_at: now,
       })
-      .where(eq(checkout_attempts.id, input.attemptId));
+      .where(
+        and(
+          eq(checkout_attempts.id, input.attemptId),
+          inArray(checkout_attempts.status, [
+            "DETAILS_CAPTURED",
+            "RESERVATION_FAILED",
+          ]),
+          isNull(checkout_attempts.reservation_id)
+        )
+      );
   }
 }
 

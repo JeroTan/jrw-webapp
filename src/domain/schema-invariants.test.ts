@@ -134,7 +134,9 @@ describe("identity schema invariants", () => {
     const columnNames = rateLimitConfig.columns
       .map((column) => getColumnName(column))
       .filter((name): name is string => Boolean(name));
-    const indexNames = rateLimitConfig.indexes.map((index) => index.config.name);
+    const indexNames = rateLimitConfig.indexes.map(
+      (index) => index.config.name
+    );
 
     expect(columnNames).toEqual(
       expect.arrayContaining([
@@ -221,13 +223,16 @@ describe("identity schema invariants", () => {
     );
     expect(
       tokenConfig.indexes.find(
-        (index) => index.config.name === "email_verification_tokens_token_hash_idx"
+        (index) =>
+          index.config.name === "email_verification_tokens_token_hash_idx"
       )?.config.unique
     ).toBe(true);
     expect(
       getSqlQuery(
         tokenConfig.indexes.find(
-          (index) => index.config.name === "email_verification_tokens_customer_active_idx"
+          (index) =>
+            index.config.name ===
+            "email_verification_tokens_customer_active_idx"
         )?.config.where
       )
     ).toBe('"used_at" IS NULL');
@@ -279,7 +284,8 @@ describe("identity schema invariants", () => {
     expect(
       getSqlQuery(
         tokenConfig.indexes.find(
-          (index) => index.config.name === "password_reset_tokens_actor_active_idx"
+          (index) =>
+            index.config.name === "password_reset_tokens_actor_active_idx"
         )?.config.where
       )
     ).toBe('"used_at" IS NULL');
@@ -335,7 +341,8 @@ describe("identity schema invariants", () => {
     expect(
       getSqlQuery(
         stateConfig.indexes.find(
-          (index) => index.config.name === "oauth_state_tokens_provider_active_idx"
+          (index) =>
+            index.config.name === "oauth_state_tokens_provider_active_idx"
         )?.config.where
       )
     ).toBe('"used_at" IS NULL');
@@ -475,6 +482,7 @@ describe("checkout schema invariants", () => {
         "idx_checkout_reservations_attempt_id",
         "idx_checkout_reservations_status",
         "idx_checkout_reservations_expires_at",
+        "uq_checkout_reservations_active_attempt",
         "uq_checkout_reservations_active_attempt_cart",
       ])
     );

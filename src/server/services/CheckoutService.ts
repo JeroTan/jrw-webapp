@@ -2,6 +2,7 @@ import {
   validateCheckoutCart,
   validateCheckoutCartRequestItems,
   type CheckoutCartRequestItem,
+  type CheckoutCartServerLine,
   type CheckoutCartValidationSummary,
 } from "@/domain/checkout/cart-validation";
 import {
@@ -13,7 +14,6 @@ import {
   decideCheckoutReservationRetry,
   planCheckoutReservation,
   toCheckoutReservationResponse,
-  type CheckoutReservationPlanLine,
   type CheckoutReservationResponse,
 } from "@/domain/checkout/inventory-reservation";
 import {
@@ -21,8 +21,13 @@ import {
   hashOpaqueToken,
   verifyOpaqueToken,
 } from "@/lib/crypto/opaque-token";
+import {
+  availabilityLabelFromState,
+  isInventoryState,
+} from "@/domain/products/schemas";
 import type {
   CheckoutAttemptRecord,
+  CheckoutReservationRecord,
   CheckoutRepository,
 } from "@/server/repositories/CheckoutRepository";
 import { GeneralError } from "@/utils/general/error";
@@ -143,7 +148,9 @@ function variantOptionsFromValue(value: unknown) {
   return options.length > 0 ? options : undefined;
 }
 
-function normalizeRequestItems(body: unknown):
+function normalizeRequestItems(
+  body: unknown
+):
   | { items: CheckoutCartRequestItem[]; reasons: [] }
   | { items: []; reasons: string[] } {
   if (!isRecord(body) || !Array.isArray(body.items)) {
@@ -197,6 +204,73 @@ function providerFailure(error: unknown): boolean {
       error.message
     )
   );
+}
+
+function activeReservationExpired(
+  reservation: CheckoutReservationRecord,
+  now?: string
+): boolean {
+  const expiresAt = Date.parse(reservation.expiresAt);
+  const compareAt = now ? Date.parse(now) : Date.now();
+
+  return Number.isFinite(expiresAt) && Number.isFinite(compareAt)
+    ? expiresAt <= compareAt
+    : false;
+}
+
+function serverLinesWithActiveReservation(
+  serverLines: CheckoutCartServerLine[],
+  activeReservation: CheckoutReservationRecord | null
+): CheckoutCartServerLine[] {
+  if (!activeReservation?.items?.length) {
+    return serverLines;
+  }
+
+  const reservedQuantityByLine = new Map<string, number>();
+
+  for (const item of activeReservation.items) {
+    if (
+      item.reservationMode !== "STOCK" ||
+      !item.productId ||
+      !item.variantId
+    ) {
+      continue;
+    }
+
+    const key = `${item.productId}::${item.variantId}`;
+    reservedQuantityByLine.set(
+      key,
+      (reservedQuantityByLine.get(key) ?? 0) + item.quantity
+    );
+  }
+
+  return serverLines.map((line) => {
+    const reservedQuantity =
+      reservedQuantityByLine.get(`${line.productId}::${line.variantId}`) ?? 0;
+
+    if (reservedQuantity <= 0) {
+      return line;
+    }
+
+    const stockQuantity = line.stockQuantity + reservedQuantity;
+    const inventoryState =
+      stockQuantity > 10
+        ? "IN_STOCK"
+        : stockQuantity > 0
+          ? "LOW_STOCK"
+          : line.inventoryState;
+
+    return {
+      ...line,
+      availabilityLabel: isInventoryState(inventoryState)
+        ? availabilityLabelFromState(inventoryState)
+        : line.availabilityLabel,
+      inventoryState: isInventoryState(inventoryState)
+        ? inventoryState
+        : line.inventoryState,
+      stockQuantity,
+    };
+  });
 }
 
 export class CheckoutService {
@@ -309,11 +383,23 @@ export class CheckoutService {
     input: CheckoutReservationServiceInput
   ): Promise<AppResult<CheckoutReservationResponse>> {
     if (this.reservationExecutor) {
-      return this.reservationExecutor(input);
+      const result = await this.reservationExecutor(input);
+
+      if (!result.error || result.error.code !== "PROVIDER_UNAVAILABLE") {
+        return result;
+      }
     }
 
+    return this.reserveInventoryDirect(input);
+  }
+
+  private async reserveInventoryDirect(
+    input: CheckoutReservationServiceInput
+  ): Promise<AppResult<CheckoutReservationResponse>> {
     try {
-      const attempt = await this.repository.findCheckoutAttempt(input.attemptId);
+      const attempt = await this.repository.findCheckoutAttempt(
+        input.attemptId
+      );
 
       if (!attempt) {
         return Result.error(new GeneralError({}, "RESOURCE_NOT_FOUND"));
@@ -326,6 +412,14 @@ export class CheckoutService {
 
       if (authorization.error) {
         return authorization;
+      }
+
+      if (
+        attempt.status !== "DETAILS_CAPTURED" &&
+        attempt.status !== "RESERVATION_FAILED" &&
+        attempt.status !== "INVENTORY_RESERVED"
+      ) {
+        return Result.error(new GeneralError({}, "CONFLICT_STATE"));
       }
 
       const rejectedFields = reservationRejectedFields(input.body);
@@ -344,7 +438,31 @@ export class CheckoutService {
         );
       }
 
-      const serverLines = await this.repository.findCartLines(normalized.items);
+      const reservationClock = input.now ? new Date(input.now) : new Date();
+
+      if (!Number.isFinite(reservationClock.getTime())) {
+        return Result.error(
+          new GeneralError(
+            { reasons: ["now:invalid_value"] },
+            "VALIDATION_FAILED"
+          )
+        );
+      }
+
+      const activeReservation =
+        await this.repository.findActiveReservationForAttempt(attempt.id);
+
+      if (
+        activeReservation &&
+        activeReservationExpired(activeReservation, input.now)
+      ) {
+        return Result.error(new GeneralError({}, "CONFLICT_STATE"));
+      }
+
+      const serverLines = serverLinesWithActiveReservation(
+        await this.repository.findCartLines(normalized.items),
+        activeReservation
+      );
       const validation = validateCheckoutCart({
         items: normalized.items,
         serverLines,
@@ -377,10 +495,9 @@ export class CheckoutService {
         return Result.error(new GeneralError(plan.summary, plan.code));
       }
 
-      const activeReservation =
-        await this.repository.findActiveReservationForAttempt(attempt.id);
       const retryDecision = decideCheckoutReservationRetry({
-        activeReservationFingerprint: activeReservation?.cartFingerprint ?? null,
+        activeReservationFingerprint:
+          activeReservation?.cartFingerprint ?? null,
         requestedFingerprint: plan.fingerprint,
       });
 
@@ -399,21 +516,25 @@ export class CheckoutService {
         return Result.error(new GeneralError({}, "IDEMPOTENCY_CONFLICT"));
       }
 
-      if (
-        attempt.status === "INVENTORY_RESERVED" ||
-        (attempt.status !== "DETAILS_CAPTURED" &&
-          attempt.status !== "RESERVATION_FAILED")
-      ) {
+      if (attempt.status === "INVENTORY_RESERVED") {
         return Result.error(new GeneralError({}, "CONFLICT_STATE"));
       }
 
-      const reservedLines: CheckoutReservationPlanLine[] = [];
+      const expiresAt = checkoutReservationExpiresAt(reservationClock);
 
-      for (const line of plan.lines) {
-        const reserved = await this.repository.reserveStockLine(line);
+      try {
+        const reservation =
+          await this.repository.reserveStockAndCreateCheckoutReservation({
+            attemptId: attempt.id,
+            cartFingerprint: plan.fingerprint,
+            expiresAt,
+            lines: plan.lines,
+            now: input.now,
+            requestId: input.requestId,
+            subtotalCentavos: plan.subtotalCentavos,
+          });
 
-        if (!reserved) {
-          await this.releaseReservedLines(reservedLines);
+        if (!reservation) {
           await this.repository.failReservationAndAttempt({
             attemptId: attempt.id,
             now: input.now,
@@ -425,24 +546,6 @@ export class CheckoutService {
           );
         }
 
-        reservedLines.push(line);
-      }
-
-      const expiresAt = checkoutReservationExpiresAt(
-        input.now ? new Date(input.now) : new Date()
-      );
-
-      try {
-        const reservation = await this.repository.createCheckoutReservation({
-          attemptId: attempt.id,
-          cartFingerprint: plan.fingerprint,
-          expiresAt,
-          lines: plan.lines,
-          now: input.now,
-          requestId: input.requestId,
-          subtotalCentavos: plan.subtotalCentavos,
-        });
-
         return Result.okay(
           toCheckoutReservationResponse({
             attemptId: attempt.id,
@@ -452,7 +555,6 @@ export class CheckoutService {
           })
         );
       } catch (error) {
-        await this.releaseReservedLines(reservedLines);
         const activeAfterConflict =
           await this.repository.findActiveReservationForAttempt(attempt.id);
 
@@ -506,17 +608,5 @@ export class CheckoutService {
     return (await verifyOpaqueToken(attemptToken, attempt.attemptTokenHash))
       ? Result.okay(null)
       : Result.error(new GeneralError({}, "AUTH_FORBIDDEN"));
-  }
-
-  private async releaseReservedLines(
-    lines: CheckoutReservationPlanLine[]
-  ): Promise<void> {
-    for (const line of lines.reverse()) {
-      try {
-        await this.repository.releaseStockLine(line);
-      } catch {
-        // Best-effort cleanup. Caller maps original failure safely.
-      }
-    }
   }
 }

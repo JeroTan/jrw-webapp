@@ -7,6 +7,7 @@ import {
   CartDrawerView,
   CartPageView,
   CheckoutDetailsPageView,
+  CheckoutFlowShell,
 } from "@/features/cart-checkout";
 import {
   fetchCartProductDetail,
@@ -149,7 +150,7 @@ describe("cart checkout UI", () => {
     expect(markup).not.toContain(
       "border-brand-border px-2 py-1 font-system text-[0.6875rem] font-bold uppercase text-brand-muted"
     );
-    expect(markup).toContain("Check cart");
+    expect(markup).toContain("Checkout");
     expect(markup).not.toContain('href="/checkout"');
     expect(markup).toContain("Cart summary");
     expect(markup).toContain("2 item quantity across 1 line");
@@ -169,7 +170,7 @@ describe("cart checkout UI", () => {
     expect(markup).not.toContain("Verified display item");
   });
 
-  it("renders checkout details form as step two with guest account assist", () => {
+  it("renders checkout details form as step two without account prompts", () => {
     const markup = renderToStaticMarkup(
       createElement(CheckoutDetailsPageView, { state: activeCart })
     );
@@ -186,11 +187,85 @@ describe("cart checkout UI", () => {
     expect(markup).toContain("Barangay");
     expect(markup).toContain("Postal code");
     expect(markup).toContain("I agree JRW can use these details");
-    expect(markup).toContain("Save details");
-    expect(markup).toContain("Email sign in");
-    expect(markup).toContain("Create account");
-    expect(markup).toContain("/api/oauth/google/sessions?returnTo=/checkout");
+    expect(markup).not.toContain("Save details");
+    expect(markup).not.toContain("Details saved for checkout");
+    expect(markup).not.toContain("Account assist");
+    expect(markup).not.toContain("Email sign in");
+    expect(markup).not.toContain("Create account");
+    expect(markup).not.toContain(
+      "/api/oauth/google/sessions?returnTo=/checkout"
+    );
+    expect(markup).not.toContain("Continue with Google");
     expect(markup).toContain("Continue to Payment");
+    expect(markup).toMatch(/<button[^>]*disabled/);
+  });
+
+  it("keeps checkout details as first paint while cart validation is pending", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CheckoutDetailsPageView, {
+        state: activeCart,
+        validationStatus: "pending",
+      })
+    );
+
+    expect(markup).toContain('id="checkout-details-title"');
+    expect(markup).toContain("02 Details");
+    expect(markup).toContain("Checking cart before payment.");
+    expect(markup).not.toContain('id="checkout-validation-title"');
+    expect(markup).not.toContain("Review cart");
+  });
+
+  it("links completed checkout steps and renders a details back action", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CheckoutDetailsPageView, { state: activeCart })
+    );
+
+    expect(markup).toContain('aria-label="Go back to Cart step"');
+    expect(markup).toContain('href="/cart"');
+    expect(markup).toContain("Back to Cart");
+    expect(markup).toContain("lucide-arrow-left");
+    expect(markup).not.toContain("&lt;-");
+  });
+
+  it("enables the payment CTA when checkout details are valid", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CheckoutDetailsPageView, {
+        canContinueToPayment: true,
+        detailsValues: {
+          barangay: "Barangay 456",
+          cityProvince: "Quezon City",
+          email: "nina@example.com",
+          fullName: "Nina Reyes",
+          phone: "+63 917 555 1212",
+          postalCode: "1100",
+          privacyAcknowledged: true,
+          streetAddress: "12 Sampaguita Street",
+        },
+        onContinueToPayment: () => undefined,
+        state: activeCart,
+      })
+    );
+
+    expect(markup).toContain("Continue to Payment");
+    expect(markup).not.toContain("Save details");
+    expect(markup).not.toMatch(/<button[^>]*disabled/);
+  });
+
+  it("keeps the details step visible while payment reservation is processing", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CheckoutDetailsPageView, {
+        detailsStatus: "reserving",
+        state: activeCart,
+        validationStatus: "pending",
+      })
+    );
+
+    expect(markup).toContain('id="checkout-details-title"');
+    expect(markup).toContain("02 Details");
+    expect(markup).toContain('aria-current="step"');
+    expect(markup).toContain("Reserving items for payment.");
+    expect(markup).not.toContain('id="checkout-validation-title"');
+    expect(markup).not.toContain("Review cart");
   });
 
   it("renders reserved checkout as payment step without provider handoff", () => {
@@ -205,9 +280,35 @@ describe("cart checkout UI", () => {
     expect(markup).toContain('aria-current="step"');
     expect(markup).toContain("Items reserved. Payment is next.");
     expect(markup).toContain("Payment ready");
+    expect(markup).toContain('aria-label="Go back to Cart step"');
+    expect(markup).toContain('aria-label="Go back to Details step"');
+    expect(markup).toContain('href="/checkout"');
+    expect(markup).toContain("Back to Details");
+    expect(markup).toContain("lucide-arrow-left");
+    expect(markup).not.toContain("&lt;-");
     expect(markup).not.toContain("Continue to PayMongo");
   });
 
+  it("keeps receipt step history non-clickable", () => {
+    const markup = renderToStaticMarkup(
+      createElement(
+        CheckoutFlowShell,
+        {
+          children: createElement("div", null, "Receipt ready"),
+          currentStep: "receipt",
+          state: activeCart,
+          title: "Receipt",
+          titleId: "receipt-title",
+        }
+      )
+    );
+
+    expect(markup).toContain("04 Receipt");
+    expect(markup).toContain('aria-current="step"');
+    expect(markup).not.toContain('href="/cart"');
+    expect(markup).not.toContain('href="/checkout"');
+    expect(markup).not.toContain("Back to");
+  });
 
   it("renders signed-in prefill while keeping missing checkout fields editable", () => {
     const markup = renderToStaticMarkup(
@@ -473,6 +574,114 @@ describe("cart checkout UI", () => {
     });
   });
 
+  it("retries checkout validation after refreshing summary-less conflicts", async () => {
+    const storage = new Map<string, string>();
+    const windowDouble = {
+      addEventListener: () => undefined,
+      localStorage: {
+        getItem: (key: string) => storage.get(key) ?? null,
+        removeItem: (key: string) => {
+          storage.delete(key);
+        },
+        setItem: (key: string, value: string) => {
+          storage.set(key, value);
+        },
+      },
+      removeEventListener: () => undefined,
+    };
+    (globalThis as { window?: unknown }).window = windowDouble;
+    writeCartStateToStorage(activeCart, windowDouble.localStorage);
+    resetCartStoreForTest();
+    const reducedDetail: PublicCatalogDetailResult = {
+      ...detail,
+      variants: [
+        {
+          ...detail.variants[0]!,
+          maxQuantity: 1,
+          priceCentavos: 149900,
+          priceLabel: "PHP 1,499.00",
+        },
+      ],
+    };
+    const requestedUrls: string[] = [];
+    let checkoutValidationCalls = 0;
+
+    const result = await validateCartBeforeCheckout(activeCart, async (url) => {
+      requestedUrls.push(String(url));
+
+      if (String(url) === "/api/checkout/cart-validations") {
+        checkoutValidationCalls += 1;
+
+        if (checkoutValidationCalls === 1) {
+          return new Response(
+            JSON.stringify({
+              error: {
+                code: "CONFLICT_STATE",
+                details: { requestId: "req_legacy_checkout_conflict" },
+              },
+            }),
+            { status: 409 }
+          );
+        }
+
+        return new Response(
+          JSON.stringify({
+            data: {
+              issues: [],
+              items: [
+                {
+                  availabilityLabel: "Available",
+                  availabilityStatus: "ACTIVE",
+                  lineSubtotalCentavos: 149900,
+                  lineSubtotalLabel: "PHP 1,499.00",
+                  maxQuantity: 1,
+                  priceCentavos: 149900,
+                  priceLabel: "PHP 1,499.00",
+                  productId: "prod_linen",
+                  productName: "Linen Shirt",
+                  productSlug: "linen-shirt",
+                  quantity: 1,
+                  recoveryStatus: "READY",
+                  variantId: "variant_linen_small",
+                  variantLabel: "Size: Small",
+                  variantOptions: [{ group: "Size", name: "Small" }],
+                },
+              ],
+              lineItemCount: 1,
+              requiresCustomerAcceptance: false,
+              status: "VALID",
+              subtotalCentavos: 149900,
+              subtotalLabel: "PHP 1,499.00",
+              totalQuantity: 1,
+            },
+            meta: { requestId: "req_checkout_retry_valid" },
+          }),
+          { status: 200 }
+        );
+      }
+
+      return new Response(JSON.stringify({ data: reducedDetail }), {
+        status: 200,
+      });
+    });
+
+    expect(requestedUrls).toEqual([
+      "/api/checkout/cart-validations",
+      "/api/storefront/catalog/products/linen-shirt",
+      "/api/checkout/cart-validations",
+    ]);
+    expect(result).toMatchObject({
+      kind: "valid",
+      summary: {
+        status: "VALID",
+      },
+    });
+    expect(getCartSnapshot().items[0]).toMatchObject({
+      maxQuantity: 1,
+      quantity: 1,
+    });
+  });
+
   it("posts checkout details without browser customer identity fields", async () => {
     let capturedUrl = "";
     let capturedBody: unknown;
@@ -540,6 +749,37 @@ describe("cart checkout UI", () => {
       details: {
         email: "nina@example.com",
       },
+    });
+  });
+
+  it("maps checkout details provider failure to service unavailable copy", async () => {
+    const result = await submitCheckoutDetails(
+      {
+        barangay: "Barangay 456",
+        cityProvince: "Quezon City",
+        email: "nina@example.com",
+        fullName: "Nina Reyes",
+        phone: "+63 917 555 1212",
+        postalCode: "1100",
+        privacyAcknowledged: true,
+        streetAddress: "12 Sampaguita Street",
+      },
+      async () =>
+        new Response(
+          JSON.stringify({
+            error: {
+              code: "PROVIDER_UNAVAILABLE",
+              message:
+                "A required provider is unavailable. Please try again later.",
+            },
+          }),
+          { status: 503 }
+        )
+    );
+
+    expect(result).toEqual({
+      kind: "failure",
+      reason: "Checkout service is unavailable. Try again in a moment.",
     });
   });
 

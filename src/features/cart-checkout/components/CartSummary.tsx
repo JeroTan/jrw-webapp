@@ -48,8 +48,8 @@ export function CartSummary({ onRefresh, state }: CartSummaryProps) {
           </strong>
         </div>
         <p className="m-0 text-sm text-brand-muted">
-          {summary.totalQuantity} item quantity across {summary.lineItemCount} line
-          items.
+          {summary.totalQuantity} item quantity across {summary.lineItemCount}{" "}
+          line items.
         </p>
       </div>
 
@@ -70,7 +70,9 @@ export function CartSummary({ onRefresh, state }: CartSummaryProps) {
         >
           {checkoutValidation.validation.status === "changed"
             ? "Review changes"
-            : "Check cart"}
+            : summary.hasBlockingIssues
+              ? "Check cart"
+              : "Checkout"}
         </Button>
         <Button
           aria-label="Refresh cart"
@@ -96,4 +98,3 @@ export function CartSummary({ onRefresh, state }: CartSummaryProps) {
     </aside>
   );
 }
-

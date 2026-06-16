@@ -2873,7 +2873,7 @@ So that JRW has enough trusted information before payment.
 **Given** Shopper starts checkout
 **When** Shopper is not signed in
 **Then** checkout collects required email/contact/delivery details
-**And** offers optional sign-in, registration, or Google sign-in without blocking guest checkout.
+**And** does not show sign-in, registration, Google sign-in, or account creation in the checkout details step.
 
 **Given** signed-in Customer starts checkout
 **When** Customer profile/contact details exist
@@ -2886,13 +2886,15 @@ So that JRW has enough trusted information before payment.
 **And** payment handoff remains blocked until required checkout details are complete and valid.
 
 **Given** guest Shopper or signed-in Customer enters email/contact/delivery details
-**When** details are valid
-**Then** checkout can proceed to server cart validation
+**When** details debounce-validate as complete and correct
+**Then** the single "Continue to Payment" CTA is enabled
+**And** submitting that CTA saves details, revalidates cart, and reserves inventory behind the scenes before payment
 **And** details are stored or used only for checkout, fulfillment, support, order status, and optional account profile purposes.
 
 **Given** contact/delivery details are invalid or missing
-**When** Shopper submits checkout step
-**Then** field-level errors and form-level summary appear
+**When** checkout details are incomplete or invalid
+**Then** "Continue to Payment" stays disabled until debounced validation passes
+**And** field-level errors and form-level summary appear when the Shopper attempts submit with invalid details
 **And** payment handoff is blocked.
 
 **Given** privacy requirements apply
@@ -2908,11 +2910,12 @@ So that JRW has enough trusted information before payment.
 **Given** checkout UI renders
 **When** desktop and mobile layouts are used
 **Then** steps show cart, contact/delivery, payment, and confirmation
+**And** details step has no separate "Save details" button and no bordered privacy acknowledgement panel
 **And** current step is exposed with text and `aria-current`.
 
 **Given** implementation finishes
 **When** tests/QA run
-**Then** checks cover guest email checkout, optional sign-in, verified Customer prefill, invalid details, order contact snapshot, PII minimization, mobile/desktop layout, and `npm run check`
+**Then** checks cover guest email checkout, no account prompts in details, verified Customer prefill, invalid details, debounced CTA enablement, order contact snapshot, PII minimization, mobile/desktop layout, and `npm run check`
 **And** blockers are documented if validation cannot pass.
 
 ### Story 5.2: Server Cart Validation and Inventory Reservation
@@ -3128,6 +3131,9 @@ So that I know what happened after payment without seeing provider internals.
 **Given** Shopper reaches confirmation page
 **When** payment is paid
 **Then** receipt shows order number/reference, items, totals, payment status, fulfillment status, and next action
+**And** receipt reassures the Shopper that order and delivery updates were sent to the checkout email inbox
+**And** guest Shopper sees optional post-order account creation copy after the success message, not during checkout details
+**And** guest account CTA uses the checkout email context with action copy such as "Create account" so the Shopper can track delivery faster next time
 **And** provider internals are hidden.
 
 **Given** payment is pending, failed, or cancelled
@@ -3143,11 +3149,12 @@ So that I know what happened after payment without seeing provider internals.
 **Given** receipt/status UI renders
 **When** desktop and mobile QA run
 **Then** content is readable, status labels are text-based, and buttons meet touch/focus requirements
+**And** guest account CTA appears below the successful receipt content without blocking receipt/status access
 **And** receipt style follows JRW tokens.
 
 **Given** implementation finishes
 **When** tests/QA run
-**Then** checks cover paid receipt, pending status, failed status, cancelled status, email success/failure, mobile/desktop layout, and safe messaging
+**Then** checks cover paid receipt, inbox update reassurance, optional guest account CTA, pending status, failed status, cancelled status, email success/failure, mobile/desktop layout, and safe messaging
 **And** `npm run check` passes or blocker is documented.
 
 ## Epic 6: Orders, Fulfillment, Returns, Refunds, and Shopper Status

@@ -1,13 +1,12 @@
 import * as React from "react";
+import { useDebounceEffect } from "ahooks";
 import { Button, ButtonLink, Checkbox, InputBox } from "@/components/ui";
 import { validateCheckoutContactDetails } from "@/domain/checkout/contact-delivery";
 import type { CartState } from "@/domain/checkout/cart";
 import {
   fetchCurrentCustomerProfile,
   fetchCustomerCheckoutSession,
-  registerCustomerForCheckout,
   reserveCheckoutInventory,
-  signInCustomerForCheckout,
   submitCheckoutDetails,
   validateCartBeforeCheckout,
   type CheckoutDetailsFormValues,
@@ -22,43 +21,25 @@ import { CartLineItems } from "./CartLineItems";
 import { CheckoutFlowShell } from "./CheckoutFlow";
 
 type CheckoutDetailsPageViewProps = {
-  accountMessage?: string | null;
-  authValues?: AccountAssistValues;
   detailsStatus?: CheckoutDetailsStatus;
   detailsValues?: CheckoutDetailsFormValues;
   fieldErrors?: CheckoutDetailsFieldErrors;
   formMessage?: string | null;
   formSummaryRef?: React.RefObject<HTMLDivElement | null>;
-  onAccountFieldChange?: (
-    field: keyof AccountAssistValues,
-    value: string
-  ) => void;
   onDetailsChange?: (
     field: keyof CheckoutDetailsFormValues,
     value: boolean | string
   ) => void;
+  onContinueToPayment?: () => void;
   onDetailsSubmit?: FormSubmitHandler;
   onRetryValidation?: () => void;
-  onSignInSubmit?: FormSubmitHandler;
-  onRegisterSubmit?: FormSubmitHandler;
   state: CartState;
+  canContinueToPayment?: boolean;
   validationMessage?: string | null;
   validationStatus?: "blocked" | "error" | "pending" | "valid";
 };
 
-type CheckoutDetailsStatus =
-  | "idle"
-  | "reserved"
-  | "reserving"
-  | "saved"
-  | "saving";
-
-type AccountAssistValues = {
-  registerEmail: string;
-  registerPassword: string;
-  signInEmail: string;
-  signInPassword: string;
-};
+type CheckoutDetailsStatus = "idle" | "reserved" | "reserving" | "saving";
 
 type FormSubmitHandler = (
   event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>
@@ -69,10 +50,7 @@ type CheckoutDetailsFieldErrors = Partial<
   Record<CheckoutDetailsFieldName, string>
 >;
 
-type DetailTextField = Exclude<
-  CheckoutDetailsFieldName,
-  "privacyAcknowledged"
->;
+type DetailTextField = Exclude<CheckoutDetailsFieldName, "privacyAcknowledged">;
 
 const emptyDetailsValues: CheckoutDetailsFormValues = {
   barangay: "",
@@ -83,13 +61,6 @@ const emptyDetailsValues: CheckoutDetailsFormValues = {
   postalCode: "",
   privacyAcknowledged: false,
   streetAddress: "",
-};
-
-const emptyAccountAssistValues: AccountAssistValues = {
-  registerEmail: "",
-  registerPassword: "",
-  signInEmail: "",
-  signInPassword: "",
 };
 
 const fieldLabels: Record<CheckoutDetailsFieldName, string> = {
@@ -172,7 +143,10 @@ function detailInputValueProps(
   field: DetailTextField,
   detailsValues: CheckoutDetailsFormValues,
   onDetailsChange:
-    | ((field: keyof CheckoutDetailsFormValues, value: boolean | string) => void)
+    | ((
+        field: keyof CheckoutDetailsFormValues,
+        value: boolean | string
+      ) => void)
     | undefined
 ) {
   const value = detailsValues[field];
@@ -191,7 +165,10 @@ function detailInputValueProps(
 function checkboxValueProps(
   detailsValues: CheckoutDetailsFormValues,
   onDetailsChange:
-    | ((field: keyof CheckoutDetailsFormValues, value: boolean | string) => void)
+    | ((
+        field: keyof CheckoutDetailsFormValues,
+        value: boolean | string
+      ) => void)
     | undefined
 ) {
   if (!onDetailsChange) {
@@ -205,47 +182,25 @@ function checkboxValueProps(
   };
 }
 
-function accountInputValueProps(
-  field: keyof AccountAssistValues,
-  authValues: AccountAssistValues,
-  onAccountFieldChange:
-    | ((field: keyof AccountAssistValues, value: string) => void)
-    | undefined
-) {
-  const value = authValues[field];
-
-  if (!onAccountFieldChange) {
-    return { defaultValue: value };
-  }
-
-  return {
-    onChange: (event: React.ChangeEvent<HTMLInputElement>) =>
-      onAccountFieldChange(field, event.currentTarget.value),
-    value,
-  };
-}
-
 export function CheckoutDetailsPageView({
-  accountMessage = null,
-  authValues = emptyAccountAssistValues,
+  canContinueToPayment = false,
   detailsStatus = "idle",
   detailsValues = emptyDetailsValues,
   fieldErrors = {},
   formMessage = null,
   formSummaryRef,
-  onAccountFieldChange,
+  onContinueToPayment,
   onDetailsChange,
   onDetailsSubmit,
   onRetryValidation,
-  onRegisterSubmit,
-  onSignInSubmit,
   state,
   validationMessage = null,
   validationStatus = "valid",
 }: CheckoutDetailsPageViewProps) {
-  if (validationStatus !== "valid") {
-    const pending = validationStatus === "pending";
+  const cartValidationFailed =
+    validationStatus === "blocked" || validationStatus === "error";
 
+  if (cartValidationFailed && detailsStatus === "idle") {
     return (
       <CheckoutFlowShell
         currentStep="cart"
@@ -258,13 +213,10 @@ export function CheckoutDetailsPageView({
             Cart check
           </p>
           <h2 className="m-0 font-identity text-2xl font-bold">
-            {pending ? "Checking cart" : "Review cart"}
+            Review cart
           </h2>
           <p className="m-0 text-sm text-brand-muted" role="status">
-            {validationMessage ??
-              (pending
-                ? "Checking cart..."
-                : "Resolve cart updates before details.")}
+            {validationMessage ?? "Resolve cart updates before details."}
           </p>
           {state.items.length > 0 ? (
             <CartLineItems items={state.items} />
@@ -272,9 +224,6 @@ export function CheckoutDetailsPageView({
           <div className="flex flex-wrap gap-grid-xs">
             {onRetryValidation ? (
               <Button
-                disabled={pending}
-                loading={pending}
-                loadingLabel="Checking cart"
                 onClick={onRetryValidation}
                 textSize="xs"
                 variant="primary"
@@ -291,102 +240,40 @@ export function CheckoutDetailsPageView({
     );
   }
 
+  const detailsBusy =
+    detailsStatus === "saving" || detailsStatus === "reserving";
+  const summaryAction =
+    detailsStatus === "reserved"
+      ? {
+          disabled: true,
+          label: "Payment ready",
+          statusMessage: "Items reserved. Payment is next.",
+        }
+      : {
+          disabled: !canContinueToPayment || detailsBusy,
+          label: "Continue to Payment",
+          loading: detailsBusy,
+          loadingLabel:
+            detailsStatus === "reserving"
+              ? "Reserving items"
+              : "Preparing payment",
+          onClick: onContinueToPayment,
+          statusMessage:
+            detailsStatus === "reserving"
+              ? "Reserving items for payment."
+              : validationStatus === "pending"
+                ? "Checking cart before payment."
+              : null,
+        };
+
   return (
     <CheckoutFlowShell
       currentStep={detailsStatus === "reserved" ? "payment" : "details"}
       state={state}
+      summaryAction={summaryAction}
       title="Checkout details"
       titleId="checkout-details-title"
     >
-      <section className="grid gap-grid-sm border border-brand-border-strong p-grid-sm">
-        <div className="grid gap-1">
-          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-            Account assist
-          </p>
-          <p className="m-0 text-sm text-brand-muted">
-            Guest checkout stays available. Account actions only help prefill
-            saved details.
-          </p>
-        </div>
-        {accountMessage ? (
-          <p className="m-0 border border-brand-border p-grid-xs text-sm font-bold text-brand-muted">
-            {accountMessage}
-          </p>
-        ) : null}
-        <div className="grid gap-grid-sm md:grid-cols-3">
-          <form className="grid gap-grid-xs" onSubmit={onSignInSubmit}>
-            <InputBox
-              autoComplete="email"
-              label="Sign-in email"
-              name="signInEmail"
-              textSize="sm"
-              type="email"
-              {...accountInputValueProps(
-                "signInEmail",
-                authValues,
-                onAccountFieldChange
-              )}
-            />
-            <InputBox
-              autoComplete="current-password"
-              label="Sign-in password"
-              name="signInPassword"
-              textSize="sm"
-              type="password"
-              {...accountInputValueProps(
-                "signInPassword",
-                authValues,
-                onAccountFieldChange
-              )}
-            />
-            <Button textSize="xs" type="submit" variant="secondary">
-              Email sign in
-            </Button>
-          </form>
-          <form className="grid gap-grid-xs" onSubmit={onRegisterSubmit}>
-            <InputBox
-              autoComplete="email"
-              label="New account email"
-              name="registerEmail"
-              textSize="sm"
-              type="email"
-              {...accountInputValueProps(
-                "registerEmail",
-                authValues,
-                onAccountFieldChange
-              )}
-            />
-            <InputBox
-              autoComplete="new-password"
-              label="New account password"
-              name="registerPassword"
-              textSize="sm"
-              type="password"
-              {...accountInputValueProps(
-                "registerPassword",
-                authValues,
-                onAccountFieldChange
-              )}
-            />
-            <Button textSize="xs" type="submit" variant="secondary">
-              Create account
-            </Button>
-          </form>
-          <div className="grid content-start gap-grid-xs">
-            <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-              Google
-            </p>
-            <ButtonLink
-              href="/api/oauth/google/sessions?returnTo=/checkout"
-              textSize="xs"
-              variant="secondary"
-            >
-              Continue with Google
-            </ButtonLink>
-          </div>
-        </div>
-      </section>
-
       <form className="grid gap-grid-sm" noValidate onSubmit={onDetailsSubmit}>
         {formMessage ? (
           <div
@@ -426,7 +313,7 @@ export function CheckoutDetailsPageView({
             );
           })}
         </div>
-        <div className="grid gap-grid-sm border border-brand-border p-grid-sm">
+        <div className="grid gap-grid-sm">
           <Checkbox
             error={fieldErrors.privacyAcknowledged}
             label="I agree JRW can use these details for checkout, delivery, order status, and support."
@@ -435,37 +322,6 @@ export function CheckoutDetailsPageView({
             size="sm"
             {...checkboxValueProps(detailsValues, onDetailsChange)}
           />
-          <div className="flex flex-wrap gap-grid-xs">
-            <Button
-              disabled={detailsStatus === "reserved"}
-              loading={detailsStatus === "saving" || detailsStatus === "reserving"}
-              loadingLabel={
-                detailsStatus === "reserving"
-                  ? "Reserving items"
-                  : "Saving details"
-              }
-              textSize="xs"
-              type="submit"
-              variant="primary"
-            >
-              {detailsStatus === "reserved" ? "Items reserved" : "Save details"}
-            </Button>
-            {detailsStatus === "reserving" ? (
-              <p className="m-0 self-center text-sm font-bold text-brand-muted">
-                Reserving items for payment.
-              </p>
-            ) : null}
-            {detailsStatus === "reserved" ? (
-              <p className="m-0 self-center text-sm font-bold text-brand-muted">
-                Items reserved. Payment is next.
-              </p>
-            ) : null}
-            {detailsStatus === "saved" ? (
-              <p className="m-0 self-center text-sm font-bold text-brand-muted">
-                Details saved for checkout.
-              </p>
-            ) : null}
-          </div>
         </div>
       </form>
     </CheckoutFlowShell>
@@ -547,37 +403,43 @@ export function CheckoutDetailsPage() {
   >("Checking cart...");
   const [detailsValues, setDetailsValues] =
     React.useState<CheckoutDetailsFormValues>(emptyDetailsValues);
-  const [authValues, setAuthValues] = React.useState<AccountAssistValues>(
-    emptyAccountAssistValues
-  );
   const [fieldErrors, setFieldErrors] =
     React.useState<CheckoutDetailsFieldErrors>({});
   const [formMessage, setFormMessage] = React.useState<string | null>(null);
-  const [accountMessage, setAccountMessage] = React.useState<string | null>(
-    null
-  );
-  const [detailsStatus, setDetailsStatus] = React.useState<
-    CheckoutDetailsStatus
-  >("idle");
+  const [detailsStatus, setDetailsStatus] =
+    React.useState<CheckoutDetailsStatus>("idle");
+  const [detailsReady, setDetailsReady] = React.useState(false);
   const formSummaryRef = React.useRef<HTMLDivElement | null>(null);
+  const validationRequestIdRef = React.useRef(0);
 
   const validateDirectCheckout = React.useCallback(async (): Promise<
-    | { kind: "valid"; state: CartState }
-    | { kind: "blocked" | "failure" }
+    { kind: "valid"; state: CartState } | { kind: "blocked" | "failure" }
   > => {
+    const validationRequestId = validationRequestIdRef.current + 1;
+    validationRequestIdRef.current = validationRequestId;
+    const isCurrentValidation = () =>
+      validationRequestIdRef.current === validationRequestId;
     const requestFingerprint = cartValidationFingerprint(state);
     lastValidationFingerprintRef.current = requestFingerprint;
 
     if (state.items.length === 0) {
-      setValidationStatus("blocked");
-      setValidationMessage("Add an item before checkout.");
+      if (isCurrentValidation()) {
+        setValidationStatus("blocked");
+        setValidationMessage("Add an item before checkout.");
+      }
       return { kind: "blocked" };
     }
 
-    setValidationStatus("pending");
-    setValidationMessage("Checking cart...");
+    if (isCurrentValidation()) {
+      setValidationStatus("pending");
+      setValidationMessage("Checking cart...");
+    }
     const requestState = state;
     const result = await validateCartBeforeCheckout(requestState);
+
+    if (!isCurrentValidation()) {
+      return { kind: "failure" };
+    }
 
     if (result.kind === "failure") {
       setValidationStatus("error");
@@ -630,9 +492,6 @@ export function CheckoutDetailsPage() {
     }
 
     if (!session.actor.accountStatus.emailVerified) {
-      setAccountMessage(
-        "Account is signed in but not verified. Checkout can continue with entered details."
-      );
       return;
     }
 
@@ -642,21 +501,13 @@ export function CheckoutDetailsPage() {
       setDetailsValues((current) =>
         prefillDetailsFromProfile(current, profileResult.profile)
       );
-      setAuthValues((current) => ({
-        ...current,
-        registerEmail: current.registerEmail || profileResult.profile.email,
-        signInEmail: current.signInEmail || profileResult.profile.email,
-      }));
-      setAccountMessage("Signed-in account details loaded where available.");
-      return;
     }
-
-    setAccountMessage(profileResult.reason);
   }, []);
 
   const updateDetailField = React.useCallback(
     (field: keyof CheckoutDetailsFormValues, value: boolean | string) => {
       setDetailsValues((current) => ({ ...current, [field]: value }));
+      setDetailsReady(false);
       setFieldErrors((current) => {
         if (!(field in current)) {
           return current;
@@ -671,147 +522,101 @@ export function CheckoutDetailsPage() {
     []
   );
 
-  const updateAccountField = React.useCallback(
-    (field: keyof AccountAssistValues, value: string) => {
-      setAuthValues((current) => ({ ...current, [field]: value }));
-    },
-    []
-  );
-
   const focusFormSummary = React.useCallback(() => {
     window.setTimeout(() => formSummaryRef.current?.focus(), 0);
   }, []);
 
-  const handleDetailsSubmit = React.useCallback(
-    async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
-      event.preventDefault();
-      const validation = validateCheckoutContactDetails(detailsValues);
+  const handleContinueToPayment = React.useCallback(async () => {
+    const validation = validateCheckoutContactDetails(detailsValues);
 
-      if (!validation.ok) {
-        setFieldErrors(errorsFromReasons(validation.reasons));
-        setFormMessage("Complete required checkout details before payment.");
-        setDetailsStatus("idle");
-        focusFormSummary();
-        return;
-      }
-
-      setFieldErrors({});
-      setFormMessage(null);
-      setDetailsStatus("saving");
-
-      const result = await submitCheckoutDetails(detailsValues);
-
-      if (result.kind === "invalid") {
-        setFieldErrors(errorsFromReasons(result.reasons));
-        setFormMessage(result.reason);
-        setDetailsStatus("idle");
-        focusFormSummary();
-        return;
-      }
-
-      if (result.kind === "failure") {
-        setFormMessage(result.reason);
-        setDetailsStatus("idle");
-        focusFormSummary();
-        return;
-      }
-
-      setDetailsValues({
-        barangay: result.details.barangay,
-        cityProvince: result.details.cityProvince,
-        email: result.details.email,
-        fullName: result.details.fullName,
-        phone: result.details.phone,
-        postalCode: result.details.postalCode,
-        privacyAcknowledged: true,
-        streetAddress: result.details.streetAddress,
-      });
-      setFormMessage(null);
-      setDetailsStatus("reserving");
-
-      const validationResult = await validateDirectCheckout();
-
-      if (validationResult.kind !== "valid") {
-        setDetailsStatus("saved");
-        return;
-      }
-
-      const reservationResult = await reserveCheckoutInventory({
-        attemptId: result.attempt.attemptId,
-        attemptToken: result.attempt.attemptToken,
-        state: validationResult.state,
-      });
-
-      if (reservationResult.kind === "reserved") {
-        applyCheckoutValidationSummaryToStore(
-          reservationResult.cart,
-          validationResult.state
-        );
-        setDetailsStatus("reserved");
-        setFormMessage(null);
-        return;
-      }
-
-      if (
-        reservationResult.kind === "changed" ||
-        reservationResult.kind === "blocked"
-      ) {
-        applyCheckoutValidationSummaryToStore(
-          reservationResult.summary,
-          validationResult.state
-        );
-        setValidationStatus("blocked");
-        setValidationMessage(reservationResult.reason);
-      }
-
-      setDetailsStatus("saved");
-      setFormMessage(reservationResult.reason);
+    if (!validation.ok) {
+      setFieldErrors(errorsFromReasons(validation.reasons));
+      setFormMessage("Complete required checkout details before payment.");
+      setDetailsStatus("idle");
       focusFormSummary();
-    },
-    [detailsValues, focusFormSummary, validateDirectCheckout]
-  );
+      return;
+    }
 
-  const handleSignInSubmit = React.useCallback(
-    async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
+    setFieldErrors({});
+    setFormMessage(null);
+    setDetailsStatus("saving");
+
+    const result = await submitCheckoutDetails(detailsValues);
+
+    if (result.kind === "invalid") {
+      setFieldErrors(errorsFromReasons(result.reasons));
+      setFormMessage(result.reason);
+      setDetailsStatus("idle");
+      focusFormSummary();
+      return;
+    }
+
+    if (result.kind === "failure") {
+      setFormMessage(result.reason);
+      setDetailsStatus("idle");
+      focusFormSummary();
+      return;
+    }
+
+    setDetailsValues({
+      barangay: result.details.barangay,
+      cityProvince: result.details.cityProvince,
+      email: result.details.email,
+      fullName: result.details.fullName,
+      phone: result.details.phone,
+      postalCode: result.details.postalCode,
+      privacyAcknowledged: true,
+      streetAddress: result.details.streetAddress,
+    });
+    setFormMessage(null);
+    setDetailsStatus("reserving");
+
+    const validationResult = await validateDirectCheckout();
+
+    if (validationResult.kind !== "valid") {
+      setDetailsStatus("idle");
+      return;
+    }
+
+    const reservationResult = await reserveCheckoutInventory({
+      attemptId: result.attempt.attemptId,
+      attemptToken: result.attempt.attemptToken,
+      state: validationResult.state,
+    });
+
+    if (reservationResult.kind === "reserved") {
+      applyCheckoutValidationSummaryToStore(
+        reservationResult.cart,
+        validationResult.state
+      );
+      setDetailsStatus("reserved");
+      setFormMessage(null);
+      return;
+    }
+
+    if (
+      reservationResult.kind === "changed" ||
+      reservationResult.kind === "blocked"
+    ) {
+      applyCheckoutValidationSummaryToStore(
+        reservationResult.summary,
+        validationResult.state
+      );
+      setValidationStatus("blocked");
+      setValidationMessage(reservationResult.reason);
+    }
+
+    setDetailsStatus("idle");
+    setFormMessage(reservationResult.reason);
+    focusFormSummary();
+  }, [detailsValues, focusFormSummary, validateDirectCheckout]);
+
+  const handleDetailsSubmit = React.useCallback(
+    (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
       event.preventDefault();
-      const result = await signInCustomerForCheckout({
-        email: authValues.signInEmail,
-        password: authValues.signInPassword,
-      });
-
-      if (result.kind === "signed-in") {
-        setAccountMessage("Signed in. Loading saved details.");
-        await loadCustomerPrefill();
-        return;
-      }
-
-      setAccountMessage(result.reason);
+      void handleContinueToPayment();
     },
-    [authValues.signInEmail, authValues.signInPassword, loadCustomerPrefill]
-  );
-
-  const handleRegisterSubmit = React.useCallback(
-    async (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
-      event.preventDefault();
-      const result = await registerCustomerForCheckout({
-        email: authValues.registerEmail,
-        password: authValues.registerPassword,
-      });
-
-      if (result.kind === "created") {
-        setDetailsValues((current) => ({
-          ...current,
-          email: current.email || authValues.registerEmail,
-        }));
-        setAccountMessage(
-          "Account created. Verify email later; checkout can continue here."
-        );
-        return;
-      }
-
-      setAccountMessage(result.reason);
-    },
-    [authValues.registerEmail, authValues.registerPassword]
+    [handleContinueToPayment]
   );
 
   React.useEffect(() => {
@@ -819,32 +624,59 @@ export function CheckoutDetailsPage() {
       return;
     }
 
+    if (detailsStatus === "reserved") {
+      setDetailsStatus("idle");
+      setFormMessage("Cart changed. Continue to Payment again after review.");
+    }
+
     const timeoutId = window.setTimeout(() => {
       void validateDirectCheckout();
     }, 0);
 
     return () => window.clearTimeout(timeoutId);
-  }, [cartFingerprint, validateDirectCheckout]);
+  }, [cartFingerprint, detailsStatus, validateDirectCheckout]);
 
   React.useEffect(() => {
     void loadCustomerPrefill();
   }, [loadCustomerPrefill]);
 
+  useDebounceEffect(
+    () => {
+      const validation = validateCheckoutContactDetails(detailsValues);
+      setDetailsReady(validation.ok);
+
+      if (validation.ok) {
+        setFieldErrors({});
+        setFormMessage((current) =>
+          current === "Complete required checkout details before payment."
+            ? null
+            : current
+        );
+        return;
+      }
+
+      setFieldErrors((current) =>
+        Object.keys(current).length > 0
+          ? errorsFromReasons(validation.reasons)
+          : current
+      );
+    },
+    [detailsValues],
+    { wait: 200 }
+  );
+
   return (
     <CheckoutDetailsPageView
-      accountMessage={accountMessage}
-      authValues={authValues}
+      canContinueToPayment={detailsReady && validationStatus === "valid"}
       detailsStatus={detailsStatus}
       detailsValues={detailsValues}
       fieldErrors={fieldErrors}
       formMessage={formMessage}
       formSummaryRef={formSummaryRef}
-      onAccountFieldChange={updateAccountField}
+      onContinueToPayment={handleContinueToPayment}
       onDetailsChange={updateDetailField}
       onDetailsSubmit={handleDetailsSubmit}
       onRetryValidation={validateDirectCheckout}
-      onRegisterSubmit={handleRegisterSubmit}
-      onSignInSubmit={handleSignInSubmit}
       state={state}
       validationMessage={validationMessage}
       validationStatus={validationStatus}

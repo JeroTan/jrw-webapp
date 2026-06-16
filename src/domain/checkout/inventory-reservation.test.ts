@@ -126,6 +126,30 @@ describe("checkout inventory reservation domain rules", () => {
     ).toBe("reserve");
   });
 
+  it("keeps the same fingerprint when cart line order changes", () => {
+    const secondLine = {
+      ...validSummary.items[0]!,
+      lineSubtotalCentavos: 1599,
+      priceCentavos: 1599,
+      productId: "prod_cap",
+      productName: "Cap",
+      productSlug: "cap",
+      quantity: 1,
+      variantId: "variant_cap",
+      variantLabel: "Default",
+    };
+    const first = createCheckoutCartFingerprint({
+      ...validSummary,
+      items: [validSummary.items[0]!, secondLine],
+    });
+    const second = createCheckoutCartFingerprint({
+      ...validSummary,
+      items: [secondLine, validSummary.items[0]!],
+    });
+
+    expect(first).toBe(second);
+  });
+
   it("maps successful reservation output without internal lock details", () => {
     const response = toCheckoutReservationResponse({
       attemptId: "attempt_1",

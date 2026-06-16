@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-12T08:38:32+08:00"
-last_updated: "2026-06-12T22:10:26+08:00"
+last_updated: "2026-06-15T09:18:00+08:00"
 project: jrw-webapp
 project_key: NOKEY
 tracking_system: file-system
@@ -97,7 +97,7 @@ development_status:
   epic-4-retrospective: done
   epic-5: in-progress
   5-1-checkout-identity-contact-and-delivery-validation: done
-  5-2-server-cart-validation-and-inventory-reservation: review
+  5-2-server-cart-validation-and-inventory-reservation: done
   5-3-paymongo-payment-creation-and-handoff: backlog
   5-4-paymongo-webhook-verification-and-idempotency: backlog
   5-5-payment-reconciliation-and-order-confirmation: backlog

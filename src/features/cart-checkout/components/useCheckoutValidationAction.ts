@@ -49,12 +49,19 @@ export function useCheckoutValidationAction(input: {
   onValidated?: () => void;
   state: CartState;
 }) {
+  const { navigateOnSuccess = false, onValidated, state } = input;
   const [validation, setValidation] = React.useState<CheckoutValidationUiState>(
     initialValidationState
   );
+  const validationRequestIdRef = React.useRef(0);
 
   const validate = React.useCallback(async () => {
-    if (input.state.items.length === 0) {
+    const validationRequestId = validationRequestIdRef.current + 1;
+    validationRequestIdRef.current = validationRequestId;
+    const isCurrentValidation = () =>
+      validationRequestIdRef.current === validationRequestId;
+
+    if (state.items.length === 0) {
       setValidation({
         message: "Add an item before checkout.",
         status: "error",
@@ -67,8 +74,12 @@ export function useCheckoutValidationAction(input: {
       status: "pending",
     });
 
-    const requestState = input.state;
+    const requestState = state;
     const result = await validateCartBeforeCheckout(requestState);
+
+    if (!isCurrentValidation()) {
+      return;
+    }
 
     if (result.kind === "failure") {
       setValidation({
@@ -91,7 +102,7 @@ export function useCheckoutValidationAction(input: {
       return;
     }
 
-    input.onValidated?.();
+    onValidated?.();
 
     if (result.kind === "valid") {
       setValidation({
@@ -99,7 +110,7 @@ export function useCheckoutValidationAction(input: {
         status: "success",
       });
 
-      if (input.navigateOnSuccess) {
+      if (navigateOnSuccess) {
         navigateToCheckout();
       }
 
@@ -110,7 +121,7 @@ export function useCheckoutValidationAction(input: {
       message: messageForStatus(result.kind),
       status: result.kind,
     });
-  }, [input]);
+  }, [navigateOnSuccess, onValidated, state]);
 
   return {
     isPending: validation.status === "pending",

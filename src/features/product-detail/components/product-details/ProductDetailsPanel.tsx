@@ -303,7 +303,7 @@ export function ProductDetailsPanel({
 
   return (
     <section
-      className="grid content-start gap-y-5 border border-brand-border bg-brand-background p-grid-sm"
+      className="grid content-start gap-y-5 "
       aria-label="Product details"
     >
       <section>

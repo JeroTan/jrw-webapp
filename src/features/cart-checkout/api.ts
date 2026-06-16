@@ -12,6 +12,7 @@ import type {
 } from "@/domain/checkout/cart";
 import type { ApiResponse } from "@/lib/api/response";
 import {
+  getCartSnapshot,
   markCartItemAvailabilityInStore,
   replaceCartItemInStore,
 } from "./store";
@@ -22,7 +23,8 @@ export type CartRefreshResult =
   | { kind: "stale"; reason: string };
 
 type PublicCatalogDetailEnvelope = ApiResponse<PublicCatalogDetailResult>;
-type CheckoutCartValidationEnvelope = ApiResponse<CheckoutCartValidationSummary>;
+type CheckoutCartValidationEnvelope =
+  ApiResponse<CheckoutCartValidationSummary>;
 
 export type CheckoutDetailsFormValues = {
   barangay: string;
@@ -247,11 +249,14 @@ export function refreshCartItemWithDetail(
     return {
       kind: "unavailable",
       reason:
-        variant.unavailableReason ?? "Selected option is unavailable right now.",
+        variant.unavailableReason ??
+        "Selected option is unavailable right now.",
     };
   }
 
-  replaceCartItemInStore(cartItemInputFromDetail(detail, variant, item.quantity));
+  replaceCartItemInStore(
+    cartItemInputFromDetail(detail, variant, item.quantity)
+  );
   return { detail, kind: "ok" };
 }
 
@@ -314,7 +319,9 @@ function cartValidationRequestBody(state: {
   };
 }
 
-function isValidationSummary(value: unknown): value is CheckoutCartValidationSummary {
+function isValidationSummary(
+  value: unknown
+): value is CheckoutCartValidationSummary {
   if (typeof value !== "object" || value === null || Array.isArray(value)) {
     return false;
   }
@@ -329,7 +336,9 @@ function isValidationSummary(value: unknown): value is CheckoutCartValidationSum
   );
 }
 
-function isCustomerSessionSummary(value: unknown): value is CustomerSessionSummary {
+function isCustomerSessionSummary(
+  value: unknown
+): value is CustomerSessionSummary {
   if (!isRecord(value)) {
     return false;
   }
@@ -349,8 +358,14 @@ function isCustomerProfile(value: unknown): value is CustomerProfileSummary {
   );
 }
 
-function isCheckoutDetailsResult(value: unknown): value is CheckoutDetailsResult {
-  if (!isRecord(value) || !isRecord(value.details) || !isRecord(value.customer)) {
+function isCheckoutDetailsResult(
+  value: unknown
+): value is CheckoutDetailsResult {
+  if (
+    !isRecord(value) ||
+    !isRecord(value.details) ||
+    !isRecord(value.customer)
+  ) {
     return false;
   }
 
@@ -412,7 +427,7 @@ export function cartItemInputFromValidatedLine(
     availabilityText:
       line.availabilityStatus === "ACTIVE"
         ? line.availabilityLabel
-        : line.reason ?? line.availabilityLabel,
+        : (line.reason ?? line.availabilityLabel),
     ...(imageAlt ? { imageAlt } : {}),
     ...(imageSrc ? { imageSrc } : {}),
     ...(maxQuantity ? { maxQuantity } : {}),
@@ -421,7 +436,7 @@ export function cartItemInputFromValidatedLine(
     productId: line.productId,
     productName: line.productName,
     productSlug: line.productSlug,
-    quantity: line.quantity > 0 ? line.quantity : fallback?.quantity ?? 1,
+    quantity: line.quantity > 0 ? line.quantity : (fallback?.quantity ?? 1),
     variantId: line.variantId,
     variantLabel: line.variantLabel,
     variantOptions: line.variantOptions,
@@ -429,9 +444,10 @@ export function cartItemInputFromValidatedLine(
   };
 }
 
-export async function validateCartBeforeCheckout(
+async function validateCartBeforeCheckoutRequest(
   state: { items: CartItemSnapshot[]; updatedAt: string },
-  fetcher: typeof fetch = fetch
+  fetcher: typeof fetch,
+  retryAfterRefresh: boolean
 ): Promise<CheckoutCartValidationClientResult> {
   try {
     const response = await fetcher("/api/checkout/cart-validations", {
@@ -453,6 +469,27 @@ export async function validateCartBeforeCheckout(
       return validationResultFromSummary(body.error.details);
     }
 
+    if (
+      "error" in body &&
+      (body.error.code === "CONFLICT_STATE" ||
+        body.error.code === "INVENTORY_UNAVAILABLE")
+    ) {
+      if (retryAfterRefresh) {
+        await refreshCartItems(state.items, fetcher);
+
+        return validateCartBeforeCheckoutRequest(
+          getCartSnapshot(),
+          fetcher,
+          false
+        );
+      }
+
+      return {
+        kind: "failure",
+        reason: "Cart changed. Check cart again.",
+      };
+    }
+
     return {
       kind: "failure",
       reason: response.ok
@@ -465,6 +502,13 @@ export async function validateCartBeforeCheckout(
       reason: "Could not verify cart. Try again.",
     };
   }
+}
+
+export async function validateCartBeforeCheckout(
+  state: { items: CartItemSnapshot[]; updatedAt: string },
+  fetcher: typeof fetch = fetch
+): Promise<CheckoutCartValidationClientResult> {
+  return validateCartBeforeCheckoutRequest(state, fetcher, true);
 }
 
 export async function fetchCustomerCheckoutSession(
@@ -548,6 +592,32 @@ function safeReasonsFromErrorDetails(details: unknown): string[] {
   );
 }
 
+function checkoutDetailsFailureReason(
+  response: Response,
+  body: CheckoutDetailsEnvelope
+): string {
+  if ("error" in body) {
+    switch (body.error.code) {
+      case "PROVIDER_UNAVAILABLE":
+        return "Checkout service is unavailable. Try again in a moment.";
+      case "RATE_LIMITED":
+      case "TOO_MANY_REQUESTS":
+        return "Too many checkout attempts. Try again in a moment.";
+      case "INTERNAL_ERROR":
+      case "INTERNAL_SERVER_ERROR":
+        return "Checkout had a server issue. Try again in a moment.";
+      default:
+        break;
+    }
+  }
+
+  if (response.status >= 500) {
+    return "Checkout had a server issue. Try again in a moment.";
+  }
+
+  return "Checkout details were not saved. Try again.";
+}
+
 export async function submitCheckoutDetails(
   details: CheckoutDetailsFormValues,
   fetcher: typeof fetch = fetch
@@ -581,12 +651,12 @@ export async function submitCheckoutDetails(
 
     return {
       kind: "failure",
-      reason: "Could not save checkout details. Try again.",
+      reason: checkoutDetailsFailureReason(response, body),
     };
   } catch {
     return {
       kind: "failure",
-      reason: "Could not save checkout details. Try again.",
+      reason: "Checkout service is unavailable. Try again in a moment.",
     };
   }
 }
@@ -647,14 +717,14 @@ export async function reserveCheckoutInventory(
       if (body.error.code === "AUTH_FORBIDDEN") {
         return {
           kind: "denied",
-          reason: "Checkout session expired. Save details again.",
+          reason: "Checkout session expired. Continue to Payment again.",
         };
       }
 
       if (body.error.code === "IDEMPOTENCY_CONFLICT") {
         return {
           kind: "conflict",
-          reason: "Cart changed. Save details again.",
+          reason: "Cart changed. Continue to Payment again after review.",
         };
       }
     }

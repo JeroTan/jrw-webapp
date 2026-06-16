@@ -1,6 +1,6 @@
 # Story 5.2: Server Cart Validation and Inventory Reservation
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -96,6 +96,22 @@ so that checkout cannot oversell limited stock.
     - `npx vitest run src/server/repositories/CheckoutRepository.test.ts src/server/services/CheckoutService.test.ts src/server/routes/checkout.routes.test.ts src/domain/schema-invariants.test.ts`
     - `npx vitest run src/features/cart-checkout/components/cart-ui.test.tsx src/features/cart-checkout/store.test.ts`
   - [x] Run `npm run check`. Run `npm run build-test` if targeted suites and check pass.
+
+### Review Findings
+
+- [x] [Review][Patch] Same-cart reservation retry could fail after its own stock decrement [src/server/services/CheckoutService.ts] — fixed by loading active reservation data before validation and adding held stock back for same-attempt retry validation.
+- [x] [Review][Patch] Expired active reservations could be reused [src/server/services/CheckoutService.ts] — fixed by rejecting expired active reservations before payment unlock.
+- [x] [Review][Patch] Active reservation uniqueness allowed multiple carts per attempt [migrations/0025_checkout_inventory_reservations.sql] — fixed with `uq_checkout_reservations_active_attempt` in schema and migration `0026_checkout_active_reservation_attempt_unique.sql`.
+- [x] [Review][Patch] Unknown or future checkout attempt statuses became reservable [src/server/repositories/CheckoutRepository.ts] — fixed by mapping unknown statuses to `UNKNOWN` and rejecting non-reservable states before cart lookup.
+- [x] [Review][Patch] Reservation stock mutation did not recheck product status, inventory state, preorder flag, or price [src/server/repositories/CheckoutRepository.ts] — fixed with mutation-time predicates for published products, current price, sellable inventory state, and preorder consistency.
+- [x] [Review][Patch] Stock decrement and reservation persistence were not atomic [src/server/repositories/CheckoutRepository.ts] — fixed by adding `reserveStockAndCreateCheckoutReservation` using a D1 transaction around stock mutation, reservation rows, item rows, and attempt transition.
+- [x] [Review][Patch] Rollback/release failures could be hidden [src/server/repositories/CheckoutRepository.ts] — fixed by failing rollback when no variant row is updated and by moving service reservation writes into the repository transaction.
+- [x] [Review][Patch] Invalid reservation clock could fail after mutation [src/server/services/CheckoutService.ts] — fixed by validating the reservation clock before stock mutation.
+- [x] [Review][Patch] Attempt update could overwrite non-reservable concurrent state [src/server/repositories/CheckoutRepository.ts] — fixed by guarding attempt transition to reservable statuses with no existing reservation.
+- [x] [Review][Patch] Cart fingerprint was order-dependent and delimiter-sensitive [src/domain/checkout/inventory-reservation.ts] — fixed with sorted JSON fingerprint input.
+- [x] [Review][Patch] Cart changes after reservation could leave payment step unlocked [src/features/cart-checkout/components/CheckoutDetailsPage.tsx] — fixed by resetting reservation state and requiring details save/reserve again when cart fingerprint changes.
+- [x] [Review][Patch] Real D1 conditional-write concurrency coverage was too thin [src/server/repositories/CheckoutRepository.test.ts] — fixed with concurrent D1 stock reservation coverage alongside the existing 100-attempt service test.
+- [x] [Review][Patch] Durable Object reservation executor accepted any object-shaped success payload [src/server/routes/checkout.routes.ts] — fixed with response-shape validation before returning successful reservation data.
 
 ## Endpoint Guard Checklist
 
@@ -323,6 +339,7 @@ GPT-5 Codex
 - `npx vitest run src/server/repositories/CheckoutRepository.test.ts src/server/services/CheckoutService.test.ts src/server/routes/checkout.routes.test.ts src/domain/schema-invariants.test.ts`
 - `npx vitest run src/features/cart-checkout/components/cart-ui.test.tsx src/features/cart-checkout/store.test.ts`
 - `npx vitest run src/lib/crypto/opaque-token.test.ts src/server/services/CheckoutService.test.ts src/domain/auth/session-credentials.test.ts src/server/services/AuthService.test.ts`
+- `npx vitest run src/domain/checkout/inventory-reservation.test.ts src/server/repositories/CheckoutRepository.test.ts src/server/services/CheckoutService.test.ts src/server/routes/checkout.routes.test.ts src/domain/schema-invariants.test.ts src/features/cart-checkout/components/cart-ui.test.tsx`
 - `npm run check`
 - `npm run build-test`
 
@@ -340,6 +357,7 @@ GPT-5 Codex
 - `_bmad-output/implementation-artifacts/5-2-server-cart-validation-and-inventory-reservation.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `migrations/0025_checkout_inventory_reservations.sql`
+- `migrations/0026_checkout_active_reservation_attempt_unique.sql`
 - `src/cloudflare/durable-objects/InventoryDurableObject.ts`
 - `src/domain/checkout/inventory-reservation.ts`
 - `src/domain/checkout/inventory-reservation.test.ts`
@@ -364,3 +382,4 @@ GPT-5 Codex
 
 - 2026-06-12: Implemented Story 5.2 server cart validation and inventory reservation with tests/check/build gates passing.
 - 2026-06-12: Added reusable opaque-token crypto helper and switched checkout reservation gate to it.
+- 2026-06-15: Code review fixes applied for idempotent retry, expired reservations, active-reservation uniqueness, mutation-time stock predicates, transactional reservation persistence, guarded attempt transitions, cart-change payment lock reset, D1 concurrency coverage, and Durable Object response guarding.

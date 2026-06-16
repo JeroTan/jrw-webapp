@@ -8,6 +8,8 @@ import type {
   CreateCheckoutAttemptInput,
 } from "@/server/repositories/CheckoutRepository";
 import { SNAPSHOT_VARIANT_OPTION_MAX_ITEMS } from "@/domain/snapshots/schemas";
+import { GeneralError } from "@/utils/general/error";
+import { Result } from "@/utils/general/result";
 import { CheckoutService } from "./CheckoutService";
 
 const requestBody = {
@@ -101,7 +103,8 @@ class CheckoutRepositoryStub {
 
     return this.lines.map((line) => ({
       ...line,
-      inventoryState: this.stockQuantity > 0 ? line.inventoryState : "OUT_OF_STOCK",
+      inventoryState:
+        this.stockQuantity > 0 ? line.inventoryState : "OUT_OF_STOCK",
       stockQuantity: Math.min(line.stockQuantity, this.stockQuantity),
     }));
   }
@@ -155,6 +158,12 @@ class CheckoutRepositoryStub {
       checkoutAttemptId: input.attemptId,
       expiresAt: input.expiresAt,
       id,
+      items: input.lines.map((line) => ({
+        productId: line.productId,
+        quantity: line.quantity,
+        reservationMode: line.mode,
+        variantId: line.variantId,
+      })),
       status: "ACTIVE",
       subtotalCentavos: input.subtotalCentavos,
     } satisfies CheckoutReservationRecord;
@@ -172,6 +181,36 @@ class CheckoutRepositoryStub {
 
     this.activeReservations.set(input.attemptId, reservation);
     return reservation;
+  }
+
+  async reserveStockAndCreateCheckoutReservation(
+    input: CreateCheckoutReservationInput
+  ) {
+    const reservedLines: CheckoutReservationPlanLine[] = [];
+
+    for (const line of input.lines) {
+      const reserved = await this.reserveStockLine(line);
+
+      if (!reserved) {
+        for (const reservedLine of reservedLines.reverse()) {
+          await this.releaseStockLine(reservedLine);
+        }
+
+        return null;
+      }
+
+      reservedLines.push(line);
+    }
+
+    try {
+      return await this.createCheckoutReservation(input);
+    } catch (error) {
+      for (const reservedLine of reservedLines.reverse()) {
+        await this.releaseStockLine(reservedLine);
+      }
+
+      throw error;
+    }
   }
 
   async failReservationAndAttempt(input: { attemptId: string }) {
@@ -495,7 +534,49 @@ describe("CheckoutService", () => {
         status: "ACTIVE",
       },
     });
-    expect(JSON.stringify(result.content)).not.toMatch(/token|hash|stock_version/i);
+    expect(JSON.stringify(result.content)).not.toMatch(
+      /token|hash|stock_version/i
+    );
+  });
+
+  it("falls back to repository reservation when the durable object provider is unavailable", async () => {
+    const repository = new CheckoutRepositoryStub();
+    const service = new CheckoutService({
+      repository,
+      reservationExecutor: async () =>
+        Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE")),
+    });
+    const details = await service.saveDetails({
+      actor: { authenticated: false, role: "PROSPECT" },
+      body: checkoutDetailsBody,
+      requestId: "req_checkout_details_guest",
+    });
+
+    const result = await service.reserveInventory({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId: details.content!.attempt.attemptId,
+      body: {
+        attemptToken: details.content!.attempt.attemptToken,
+        ...requestBody,
+      },
+      now: "2026-06-12T08:00:00.000Z",
+      requestId: "req_checkout_reserve_executor_fallback",
+    });
+
+    expect(result.error).toBeNull();
+    expect(repository.stockQuantity).toBe(6);
+    expect(repository.createReservationCalls).toHaveLength(1);
+    expect(result.content).toMatchObject({
+      attempt: {
+        status: "INVENTORY_RESERVED",
+      },
+      next: {
+        paymentAllowed: true,
+      },
+      reservation: {
+        status: "ACTIVE",
+      },
+    });
   });
 
   it("denies guest reservation with invalid token before cart lookup or stock mutation", async () => {
@@ -555,6 +636,7 @@ describe("CheckoutService", () => {
 
   it("returns existing active reservation for same attempt and same accepted cart", async () => {
     const repository = new CheckoutRepositoryStub();
+    repository.stockQuantity = 2;
     const service = new CheckoutService({ repository });
     const details = await service.saveDetails({
       actor: { authenticated: false, role: "PROSPECT" },
@@ -579,7 +661,79 @@ describe("CheckoutService", () => {
     expect(second.error).toBeNull();
     expect(second.content?.reservation.reservationId).toBe("reservation_1");
     expect(repository.createReservationCalls).toHaveLength(1);
-    expect(repository.stockQuantity).toBe(6);
+    expect(repository.stockQuantity).toBe(0);
+  });
+
+  it("rejects expired active reservation instead of reopening payment", async () => {
+    const repository = new CheckoutRepositoryStub();
+    const service = new CheckoutService({ repository });
+    const details = await service.saveDetails({
+      actor: { authenticated: false, role: "PROSPECT" },
+      body: checkoutDetailsBody,
+      requestId: "req_checkout_details_guest",
+    });
+    const attemptId = details.content!.attempt.attemptId;
+    repository.activeReservations.set(attemptId, {
+      cartFingerprint:
+        '[{"lineSubtotalCentavos":3998,"priceCentavos":1999,"productId":"prod_linen","quantity":2,"variantId":"variant_linen_small"}]',
+      checkoutAttemptId: attemptId,
+      expiresAt: "2026-06-12T08:14:59.000Z",
+      id: "reservation_expired",
+      items: [
+        {
+          productId: "prod_linen",
+          quantity: 2,
+          reservationMode: "STOCK",
+          variantId: "variant_linen_small",
+        },
+      ],
+      status: "ACTIVE",
+      subtotalCentavos: 3998,
+    });
+
+    const result = await service.reserveInventory({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId,
+      body: {
+        attemptToken: details.content!.attempt.attemptToken,
+        ...requestBody,
+      },
+      now: "2026-06-12T08:15:00.000Z",
+      requestId: "req_checkout_reserve_expired",
+    });
+
+    expect(result.error?.code).toBe("CONFLICT_STATE");
+    expect(repository.reservedLines).toHaveLength(0);
+  });
+
+  it("rejects unknown attempt status before cart lookup or stock mutation", async () => {
+    const repository = new CheckoutRepositoryStub();
+    const service = new CheckoutService({ repository });
+    const details = await service.saveDetails({
+      actor: { authenticated: false, role: "PROSPECT" },
+      body: checkoutDetailsBody,
+      requestId: "req_checkout_details_guest",
+    });
+    const attemptId = details.content!.attempt.attemptId;
+    const attempt = repository.attemptRecords.get(attemptId)!;
+    repository.attemptRecords.set(attemptId, {
+      ...attempt,
+      status: "UNKNOWN",
+    });
+
+    const result = await service.reserveInventory({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId,
+      body: {
+        attemptToken: details.content!.attempt.attemptToken,
+        ...requestBody,
+      },
+      requestId: "req_checkout_unknown_status",
+    });
+
+    expect(result.error?.code).toBe("CONFLICT_STATE");
+    expect(repository.calls).toBe(0);
+    expect(repository.reservedLines).toHaveLength(0);
   });
 
   it("releases previously reserved lines when a later reservation line fails", async () => {
@@ -666,8 +820,8 @@ describe("CheckoutService", () => {
       Array.from({ length: 95 }, () => "INVENTORY_UNAVAILABLE")
     );
     expect(repository.stockQuantity).toBe(0);
-    expect(repository.reservedLines.reduce((sum, line) => sum + line.quantity, 0)).toBe(
-      5
-    );
+    expect(
+      repository.reservedLines.reduce((sum, line) => sum + line.quantity, 0)
+    ).toBe(5);
   });
 });

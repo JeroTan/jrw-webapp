@@ -223,6 +223,39 @@ function isInventoryDurableObjectEnvelope(
   return typeof value === "object" && value !== null;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isCheckoutReservationResponse(
+  value: unknown
+): value is CheckoutReservationResponse {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  const { attempt, cart, next, reservation } = value;
+
+  return (
+    isRecord(attempt) &&
+    isRecord(cart) &&
+    isRecord(next) &&
+    isRecord(reservation) &&
+    typeof attempt.attemptId === "string" &&
+    attempt.status === "INVENTORY_RESERVED" &&
+    Array.isArray(cart.items) &&
+    Array.isArray(cart.issues) &&
+    (cart.status === "VALID" ||
+      cart.status === "CHANGED" ||
+      cart.status === "BLOCKED") &&
+    next.paymentAllowed === true &&
+    next.payMongoCreationRequired === true &&
+    typeof reservation.reservationId === "string" &&
+    reservation.status === "ACTIVE" &&
+    typeof reservation.expiresAt === "string"
+  );
+}
+
 function createInventoryReservationExecutor(
   namespace: DurableObjectNamespace | undefined
 ):
@@ -251,13 +284,24 @@ function createInventoryReservationExecutor(
         return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
       }
 
-      if ("data" in body && response.ok) {
+      if (
+        "data" in body &&
+        response.ok &&
+        isCheckoutReservationResponse(body.data)
+      ) {
         return Result.okay(body.data);
       }
 
-      if ("error" in body) {
+      if (
+        "error" in body &&
+        isRecord(body.error) &&
+        typeof body.error.code === "string"
+      ) {
         return Result.error(
-          new GeneralError(body.error.details ?? {}, body.error.code)
+          new GeneralError(
+            "details" in body.error ? (body.error.details ?? {}) : {},
+            body.error.code as ErrorCodeType
+          )
         );
       }
 
@@ -266,6 +310,10 @@ function createInventoryReservationExecutor(
       return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
     }
   };
+}
+
+function shouldUseInventoryDurableObject() {
+  return process.env.JRW_USE_INVENTORY_DURABLE_OBJECT !== "false";
 }
 
 function createRuntimeController(
@@ -281,13 +329,16 @@ function createRuntimeController(
   }
 
   const repositories = createCheckoutRepositories(db as D1Database);
+  const reservationExecutor = shouldUseInventoryDurableObject()
+    ? createInventoryReservationExecutor(
+        input.runtimeEnv?.INVENTORY_DURABLE_OBJECT as
+          | DurableObjectNamespace
+          | undefined
+      )
+    : undefined;
   const service = new CheckoutService({
     ...repositories,
-    reservationExecutor: createInventoryReservationExecutor(
-      input.runtimeEnv?.INVENTORY_DURABLE_OBJECT as
-        | DurableObjectNamespace
-        | undefined
-    ),
+    reservationExecutor,
   });
 
   return new CheckoutController(service);

@@ -12,14 +12,14 @@ so that JRW has enough trusted information before payment.
 
 ## Acceptance Criteria
 
-1. Given Shopper starts checkout without an account session, when checkout details step loads, then required email/contact/delivery fields are available immediately, optional sign-in/register/Google actions are offered, and cart contents remain intact.
+1. Given Shopper starts checkout without an account session, when checkout details step loads, then required email/contact/delivery fields are available immediately, account prompts are not shown in the details step, and cart contents remain intact.
 2. Given signed-in Customer opens checkout details, when profile data exists, then checkout prefills matching customer-safe email/contact/delivery fields from `GET /api/customers/me` without exposing tokens, session internals, admin realm data, or unnecessary PII; when profile data is partial or empty, missing required fields remain blank/editable and payment handoff stays blocked until details are complete and valid.
-3. Given guest Shopper or signed-in Customer enters email/contact/delivery details, when details are valid, then details are saved to checkout attempt/order contact snapshot and checkout can proceed to server cart validation.
-4. Given contact/delivery details are invalid or missing, when Shopper submits checkout details, then field-level errors and form-level summary appear, focus moves to the summary, and payment handoff is blocked.
+3. Given guest Shopper or signed-in Customer enters email/contact/delivery details, when details debounce-validate as complete and correct, then the single "Continue to Payment" CTA is enabled and saves details, revalidates cart, and reserves inventory behind the scenes before payment.
+4. Given contact/delivery details are invalid or missing, when checkout details are incomplete or invalid, then "Continue to Payment" stays disabled; when Shopper attempts submit with invalid details, field-level errors and form-level summary appear, focus moves to the summary, and payment handoff is blocked.
 5. Given privacy requirements apply, when checkout captures PII, then only required checkout/fulfillment/support fields are collected, privacy notice/acknowledgement is visible before submit, and logs do not emit raw PII, secrets, tokens, passwords, OAuth material, PayMongo payloads, or card data.
 6. Given checkout creates or updates order/checkout state, when persistence runs, then order keeps checkout email/contact/delivery snapshot, `customer_id` remains nullable for guest checkout, and later account linking is allowed only through safe email verification.
 7. Given checkout UI renders, when desktop and mobile layouts are used, then steps show Cart, Details, Payment, and Receipt/Confirmation, current step uses visible text plus `aria-current="step"`, and layout follows Direction 04 without overlap or overflow.
-8. Given implementation finishes, when tests/QA run, then checks cover guest email checkout, optional sign-in/register/Google path, signed-in Customer prefill, invalid details, order contact snapshot, nullable Customer reference, PII minimization, mobile/desktop layout, keyboard/focus behavior, and `npm run check`; blockers are documented if any validation cannot pass.
+8. Given implementation finishes, when tests/QA run, then checks cover guest email checkout, no account prompts in details, signed-in Customer prefill, invalid details, debounced CTA enablement, order contact snapshot, nullable Customer reference, PII minimization, mobile/desktop layout, keyboard/focus behavior, and `npm run check`; blockers are documented if any validation cannot pass.
 
 ## Tasks / Subtasks
 
@@ -30,7 +30,7 @@ so that JRW has enough trusted information before payment.
   - [x] Treat checkout email as required order identity. Customer account is optional.
   - [x] Reuse Customer auth/profile endpoints only for optional prefill/account convenience, not as prerequisite for ordering.
   - [x] Show the same required checkout details form for guest and signed-in shoppers; signed-in profile data only prefills available safe fields and never removes required completion.
-  - [x] Keep cart in `jrw.cart.v1` intact through optional auth prompts, registration, Google OAuth return, validation errors, and retry.
+  - [x] Keep cart in `jrw.cart.v1` intact through validation errors and retry.
   - [x] Do not use legacy `src/api/**`, Admin auth endpoints, Admin repositories, or cross-realm email lookup for checkout.
 
 - [x] Task 2: Add checkout details validation contract. (AC: 1-6)
@@ -41,10 +41,10 @@ so that JRW has enough trusted information before payment.
   - [x] Reject unknown checkout fields server-side if a new endpoint is added. Do not accept role, email verification, account status, customer ID, payment, order status, or provider fields from the browser.
   - [x] Return stable validation reasons usable by field-level UI; do not expose DB rows or raw schema errors.
 
-- [x] Task 3: Implement guest-email checkout and optional account assist in checkout UI. (AC: 1, 2, 7, 8)
+- [x] Task 3: Implement guest-email checkout details UI without account assist in the details step. (AC: 1, 2, 7, 8)
   - [x] Create or extend customer-facing auth UI under `src/features/customer-account/**` or `src/features/cart-checkout/**` based on reuse. Keep checkout-specific orchestration in `cart-checkout`.
   - [x] Inspect session/profile through existing endpoints only when Customer session exists: `GET /api/customer/auth/session` and `GET /api/customers/me`.
-  - [x] For guest shoppers, show email/contact/delivery form immediately plus optional sign-in/register/Google link to `/api/oauth/google/sessions?returnTo=/checkout`.
+  - [x] For guest shoppers, show email/contact/delivery form immediately. Do not show sign-in/register/Google or account creation prompts in checkout details; account creation belongs after successful order/receipt.
   - [x] For signed-in Customers with partial or empty profile data, prefill only available safe fields and keep missing required checkout fields blank/editable with validation.
   - [x] For unverified Customer accounts, allow checkout with entered checkout email/contact details; show verification as account-help, not order blocker.
   - [x] For Admin/Super Admin/wrong realm actors, do not treat admin cookies as checkout customer identity. Continue as guest checkout unless a Customer session exists.
@@ -65,12 +65,13 @@ so that JRW has enough trusted information before payment.
   - [x] Group email/contact/delivery fields by address logic; keep checkout copy short and practical.
   - [x] Add field-level errors linked with `aria-describedby`, summary with focus on submit failure, and retry-safe pending state.
   - [x] Keep payment CTA disabled/blocked until valid details and cart validation pass. Do not show fake payment/order status.
+  - [x] Use one primary CTA: `Continue to Payment`. Do not show a separate `Save details` button. Debounce detail validation by 200ms and keep the privacy acknowledgement as a plain checkbox row, not a bordered panel.
   - [x] Preserve shared primitives: `Button`, `ButtonLink`, `InputBox`/`Input`, `Textarea` only if needed, no duplicate one-off button/link class strings.
 
 - [x] Task 6: Add tests and QA. (AC: 1-8)
   - [x] Add domain tests for valid guest details, valid signed-in Customer details, missing required fields, invalid email, invalid phone, overlong address fields, empty privacy acknowledgement, unknown fields if endpoint exists, and safe normalized output.
   - [x] Add route/service tests for any new or changed endpoint: OpenAPI metadata, request ID propagation, optional auth metadata, guest success, signed-in success, validation failure, nullable Customer reference, success envelope, and PII-safe error details.
-  - [x] Add UI tests for guest checkout form, optional account prompt, Google link return target, signed-in full prefill, signed-in partial/no-profile fill-required behavior, unverified account not blocking guest checkout, invalid field errors, valid submit, payment blocked until valid, and cart preservation.
+  - [x] Add UI tests for guest checkout form, absence of account prompts, signed-in full prefill, signed-in partial/no-profile fill-required behavior, unverified account not blocking guest checkout, invalid field errors, debounced CTA enablement, payment blocked until valid, and cart preservation.
   - [x] Keep existing suites green: `src/features/cart-checkout/**/*.test.tsx`, `src/server/routes/customer.routes.test.ts`, `src/server/routes/auth.routes.test.ts`, `src/server/routes/google-oauth.routes.test.ts`, and checkout domain/route tests.
   - [x] Run `npm run check`.
   - [x] Run targeted Vitest for changed files. Run `npm run build-test` if server route/domain behavior changes beyond UI-only work.
@@ -292,7 +293,7 @@ GPT-5 Codex
 - Added required guest-or-customer checkout details validation with stable field reasons, unknown-field rejection, safe full-name mapping, normalized email/strings, and privacy acknowledgement.
 - Added optional-auth `POST /api/checkout/details`; Customer ID links only from server Customer session, never browser body; Admin/wrong-realm cookies are ignored for checkout identity.
 - Added persisted `checkout_attempts` contact/delivery snapshot with nullable `customer_id`; no PayMongo, order, reservation, webhook, email, or inventory lock was created.
-- Replaced checkout details placeholder with real Direction 04 form state, guest account assist, Google return link, signed-in safe prefill, field errors, summary focus, and disabled payment handoff.
+- Replaced checkout details placeholder with real Direction 04 form state, signed-in safe prefill, field errors, summary focus, debounced details validation, and single `Continue to Payment` CTA that hides details persistence/reservation behind the action.
 - Preserved existing cart validation authority at `POST /api/checkout/cart-validations` and reruns cart validation after successful details save.
 
 ### File List
@@ -317,7 +318,7 @@ GPT-5 Codex
 
 ### Change Log
 
-- 2026-06-12: Implemented Story 5.1 checkout details validation, optional customer prefill/account assist, persisted checkout attempts, route/service/repository contracts, and regression/viewport QA; status moved to review.
+- 2026-06-12: Implemented Story 5.1 checkout details validation, optional customer prefill, persisted checkout attempts, route/service/repository contracts, and regression/viewport QA; status moved to review.
 
 ### Review Findings
 

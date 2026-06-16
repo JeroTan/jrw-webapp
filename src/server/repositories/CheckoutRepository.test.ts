@@ -85,6 +85,9 @@ async function createCheckoutTestD1() {
     `CREATE INDEX idx_checkout_reservations_attempt_id ON checkout_reservations(checkout_attempt_id)`,
     `CREATE INDEX idx_checkout_reservations_status ON checkout_reservations(status)`,
     `CREATE INDEX idx_checkout_reservations_expires_at ON checkout_reservations(expires_at)`,
+    `CREATE UNIQUE INDEX uq_checkout_reservations_active_attempt
+      ON checkout_reservations(checkout_attempt_id)
+      WHERE status = 'ACTIVE'`,
     `CREATE UNIQUE INDEX uq_checkout_reservations_active_attempt_cart
       ON checkout_reservations(checkout_attempt_id, cart_fingerprint)
       WHERE status = 'ACTIVE'`,
@@ -168,7 +171,7 @@ function checkoutDetails() {
   } as const;
 }
 
-describe("CheckoutRepository", { timeout: 20_000 }, () => {
+describe("CheckoutRepository", { timeout: 60_000 }, () => {
   it("persists guest checkout contact snapshot with nullable customer id", async () => {
     const { d1, mf } = await createCheckoutTestD1();
 
@@ -230,7 +233,9 @@ describe("CheckoutRepository", { timeout: 20_000 }, () => {
       });
 
       const row = await d1
-        .prepare("SELECT customer_id, checkout_email FROM checkout_attempts WHERE id = ?")
+        .prepare(
+          "SELECT customer_id, checkout_email FROM checkout_attempts WHERE id = ?"
+        )
         .bind(created.id)
         .first<Record<string, unknown>>();
 
@@ -334,7 +339,9 @@ describe("CheckoutRepository", { timeout: 20_000 }, () => {
         variantId: "variant_linen_small",
       });
       const variant = await d1
-        .prepare("SELECT stock, stock_version FROM product_variants WHERE id = ?")
+        .prepare(
+          "SELECT stock, stock_version FROM product_variants WHERE id = ?"
+        )
         .bind("variant_linen_small")
         .first<Record<string, unknown>>();
 
@@ -342,6 +349,271 @@ describe("CheckoutRepository", { timeout: 20_000 }, () => {
       expect(variant).toEqual({
         stock: 3,
         stock_version: 7,
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("prevents oversell with concurrent D1 stock reservations", async () => {
+    const { d1, mf } = await createCheckoutTestD1();
+
+    try {
+      await d1
+        .prepare(
+          `UPDATE product_variants
+           SET stock = 5, stock_version = 0, inventory_state = 'LOW_STOCK'
+           WHERE id = ?`
+        )
+        .bind("variant_linen_small")
+        .run();
+
+      const repository = new DrizzleCheckoutRepository(createDb(d1));
+      const attempts = await Promise.all(
+        Array.from({ length: 6 }, () =>
+          repository.reserveStockLine({
+            mode: "STOCK",
+            priceCentavos: 1999,
+            productId: "prod_linen",
+            quantity: 1,
+            variantId: "variant_linen_small",
+          })
+        )
+      );
+      const variant = await d1
+        .prepare(
+          `SELECT stock, stock_version, inventory_state
+           FROM product_variants WHERE id = ?`
+        )
+        .bind("variant_linen_small")
+        .first<Record<string, unknown>>();
+
+      expect(attempts.filter(Boolean)).toHaveLength(5);
+      expect(variant).toEqual({
+        inventory_state: "OUT_OF_STOCK",
+        stock: 0,
+        stock_version: 5,
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("rechecks preorder, price, and product status before accepting reservation lines", async () => {
+    const { d1, mf } = await createCheckoutTestD1();
+
+    try {
+      const repository = new DrizzleCheckoutRepository(createDb(d1));
+
+      await d1
+        .prepare(
+          `UPDATE product_variants
+           SET is_preorder = 1, inventory_state = 'PREORDER', stock = 0
+           WHERE id = ?`
+        )
+        .bind("variant_linen_small")
+        .run();
+
+      await expect(
+        repository.reserveStockLine({
+          mode: "PREORDER",
+          priceCentavos: 1999,
+          productId: "prod_linen",
+          quantity: 2,
+          variantId: "variant_linen_small",
+        })
+      ).resolves.toBe(true);
+
+      await d1
+        .prepare("UPDATE product_variants SET price = ? WHERE id = ?")
+        .bind(2099, "variant_linen_small")
+        .run();
+
+      await expect(
+        repository.reserveStockLine({
+          mode: "PREORDER",
+          priceCentavos: 1999,
+          productId: "prod_linen",
+          quantity: 2,
+          variantId: "variant_linen_small",
+        })
+      ).resolves.toBe(false);
+
+      await d1
+        .prepare("UPDATE product_variants SET price = ? WHERE id = ?")
+        .bind(1999, "variant_linen_small")
+        .run();
+      await d1
+        .prepare("UPDATE products SET status = 'ARCHIVED' WHERE id = ?")
+        .bind("prod_linen")
+        .run();
+
+      await expect(
+        repository.reserveStockLine({
+          mode: "PREORDER",
+          priceCentavos: 1999,
+          productId: "prod_linen",
+          quantity: 2,
+          variantId: "variant_linen_small",
+        })
+      ).resolves.toBe(false);
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("rejects stock reservation when price or product status changes after validation", async () => {
+    const { d1, mf } = await createCheckoutTestD1();
+
+    try {
+      const repository = new DrizzleCheckoutRepository(createDb(d1));
+
+      await d1
+        .prepare("UPDATE product_variants SET price = ? WHERE id = ?")
+        .bind(2099, "variant_linen_small")
+        .run();
+
+      await expect(
+        repository.reserveStockLine({
+          mode: "STOCK",
+          priceCentavos: 1999,
+          productId: "prod_linen",
+          quantity: 1,
+          variantId: "variant_linen_small",
+        })
+      ).resolves.toBe(false);
+
+      await d1
+        .prepare("UPDATE product_variants SET price = ? WHERE id = ?")
+        .bind(1999, "variant_linen_small")
+        .run();
+      await d1
+        .prepare("UPDATE products SET status = 'ARCHIVED' WHERE id = ?")
+        .bind("prod_linen")
+        .run();
+
+      await expect(
+        repository.reserveStockLine({
+          mode: "STOCK",
+          priceCentavos: 1999,
+          productId: "prod_linen",
+          quantity: 1,
+          variantId: "variant_linen_small",
+        })
+      ).resolves.toBe(false);
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("keeps the existing active reservation when a conflicting insert loses the race", async () => {
+    const { d1, mf } = await createCheckoutTestD1();
+
+    try {
+      const repository = new DrizzleCheckoutRepository(createDb(d1));
+      const attempt = await repository.createCheckoutAttempt({
+        attemptTokenHash: "hashed_attempt_token",
+        customerId: null,
+        details: checkoutDetails(),
+        now,
+        requestId: "req_checkout_attempt_guest",
+      });
+      const firstReservation = await repository.createCheckoutReservation({
+        attemptId: attempt.id,
+        cartFingerprint: "prod_linen:variant_linen_small:1999:1:1999",
+        expiresAt: "2026-06-12T08:15:00.000Z",
+        lines: [
+          {
+            mode: "STOCK",
+            priceCentavos: 1999,
+            productId: "prod_linen",
+            quantity: 1,
+            variantId: "variant_linen_small",
+          },
+        ],
+        now,
+        requestId: "req_checkout_reservation_first",
+        subtotalCentavos: 1999,
+      });
+
+      await expect(
+        repository.createCheckoutReservation({
+          attemptId: attempt.id,
+          cartFingerprint: "prod_linen:variant_linen_small:1999:2:3998",
+          expiresAt: "2026-06-12T08:16:00.000Z",
+          lines: [
+            {
+              mode: "STOCK",
+              priceCentavos: 1999,
+              productId: "prod_linen",
+              quantity: 2,
+              variantId: "variant_linen_small",
+            },
+          ],
+          now,
+          requestId: "req_checkout_reservation_conflict",
+          subtotalCentavos: 3998,
+        })
+      ).rejects.toThrow();
+
+      const updatedAttempt = await repository.findCheckoutAttempt(attempt.id);
+      const activeReservation =
+        await repository.findActiveReservationForAttempt(attempt.id);
+
+      expect(updatedAttempt).toMatchObject({
+        reservationId: firstReservation.id,
+        status: "INVENTORY_RESERVED",
+      });
+      expect(activeReservation).toMatchObject({
+        cartFingerprint: "prod_linen:variant_linen_small:1999:1:1999",
+        id: firstReservation.id,
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("does not mark an active reservation attempt failed after a losing request", async () => {
+    const { d1, mf } = await createCheckoutTestD1();
+
+    try {
+      const repository = new DrizzleCheckoutRepository(createDb(d1));
+      const attempt = await repository.createCheckoutAttempt({
+        attemptTokenHash: "hashed_attempt_token",
+        customerId: null,
+        details: checkoutDetails(),
+        now,
+        requestId: "req_checkout_attempt_guest",
+      });
+      const reservation = await repository.createCheckoutReservation({
+        attemptId: attempt.id,
+        cartFingerprint: "prod_linen:variant_linen_small:1999:1:1999",
+        expiresAt: "2026-06-12T08:15:00.000Z",
+        lines: [
+          {
+            mode: "STOCK",
+            priceCentavos: 1999,
+            productId: "prod_linen",
+            quantity: 1,
+            variantId: "variant_linen_small",
+          },
+        ],
+        now,
+        requestId: "req_checkout_reservation",
+        subtotalCentavos: 1999,
+      });
+
+      await repository.failReservationAndAttempt({
+        attemptId: attempt.id,
+        now,
+        requestId: "req_losing_reservation",
+      });
+
+      await expect(
+        repository.findCheckoutAttempt(attempt.id)
+      ).resolves.toMatchObject({
+        reservationId: reservation.id,
+        status: "INVENTORY_RESERVED",
       });
     } finally {
       await mf.dispose();

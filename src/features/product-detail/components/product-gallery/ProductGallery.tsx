@@ -16,7 +16,8 @@ export function ProductGallery({
   selectedImageId,
   onSelectImage,
 }: ProductGalleryProps) {
-  const fallbackImage = gallery.find((image) => image.isPrimary) ?? gallery[0] ?? null;
+  const fallbackImage =
+    gallery.find((image) => image.isPrimary) ?? gallery[0] ?? null;
   const selectedImage =
     gallery.find((image) => image.id === selectedImageId) ?? fallbackImage;
   const selectedIndex = selectedImage
@@ -28,7 +29,8 @@ export function ProductGallery({
       return;
     }
 
-    const nextIndex = (selectedIndex + offset + gallery.length) % gallery.length;
+    const nextIndex =
+      (selectedIndex + offset + gallery.length) % gallery.length;
     const nextImage = gallery[nextIndex];
 
     if (nextImage) {
@@ -39,7 +41,7 @@ export function ProductGallery({
   return (
     <section
       aria-label={`${productName} images`}
-      className="grid content-start gap-grid-sm border border-brand-border bg-brand-background p-grid-sm"
+      className="grid content-start gap-grid-sm"
       data-product-detail-module="product-gallery"
     >
       <ProductImage image={selectedImage} productName={productName} />

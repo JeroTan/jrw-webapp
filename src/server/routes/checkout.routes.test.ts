@@ -479,6 +479,7 @@ describe("checkout routes", () => {
                   findCheckoutAttempt: async () => null,
                   findCartLines: async () => [],
                   releaseStockLine: async () => undefined,
+                  reserveStockAndCreateCheckoutReservation: async () => null,
                   reserveStockLine: async () => false,
                 },
               })
@@ -611,7 +612,10 @@ describe("checkout routes", () => {
                     status: "INVENTORY_RESERVED",
                   },
                   cart: validatedSummary,
-                  next: { payMongoCreationRequired: true, paymentAllowed: true },
+                  next: {
+                    payMongoCreationRequired: true,
+                    paymentAllowed: true,
+                  },
                   reservation: {
                     expiresAt: "2026-06-12T08:15:00.000Z",
                     reservationId: "reservation_guest",
@@ -625,17 +629,20 @@ describe("checkout routes", () => {
     });
 
     const response = await app.handle(
-      new Request("https://jrw.test/api/checkout/attempts/attempt_guest/reservations", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-request-id": "req_checkout_reserve_guest",
-        },
-        body: JSON.stringify({
-          attemptToken: "attempt_token_guest",
-          ...requestBody,
-        }),
-      })
+      new Request(
+        "https://jrw.test/api/checkout/attempts/attempt_guest/reservations",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-request-id": "req_checkout_reserve_guest",
+          },
+          body: JSON.stringify({
+            attemptToken: "attempt_token_guest",
+            ...requestBody,
+          }),
+        }
+      )
     );
 
     expect(receivedAttemptId).toBe("attempt_guest");
@@ -684,17 +691,20 @@ describe("checkout routes", () => {
     });
 
     const response = await app.handle(
-      new Request("https://jrw.test/api/checkout/attempts/attempt_guest/reservations", {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-request-id": "req_checkout_reserve_denied",
-        },
-        body: JSON.stringify({
-          attemptToken: "wrong",
-          ...requestBody,
-        }),
-      })
+      new Request(
+        "https://jrw.test/api/checkout/attempts/attempt_guest/reservations",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-request-id": "req_checkout_reserve_denied",
+          },
+          body: JSON.stringify({
+            attemptToken: "wrong",
+            ...requestBody,
+          }),
+        }
+      )
     );
 
     expect(response.status).toBe(403);

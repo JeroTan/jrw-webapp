@@ -15,7 +15,7 @@ export function ProductBrandSummary({ brand }: ProductBrandSummaryProps) {
   return (
     <section
       aria-labelledby="product-brand-title"
-      className="grid gap-grid-sm border border-brand-border bg-brand-background p-grid-sm"
+      className="grid gap-grid-sm"
       data-product-detail-module="brand-summary"
     >
       <div className="grid gap-grid-sm sm:grid-cols-[auto_minmax(0,1fr)] sm:items-center">

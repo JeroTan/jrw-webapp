@@ -4,7 +4,10 @@ import type {
   PublicCatalogGalleryItem,
 } from "@/domain/products/public-types";
 import type { ProductRecord } from "@/domain/products/types";
-import { buildPublicCatalogDetailMetadata } from "@/server/repositories/PublicCatalogRepository";
+import {
+  buildPublicCatalogDetailMetadata,
+  maxQuantityForPublicVariant,
+} from "@/server/repositories/PublicCatalogRepository";
 
 const category: PublicCatalogCategoryOption = {
   href: "/categories/apparel",
@@ -72,5 +75,25 @@ describe("buildPublicCatalogDetailMetadata", () => {
     });
 
     expect(metadata.description.match(/Apparel/g)).toHaveLength(1);
+  });
+});
+
+describe("maxQuantityForPublicVariant", () => {
+  it("uses live stock for stock-backed public variants", () => {
+    expect(
+      maxQuantityForPublicVariant(
+        { isPreorder: false, stock: 6 },
+        { inStock: true, label: "Low Stock", tone: "warning" }
+      )
+    ).toBe(6);
+  });
+
+  it("keeps preorder variants capped by cart limit", () => {
+    expect(
+      maxQuantityForPublicVariant(
+        { isPreorder: true, stock: 0 },
+        { inStock: true, label: "Preorder", tone: "info" }
+      )
+    ).toBe(99);
   });
 });

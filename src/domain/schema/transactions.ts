@@ -12,20 +12,30 @@ import { customers } from "./identity";
 import { products, product_variants, type VariationChain } from "./catalog";
 
 export const orders = sqliteTable("orders", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
-  customer_id: text("customer_id").references(() => customers.id, { onDelete: "set null" }),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  customer_id: text("customer_id").references(() => customers.id, {
+    onDelete: "set null",
+  }),
   status: text("status").notNull().default("PENDING"),
   status_description: text("status_description"),
   shipping_type: text("shipping_type").notNull().default("STANDARD"),
   total_amount: real("total_amount").notNull(),
-  created_at: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-  updated_at: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  created_at: text("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
+  updated_at: text("updated_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const checkout_attempts = sqliteTable(
   "checkout_attempts",
   {
-    id: text("id").primaryKey().$defaultFn(() => createId()),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
     customer_id: text("customer_id").references(() => customers.id, {
       onDelete: "set null",
     }),
@@ -46,8 +56,12 @@ export const checkout_attempts = sqliteTable(
     status: text("status").notNull().default("DETAILS_CAPTURED"),
     created_request_id: text("created_request_id").notNull(),
     updated_request_id: text("updated_request_id"),
-    created_at: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-    updated_at: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
     index("idx_checkout_attempts_customer_id").on(table.customer_id),
@@ -60,7 +74,9 @@ export const checkout_attempts = sqliteTable(
 export const checkout_reservations = sqliteTable(
   "checkout_reservations",
   {
-    id: text("id").primaryKey().$defaultFn(() => createId()),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
     checkout_attempt_id: text("checkout_attempt_id")
       .notNull()
       .references(() => checkout_attempts.id, { onDelete: "cascade" }),
@@ -69,13 +85,20 @@ export const checkout_reservations = sqliteTable(
     subtotal_centavos: integer("subtotal_centavos").notNull().default(0),
     expires_at: text("expires_at").notNull(),
     created_request_id: text("created_request_id").notNull(),
-    created_at: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-    updated_at: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
     index("idx_checkout_reservations_attempt_id").on(table.checkout_attempt_id),
     index("idx_checkout_reservations_status").on(table.status),
     index("idx_checkout_reservations_expires_at").on(table.expires_at),
+    uniqueIndex("uq_checkout_reservations_active_attempt")
+      .on(table.checkout_attempt_id)
+      .where(sql`${table.status} = 'ACTIVE'`),
     uniqueIndex("uq_checkout_reservations_active_attempt_cart")
       .on(table.checkout_attempt_id, table.cart_fingerprint)
       .where(sql`${table.status} = 'ACTIVE'`),
@@ -85,7 +108,9 @@ export const checkout_reservations = sqliteTable(
 export const checkout_reservation_items = sqliteTable(
   "checkout_reservation_items",
   {
-    id: text("id").primaryKey().$defaultFn(() => createId()),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
     reservation_id: text("reservation_id")
       .notNull()
       .references(() => checkout_reservations.id, { onDelete: "cascade" }),
@@ -98,10 +123,14 @@ export const checkout_reservation_items = sqliteTable(
     quantity: integer("quantity").notNull(),
     price_centavos: integer("price_centavos").notNull(),
     reservation_mode: text("reservation_mode").notNull().default("STOCK"),
-    created_at: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
   },
   (table) => [
-    index("idx_checkout_reservation_items_reservation_id").on(table.reservation_id),
+    index("idx_checkout_reservation_items_reservation_id").on(
+      table.reservation_id
+    ),
     index("idx_checkout_reservation_items_variant_id").on(table.variant_id),
   ]
 );
@@ -109,7 +138,9 @@ export const checkout_reservation_items = sqliteTable(
 export const order_snapshots = sqliteTable(
   "order_snapshots",
   {
-    id: text("id").primaryKey().$defaultFn(() => createId()),
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
     order_id: text("order_id")
       .notNull()
       .references(() => orders.id, { onDelete: "cascade" }),
@@ -145,18 +176,31 @@ export const order_snapshots = sqliteTable(
 );
 
 export const reviews = sqliteTable("reviews", {
-  id: text("id").primaryKey().$defaultFn(() => createId()),
-  customer_id: text("customer_id").notNull().references(() => customers.id, { onDelete: "cascade" }),
-  product_id: text("product_id").notNull().references(() => products.id, { onDelete: "cascade" }),
-  order_id: text("order_id").notNull().references(() => orders.id, { onDelete: "cascade" }),
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId()),
+  customer_id: text("customer_id")
+    .notNull()
+    .references(() => customers.id, { onDelete: "cascade" }),
+  product_id: text("product_id")
+    .notNull()
+    .references(() => products.id, { onDelete: "cascade" }),
+  order_id: text("order_id")
+    .notNull()
+    .references(() => orders.id, { onDelete: "cascade" }),
   rating: integer("rating").notNull(),
   comment: text("comment"),
-  created_at: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  created_at: text("created_at")
+    .notNull()
+    .default(sql`CURRENT_TIMESTAMP`),
 });
 
 // Relationships
 export const ordersRelations = relations(orders, ({ one, many }) => ({
-  customer: one(customers, { fields: [orders.customer_id], references: [customers.id] }),
+  customer: one(customers, {
+    fields: [orders.customer_id],
+    references: [customers.id],
+  }),
   snapshots: many(order_snapshots),
   reviews: many(reviews),
 }));
@@ -201,17 +245,32 @@ export const checkoutReservationItemsRelations = relations(
   })
 );
 
-export const orderSnapshotsRelations = relations(order_snapshots, ({ one }) => ({
-  order: one(orders, { fields: [order_snapshots.order_id], references: [orders.id] }),
-  product: one(products, { fields: [order_snapshots.product_id], references: [products.id] }),
-  variant: one(product_variants, {
-    fields: [order_snapshots.variant_id],
-    references: [product_variants.id],
-  }),
-}));
+export const orderSnapshotsRelations = relations(
+  order_snapshots,
+  ({ one }) => ({
+    order: one(orders, {
+      fields: [order_snapshots.order_id],
+      references: [orders.id],
+    }),
+    product: one(products, {
+      fields: [order_snapshots.product_id],
+      references: [products.id],
+    }),
+    variant: one(product_variants, {
+      fields: [order_snapshots.variant_id],
+      references: [product_variants.id],
+    }),
+  })
+);
 
 export const reviewsRelations = relations(reviews, ({ one }) => ({
-  customer: one(customers, { fields: [reviews.customer_id], references: [customers.id] }),
-  product: one(products, { fields: [reviews.product_id], references: [products.id] }),
+  customer: one(customers, {
+    fields: [reviews.customer_id],
+    references: [customers.id],
+  }),
+  product: one(products, {
+    fields: [reviews.product_id],
+    references: [products.id],
+  }),
   order: one(orders, { fields: [reviews.order_id], references: [orders.id] }),
 }));
