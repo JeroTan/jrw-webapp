@@ -93,6 +93,35 @@ function checkoutController(service: Partial<CheckoutServiceLike>) {
           status: "ACTIVE",
         },
       }),
+    createPayment: async () =>
+      Result.okay({
+        attempt: {
+          attemptId: "attempt_checkout_details",
+          status: "PAYMENT_CREATED",
+        },
+        handoff: {
+          checkoutUrl: "https://checkout.paymongo.com/cs_test_route",
+          redirectMethod: "browser",
+        },
+        next: {
+          orderCreated: false,
+          receiptAvailable: false,
+          webhookRequired: true,
+        },
+        payment: {
+          amountCentavos: 3998,
+          currency: "PHP",
+          paymentId: "payment_checkout_details",
+          provider: "PAYMONGO",
+          providerCheckoutSessionId: "cs_test_route",
+          status: "PAYMENT_PENDING",
+        },
+        reservation: {
+          expiresAt: "2026-06-12T08:15:00.000Z",
+          reservationId: "reservation_checkout_details",
+          status: "ACTIVE",
+        },
+      }),
     ...service,
   });
 }
@@ -220,6 +249,48 @@ describe("checkout routes", () => {
         "IDEMPOTENCY_CONFLICT",
         "INVENTORY_UNAVAILABLE",
         "CONFLICT_STATE",
+      ])
+    );
+  });
+
+  it("documents payment handoff endpoint without direct card collection", async () => {
+    const app = createApp();
+    const response = await app.handle(
+      new Request("https://jrw.test/api/openapi/json")
+    );
+    const body = (await response.json()) as {
+      paths?: Record<
+        string,
+        Record<
+          string,
+          {
+            summary?: string;
+            tags?: string[];
+            "x-auth"?: { mode?: string; roles?: string[] };
+            "x-rate-limit-class"?: string;
+            "x-error-codes"?: string[];
+          }
+        >
+      >;
+    };
+
+    const payment =
+      body.paths?.["/api/checkout/attempts/{attemptId}/payments"]?.post;
+
+    expect(payment?.summary).toBe("Create PayMongo checkout handoff");
+    expect(payment?.tags).toContain("Checkout");
+    expect(payment?.["x-auth"]).toEqual({
+      mode: "optional",
+      roles: ["PROSPECT", "CUSTOMER"],
+    });
+    expect(payment?.["x-rate-limit-class"]).toBe("checkout-payment");
+    expect(payment?.["x-error-codes"]).toEqual(
+      expect.arrayContaining([
+        "AUTH_FORBIDDEN",
+        "CONFLICT_STATE",
+        "IDEMPOTENCY_CONFLICT",
+        "PAYMENT_FAILED",
+        "PROVIDER_UNAVAILABLE",
       ])
     );
   });
@@ -477,7 +548,14 @@ describe("checkout routes", () => {
                   failReservationAndAttempt: async () => undefined,
                   findActiveReservationForAttempt: async () => null,
                   findCheckoutAttempt: async () => null,
+                  findPendingCheckoutPaymentForAttempt: async () => null,
                   findCartLines: async () => [],
+                  createCheckoutPayment: async () => {
+                    throw new Error("unreachable");
+                  },
+                  releaseCheckoutReservationForPaymentFailure: async () =>
+                    undefined,
+                  releaseExpiredCheckoutReservations: async () => 0,
                   releaseStockLine: async () => undefined,
                   reserveStockAndCreateCheckoutReservation: async () => null,
                   reserveStockLine: async () => false,
@@ -673,6 +751,98 @@ describe("checkout routes", () => {
       meta: {
         code: "SUCCESS",
         requestId: "req_checkout_reserve_guest",
+      },
+    });
+  });
+
+  it("returns PayMongo payment handoff success envelope with request id", async () => {
+    let receivedAttemptId = "";
+    let receivedActor: unknown;
+    let receivedBody: unknown;
+    const app = createApp({
+      routes: {
+        checkout: {
+          controllerFactory: () =>
+            checkoutController({
+              createPayment: async (input) => {
+                receivedAttemptId = input.attemptId;
+                receivedActor = input.actor;
+                receivedBody = input.body;
+                return Result.okay({
+                  attempt: {
+                    attemptId: input.attemptId,
+                    status: "PAYMENT_CREATED",
+                  },
+                  handoff: {
+                    checkoutUrl: "https://checkout.paymongo.com/cs_test_route",
+                    redirectMethod: "browser",
+                  },
+                  next: {
+                    orderCreated: false,
+                    receiptAvailable: false,
+                    webhookRequired: true,
+                  },
+                  payment: {
+                    amountCentavos: 3998,
+                    currency: "PHP",
+                    paymentId: "payment_route",
+                    provider: "PAYMONGO",
+                    providerCheckoutSessionId: "cs_test_route",
+                    status: "PAYMENT_PENDING",
+                  },
+                  reservation: {
+                    expiresAt: "2026-06-12T08:15:00.000Z",
+                    reservationId: "reservation_guest",
+                    status: "ACTIVE",
+                  },
+                });
+              },
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request(
+        "https://jrw.test/api/checkout/attempts/attempt_guest/payments",
+        {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-request-id": "req_checkout_payment_guest",
+          },
+          body: JSON.stringify({
+            attemptToken: "attempt_token_guest",
+          }),
+        }
+      )
+    );
+
+    expect(receivedAttemptId).toBe("attempt_guest");
+    expect(receivedActor).toMatchObject({
+      authenticated: false,
+      role: "PROSPECT",
+    });
+    expect(receivedBody).toEqual({ attemptToken: "attempt_token_guest" });
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      data: {
+        attempt: {
+          attemptId: "attempt_guest",
+          status: "PAYMENT_CREATED",
+        },
+        handoff: {
+          checkoutUrl: "https://checkout.paymongo.com/cs_test_route",
+          redirectMethod: "browser",
+        },
+        payment: {
+          provider: "PAYMONGO",
+          status: "PAYMENT_PENDING",
+        },
+      },
+      meta: {
+        code: "SUCCESS",
+        requestId: "req_checkout_payment_guest",
       },
     });
   });

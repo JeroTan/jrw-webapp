@@ -20,6 +20,7 @@ type CheckoutFlowShellProps = {
 
 type CheckoutSummaryAction = {
   disabled?: boolean;
+  href?: string;
   label: string;
   loading?: boolean;
   loadingLabel?: string;
@@ -185,6 +186,15 @@ function CheckoutFlowSummary({
         ) : canNavigate && cta.href ? (
           <ButtonLink fullWidth href={cta.href} textSize="xs" variant="primary">
             {cta.label}
+          </ButtonLink>
+        ) : summaryAction?.href ? (
+          <ButtonLink
+            fullWidth
+            href={summaryAction.href}
+            textSize="xs"
+            variant="primary"
+          >
+            {summaryAction.label}
           </ButtonLink>
         ) : summaryAction ? (
           <Button

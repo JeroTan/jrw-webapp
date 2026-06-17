@@ -61,4 +61,50 @@ describe("audit event foundation", () => {
 
     await expect(new NoopAuditEventPublisher().publish(event)).resolves.toBeUndefined();
   });
+
+  it("scrubs payment checkout handoff audit details", () => {
+    const event = createAuditEvent({
+      eventId: "evt_payment_handoff",
+      requestId: "req_payment_handoff",
+      action: "payment.checkout_created",
+      actor: {
+        type: "user",
+        role: "PROSPECT",
+        safeIdentifier: "guest",
+      },
+      target: {
+        entity: "payment",
+        entityId: "payment_1",
+      },
+      safeDetails: {
+        checkoutUrl: "https://checkout.paymongo.com/cs_test_123",
+        providerCheckoutSessionId: "cs_test_123",
+        providerResponse: { checkout_url: "https://checkout.paymongo.com/raw" },
+        paymentPayload: { amount: 3998 },
+        cardNumber: "4242424242424242",
+        checkoutEmail: "nina@example.test",
+        phone: "+63 917 555 1212",
+        streetAddress: "12 Sampaguita Street",
+        amountCentavos: 3998,
+        currency: "PHP",
+      },
+      occurredAt: "2026-06-12T08:01:00.000Z",
+    });
+
+    expect(event.safeDetails).toMatchObject({
+      checkoutUrl: AUDIT_REDACTED_VALUE,
+      providerCheckoutSessionId: "cs_test_123",
+      providerResponse: AUDIT_REDACTED_VALUE,
+      paymentPayload: AUDIT_REDACTED_VALUE,
+      cardNumber: AUDIT_REDACTED_VALUE,
+      checkoutEmail: AUDIT_REDACTED_VALUE,
+      phone: AUDIT_REDACTED_VALUE,
+      streetAddress: AUDIT_REDACTED_VALUE,
+      amountCentavos: 3998,
+      currency: "PHP",
+    });
+    expect(JSON.stringify(event)).not.toMatch(
+      /checkout\.paymongo|424242|nina@example|Sampaguita/i
+    );
+  });
 });

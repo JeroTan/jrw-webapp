@@ -2,6 +2,7 @@
 import {
   availabilityLabelFromState,
   deriveInventoryStateFromQuantity,
+  inventoryStateConsistent,
   isInventoryState,
   isInventoryStateInStock,
 } from "@/domain/products/schemas";
@@ -160,14 +161,21 @@ function normalizePageSize(value: number | undefined): number {
 }
 
 function toInventoryState(row: VariantRowLike): InventoryState {
-  if (isInventoryState(row.inventory_state)) {
-    return row.inventory_state;
-  }
-
-  return deriveInventoryStateFromQuantity({
+  const derived = deriveInventoryStateFromQuantity({
     quantity: Number(row.stock),
     isPreorder: Boolean(row.is_preorder),
   });
+
+  if (isInventoryState(row.inventory_state)) {
+    return inventoryStateConsistent({
+      quantity: Number(row.stock),
+      state: row.inventory_state,
+    })
+      ? row.inventory_state
+      : derived;
+  }
+
+  return derived;
 }
 
 function toVariantRecord(row: VariantRowLike): ProductVariantRecord {

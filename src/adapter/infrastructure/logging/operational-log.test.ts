@@ -103,6 +103,43 @@ describe("operational logging foundation", () => {
     });
   });
 
+  it("scrubs payment handoff URLs and raw provider/card/customer details", () => {
+    const details = scrubLogDetails({
+      checkoutUrl: "https://checkout.paymongo.com/cs_test_123",
+      providerCheckoutSessionId: "cs_test_123",
+      providerResponse: { checkout_url: "https://checkout.paymongo.com/raw" },
+      paymentPayload: { amount: 3998 },
+      cardNumber: "4242424242424242",
+      checkoutEmail: "nina@example.test",
+      phone: "+63 917 555 1212",
+      streetAddress: "12 Sampaguita Street",
+      safe: {
+        amountCentavos: 3998,
+        currency: "PHP",
+        paymentId: "payment_1",
+      },
+    });
+
+    expect(details).toMatchObject({
+      checkoutUrl: REDACTED_LOG_VALUE,
+      providerCheckoutSessionId: "cs_test_123",
+      providerResponse: REDACTED_LOG_VALUE,
+      paymentPayload: REDACTED_LOG_VALUE,
+      cardNumber: REDACTED_LOG_VALUE,
+      checkoutEmail: REDACTED_LOG_VALUE,
+      phone: REDACTED_LOG_VALUE,
+      streetAddress: REDACTED_LOG_VALUE,
+      safe: {
+        amountCentavos: 3998,
+        currency: "PHP",
+        paymentId: "payment_1",
+      },
+    });
+    expect(JSON.stringify(details)).not.toMatch(
+      /checkout\.paymongo|424242|nina@example|Sampaguita/i
+    );
+  });
+
   it("scrubs non-Error GeneralError instances and circular details", () => {
     const circular: Record<string, unknown> = { safe: "ok", count: 1n };
     circular.self = circular;

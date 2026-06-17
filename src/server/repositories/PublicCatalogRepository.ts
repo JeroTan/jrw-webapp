@@ -49,6 +49,7 @@ import {
   DrizzleVariantRepository,
   type VariantRepository,
 } from "@/server/repositories/VariantRepository";
+import { DrizzleCheckoutRepository } from "@/server/repositories/CheckoutRepository";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 
 type PublicCatalogBrowseInput = {
@@ -458,7 +459,9 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
     private readonly categoryRepository: CategoryRepository,
     private readonly photoRepository: PhotoRepository,
     private readonly productRepository: ProductRepository,
-    private readonly variantRepository: VariantRepository
+    private readonly variantRepository: VariantRepository,
+    private readonly releaseExpiredReservations: () => Promise<void> =
+      async () => undefined
   ) {}
 
   async findActiveVisibleCategoryBySlug(
@@ -568,6 +571,8 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
   async findPublishedProductDetailBySlug(
     slug: string
   ): Promise<PublicCatalogDetailResult | null> {
+    await this.releaseExpiredReservations();
+
     const cleanSlug = slug.trim();
 
     if (!cleanSlug) {
@@ -605,6 +610,8 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
   async listPublishedProductCards(
     input: PublicCatalogBrowseInput
   ): Promise<PublicCatalogBrowseResult> {
+    await this.releaseExpiredReservations();
+
     const result = await this.productRepository.list({
       ...(input.brandIds ? { brandIds: input.brandIds } : {}),
       ...(input.categoryId ? { categoryId: input.categoryId } : {}),
@@ -946,6 +953,7 @@ export class DrizzlePublicCatalogRepository implements PublicCatalogRepository {
 
 export function createPublicCatalogRepositories(dbBinding: D1Database) {
   const db = createDb(dbBinding);
+  const checkoutRepository = new DrizzleCheckoutRepository(db);
 
   return {
     repository: new DrizzlePublicCatalogRepository(
@@ -956,7 +964,12 @@ export function createPublicCatalogRepositories(dbBinding: D1Database) {
         resolvePublicUrl: publicProductAssetUrl,
       }),
       new DrizzleProductRepository(db),
-      new DrizzleVariantRepository(db)
+      new DrizzleVariantRepository(db),
+      async () => {
+        await checkoutRepository.releaseExpiredCheckoutReservations({
+          requestId: "public_catalog_read",
+        });
+      }
     ),
   };
 }

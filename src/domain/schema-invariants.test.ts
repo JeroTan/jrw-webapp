@@ -13,6 +13,8 @@ import {
 } from "./schema/identity";
 import {
   checkout_attempts,
+  checkout_payment_items,
+  checkout_payments,
   checkout_reservation_items,
   checkout_reservations,
   orders,
@@ -490,6 +492,85 @@ describe("checkout schema invariants", () => {
       expect.arrayContaining([
         "idx_checkout_reservation_items_reservation_id",
         "idx_checkout_reservation_items_variant_id",
+      ])
+    );
+  });
+
+  it("stores payment handoff records without raw provider payloads or card material", () => {
+    const paymentConfig = getTableConfig(checkout_payments);
+    const itemConfig = getTableConfig(checkout_payment_items);
+    const paymentColumns = paymentConfig.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const itemColumns = itemConfig.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const paymentIndexes = paymentConfig.indexes.map(
+      (index) => index.config.name
+    );
+    const itemIndexes = itemConfig.indexes.map((index) => index.config.name);
+
+    expect(paymentColumns).toEqual(
+      expect.arrayContaining([
+        "checkout_attempt_id",
+        "reservation_id",
+        "provider",
+        "provider_checkout_session_id",
+        "provider_reference_number",
+        "status",
+        "amount_centavos",
+        "currency",
+        "checkout_url",
+        "livemode",
+        "created_request_id",
+        "updated_request_id",
+      ])
+    );
+    expect(itemColumns).toEqual(
+      expect.arrayContaining([
+        "payment_id",
+        "product_id",
+        "variant_id",
+        "name",
+        "amount_centavos",
+        "currency",
+        "quantity",
+      ])
+    );
+    expect([...paymentColumns, ...itemColumns]).not.toEqual(
+      expect.arrayContaining([
+        "token",
+        "raw_token",
+        "secret",
+        "signature",
+        "authorization",
+        "provider_payload",
+        "paymongo_payload",
+        "payment_payload",
+        "payment_response",
+        "card_data",
+        "card_number",
+        "cvv",
+        "checkout_email",
+        "phone",
+        "street_address",
+      ])
+    );
+    expect(paymentIndexes).toEqual(
+      expect.arrayContaining([
+        "idx_checkout_payments_attempt_id",
+        "idx_checkout_payments_reservation_id",
+        "idx_checkout_payments_status",
+        "idx_checkout_payments_created_at",
+        "uq_checkout_payments_provider_session",
+        "uq_checkout_payments_provider_reference",
+        "uq_checkout_payments_pending_attempt_reservation",
+      ])
+    );
+    expect(itemIndexes).toEqual(
+      expect.arrayContaining([
+        "idx_checkout_payment_items_payment_id",
+        "idx_checkout_payment_items_variant_id",
       ])
     );
   });

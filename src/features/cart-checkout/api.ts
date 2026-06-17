@@ -10,6 +10,11 @@ import type {
   CartItemSnapshot,
   CreateCartItemSnapshotInput,
 } from "@/domain/checkout/cart";
+import {
+  buildPayMongoCheckoutSessionPayload,
+  buildPayMongoReturnUrls,
+} from "@/domain/payments/paymongo-checkout";
+import { formatCatalogPrice } from "@/domain/products/price-format";
 import type { ApiResponse } from "@/lib/api/response";
 import {
   getCartSnapshot,
@@ -90,6 +95,49 @@ export type CheckoutReservationClientResult =
   | { kind: "denied"; reason: string }
   | { kind: "failure"; reason: string };
 
+export type CheckoutPaymentResult = {
+  attempt: {
+    attemptId: string;
+    status: "PAYMENT_CREATED";
+  };
+  reservation: {
+    expiresAt: string;
+    reservationId: string;
+    status: "ACTIVE";
+  };
+  payment: {
+    amountCentavos: number;
+    currency: "PHP";
+    paymentId: string;
+    provider: "PAYMONGO";
+    providerCheckoutSessionId: string;
+    status: "PAYMENT_PENDING";
+  };
+  handoff: {
+    checkoutUrl: string;
+    redirectMethod: "browser";
+  };
+  next: {
+    orderCreated: false;
+    receiptAvailable: false;
+    webhookRequired: true;
+  };
+};
+
+export type CheckoutPaymentClientResult =
+  | (CheckoutPaymentResult & { checkoutUrl: string; kind: "handoff" })
+  | { kind: "conflict"; reason: string }
+  | { kind: "denied"; reason: string }
+  | { kind: "failure"; networkFailure?: boolean; reason: string };
+
+export type LocalPayMongoCheckoutClientResult =
+  | {
+      checkoutUrl: string;
+      kind: "handoff";
+      providerCheckoutSessionId: string;
+    }
+  | { kind: "failure"; reason: string };
+
 export type CustomerSessionSummary = {
   authenticated: boolean;
   actor: null | {
@@ -127,6 +175,7 @@ type CustomerSessionEnvelope = ApiResponse<CustomerSessionSummary>;
 type CustomerProfileEnvelope = ApiResponse<CustomerProfileSummary>;
 type CheckoutDetailsEnvelope = ApiResponse<CheckoutDetailsResult>;
 type CheckoutReservationEnvelope = ApiResponse<CheckoutReservationResult>;
+type CheckoutPaymentEnvelope = ApiResponse<CheckoutPaymentResult>;
 
 export type CheckoutCartValidationClientResult =
   | { kind: "valid"; summary: CheckoutCartValidationSummary }
@@ -398,6 +447,31 @@ function isCheckoutReservationResult(
     typeof value.reservation.expiresAt === "string" &&
     value.next.paymentAllowed === true &&
     value.next.payMongoCreationRequired === true
+  );
+}
+
+function isCheckoutPaymentResult(
+  value: unknown
+): value is CheckoutPaymentResult {
+  return (
+    isRecord(value) &&
+    isRecord(value.attempt) &&
+    isRecord(value.reservation) &&
+    isRecord(value.payment) &&
+    isRecord(value.handoff) &&
+    isRecord(value.next) &&
+    typeof value.attempt.attemptId === "string" &&
+    value.attempt.status === "PAYMENT_CREATED" &&
+    typeof value.reservation.reservationId === "string" &&
+    value.reservation.status === "ACTIVE" &&
+    typeof value.payment.paymentId === "string" &&
+    value.payment.provider === "PAYMONGO" &&
+    value.payment.status === "PAYMENT_PENDING" &&
+    typeof value.handoff.checkoutUrl === "string" &&
+    value.handoff.redirectMethod === "browser" &&
+    value.next.orderCreated === false &&
+    value.next.receiptAvailable === false &&
+    value.next.webhookRequired === true
   );
 }
 
@@ -737,6 +811,257 @@ export async function reserveCheckoutInventory(
     return {
       kind: "failure",
       reason: "Could not reserve items. Try again.",
+    };
+  }
+}
+
+function checkoutPaymentFailureReason(
+  response: Response,
+  body: CheckoutPaymentEnvelope
+): string {
+  if ("error" in body) {
+    switch (body.error.code) {
+      case "AUTH_FORBIDDEN":
+        return "Checkout session expired. Continue to Payment again.";
+      case "CONFLICT_STATE":
+      case "IDEMPOTENCY_CONFLICT":
+        return "Checkout changed. Continue to Payment again after review.";
+      case "PAYMENT_FAILED":
+        if (
+          isRecord(body.error.details) &&
+          typeof body.error.details.minimumAmountCentavos === "number" &&
+          typeof body.error.details.subtotalCentavos === "number"
+        ) {
+          return `PayMongo checkout needs at least ${formatCatalogPrice(
+            body.error.details.minimumAmountCentavos
+          )}. Current cart is ${formatCatalogPrice(
+            body.error.details.subtotalCentavos
+          )}. Increase quantity or add items before payment.`;
+        }
+
+        return "PayMongo could not start payment. Try another method in a moment.";
+      case "PROVIDER_UNAVAILABLE":
+        if (
+          isRecord(body.error.details) &&
+          body.error.details.networkFailure === true
+        ) {
+          return "Payment service could not reach PayMongo. Check connection and try again.";
+        }
+
+        if (
+          isRecord(body.error.details) &&
+          body.error.details.providerStatus === 401
+        ) {
+          return "Payment service is not configured correctly. Check PayMongo keys.";
+        }
+
+        return "Payment service is unavailable. Try again in a moment.";
+      default:
+        break;
+    }
+  }
+
+  if (response.status >= 500) {
+    return "Payment service is unavailable. Try again in a moment.";
+  }
+
+  return "Could not start PayMongo checkout. Try again.";
+}
+
+function hasNetworkFailure(body: CheckoutPaymentEnvelope) {
+  return (
+    "error" in body &&
+    body.error.code === "PROVIDER_UNAVAILABLE" &&
+    isRecord(body.error.details) &&
+    body.error.details.networkFailure === true
+  );
+}
+
+function isLocalPayMongoProxyOrigin() {
+  if (typeof window === "undefined") {
+    return false;
+  }
+
+  return (
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1" ||
+    window.location.hostname === "::1"
+  );
+}
+
+function parseLocalPayMongoCheckoutSession(value: unknown) {
+  if (!isRecord(value) || !isRecord(value.data)) {
+    return null;
+  }
+
+  const attributes = isRecord(value.data.attributes)
+    ? value.data.attributes
+    : null;
+
+  if (
+    typeof value.data.id !== "string" ||
+    !attributes ||
+    typeof attributes.checkout_url !== "string"
+  ) {
+    return null;
+  }
+
+  return {
+    checkoutUrl: attributes.checkout_url,
+    providerCheckoutSessionId: value.data.id,
+  };
+}
+
+export function canUseLocalPayMongoCheckoutProxy() {
+  return isLocalPayMongoProxyOrigin();
+}
+
+export async function createLocalPayMongoCheckoutHandoff(
+  input: {
+    attemptId: string;
+    reservation: {
+      expiresAt: string;
+      reservationId: string;
+    };
+    state: { items: CartItemSnapshot[] };
+  },
+  fetcher: typeof fetch = fetch
+): Promise<LocalPayMongoCheckoutClientResult> {
+  if (!isLocalPayMongoProxyOrigin()) {
+    return {
+      kind: "failure",
+      reason: "Local PayMongo proxy is unavailable.",
+    };
+  }
+
+  const { cancelUrl, successUrl } = buildPayMongoReturnUrls({
+    appBaseUrl: window.location.origin,
+  });
+  const subtotalCentavos = input.state.items.reduce(
+    (total, item) => total + item.priceCentavos * item.quantity,
+    0
+  );
+  const payload = buildPayMongoCheckoutSessionPayload({
+    attemptId: input.attemptId,
+    cancelUrl,
+    metadata: {
+      checkout_attempt_id: input.attemptId,
+      local_dev_fallback: "true",
+      reservation_id: input.reservation.reservationId,
+    },
+    paymentMethods: ["card", "gcash", "qrph"],
+    referenceNumber: `JRW-local-${input.attemptId.slice(0, 24)}`,
+    reservation: {
+      checkoutAttemptId: input.attemptId,
+      expiresAt: input.reservation.expiresAt,
+      id: input.reservation.reservationId,
+      items: input.state.items.map((item) => ({
+        name: item.productName,
+        priceCentavos: item.priceCentavos,
+        productId: item.productId,
+        quantity: item.quantity,
+        reservationMode: "STOCK",
+        variantId: item.variantId,
+      })),
+      status: "ACTIVE",
+      subtotalCentavos,
+    },
+    sendEmailReceipt: false,
+    successUrl,
+  });
+
+  try {
+    const response = await fetcher("/__jrw-dev/paymongo/checkout-sessions", {
+      body: JSON.stringify(payload),
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json",
+      },
+      method: "POST",
+    });
+    const body = (await response.json()) as unknown;
+    const parsed = parseLocalPayMongoCheckoutSession(body);
+
+    if (response.ok && parsed) {
+      return {
+        kind: "handoff",
+        ...parsed,
+      };
+    }
+
+    return {
+      kind: "failure",
+      reason: "Local PayMongo checkout could not start.",
+    };
+  } catch {
+    return {
+      kind: "failure",
+      reason: "Local PayMongo proxy is unavailable.",
+    };
+  }
+}
+
+export async function createPayMongoPaymentHandoff(
+  input: {
+    attemptId: string;
+    attemptToken: string;
+  },
+  fetcher: typeof fetch = fetch
+): Promise<CheckoutPaymentClientResult> {
+  try {
+    const response = await fetcher(
+      `/api/checkout/attempts/${encodeURIComponent(input.attemptId)}/payments`,
+      {
+        body: JSON.stringify({
+          attemptToken: input.attemptToken,
+        }),
+        credentials: "same-origin",
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        method: "POST",
+      }
+    );
+    const body = (await response.json()) as CheckoutPaymentEnvelope;
+
+    if ("data" in body && isCheckoutPaymentResult(body.data)) {
+      return {
+        checkoutUrl: body.data.handoff.checkoutUrl,
+        kind: "handoff",
+        ...body.data,
+      };
+    }
+
+    if ("error" in body) {
+      if (body.error.code === "AUTH_FORBIDDEN") {
+        return {
+          kind: "denied",
+          reason: checkoutPaymentFailureReason(response, body),
+        };
+      }
+
+      if (
+        body.error.code === "CONFLICT_STATE" ||
+        body.error.code === "IDEMPOTENCY_CONFLICT"
+      ) {
+        return {
+          kind: "conflict",
+          reason: checkoutPaymentFailureReason(response, body),
+        };
+      }
+    }
+
+    return {
+      kind: "failure",
+      networkFailure: hasNetworkFailure(body),
+      reason: checkoutPaymentFailureReason(response, body),
+    };
+  } catch {
+    return {
+      kind: "failure",
+      reason: "Payment service is unavailable. Try again in a moment.",
     };
   }
 }

@@ -134,6 +134,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function shouldRedactAuditKey(key: string): boolean {
+  if (/^provider_?checkout_?session_?id$/i.test(key)) {
+    return false;
+  }
+
   return auditSensitiveKeyPatterns.some((pattern) => pattern.test(key));
 }
 

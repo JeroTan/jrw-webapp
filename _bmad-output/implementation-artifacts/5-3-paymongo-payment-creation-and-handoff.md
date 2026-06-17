@@ -1,6 +1,6 @@
 # Story 5.3: PayMongo Payment Creation and Handoff
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -24,25 +24,25 @@ so that payment is handled by a provider while JRW never collects raw card detai
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock scope and reuse current checkout stack. (AC: 1-9)
-  - [ ] Re-read every UPDATE file listed in Current Code Intelligence before editing. Worktree may change; preserve owner edits.
-  - [ ] Extend current Route -> Controller -> Service -> Domain/Repository checkout stack. Do not create a parallel checkout/payment pipeline under legacy `src/api/**`.
-  - [ ] Recommended endpoint: `POST /api/checkout/attempts/:attemptId/payments`. Body should accept only `attemptToken` for guest attempt authorization; server loads reservation, contact snapshot, amount, line items, and return URLs.
-  - [ ] Keep `POST /api/checkout/details` and `POST /api/checkout/attempts/:attemptId/reservations` backward compatible.
-  - [ ] Do not implement PayMongo webhooks, payment reconciliation, order creation, order confirmation emails, payment success/failure emails, fulfillment transitions, return/refund behavior, or guest order status lookup in this story.
-  - [ ] Preserve guest checkout. Signed-in Customer attempt is authorized by server Customer actor; guest attempt is authorized by opaque attempt token.
+- [x] Task 1: Lock scope and reuse current checkout stack. (AC: 1-9)
+  - [x] Re-read every UPDATE file listed in Current Code Intelligence before editing. Worktree may change; preserve owner edits.
+  - [x] Extend current Route -> Controller -> Service -> Domain/Repository checkout stack. Do not create a parallel checkout/payment pipeline under legacy `src/api/**`.
+  - [x] Recommended endpoint: `POST /api/checkout/attempts/:attemptId/payments`. Body should accept only `attemptToken` for guest attempt authorization; server loads reservation, contact snapshot, amount, line items, and return URLs.
+  - [x] Keep `POST /api/checkout/details` and `POST /api/checkout/attempts/:attemptId/reservations` backward compatible.
+  - [x] Do not implement PayMongo webhooks, payment reconciliation, order creation, order confirmation emails, payment success/failure emails, fulfillment transitions, return/refund behavior, or guest order status lookup in this story.
+  - [x] Preserve guest checkout. Signed-in Customer attempt is authorized by server Customer actor; guest attempt is authorized by opaque attempt token.
 
-- [ ] Task 2: Add payment domain contract and state transitions. (AC: 1-3, 5-7)
-  - [ ] Add pure payment handoff rules under `src/domain/payments/**` or `src/domain/checkout/**` if tighter with checkout. Recommended file: `src/domain/payments/paymongo-checkout.ts`.
-  - [ ] Define payment creation statuses separately from fulfillment/order state: minimum `PAYMENT_PENDING`, `PAYMENT_FAILED`; reserve `PAYMENT_PAID`, `PAYMENT_CANCELLED`, `PAYMENT_REFUNDED` for later stories.
-  - [ ] Extend checkout attempt statuses only for checkout phase, not payment truth. Minimum accepted: `PAYMENT_CREATED`; optional failure/release phase such as `PAYMENT_CREATION_FAILED` if used by release logic.
-  - [ ] Payment-eligible attempt must have status `INVENTORY_RESERVED` or already have same pending payment; reservation must be `ACTIVE`, not expired, and match `checkout_attempts.reservation_id`.
-  - [ ] Build provider line items from server reservation records and current product/variant names, but amount and quantity must come from reservation/payment source of truth. If catalog names are unavailable, use safe fallback names without failing amount integrity.
-  - [ ] Do not accept amount, currency, line items, customer ID, checkout email, reservation status, payment status, provider ID, provider payload, success URL, or cancel URL from browser body.
+- [x] Task 2: Add payment domain contract and state transitions. (AC: 1-3, 5-7)
+  - [x] Add pure payment handoff rules under `src/domain/payments/**` or `src/domain/checkout/**` if tighter with checkout. Recommended file: `src/domain/payments/paymongo-checkout.ts`.
+  - [x] Define payment creation statuses separately from fulfillment/order state: minimum `PAYMENT_PENDING`, `PAYMENT_FAILED`; reserve `PAYMENT_PAID`, `PAYMENT_CANCELLED`, `PAYMENT_REFUNDED` for later stories.
+  - [x] Extend checkout attempt statuses only for checkout phase, not payment truth. Minimum accepted: `PAYMENT_CREATED`; optional failure/release phase such as `PAYMENT_CREATION_FAILED` if used by release logic.
+  - [x] Payment-eligible attempt must have status `INVENTORY_RESERVED` or already have same pending payment; reservation must be `ACTIVE`, not expired, and match `checkout_attempts.reservation_id`.
+  - [x] Build provider line items from server reservation records and current product/variant names, but amount and quantity must come from reservation/payment source of truth. If catalog names are unavailable, use safe fallback names without failing amount integrity.
+  - [x] Do not accept amount, currency, line items, customer ID, checkout email, reservation status, payment status, provider ID, provider payload, success URL, or cancel URL from browser body.
 
-- [ ] Task 3: Add payment persistence and migration. (AC: 2, 3, 5-8)
-  - [ ] Add Drizzle schema and next migration after `0026_checkout_active_reservation_attempt_unique.sql`. Do not edit old migrations unless project policy changes.
-  - [ ] Recommended table: `checkout_payments` or `payments` if using broader future order linkage. Required fields:
+- [x] Task 3: Add payment persistence and migration. (AC: 2, 3, 5-8)
+  - [x] Add Drizzle schema and next migration after `0026_checkout_active_reservation_attempt_unique.sql`. Do not edit old migrations unless project policy changes.
+  - [x] Recommended table: `checkout_payments` or `payments` if using broader future order linkage. Required fields:
     - `id`, `checkout_attempt_id`, `reservation_id`
     - `provider` default `PAYMONGO`
     - `provider_checkout_session_id` unique
@@ -52,72 +52,72 @@ so that payment is handled by a provider while JRW never collects raw card detai
     - `checkout_url` only if needed for idempotent retry; treat as sensitive and never log
     - `livemode`
     - `created_request_id`, `updated_request_id`, `created_at`, `updated_at`
-  - [ ] Optional table `checkout_payment_items`: `payment_id`, `product_id`, `variant_id`, `name`, `amount_centavos`, `currency`, `quantity`. Use this if line item summary must be frozen for reconciliation/support.
-  - [ ] Add indexes for attempt, reservation, provider session ID, status, and created time. Enforce one active/pending payment per checkout attempt/reservation.
-  - [ ] Update schema invariant tests so payment records reject raw provider payload fields, card fields, token fields, signatures, secret keys, and customer PII columns beyond provider IDs and safe status metadata.
+  - [x] Optional table `checkout_payment_items`: `payment_id`, `product_id`, `variant_id`, `name`, `amount_centavos`, `currency`, `quantity`. Use this if line item summary must be frozen for reconciliation/support.
+  - [x] Add indexes for attempt, reservation, provider session ID, status, and created time. Enforce one active/pending payment per checkout attempt/reservation.
+  - [x] Update schema invariant tests so payment records reject raw provider payload fields, card fields, token fields, signatures, secret keys, and customer PII columns beyond provider IDs and safe status metadata.
 
-- [ ] Task 4: Build Workers-compatible PayMongo client. (AC: 1-5, 8)
-  - [ ] Add `src/lib/paymongo/PayMongoClient.ts` or equivalent wrapper that uses global `fetch` against `https://api.paymongo.com/v2/checkout_sessions`.
-  - [ ] Use backend-only Basic auth with `PAYMONGO_SECRET_KEY` as username and empty password. In Workers request path, prefer Web APIs such as `btoa(`${secretKey}:`)`; do not depend on Node `Buffer` unless tests prove compatibility.
-  - [ ] Read PayMongo config from Worker runtime env: `PAYMONGO_SECRET_KEY`; optional server-side config for payment methods such as `PAYMONGO_PAYMENT_METHODS`. Keep `PAYMONGO_PUBLIC_KEY` out of this Hosted Checkout server flow unless a later story needs it.
-  - [ ] Update `.env.example`, `wrangler.jsonc` env vars or secrets docs, and regenerate `worker-configuration.d.ts` with `npm run wrangler-types` if runtime `Env` needs PayMongo fields.
-  - [ ] Default payment method list must be server-owned. Recommended MVP list: configured methods from env, else reviewed constant such as `["card", "gcash", "qrph"]` only if account supports them.
-  - [ ] Set `send_email_receipt` deliberately. Recommended default is `false` because Story 5.7 owns JRW payment email copy. If set true, document duplicate-email risk and use checkout email safely.
-  - [ ] Never call PayMongo from frontend. Never expose secret key, Authorization header, raw request JSON, raw response JSON, or provider errors to browser.
+- [x] Task 4: Build Workers-compatible PayMongo client. (AC: 1-5, 8)
+  - [x] Add `src/lib/paymongo/PayMongoClient.ts` or equivalent wrapper that uses global `fetch` against `https://api.paymongo.com/v2/checkout_sessions`.
+  - [x] Use backend-only Basic auth with `PAYMONGO_SECRET_KEY` as username and empty password. In Workers request path, prefer Web APIs such as `btoa(`${secretKey}:`)`; do not depend on Node `Buffer` unless tests prove compatibility.
+  - [x] Read PayMongo config from Worker runtime env: `PAYMONGO_SECRET_KEY`; optional server-side config for payment methods such as `PAYMONGO_PAYMENT_METHODS`. Keep `PAYMONGO_PUBLIC_KEY` out of this Hosted Checkout server flow unless a later story needs it.
+  - [x] Update `.env.example`, `wrangler.jsonc` env vars or secrets docs, and regenerate `worker-configuration.d.ts` with `npm run wrangler-types` if runtime `Env` needs PayMongo fields.
+  - [x] Default payment method list must be server-owned. Recommended MVP list: configured methods from env, else reviewed constant such as `["card", "gcash", "qrph"]` only if account supports them.
+  - [x] Set `send_email_receipt` deliberately. Recommended default is `false` because Story 5.7 owns JRW payment email copy. If set true, document duplicate-email risk and use checkout email safely.
+  - [x] Never call PayMongo from frontend. Never expose secret key, Authorization header, raw request JSON, raw response JSON, or provider errors to browser.
 
-- [ ] Task 5: Implement service/repository payment creation use case. (AC: 1-8)
-  - [ ] Add repository methods to load checkout attempt, active reservation with items, existing pending payment, and safe product/variant display names.
-  - [ ] Add repository method to create payment record and transition attempt to `PAYMENT_CREATED` only after provider checkout session is successfully created and required provider IDs are parsed.
-  - [ ] Service order: authorize attempt -> load active reservation -> reject expired/released/conflicting states -> return existing same payment if present -> build provider payload -> call PayMongo client -> validate response shape -> persist payment -> return safe handoff.
-  - [ ] Use `reference_number` like `JRW-{attemptId or paymentId}` within PayMongo length/format constraints. Include string-only metadata such as `checkout_attempt_id`, `reservation_id`, `payment_id` when available. Do not include checkout email, phone, address, token, or raw cart JSON in metadata.
-  - [ ] Build `success_url` and `cancel_url` server-side from `APP_BASE_URL`/`PUBLIC_APP_BASE_URL` or request origin fallback. Do not trust browser-return URLs or allow open redirects.
-  - [ ] On provider failure before payment record exists, release active reservation immediately by restoring stock and marking reservation `RELEASED`, or persist a durable release-required state with tests. Minimum accepted path is immediate release.
-  - [ ] On provider success but DB persistence failure, persist/emit safe operational failure and do not claim payment handoff success. If provider session exists without DB record, return safe `PROVIDER_UNAVAILABLE` and record enough scrubbed context for manual reconciliation.
-  - [ ] Map provider 400 to `PAYMENT_FAILED` or `VALIDATION_FAILED` only if safe and not leaking provider detail; provider 401/403/5xx/network timeout map to `PROVIDER_UNAVAILABLE`.
+- [x] Task 5: Implement service/repository payment creation use case. (AC: 1-8)
+  - [x] Add repository methods to load checkout attempt, active reservation with items, existing pending payment, and safe product/variant display names.
+  - [x] Add repository method to create payment record and transition attempt to `PAYMENT_CREATED` only after provider checkout session is successfully created and required provider IDs are parsed.
+  - [x] Service order: authorize attempt -> load active reservation -> reject expired/released/conflicting states -> return existing same payment if present -> build provider payload -> call PayMongo client -> validate response shape -> persist payment -> return safe handoff.
+  - [x] Use `reference_number` like `JRW-{attemptId or paymentId}` within PayMongo length/format constraints. Include string-only metadata such as `checkout_attempt_id`, `reservation_id`, `payment_id` when available. Do not include checkout email, phone, address, token, or raw cart JSON in metadata.
+  - [x] Build `success_url` and `cancel_url` server-side from `APP_BASE_URL`/`PUBLIC_APP_BASE_URL` or request origin fallback. Do not trust browser-return URLs or allow open redirects.
+  - [x] On provider failure before payment record exists, release active reservation immediately by restoring stock and marking reservation `RELEASED`, or persist a durable release-required state with tests. Minimum accepted path is immediate release.
+  - [x] On provider success but DB persistence failure, persist/emit safe operational failure and do not claim payment handoff success. If provider session exists without DB record, return safe `PROVIDER_UNAVAILABLE` and record enough scrubbed context for manual reconciliation.
+  - [x] Map provider 400 to `PAYMENT_FAILED` or `VALIDATION_FAILED` only if safe and not leaking provider detail; provider 401/403/5xx/network timeout map to `PROVIDER_UNAVAILABLE`.
 
-- [ ] Task 6: Add route/controller/API/UI handoff. (AC: 3, 4, 7)
-  - [ ] Add TypeBox params/body/response schemas, OpenAPI metadata, optional auth roles `PROSPECT`/`CUSTOMER`, rate-limit class `checkout-payment`, and error codes for payment creation endpoint.
-  - [ ] Controller must return standard envelope with request ID, using existing `apiSuccessWithRequestId` and `apiErrorWithRequestId`.
-  - [ ] Add client helper in `src/features/cart-checkout/api.ts` to create PayMongo payment after reservation success. Validate response shape before redirect.
-  - [ ] Update `CheckoutDetailsPage.tsx`: after details save, cart validation, and reservation success, call payment creation and then redirect to `checkoutUrl` or render one explicit retry-safe handoff button. Do not leave user at disabled "Payment ready" dead end.
-  - [ ] Update `CheckoutFlow.tsx` copy/state if needed: Payment step should show pending handoff, provider redirect, provider unavailable, and retry states with Direction 04 style.
-  - [ ] Browser redirect should use `window.location.assign(checkoutUrl)` only after URL is parsed and host is PayMongo-controlled, or after server response marks it trusted.
-  - [ ] Do not render PayMongo iframe/card fields or collect card data.
+- [x] Task 6: Add route/controller/API/UI handoff. (AC: 3, 4, 7)
+  - [x] Add TypeBox params/body/response schemas, OpenAPI metadata, optional auth roles `PROSPECT`/`CUSTOMER`, rate-limit class `checkout-payment`, and error codes for payment creation endpoint.
+  - [x] Controller must return standard envelope with request ID, using existing `apiSuccessWithRequestId` and `apiErrorWithRequestId`.
+  - [x] Add client helper in `src/features/cart-checkout/api.ts` to create PayMongo payment after reservation success. Validate response shape before redirect.
+  - [x] Update `CheckoutDetailsPage.tsx`: after details save, cart validation, and reservation success, call payment creation and then redirect to `checkoutUrl` or render one explicit retry-safe handoff button. Do not leave user at disabled "Payment ready" dead end.
+  - [x] Update `CheckoutFlow.tsx` copy/state if needed: Payment step should show pending handoff, provider redirect, provider unavailable, and retry states with Direction 04 style.
+  - [x] Browser redirect should use `window.location.assign(checkoutUrl)` only after URL is parsed and host is PayMongo-controlled, or after server response marks it trusted.
+  - [x] Do not render PayMongo iframe/card fields or collect card data.
 
-- [ ] Task 7: Add safe logging/audit hooks. (AC: 5, 8)
-  - [ ] Reuse `createOperationalLogEvent`/`scrubLogDetails` and audit event helpers; do not invent ad hoc logging.
-  - [ ] Publish or prepare `payment.checkout_created` audit event with safe actor, target `payment`, and safe details only.
-  - [ ] Operational logs may include request ID, attempt ID, reservation ID, payment ID, amount centavos, currency, provider checkout session ID, and safe status.
-  - [ ] Logs/audits must not include PayMongo secret/public keys, Authorization header, checkout URL, checkout email, phone, address, raw provider request/response, provider error body, card data, or attempt token.
-  - [ ] Add tests proving scrubbers redact PayMongo secrets, checkout URL/provider response keys, raw payment payloads, card values, checkout email, phone, and address.
+- [x] Task 7: Add safe logging/audit hooks. (AC: 5, 8)
+  - [x] Reuse `createOperationalLogEvent`/`scrubLogDetails` and audit event helpers; do not invent ad hoc logging.
+  - [x] Publish or prepare `payment.checkout_created` audit event with safe actor, target `payment`, and safe details only.
+  - [x] Operational logs may include request ID, attempt ID, reservation ID, payment ID, amount centavos, currency, provider checkout session ID, and safe status.
+  - [x] Logs/audits must not include PayMongo secret/public keys, Authorization header, checkout URL, checkout email, phone, address, raw provider request/response, provider error body, card data, or attempt token.
+  - [x] Add tests proving scrubbers redact PayMongo secrets, checkout URL/provider response keys, raw payment payloads, card values, checkout email, phone, and address.
 
-- [ ] Task 8: Add tests and QA gates. (AC: 1-9)
-  - [ ] Domain tests for payment eligibility, expired reservation rejection, centavos line item build, metadata string-only shape, safe return URL generation, and duplicate same-attempt payment decision.
-  - [ ] PayMongo client tests with mocked fetch for success, missing checkout URL, 400, 401, timeout/network failure, and no secret leakage in errors.
-  - [ ] Repository/D1 tests for payment table insert, active-payment uniqueness, attempt transition to `PAYMENT_CREATED`, idempotent pending payment reuse, reservation release after provider failure, and schema invariant protections.
-  - [ ] Service tests for guest token success, signed-in Customer success, wrong Customer denial, missing/invalid guest token denial, expired reservation denial, provider failure release, DB persistence failure after provider success, idempotent retry, and safe errors.
-  - [ ] Route tests for OpenAPI metadata, optional auth, rate-limit class, response shape, request ID, safe envelopes, denial before provider call, and rejected browser-supplied amount/provider/status fields.
-  - [ ] UI/API tests for reservation -> payment creation -> redirect, provider unavailable copy, expired checkout session recovery, no card fields, no account prompt, and payment button not dead-ended.
-  - [ ] Minimum commands:
+- [x] Task 8: Add tests and QA gates. (AC: 1-9)
+  - [x] Domain tests for payment eligibility, expired reservation rejection, centavos line item build, metadata string-only shape, safe return URL generation, and duplicate same-attempt payment decision.
+  - [x] PayMongo client tests with mocked fetch for success, missing checkout URL, 400, 401, timeout/network failure, and no secret leakage in errors.
+  - [x] Repository/D1 tests for payment table insert, active-payment uniqueness, attempt transition to `PAYMENT_CREATED`, idempotent pending payment reuse, reservation release after provider failure, and schema invariant protections.
+  - [x] Service tests for guest token success, signed-in Customer success, wrong Customer denial, missing/invalid guest token denial, expired reservation denial, provider failure release, DB persistence failure after provider success, idempotent retry, and safe errors.
+  - [x] Route tests for OpenAPI metadata, optional auth, rate-limit class, response shape, request ID, safe envelopes, denial before provider call, and rejected browser-supplied amount/provider/status fields.
+  - [x] UI/API tests for reservation -> payment creation -> redirect, provider unavailable copy, expired checkout session recovery, no card fields, no account prompt, and payment button not dead-ended.
+  - [x] Minimum commands:
     - `npx vitest run src/domain/checkout/cart-validation.test.ts src/domain/checkout/contact-delivery.test.ts src/domain/checkout/inventory-reservation.test.ts`
     - `npx vitest run src/domain/payments/paymongo-checkout.test.ts src/lib/paymongo/PayMongoClient.test.ts`
     - `npx vitest run src/server/repositories/CheckoutRepository.test.ts src/server/services/CheckoutService.test.ts src/server/routes/checkout.routes.test.ts src/domain/schema-invariants.test.ts`
     - `npx vitest run src/features/cart-checkout/components/cart-ui.test.tsx src/features/cart-checkout/store.test.ts`
     - `npm run check`
-  - [ ] Run `npm run build-test` after targeted suites pass because this story touches payment handoff.
+  - [x] Run `npm run build-test` after targeted suites pass because this story touches payment handoff.
 
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint. Mark non-applicable items as `N/A` with reason.
 
-- [ ] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
-- [ ] N/A - Route-level RBAC guard runs before validation or side effects for protected endpoints; payment creation endpoint is optional-auth guest/customer but must run attempt ownership/token guard before provider call or persistence.
-- [ ] Service/controller enforces actor state before mutation: Customer actor must come from server Customer session; guest must pass attempt token; Admin/Super Admin cookies do not become Customer identity.
-- [ ] N/A - Brand-scoped reads or writes enforce active brand membership or elevated permission server-side; public checkout payment uses public published storefront reservation, not brand admin scope.
-- [ ] Public/customer endpoints explicitly document why brand membership is not required.
-- [ ] Denial tests cover missing/invalid attempt token, wrong Customer actor, Admin/wrong realm actor, stale attempt, non-payment-eligible status, expired/released reservation, duplicate conflicting payment, and provider-not-called path where applicable.
-- [ ] Error response uses safe envelope codes and does not leak provider/internal authorization details.
-- [ ] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial/error codes.
+- [x] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
+- [x] N/A - Route-level RBAC guard runs before validation or side effects for protected endpoints; payment creation endpoint is optional-auth guest/customer but must run attempt ownership/token guard before provider call or persistence.
+- [x] Service/controller enforces actor state before mutation: Customer actor must come from server Customer session; guest must pass attempt token; Admin/Super Admin cookies do not become Customer identity.
+- [x] N/A - Brand-scoped reads or writes enforce active brand membership or elevated permission server-side; public checkout payment uses public published storefront reservation, not brand admin scope.
+- [x] Public/customer endpoints explicitly document why brand membership is not required.
+- [x] Denial tests cover missing/invalid attempt token, wrong Customer actor, Admin/wrong realm actor, stale attempt, non-payment-eligible status, expired/released reservation, duplicate conflicting payment, and provider-not-called path where applicable.
+- [x] Error response uses safe envelope codes and does not leak provider/internal authorization details.
+- [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial/error codes.
 
 ## Dev Notes
 
@@ -342,7 +342,49 @@ GPT-5 Codex
 
 ### Debug Log References
 
+- `npx vitest run src/domain/checkout/cart-validation.test.ts src/domain/checkout/contact-delivery.test.ts src/domain/checkout/inventory-reservation.test.ts src/features/cart-checkout/store.test.ts --reporter=verbose` - passed, 21 tests.
+- `npx vitest run src/domain/checkout/cart-validation.test.ts src/domain/checkout/contact-delivery.test.ts src/domain/checkout/inventory-reservation.test.ts src/domain/payments/paymongo-checkout.test.ts src/lib/paymongo/PayMongoClient.test.ts src/domain/schema-invariants.test.ts src/server/repositories/CheckoutRepository.test.ts src/server/services/CheckoutService.test.ts src/server/routes/checkout.routes.test.ts src/features/cart-checkout/components/cart-ui.test.tsx src/features/cart-checkout/store.test.ts src/adapter/infrastructure/logging/operational-log.test.ts src/domain/audit/events.test.ts --pool=threads --maxWorkers=1 --reporter=verbose` - passed, 118 tests.
+- `npm run check` - passed with existing hints.
+- `npm run build-test` - attempted; `astro check` passed and Vitest reached 110/111 files, 722/725 tests, then failed on `vitest-pool` worker fork crash: `Worker exited unexpectedly`.
+- `npm run build-development` - attempted after final log/audit changes; `astro check` passed, `astro build` blocked by Cloudflare API authentication error `[code: 10000]` while starting remote proxy session.
+
 ### Completion Notes List
+
+- Added server-owned PayMongo Hosted Checkout V2 handoff behind `POST /api/checkout/attempts/:attemptId/payments` with optional customer/guest auth, attempt-token gate, server-side return URLs, server-owned payment methods, and safe response envelope.
+- Added `checkout_payments` and `checkout_payment_items` schema/migration, repository persistence, pending-payment reuse, attempt transition to `PAYMENT_CREATED`, and provider/persistence failure reservation release to `PAYMENT_CREATION_FAILED`.
+- Added Workers-compatible `PayMongoClient` using global `fetch` plus backend-only Basic auth; frontend only calls JRW API and renders explicit PayMongo handoff button.
+- Added safe operational log and `payment.checkout_created` audit event details; scrubbers now preserve safe provider checkout session IDs while redacting checkout URLs, provider payloads, card data, contact PII, tokens, and secrets.
+- `worker-configuration.d.ts` not regenerated because payment env keys are read through runtime `Record<string, unknown>` and PayMongo secret should remain a Worker secret, not a committed var.
+- Full `npm run build-test` remains blocked by Vitest worker fork instability after nearly complete suite. Final targeted story suites and `npm run check` pass; final development build is blocked by Cloudflare API auth code 10000, not compile errors.
 
 ### File List
 
+- `.env.example`
+- `_bmad-output/implementation-artifacts/5-3-paymongo-payment-creation-and-handoff.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `migrations/0027_checkout_paymongo_payments.sql`
+- `src/adapter/infrastructure/logging/operational-log.test.ts`
+- `src/adapter/infrastructure/logging/operational-log.ts`
+- `src/domain/audit/events.test.ts`
+- `src/domain/audit/events.ts`
+- `src/domain/payments/paymongo-checkout.test.ts`
+- `src/domain/payments/paymongo-checkout.ts`
+- `src/domain/schema-invariants.test.ts`
+- `src/domain/schema/transactions.ts`
+- `src/features/cart-checkout/api.ts`
+- `src/features/cart-checkout/components/CheckoutDetailsPage.tsx`
+- `src/features/cart-checkout/components/CheckoutFlow.tsx`
+- `src/features/cart-checkout/components/cart-ui.test.tsx`
+- `src/lib/paymongo/PayMongoClient.test.ts`
+- `src/lib/paymongo/PayMongoClient.ts`
+- `src/server/controllers/CheckoutController.ts`
+- `src/server/repositories/CheckoutRepository.test.ts`
+- `src/server/repositories/CheckoutRepository.ts`
+- `src/server/routes/checkout.routes.test.ts`
+- `src/server/routes/checkout.routes.ts`
+- `src/server/services/CheckoutService.test.ts`
+- `src/server/services/CheckoutService.ts`
+
+### Change Log
+
+- 2026-06-16: Implemented PayMongo Hosted Checkout creation/handoff, payment persistence, safe audit/logging, UI PayMongo action, tests, and moved story to review.

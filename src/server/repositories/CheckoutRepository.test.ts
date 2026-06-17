@@ -103,6 +103,45 @@ async function createCheckoutTestD1() {
     )`,
     `CREATE INDEX idx_checkout_reservation_items_reservation_id ON checkout_reservation_items(reservation_id)`,
     `CREATE INDEX idx_checkout_reservation_items_variant_id ON checkout_reservation_items(variant_id)`,
+    `CREATE TABLE checkout_payments (
+      id text PRIMARY KEY NOT NULL,
+      checkout_attempt_id text NOT NULL,
+      reservation_id text NOT NULL,
+      provider text DEFAULT 'PAYMONGO' NOT NULL,
+      provider_checkout_session_id text NOT NULL,
+      provider_reference_number text NOT NULL,
+      status text DEFAULT 'PAYMENT_PENDING' NOT NULL,
+      amount_centavos integer NOT NULL,
+      currency text DEFAULT 'PHP' NOT NULL,
+      checkout_url text NOT NULL,
+      livemode integer DEFAULT 0 NOT NULL,
+      created_request_id text NOT NULL,
+      updated_request_id text,
+      created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+    `CREATE INDEX idx_checkout_payments_attempt_id ON checkout_payments(checkout_attempt_id)`,
+    `CREATE INDEX idx_checkout_payments_reservation_id ON checkout_payments(reservation_id)`,
+    `CREATE INDEX idx_checkout_payments_status ON checkout_payments(status)`,
+    `CREATE INDEX idx_checkout_payments_created_at ON checkout_payments(created_at)`,
+    `CREATE UNIQUE INDEX uq_checkout_payments_provider_session ON checkout_payments(provider_checkout_session_id)`,
+    `CREATE UNIQUE INDEX uq_checkout_payments_provider_reference ON checkout_payments(provider_reference_number)`,
+    `CREATE UNIQUE INDEX uq_checkout_payments_pending_attempt_reservation
+      ON checkout_payments(checkout_attempt_id, reservation_id)
+      WHERE status = 'PAYMENT_PENDING'`,
+    `CREATE TABLE checkout_payment_items (
+      id text PRIMARY KEY NOT NULL,
+      payment_id text NOT NULL,
+      product_id text,
+      variant_id text,
+      name text NOT NULL,
+      amount_centavos integer NOT NULL,
+      currency text DEFAULT 'PHP' NOT NULL,
+      quantity integer NOT NULL,
+      created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+    `CREATE INDEX idx_checkout_payment_items_payment_id ON checkout_payment_items(payment_id)`,
+    `CREATE INDEX idx_checkout_payment_items_variant_id ON checkout_payment_items(variant_id)`,
   ];
 
   for (const statement of statements) {
@@ -614,6 +653,296 @@ describe("CheckoutRepository", { timeout: 60_000 }, () => {
       ).resolves.toMatchObject({
         reservationId: reservation.id,
         status: "INVENTORY_RESERVED",
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("persists checkout payment and transitions attempt to payment-created", async () => {
+    const { d1, mf } = await createCheckoutTestD1();
+
+    try {
+      const repository = new DrizzleCheckoutRepository(createDb(d1));
+      const attempt = await repository.createCheckoutAttempt({
+        attemptTokenHash: "hashed_attempt_token",
+        customerId: null,
+        details: checkoutDetails(),
+        now,
+        requestId: "req_checkout_attempt_guest",
+      });
+      const reservation = await repository.createCheckoutReservation({
+        attemptId: attempt.id,
+        cartFingerprint: "prod_linen:variant_linen_small:1999:2:3998",
+        expiresAt: "2026-06-12T08:15:00.000Z",
+        lines: [
+          {
+            mode: "STOCK",
+            priceCentavos: 1999,
+            productId: "prod_linen",
+            quantity: 2,
+            variantId: "variant_linen_small",
+          },
+        ],
+        now,
+        requestId: "req_checkout_reservation",
+        subtotalCentavos: 3998,
+      });
+
+      const payment = await repository.createCheckoutPayment({
+        amountCentavos: 3998,
+        checkoutUrl: "https://checkout.paymongo.com/cs_test_123",
+        currency: "PHP",
+        items: [
+          {
+            amountCentavos: 1999,
+            currency: "PHP",
+            name: "Linen Shirt - Size: Small",
+            productId: "prod_linen",
+            quantity: 2,
+            variantId: "variant_linen_small",
+          },
+        ],
+        livemode: false,
+        now,
+        providerCheckoutSessionId: "cs_test_123",
+        providerReferenceNumber: "JRW-payment_123",
+        requestId: "req_checkout_payment",
+        reservationId: reservation.id,
+        attemptId: attempt.id,
+      });
+
+      const row = await d1
+        .prepare("SELECT * FROM checkout_payments WHERE id = ?")
+        .bind(payment.paymentId)
+        .first<Record<string, unknown>>();
+      const item = await d1
+        .prepare("SELECT * FROM checkout_payment_items WHERE payment_id = ?")
+        .bind(payment.paymentId)
+        .first<Record<string, unknown>>();
+      const updatedAttempt = await repository.findCheckoutAttempt(attempt.id);
+
+      expect(payment).toMatchObject({
+        amountCentavos: 3998,
+        checkoutAttemptId: attempt.id,
+        checkoutUrl: "https://checkout.paymongo.com/cs_test_123",
+        currency: "PHP",
+        providerCheckoutSessionId: "cs_test_123",
+        reservationId: reservation.id,
+        status: "PAYMENT_PENDING",
+      });
+      expect(row).toMatchObject({
+        amount_centavos: 3998,
+        checkout_attempt_id: attempt.id,
+        provider: "PAYMONGO",
+        provider_checkout_session_id: "cs_test_123",
+        status: "PAYMENT_PENDING",
+      });
+      expect(item).toMatchObject({
+        amount_centavos: 1999,
+        currency: "PHP",
+        name: "Linen Shirt - Size: Small",
+        quantity: 2,
+      });
+      expect(updatedAttempt).toMatchObject({
+        reservationId: reservation.id,
+        status: "PAYMENT_CREATED",
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("reuses existing pending payment for same checkout attempt", async () => {
+    const { d1, mf } = await createCheckoutTestD1();
+
+    try {
+      const repository = new DrizzleCheckoutRepository(createDb(d1));
+      const attempt = await repository.createCheckoutAttempt({
+        attemptTokenHash: "hashed_attempt_token",
+        customerId: null,
+        details: checkoutDetails(),
+        now,
+        requestId: "req_checkout_attempt_guest",
+      });
+      const reservation = await repository.createCheckoutReservation({
+        attemptId: attempt.id,
+        cartFingerprint: "prod_linen:variant_linen_small:1999:1:1999",
+        expiresAt: "2026-06-12T08:15:00.000Z",
+        lines: [
+          {
+            mode: "STOCK",
+            priceCentavos: 1999,
+            productId: "prod_linen",
+            quantity: 1,
+            variantId: "variant_linen_small",
+          },
+        ],
+        now,
+        requestId: "req_checkout_reservation",
+        subtotalCentavos: 1999,
+      });
+      const payment = await repository.createCheckoutPayment({
+        amountCentavos: 1999,
+        checkoutUrl: "https://checkout.paymongo.com/cs_test_reuse",
+        currency: "PHP",
+        items: [
+          {
+            amountCentavos: 1999,
+            currency: "PHP",
+            name: "Linen Shirt",
+            productId: "prod_linen",
+            quantity: 1,
+            variantId: "variant_linen_small",
+          },
+        ],
+        livemode: false,
+        now,
+        providerCheckoutSessionId: "cs_test_reuse",
+        providerReferenceNumber: "JRW-reuse",
+        requestId: "req_checkout_payment",
+        reservationId: reservation.id,
+        attemptId: attempt.id,
+      });
+
+      await expect(
+        repository.findPendingCheckoutPaymentForAttempt(attempt.id)
+      ).resolves.toMatchObject({
+        paymentId: payment.paymentId,
+        providerCheckoutSessionId: "cs_test_reuse",
+        reservationId: reservation.id,
+        status: "PAYMENT_PENDING",
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("releases active reservation and restores stock after provider creation failure", async () => {
+    const { d1, mf } = await createCheckoutTestD1();
+
+    try {
+      const repository = new DrizzleCheckoutRepository(createDb(d1));
+      const attempt = await repository.createCheckoutAttempt({
+        attemptTokenHash: "hashed_attempt_token",
+        customerId: null,
+        details: checkoutDetails(),
+        now,
+        requestId: "req_checkout_attempt_guest",
+      });
+      const reserved = await repository.reserveStockAndCreateCheckoutReservation({
+        attemptId: attempt.id,
+        cartFingerprint: "prod_linen:variant_linen_small:1999:2:3998",
+        expiresAt: "2026-06-12T08:15:00.000Z",
+        lines: [
+          {
+            mode: "STOCK",
+            priceCentavos: 1999,
+            productId: "prod_linen",
+            quantity: 2,
+            variantId: "variant_linen_small",
+          },
+        ],
+        now,
+        requestId: "req_checkout_reservation",
+        subtotalCentavos: 3998,
+      });
+
+      await repository.releaseCheckoutReservationForPaymentFailure({
+        attemptId: attempt.id,
+        now,
+        requestId: "req_checkout_payment_failed",
+        reservationId: reserved!.id,
+      });
+
+      const variant = await d1
+        .prepare(
+          "SELECT stock, inventory_state FROM product_variants WHERE id = ?"
+        )
+        .bind("variant_linen_small")
+        .first<Record<string, unknown>>();
+      const reservationRow = await d1
+        .prepare("SELECT status FROM checkout_reservations WHERE id = ?")
+        .bind(reserved!.id)
+        .first<Record<string, unknown>>();
+      const updatedAttempt = await repository.findCheckoutAttempt(attempt.id);
+
+      expect(variant).toEqual({
+        inventory_state: "LOW_STOCK",
+        stock: 3,
+      });
+      expect(reservationRow).toEqual({ status: "RELEASED" });
+      expect(updatedAttempt).toMatchObject({
+        reservationId: null,
+        status: "PAYMENT_CREATION_FAILED",
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("expires stale active reservations and restores held stock", async () => {
+    const { d1, mf } = await createCheckoutTestD1();
+
+    try {
+      const repository = new DrizzleCheckoutRepository(createDb(d1));
+      const attempt = await repository.createCheckoutAttempt({
+        attemptTokenHash: "hashed_attempt_token",
+        customerId: null,
+        details: checkoutDetails(),
+        now,
+        requestId: "req_checkout_attempt_guest",
+      });
+      const reserved = await repository.reserveStockAndCreateCheckoutReservation({
+        attemptId: attempt.id,
+        cartFingerprint: "prod_linen:variant_linen_small:1999:2:3998",
+        expiresAt: "2026-06-12T08:15:00.000Z",
+        lines: [
+          {
+            mode: "STOCK",
+            priceCentavos: 1999,
+            productId: "prod_linen",
+            quantity: 2,
+            variantId: "variant_linen_small",
+          },
+        ],
+        now,
+        requestId: "req_checkout_reservation",
+        subtotalCentavos: 3998,
+      });
+
+      const released = await repository.releaseExpiredCheckoutReservations({
+        now: "2026-06-12T08:16:00.000Z",
+        requestId: "req_checkout_expiry_sweep",
+      });
+      const secondReleased = await repository.releaseExpiredCheckoutReservations({
+        now: "2026-06-12T08:17:00.000Z",
+        requestId: "req_checkout_expiry_sweep_again",
+      });
+
+      const variant = await d1
+        .prepare(
+          "SELECT stock, inventory_state FROM product_variants WHERE id = ?"
+        )
+        .bind("variant_linen_small")
+        .first<Record<string, unknown>>();
+      const reservationRow = await d1
+        .prepare("SELECT status FROM checkout_reservations WHERE id = ?")
+        .bind(reserved!.id)
+        .first<Record<string, unknown>>();
+      const updatedAttempt = await repository.findCheckoutAttempt(attempt.id);
+
+      expect(released).toBe(1);
+      expect(secondReleased).toBe(0);
+      expect(variant).toEqual({
+        inventory_state: "LOW_STOCK",
+        stock: 3,
+      });
+      expect(reservationRow).toEqual({ status: "EXPIRED" });
+      expect(updatedAttempt).toMatchObject({
+        reservationExpiresAt: null,
+        reservationId: null,
+        status: "RESERVATION_FAILED",
       });
     } finally {
       await mf.dispose();

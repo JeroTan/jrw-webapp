@@ -1,11 +1,16 @@
 import { describe, expect, it } from "vitest";
 import type { CheckoutCartServerLine } from "@/domain/checkout/cart-validation";
 import type { CheckoutReservationPlanLine } from "@/domain/checkout/inventory-reservation";
+import type { AuditEvent } from "@/domain/audit/events";
+import type { OperationalLogEvent } from "@/adapter/infrastructure/logging/operational-log";
 import type {
   CheckoutAttemptRecord,
+  CheckoutPaymentRecord,
   CheckoutReservationRecord,
+  CreateCheckoutPaymentInput,
   CreateCheckoutReservationInput,
   CreateCheckoutAttemptInput,
+  ReleaseCheckoutReservationForPaymentFailureInput,
 } from "@/server/repositories/CheckoutRepository";
 import { SNAPSHOT_VARIANT_OPTION_MAX_ITEMS } from "@/domain/snapshots/schemas";
 import { GeneralError } from "@/utils/general/error";
@@ -59,8 +64,13 @@ class CheckoutRepositoryStub {
   attempts: CreateCheckoutAttemptInput[] = [];
   attemptRecords = new Map<string, CheckoutAttemptRecord>();
   calls = 0;
+  createPaymentCalls: CreateCheckoutPaymentInput[] = [];
   createReservationCalls: CreateCheckoutReservationInput[] = [];
   lines: CheckoutCartServerLine[] = [serverLine];
+  payments = new Map<string, CheckoutPaymentRecord>();
+  paymentFailureReleases: ReleaseCheckoutReservationForPaymentFailureInput[] =
+    [];
+  expiredReservationReleases: string[] = [];
   releasedLines: CheckoutReservationPlanLine[] = [];
   reservedLines: CheckoutReservationPlanLine[] = [];
   stockQuantity = 8;
@@ -117,6 +127,10 @@ class CheckoutRepositoryStub {
     return this.activeReservations.get(attemptId) ?? null;
   }
 
+  async findPendingCheckoutPaymentForAttempt(attemptId: string) {
+    return this.payments.get(attemptId) ?? null;
+  }
+
   async reserveStockLine(line: CheckoutReservationPlanLine) {
     await Promise.resolve();
 
@@ -159,6 +173,8 @@ class CheckoutRepositoryStub {
       expiresAt: input.expiresAt,
       id,
       items: input.lines.map((line) => ({
+        name: "Linen Shirt - Size: Small",
+        priceCentavos: line.priceCentavos,
         productId: line.productId,
         quantity: line.quantity,
         reservationMode: line.mode,
@@ -181,6 +197,142 @@ class CheckoutRepositoryStub {
 
     this.activeReservations.set(input.attemptId, reservation);
     return reservation;
+  }
+
+  async createCheckoutPayment(input: CreateCheckoutPaymentInput) {
+    this.createPaymentCalls.push(input);
+    const payment = {
+      amountCentavos: input.amountCentavos,
+      checkoutAttemptId: input.attemptId,
+      checkoutUrl: input.checkoutUrl,
+      createdAt: input.now ?? "2026-06-12T00:00:00.000Z",
+      currency: input.currency,
+      livemode: input.livemode,
+      paymentId: `payment_${this.createPaymentCalls.length}`,
+      provider: "PAYMONGO",
+      providerCheckoutSessionId: input.providerCheckoutSessionId,
+      providerReferenceNumber: input.providerReferenceNumber,
+      reservationId: input.reservationId,
+      status: "PAYMENT_PENDING",
+      updatedAt: input.now ?? "2026-06-12T00:00:00.000Z",
+    } satisfies CheckoutPaymentRecord;
+    const attempt = this.attemptRecords.get(input.attemptId);
+
+    if (attempt) {
+      this.attemptRecords.set(input.attemptId, {
+        ...attempt,
+        status: "PAYMENT_CREATED",
+      });
+    }
+
+    this.payments.set(input.attemptId, payment);
+    return payment;
+  }
+
+  async releaseCheckoutReservationForPaymentFailure(
+    input: ReleaseCheckoutReservationForPaymentFailureInput
+  ) {
+    this.paymentFailureReleases.push(input);
+    const reservation = this.activeReservations.get(input.attemptId);
+
+    if (reservation?.items) {
+      for (const item of reservation.items) {
+        if (
+          item.reservationMode === "STOCK" &&
+          item.productId &&
+          item.variantId
+        ) {
+          await this.releaseStockLine({
+            mode: "STOCK",
+            priceCentavos: item.priceCentavos ?? 0,
+            productId: item.productId,
+            quantity: item.quantity,
+            variantId: item.variantId,
+          });
+        }
+      }
+    }
+
+    this.activeReservations.delete(input.attemptId);
+    const attempt = this.attemptRecords.get(input.attemptId);
+
+    if (attempt) {
+      this.attemptRecords.set(input.attemptId, {
+        ...attempt,
+        reservationExpiresAt: null,
+        reservationId: null,
+        status: "PAYMENT_CREATION_FAILED",
+      });
+    }
+  }
+
+  async releaseExpiredCheckoutReservations(input: {
+    limit?: number;
+    now?: string;
+    requestId: string;
+  }) {
+    const nowTime = Date.parse(input.now ?? new Date().toISOString());
+    const limit = input.limit ?? 50;
+    let released = 0;
+
+    for (const [attemptId, reservation] of this.activeReservations) {
+      if (released >= limit) {
+        break;
+      }
+
+      if (reservation.status !== "ACTIVE") {
+        continue;
+      }
+
+      const expiresAt = Date.parse(reservation.expiresAt);
+
+      if (
+        !Number.isFinite(nowTime) ||
+        !Number.isFinite(expiresAt) ||
+        expiresAt > nowTime
+      ) {
+        continue;
+      }
+
+      const attempt = this.attemptRecords.get(attemptId);
+
+      if (
+        attempt?.reservationId !== reservation.id ||
+        !["DETAILS_CAPTURED", "INVENTORY_RESERVED", "RESERVATION_FAILED"].includes(
+          attempt.status
+        )
+      ) {
+        continue;
+      }
+
+      for (const item of reservation.items ?? []) {
+        if (
+          item.reservationMode === "STOCK" &&
+          item.productId &&
+          item.variantId
+        ) {
+          await this.releaseStockLine({
+            mode: "STOCK",
+            priceCentavos: item.priceCentavos ?? 0,
+            productId: item.productId,
+            quantity: item.quantity,
+            variantId: item.variantId,
+          });
+        }
+      }
+
+      this.activeReservations.delete(attemptId);
+      this.expiredReservationReleases.push(reservation.id);
+      this.attemptRecords.set(attemptId, {
+        ...attempt,
+        reservationExpiresAt: null,
+        reservationId: null,
+        status: "RESERVATION_FAILED",
+      });
+      released += 1;
+    }
+
+    return released;
   }
 
   async reserveStockAndCreateCheckoutReservation(
@@ -664,8 +816,9 @@ describe("CheckoutService", () => {
     expect(repository.stockQuantity).toBe(0);
   });
 
-  it("rejects expired active reservation instead of reopening payment", async () => {
+  it("releases expired active reservation before reserving fresh stock", async () => {
     const repository = new CheckoutRepositoryStub();
+    repository.stockQuantity = 0;
     const service = new CheckoutService({ repository });
     const details = await service.saveDetails({
       actor: { authenticated: false, role: "PROSPECT" },
@@ -690,6 +843,14 @@ describe("CheckoutService", () => {
       status: "ACTIVE",
       subtotalCentavos: 3998,
     });
+    repository.attemptRecords.set(attemptId, {
+      ...repository.attemptRecords.get(attemptId)!,
+      cartFingerprint:
+        '[{"lineSubtotalCentavos":3998,"priceCentavos":1999,"productId":"prod_linen","quantity":2,"variantId":"variant_linen_small"}]',
+      reservationExpiresAt: "2026-06-12T08:14:59.000Z",
+      reservationId: "reservation_expired",
+      status: "INVENTORY_RESERVED",
+    });
 
     const result = await service.reserveInventory({
       actor: { authenticated: false, role: "PROSPECT" },
@@ -702,8 +863,22 @@ describe("CheckoutService", () => {
       requestId: "req_checkout_reserve_expired",
     });
 
-    expect(result.error?.code).toBe("CONFLICT_STATE");
-    expect(repository.reservedLines).toHaveLength(0);
+    expect(result.error).toBeNull();
+    expect(repository.expiredReservationReleases).toEqual([
+      "reservation_expired",
+    ]);
+    expect(repository.releasedLines).toMatchObject([
+      {
+        productId: "prod_linen",
+        quantity: 2,
+        variantId: "variant_linen_small",
+      },
+    ]);
+    expect(result.content?.reservation).toMatchObject({
+      reservationId: "reservation_1",
+      status: "ACTIVE",
+    });
+    expect(repository.stockQuantity).toBe(0);
   });
 
   it("rejects unknown attempt status before cart lookup or stock mutation", async () => {
@@ -734,6 +909,368 @@ describe("CheckoutService", () => {
     expect(result.error?.code).toBe("CONFLICT_STATE");
     expect(repository.calls).toBe(0);
     expect(repository.reservedLines).toHaveLength(0);
+  });
+
+  it("creates PayMongo checkout handoff from the active reservation only", async () => {
+    const repository = new CheckoutRepositoryStub();
+    const auditEvents: AuditEvent[] = [];
+    const operationalEvents: OperationalLogEvent[] = [];
+    const payMongoCalls: unknown[] = [];
+    const service = new CheckoutService({
+      repository,
+      auditPublisher: {
+        publish: async (event) => {
+          auditEvents.push(event);
+        },
+      },
+      operationalLogger: {
+        record: (event) => {
+          operationalEvents.push(event);
+        },
+      },
+      payMongoClient: {
+        createCheckoutSession: async (payload) => {
+          payMongoCalls.push(payload);
+          return Result.okay({
+            checkoutUrl: "https://checkout.paymongo.com/cs_test_123",
+            livemode: false,
+            providerCheckoutSessionId: "cs_test_123",
+            status: "active",
+          });
+        },
+      },
+      paymentConfig: {
+        appBaseUrl: "https://jrw.test",
+        paymentMethods: ["card", "gcash"],
+        sendEmailReceipt: false,
+      },
+    });
+    const details = await service.saveDetails({
+      actor: { authenticated: false, role: "PROSPECT" },
+      body: checkoutDetailsBody,
+      requestId: "req_checkout_details_guest",
+    });
+    await service.reserveInventory({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId: details.content!.attempt.attemptId,
+      body: {
+        attemptToken: details.content!.attempt.attemptToken,
+        ...requestBody,
+      },
+      now: "2026-06-12T08:00:00.000Z",
+      requestId: "req_checkout_reserve_guest",
+    });
+
+    const result = await service.createPayment({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId: details.content!.attempt.attemptId,
+      body: { attemptToken: details.content!.attempt.attemptToken },
+      now: "2026-06-12T08:01:00.000Z",
+      requestId: "req_checkout_payment_guest",
+    });
+
+    expect(result.error).toBeNull();
+    expect(payMongoCalls).toMatchObject([
+      {
+        data: {
+          attributes: {
+            cancel_url: "https://jrw.test/checkout",
+            line_items: [
+              {
+                amount: 1999,
+                currency: "PHP",
+                name: "Linen Shirt - Size: Small",
+                quantity: 2,
+              },
+            ],
+            payment_method_types: ["card", "gcash"],
+            send_email_receipt: false,
+            success_url: "https://jrw.test/checkout/payment-return",
+          },
+        },
+      },
+    ]);
+    expect(repository.createPaymentCalls[0]).toMatchObject({
+      amountCentavos: 3998,
+      checkoutUrl: "https://checkout.paymongo.com/cs_test_123",
+      currency: "PHP",
+      providerCheckoutSessionId: "cs_test_123",
+    });
+    expect(result.content).toMatchObject({
+      attempt: {
+        attemptId: "attempt_1",
+        status: "PAYMENT_CREATED",
+      },
+      handoff: {
+        checkoutUrl: "https://checkout.paymongo.com/cs_test_123",
+        redirectMethod: "browser",
+      },
+      payment: {
+        amountCentavos: 3998,
+        currency: "PHP",
+        paymentId: "payment_1",
+        provider: "PAYMONGO",
+        status: "PAYMENT_PENDING",
+      },
+    });
+    expect(JSON.stringify(result.content)).not.toMatch(
+      /attemptToken|tokenHash|streetAddress|cardNumber|cvv|providerPayload/i
+    );
+    expect(operationalEvents).toMatchObject([
+      {
+        requestId: "req_checkout_payment_guest",
+        targetResourceId: "payment_1",
+        details: {
+          action: "payment.checkout_created",
+          amountCentavos: 3998,
+          attemptId: "attempt_1",
+          currency: "PHP",
+          paymentId: "payment_1",
+          providerCheckoutSessionId: "cs_test_123",
+          reservationId: "reservation_1",
+          status: "PAYMENT_PENDING",
+        },
+      },
+    ]);
+    expect(auditEvents).toMatchObject([
+      {
+        requestId: "req_checkout_payment_guest",
+        action: "payment.checkout_created",
+        entity: "payment",
+        entityId: "payment_1",
+        safeDetails: {
+          amountCentavos: 3998,
+          attemptId: "attempt_1",
+          currency: "PHP",
+          paymentId: "payment_1",
+          providerCheckoutSessionId: "cs_test_123",
+          reservationId: "reservation_1",
+          status: "PAYMENT_PENDING",
+        },
+      },
+    ]);
+    expect(JSON.stringify({ auditEvents, operationalEvents })).not.toMatch(
+      /checkout\.paymongo|attempt_token|nina@example|Sampaguita|cardNumber|providerPayload/i
+    );
+  });
+
+  it("reuses existing pending payment without creating a second PayMongo session", async () => {
+    const repository = new CheckoutRepositoryStub();
+    let payMongoCallCount = 0;
+    const service = new CheckoutService({
+      repository,
+      payMongoClient: {
+        createCheckoutSession: async () => {
+          payMongoCallCount += 1;
+          return Result.okay({
+            checkoutUrl: "https://checkout.paymongo.com/cs_test_reuse",
+            livemode: false,
+            providerCheckoutSessionId: "cs_test_reuse",
+            status: "active",
+          });
+        },
+      },
+      paymentConfig: { appBaseUrl: "https://jrw.test" },
+    });
+    const details = await service.saveDetails({
+      actor: { authenticated: false, role: "PROSPECT" },
+      body: checkoutDetailsBody,
+      requestId: "req_checkout_details_guest",
+    });
+    await service.reserveInventory({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId: details.content!.attempt.attemptId,
+      body: {
+        attemptToken: details.content!.attempt.attemptToken,
+        ...requestBody,
+      },
+      now: "2026-06-12T08:00:00.000Z",
+      requestId: "req_checkout_reserve_guest",
+    });
+    const input = {
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId: details.content!.attempt.attemptId,
+      body: { attemptToken: details.content!.attempt.attemptToken },
+      now: "2026-06-12T08:01:00.000Z",
+      requestId: "req_checkout_payment_guest",
+    } as const;
+
+    const first = await service.createPayment(input);
+    const second = await service.createPayment(input);
+
+    expect(first.error).toBeNull();
+    expect(second.error).toBeNull();
+    expect(payMongoCallCount).toBe(1);
+    expect(repository.createPaymentCalls).toHaveLength(1);
+    expect(second.content?.payment.paymentId).toBe("payment_1");
+  });
+
+  it("releases reservation when PayMongo checkout creation fails", async () => {
+    const repository = new CheckoutRepositoryStub();
+    const service = new CheckoutService({
+      repository,
+      payMongoClient: {
+        createCheckoutSession: async () =>
+          Result.error(new GeneralError({}, "PAYMENT_FAILED")),
+      },
+      paymentConfig: { appBaseUrl: "https://jrw.test" },
+    });
+    const details = await service.saveDetails({
+      actor: { authenticated: false, role: "PROSPECT" },
+      body: checkoutDetailsBody,
+      requestId: "req_checkout_details_guest",
+    });
+    await service.reserveInventory({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId: details.content!.attempt.attemptId,
+      body: {
+        attemptToken: details.content!.attempt.attemptToken,
+        ...requestBody,
+      },
+      now: "2026-06-12T08:00:00.000Z",
+      requestId: "req_checkout_reserve_guest",
+    });
+
+    const result = await service.createPayment({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId: details.content!.attempt.attemptId,
+      body: { attemptToken: details.content!.attempt.attemptToken },
+      now: "2026-06-12T08:01:00.000Z",
+      requestId: "req_checkout_payment_failed",
+    });
+
+    expect(result.error?.code).toBe("PAYMENT_FAILED");
+    expect(repository.paymentFailureReleases).toMatchObject([
+      {
+        attemptId: "attempt_1",
+        reservationId: "reservation_1",
+        requestId: "req_checkout_payment_failed",
+      },
+    ]);
+    expect(repository.stockQuantity).toBe(8);
+    expect(repository.attemptRecords.get("attempt_1")).toMatchObject({
+      reservationId: null,
+      status: "PAYMENT_CREATION_FAILED",
+    });
+  });
+
+  it("rejects PayMongo handoff below provider minimum without calling provider", async () => {
+    const repository = new CheckoutRepositoryStub();
+    let providerCalled = false;
+    repository.lines = [{ ...serverLine, priceCentavos: 22 }];
+    const service = new CheckoutService({
+      repository,
+      payMongoClient: {
+        createCheckoutSession: async () => {
+          providerCalled = true;
+          return Result.okay({
+            checkoutUrl: "https://checkout.paymongo.com/cs_low_amount",
+            livemode: false,
+            providerCheckoutSessionId: "cs_low_amount",
+            status: "active",
+          });
+        },
+      },
+      paymentConfig: { appBaseUrl: "https://jrw.test" },
+    });
+    const lowAmountBody = {
+      ...requestBody,
+      items: [{ ...requestBody.items[0], priceCentavos: 22, quantity: 1 }],
+    };
+    const details = await service.saveDetails({
+      actor: { authenticated: false, role: "PROSPECT" },
+      body: checkoutDetailsBody,
+      requestId: "req_checkout_details_guest",
+    });
+    await service.reserveInventory({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId: details.content!.attempt.attemptId,
+      body: {
+        attemptToken: details.content!.attempt.attemptToken,
+        ...lowAmountBody,
+      },
+      now: "2026-06-12T08:00:00.000Z",
+      requestId: "req_checkout_reserve_low_amount",
+    });
+
+    const result = await service.createPayment({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId: details.content!.attempt.attemptId,
+      body: { attemptToken: details.content!.attempt.attemptToken },
+      now: "2026-06-12T08:01:00.000Z",
+      requestId: "req_checkout_payment_low_amount",
+    });
+
+    expect(providerCalled).toBe(false);
+    expect(result.error).toMatchObject({
+      code: "PAYMENT_FAILED",
+      data: {
+        minimumAmountCentavos: 100,
+        subtotalCentavos: 22,
+      },
+    });
+    expect(repository.paymentFailureReleases).toMatchObject([
+      {
+        attemptId: "attempt_1",
+        reservationId: "reservation_1",
+        requestId: "req_checkout_payment_low_amount",
+      },
+    ]);
+    expect(repository.stockQuantity).toBe(8);
+  });
+
+  it("rejects browser-supplied payment material before provider handoff", async () => {
+    const repository = new CheckoutRepositoryStub();
+    let providerCalled = false;
+    const service = new CheckoutService({
+      repository,
+      payMongoClient: {
+        createCheckoutSession: async () => {
+          providerCalled = true;
+          return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+        },
+      },
+      paymentConfig: { appBaseUrl: "https://jrw.test" },
+    });
+    const details = await service.saveDetails({
+      actor: { authenticated: false, role: "PROSPECT" },
+      body: checkoutDetailsBody,
+      requestId: "req_checkout_details_guest",
+    });
+    await service.reserveInventory({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId: details.content!.attempt.attemptId,
+      body: {
+        attemptToken: details.content!.attempt.attemptToken,
+        ...requestBody,
+      },
+      now: "2026-06-12T08:00:00.000Z",
+      requestId: "req_checkout_reserve_guest",
+    });
+
+    const result = await service.createPayment({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId: details.content!.attempt.attemptId,
+      body: {
+        amountCentavos: 1,
+        attemptToken: details.content!.attempt.attemptToken,
+        cardNumber: "4242424242424242",
+      },
+      now: "2026-06-12T08:01:00.000Z",
+      requestId: "req_checkout_payment_rejected",
+    });
+
+    expect(result.error).toMatchObject({
+      code: "VALIDATION_FAILED",
+      data: {
+        reasons: expect.arrayContaining([
+          "amountCentavos:unknown",
+          "cardNumber:unknown",
+        ]),
+      },
+    });
+    expect(providerCalled).toBe(false);
+    expect(repository.createPaymentCalls).toHaveLength(0);
   });
 
   it("releases previously reserved lines when a later reservation line fails", async () => {

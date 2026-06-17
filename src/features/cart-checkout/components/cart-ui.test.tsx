@@ -11,6 +11,7 @@ import {
 } from "@/features/cart-checkout";
 import {
   fetchCartProductDetail,
+  createPayMongoPaymentHandoff,
   refreshCartItem,
   reserveCheckoutInventory,
   submitCheckoutDetails,
@@ -268,25 +269,27 @@ describe("cart checkout UI", () => {
     expect(markup).not.toContain("Review cart");
   });
 
-  it("renders reserved checkout as payment step without provider handoff", () => {
+  it("renders reserved checkout as payment step with PayMongo handoff", () => {
     const markup = renderToStaticMarkup(
       createElement(CheckoutDetailsPageView, {
         detailsStatus: "reserved",
+        paymentHandoffUrl: "https://checkout.paymongo.com/cs_test_ui",
         state: activeCart,
       })
     );
 
     expect(markup).toContain("03 Payment");
     expect(markup).toContain('aria-current="step"');
-    expect(markup).toContain("Items reserved. Payment is next.");
-    expect(markup).toContain("Payment ready");
+    expect(markup).toContain("Items reserved. Continue with PayMongo.");
+    expect(markup).toContain("Continue to PayMongo");
     expect(markup).toContain('aria-label="Go back to Cart step"');
     expect(markup).toContain('aria-label="Go back to Details step"');
     expect(markup).toContain('href="/checkout"');
+    expect(markup).toContain('href="https://checkout.paymongo.com/cs_test_ui"');
     expect(markup).toContain("Back to Details");
     expect(markup).toContain("lucide-arrow-left");
     expect(markup).not.toContain("&lt;-");
-    expect(markup).not.toContain("Continue to PayMongo");
+    expect(markup).not.toContain("Payment ready");
   });
 
   it("keeps receipt step history non-clickable", () => {
@@ -872,6 +875,74 @@ describe("cart checkout UI", () => {
       },
     });
     expect(JSON.stringify(result)).not.toMatch(/hash|stock_version/i);
+  });
+
+  it("posts PayMongo handoff request with attempt token and maps safe success", async () => {
+    let capturedUrl = "";
+    let capturedBody: unknown;
+    const result = await createPayMongoPaymentHandoff(
+      {
+        attemptId: "attempt_checkout_details",
+        attemptToken: "attempt_token_checkout_details",
+      },
+      async (url, init) => {
+        capturedUrl = String(url);
+        capturedBody = JSON.parse(String(init?.body));
+
+        return new Response(
+          JSON.stringify({
+            data: {
+              attempt: {
+                attemptId: "attempt_checkout_details",
+                status: "PAYMENT_CREATED",
+              },
+              handoff: {
+                checkoutUrl: "https://checkout.paymongo.com/cs_test_client",
+                redirectMethod: "browser",
+              },
+              next: {
+                orderCreated: false,
+                receiptAvailable: false,
+                webhookRequired: true,
+              },
+              payment: {
+                amountCentavos: 299800,
+                currency: "PHP",
+                paymentId: "payment_checkout_details",
+                provider: "PAYMONGO",
+                providerCheckoutSessionId: "cs_test_client",
+                status: "PAYMENT_PENDING",
+              },
+              reservation: {
+                expiresAt: "2026-06-12T08:15:00.000Z",
+                reservationId: "reservation_checkout_details",
+                status: "ACTIVE",
+              },
+            },
+          }),
+          { status: 200 }
+        );
+      }
+    );
+
+    expect(capturedUrl).toBe(
+      "/api/checkout/attempts/attempt_checkout_details/payments"
+    );
+    expect(capturedBody).toEqual({
+      attemptToken: "attempt_token_checkout_details",
+    });
+    expect(result).toMatchObject({
+      attempt: {
+        status: "PAYMENT_CREATED",
+      },
+      checkoutUrl: "https://checkout.paymongo.com/cs_test_client",
+      kind: "handoff",
+      payment: {
+        provider: "PAYMONGO",
+        status: "PAYMENT_PENDING",
+      },
+    });
+    expect(JSON.stringify(result)).not.toMatch(/hash|stock_version|cardNumber/i);
   });
 
   it("marks cart item unavailable when refreshed detail no longer sells variant", async () => {

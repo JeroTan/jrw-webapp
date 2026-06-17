@@ -17,6 +17,25 @@ import {
   type CheckoutReservationResponse,
 } from "@/domain/checkout/inventory-reservation";
 import {
+  buildPayMongoCheckoutSessionPayload,
+  buildPayMongoReturnUrls,
+  decideCheckoutPaymentCreation,
+  normalizePayMongoPaymentMethods,
+  type CheckoutPaymentReservation,
+} from "@/domain/payments/paymongo-checkout";
+import {
+  createAuditEvent,
+  NoopAuditEventPublisher,
+  type AuditActor,
+  type AuditEventPublisher,
+} from "@/domain/audit/events";
+import {
+  createOperationalLogEvent,
+  noopOperationalLogger,
+  type OperationalLogger,
+} from "@/adapter/infrastructure/logging/operational-log";
+import type { PayMongoClient } from "@/lib/paymongo/PayMongoClient";
+import {
   generateOpaqueToken,
   hashOpaqueToken,
   verifyOpaqueToken,
@@ -27,6 +46,7 @@ import {
 } from "@/domain/products/schemas";
 import type {
   CheckoutAttemptRecord,
+  CheckoutPaymentRecord,
   CheckoutReservationRecord,
   CheckoutRepository,
 } from "@/server/repositories/CheckoutRepository";
@@ -58,6 +78,14 @@ export type CheckoutReservationServiceInput = {
   requestId: string;
 };
 
+export type CheckoutPaymentServiceInput = {
+  actor?: CheckoutDetailsActorInput;
+  attemptId: string;
+  body: unknown;
+  now?: string;
+  requestId: string;
+};
+
 export type CheckoutDetailsResult = {
   attempt: {
     attemptId: string;
@@ -75,7 +103,40 @@ export type CheckoutDetailsResult = {
   };
 };
 
+export type CheckoutPaymentResult = {
+  attempt: {
+    attemptId: string;
+    status: "PAYMENT_CREATED";
+  };
+  reservation: {
+    expiresAt: string;
+    reservationId: string;
+    status: "ACTIVE";
+  };
+  payment: {
+    amountCentavos: number;
+    currency: string;
+    paymentId: string;
+    provider: "PAYMONGO";
+    providerCheckoutSessionId: string;
+    status: "PAYMENT_PENDING";
+  };
+  handoff: {
+    checkoutUrl: string;
+    redirectMethod: "browser";
+  };
+  next: {
+    orderCreated: false;
+    receiptAvailable: false;
+    webhookRequired: true;
+  };
+};
+
 export type CheckoutServiceOptions = {
+  auditPublisher?: AuditEventPublisher;
+  operationalLogger?: OperationalLogger;
+  paymentConfig?: CheckoutPaymentConfig;
+  payMongoClient?: PayMongoClientLike;
   repository: CheckoutRepository;
   reservationExecutor?: CheckoutReservationExecutor;
 };
@@ -83,6 +144,17 @@ export type CheckoutServiceOptions = {
 export type CheckoutReservationExecutor = (
   input: CheckoutReservationServiceInput
 ) => Promise<AppResult<CheckoutReservationResponse>>;
+
+export type CheckoutPaymentConfig = {
+  appBaseUrl?: string;
+  paymentMethods?: readonly string[] | string | null;
+  sendEmailReceipt?: boolean;
+};
+
+export type PayMongoClientLike = Pick<
+  PayMongoClient,
+  "createCheckoutSession"
+>;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -129,6 +201,16 @@ function reservationRejectedFields(body: unknown): string[] {
 
   return rejected
     .filter((field) => field in body)
+    .map((field) => `${field}:unknown`);
+}
+
+function paymentRejectedFields(body: unknown): string[] {
+  if (!isRecord(body)) {
+    return [];
+  }
+
+  return Object.keys(body)
+    .filter((field) => field !== "attemptToken")
     .map((field) => `${field}:unknown`);
 }
 
@@ -273,11 +355,91 @@ function serverLinesWithActiveReservation(
   });
 }
 
+function toPaymentReservation(
+  reservation: CheckoutReservationRecord
+): CheckoutPaymentReservation {
+  return {
+    checkoutAttemptId: reservation.checkoutAttemptId,
+    expiresAt: reservation.expiresAt,
+    id: reservation.id,
+    items: (reservation.items ?? []).map((item) => ({
+      name: item.name,
+      priceCentavos: item.priceCentavos ?? 0,
+      productId: item.productId,
+      quantity: item.quantity,
+      reservationMode: item.reservationMode,
+      variantId: item.variantId,
+    })),
+    status: reservation.status,
+    subtotalCentavos: reservation.subtotalCentavos,
+  };
+}
+
+const PAYMONGO_MINIMUM_AMOUNT_CENTAVOS = 100;
+
+function checkoutReservationPaymentTotalCentavos(
+  reservation: CheckoutReservationRecord
+): number {
+  const itemsTotalCentavos = (reservation.items ?? []).reduce(
+    (total, item) =>
+      total + Math.max(0, item.priceCentavos ?? 0) * Math.max(1, item.quantity),
+    0
+  );
+  const subtotalCentavos = Number(reservation.subtotalCentavos);
+
+  return Number.isFinite(subtotalCentavos) && subtotalCentavos > 0
+    ? subtotalCentavos
+    : itemsTotalCentavos;
+}
+
+function toCheckoutPaymentResult(
+  payment: CheckoutPaymentRecord,
+  reservation: CheckoutReservationRecord
+): CheckoutPaymentResult {
+  return {
+    attempt: {
+      attemptId: payment.checkoutAttemptId,
+      status: "PAYMENT_CREATED",
+    },
+    handoff: {
+      checkoutUrl: payment.checkoutUrl,
+      redirectMethod: "browser",
+    },
+    next: {
+      orderCreated: false,
+      receiptAvailable: false,
+      webhookRequired: true,
+    },
+    payment: {
+      amountCentavos: payment.amountCentavos,
+      currency: payment.currency,
+      paymentId: payment.paymentId,
+      provider: "PAYMONGO",
+      providerCheckoutSessionId: payment.providerCheckoutSessionId,
+      status: "PAYMENT_PENDING",
+    },
+    reservation: {
+      expiresAt: reservation.expiresAt,
+      reservationId: reservation.id,
+      status: "ACTIVE",
+    },
+  };
+}
+
 export class CheckoutService {
+  private readonly auditPublisher: AuditEventPublisher;
+  private readonly operationalLogger: OperationalLogger;
+  private readonly paymentConfig: CheckoutPaymentConfig;
+  private readonly payMongoClient?: PayMongoClientLike;
   private readonly reservationExecutor?: CheckoutReservationExecutor;
   private readonly repository: CheckoutRepository;
 
   constructor(options: CheckoutServiceOptions) {
+    this.auditPublisher =
+      options.auditPublisher ?? new NoopAuditEventPublisher();
+    this.operationalLogger = options.operationalLogger ?? noopOperationalLogger;
+    this.paymentConfig = options.paymentConfig ?? {};
+    this.payMongoClient = options.payMongoClient;
     this.repository = options.repository;
     this.reservationExecutor = options.reservationExecutor;
   }
@@ -294,6 +456,10 @@ export class CheckoutService {
     }
 
     try {
+      await this.repository.releaseExpiredCheckoutReservations({
+        requestId: input.requestId,
+      });
+
       const serverLines = await this.repository.findCartLines(normalized.items);
       const validation = validateCheckoutCart({
         items: normalized.items,
@@ -393,10 +559,318 @@ export class CheckoutService {
     return this.reserveInventoryDirect(input);
   }
 
+  async createPayment(
+    input: CheckoutPaymentServiceInput
+  ): Promise<AppResult<CheckoutPaymentResult>> {
+    try {
+      await this.repository.releaseExpiredCheckoutReservations({
+        now: input.now,
+        requestId: input.requestId,
+      });
+
+      const attempt = await this.repository.findCheckoutAttempt(
+        input.attemptId
+      );
+
+      if (!attempt) {
+        return Result.error(new GeneralError({}, "RESOURCE_NOT_FOUND"));
+      }
+
+      const authorization = await this.authorizeReservationAttempt(
+        attempt,
+        input
+      );
+
+      if (authorization.error) {
+        return authorization;
+      }
+
+      const rejectedFields = paymentRejectedFields(input.body);
+
+      if (rejectedFields.length > 0) {
+        return Result.error(
+          new GeneralError({ reasons: rejectedFields }, "VALIDATION_FAILED")
+        );
+      }
+
+      const activeReservation =
+        await this.repository.findActiveReservationForAttempt(attempt.id);
+
+      if (
+        !activeReservation ||
+        attempt.reservationId !== activeReservation.id ||
+        activeReservation.status !== "ACTIVE"
+      ) {
+        return Result.error(new GeneralError({}, "CONFLICT_STATE"));
+      }
+
+      const now = input.now ?? new Date().toISOString();
+      const existingPayment =
+        await this.repository.findPendingCheckoutPaymentForAttempt(attempt.id);
+      const decision = decideCheckoutPaymentCreation({
+        attemptStatus: attempt.status,
+        existingPayment,
+        now,
+        reservationExpiresAt:
+          attempt.reservationExpiresAt ?? activeReservation.expiresAt,
+        reservationId: activeReservation.id,
+        reservationStatus: activeReservation.status,
+      });
+
+      if (decision.decision === "reject") {
+        return Result.error(new GeneralError({}, decision.code));
+      }
+
+      if (decision.decision === "reuse" && existingPayment) {
+        this.recordPaymentOperationalEvent({
+          action: "payment.checkout_reused",
+          actor: input.actor,
+          payment: existingPayment,
+          requestId: input.requestId,
+        });
+
+        return Result.okay(
+          toCheckoutPaymentResult(existingPayment, activeReservation)
+        );
+      }
+
+      if (!this.payMongoClient) {
+        await this.repository.releaseCheckoutReservationForPaymentFailure({
+          attemptId: attempt.id,
+          now,
+          requestId: input.requestId,
+          reservationId: activeReservation.id,
+        });
+
+        return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+      }
+
+      const paymentSubtotalCentavos =
+        checkoutReservationPaymentTotalCentavos(activeReservation);
+
+      if (paymentSubtotalCentavos < PAYMONGO_MINIMUM_AMOUNT_CENTAVOS) {
+        await this.repository.releaseCheckoutReservationForPaymentFailure({
+          attemptId: attempt.id,
+          now,
+          requestId: input.requestId,
+          reservationId: activeReservation.id,
+        });
+
+        return Result.error(
+          new GeneralError(
+            {
+              minimumAmountCentavos: PAYMONGO_MINIMUM_AMOUNT_CENTAVOS,
+              subtotalCentavos: paymentSubtotalCentavos,
+            },
+            "PAYMENT_FAILED"
+          )
+        );
+      }
+
+      const referenceNumber = `JRW-${attempt.id}-${activeReservation.id}`.slice(
+        0,
+        128
+      );
+      const urls = buildPayMongoReturnUrls({
+        appBaseUrl: this.paymentConfig.appBaseUrl ?? "",
+      });
+      const paymentMethods = normalizePayMongoPaymentMethods(
+        this.paymentConfig.paymentMethods
+      );
+      const providerResult = await this.payMongoClient.createCheckoutSession(
+        buildPayMongoCheckoutSessionPayload({
+          attemptId: attempt.id,
+          cancelUrl: urls.cancelUrl,
+          currency: "PHP",
+          metadata: {
+            checkout_attempt_id: attempt.id,
+            reservation_id: activeReservation.id,
+          },
+          paymentMethods,
+          referenceNumber,
+          reservation: toPaymentReservation(activeReservation),
+          sendEmailReceipt: this.paymentConfig.sendEmailReceipt ?? false,
+          successUrl: urls.successUrl,
+        })
+      );
+
+      if (providerResult.error) {
+        await this.repository.releaseCheckoutReservationForPaymentFailure({
+          attemptId: attempt.id,
+          now,
+          requestId: input.requestId,
+          reservationId: activeReservation.id,
+        });
+
+        return Result.error(
+          new GeneralError(providerResult.error.data ?? {}, providerResult.error.code)
+        );
+      }
+
+      let payment: CheckoutPaymentRecord;
+
+      try {
+        payment = await this.repository.createCheckoutPayment({
+          amountCentavos: paymentSubtotalCentavos,
+          attemptId: attempt.id,
+          checkoutUrl: providerResult.content.checkoutUrl,
+          currency: "PHP",
+          items: (activeReservation.items ?? []).map((item) => ({
+            amountCentavos: item.priceCentavos ?? 0,
+            currency: "PHP",
+            name:
+              item.name ??
+              [item.productId ?? "Product", item.variantId ?? "Variant"].join(
+                " - "
+              ),
+            productId: item.productId,
+            quantity: item.quantity,
+            variantId: item.variantId,
+          })),
+          livemode: providerResult.content.livemode,
+          now,
+          providerCheckoutSessionId:
+            providerResult.content.providerCheckoutSessionId,
+          providerReferenceNumber: referenceNumber,
+          requestId: input.requestId,
+          reservationId: activeReservation.id,
+        });
+      } catch (error) {
+        await this.repository.releaseCheckoutReservationForPaymentFailure({
+          attemptId: attempt.id,
+          now,
+          requestId: input.requestId,
+          reservationId: activeReservation.id,
+        });
+
+        throw error;
+      }
+
+      this.recordPaymentOperationalEvent({
+        action: "payment.checkout_created",
+        actor: input.actor,
+        payment,
+        requestId: input.requestId,
+      });
+      await this.publishPaymentCreatedAudit({
+        actor: input.actor,
+        payment,
+        requestId: input.requestId,
+      });
+
+      return Result.okay(toCheckoutPaymentResult(payment, activeReservation));
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  private checkoutAuditActor(
+    actor: CheckoutDetailsActorInput | undefined
+  ): AuditActor {
+    if (actor?.authenticated && actor.actorId) {
+      return {
+        type: "user",
+        id: actor.actorId,
+        role:
+          actor.role === "CUSTOMER" ||
+          actor.role === "PROSPECT" ||
+          actor.role === "ADMIN" ||
+          actor.role === "SUPER_ADMIN"
+            ? actor.role
+            : "UNKNOWN",
+        safeIdentifier: actor.actorId,
+      };
+    }
+
+    return {
+      type: "user",
+      role: "PROSPECT",
+      safeIdentifier: "guest",
+    };
+  }
+
+  private recordPaymentOperationalEvent(input: {
+    action: "payment.checkout_created" | "payment.checkout_reused";
+    actor: CheckoutDetailsActorInput | undefined;
+    payment: CheckoutPaymentRecord;
+    requestId: string;
+  }) {
+    try {
+      this.operationalLogger.record(
+        createOperationalLogEvent({
+          requestId: input.requestId,
+          actorRole:
+            input.actor?.role === "CUSTOMER" ||
+            input.actor?.role === "PROSPECT" ||
+            input.actor?.role === "ADMIN" ||
+            input.actor?.role === "SUPER_ADMIN"
+              ? input.actor.role
+              : undefined,
+          safeActorId: input.actor?.actorId,
+          targetResourceId: input.payment.paymentId,
+          details: {
+            action: input.action,
+            amountCentavos: input.payment.amountCentavos,
+            attemptId: input.payment.checkoutAttemptId,
+            currency: input.payment.currency,
+            paymentId: input.payment.paymentId,
+            providerCheckoutSessionId:
+              input.payment.providerCheckoutSessionId,
+            reservationId: input.payment.reservationId,
+            status: input.payment.status,
+          },
+        })
+      );
+    } catch {
+      // Logging must never mask checkout handoff response.
+    }
+  }
+
+  private async publishPaymentCreatedAudit(input: {
+    actor: CheckoutDetailsActorInput | undefined;
+    payment: CheckoutPaymentRecord;
+    requestId: string;
+  }) {
+    try {
+      await this.auditPublisher.publish(
+        createAuditEvent({
+          requestId: input.requestId,
+          action: "payment.checkout_created",
+          actor: this.checkoutAuditActor(input.actor),
+          target: {
+            entity: "payment",
+            entityId: input.payment.paymentId,
+          },
+          safeDetails: {
+            amountCentavos: input.payment.amountCentavos,
+            attemptId: input.payment.checkoutAttemptId,
+            currency: input.payment.currency,
+            paymentId: input.payment.paymentId,
+            providerCheckoutSessionId:
+              input.payment.providerCheckoutSessionId,
+            reservationId: input.payment.reservationId,
+            status: input.payment.status,
+          },
+        })
+      );
+    } catch {
+      // Audit failures must never mask checkout handoff response.
+    }
+  }
+
   private async reserveInventoryDirect(
     input: CheckoutReservationServiceInput
   ): Promise<AppResult<CheckoutReservationResponse>> {
     try {
+      await this.repository.releaseExpiredCheckoutReservations({
+        now: input.now,
+        requestId: input.requestId,
+      });
+
       const attempt = await this.repository.findCheckoutAttempt(
         input.attemptId
       );

@@ -4,6 +4,9 @@ import { Button, ButtonLink, Checkbox, InputBox } from "@/components/ui";
 import { validateCheckoutContactDetails } from "@/domain/checkout/contact-delivery";
 import type { CartState } from "@/domain/checkout/cart";
 import {
+  canUseLocalPayMongoCheckoutProxy,
+  createLocalPayMongoCheckoutHandoff,
+  createPayMongoPaymentHandoff,
   fetchCurrentCustomerProfile,
   fetchCustomerCheckoutSession,
   reserveCheckoutInventory,
@@ -35,11 +38,17 @@ type CheckoutDetailsPageViewProps = {
   onRetryValidation?: () => void;
   state: CartState;
   canContinueToPayment?: boolean;
+  paymentHandoffUrl?: string | null;
   validationMessage?: string | null;
   validationStatus?: "blocked" | "error" | "pending" | "valid";
 };
 
-type CheckoutDetailsStatus = "idle" | "reserved" | "reserving" | "saving";
+type CheckoutDetailsStatus =
+  | "creating-payment"
+  | "idle"
+  | "reserved"
+  | "reserving"
+  | "saving";
 
 type FormSubmitHandler = (
   event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>
@@ -193,6 +202,7 @@ export function CheckoutDetailsPageView({
   onDetailsChange,
   onDetailsSubmit,
   onRetryValidation,
+  paymentHandoffUrl = null,
   state,
   validationMessage = null,
   validationStatus = "valid",
@@ -212,9 +222,7 @@ export function CheckoutDetailsPageView({
           <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
             Cart check
           </p>
-          <h2 className="m-0 font-identity text-2xl font-bold">
-            Review cart
-          </h2>
+          <h2 className="m-0 font-identity text-2xl font-bold">Review cart</h2>
           <p className="m-0 text-sm text-brand-muted" role="status">
             {validationMessage ?? "Resolve cart updates before details."}
           </p>
@@ -241,14 +249,22 @@ export function CheckoutDetailsPageView({
   }
 
   const detailsBusy =
-    detailsStatus === "saving" || detailsStatus === "reserving";
+    detailsStatus === "saving" ||
+    detailsStatus === "reserving" ||
+    detailsStatus === "creating-payment";
   const summaryAction =
     detailsStatus === "reserved"
-      ? {
-          disabled: true,
-          label: "Payment ready",
-          statusMessage: "Items reserved. Payment is next.",
-        }
+      ? paymentHandoffUrl
+        ? {
+            href: paymentHandoffUrl,
+            label: "Continue to PayMongo",
+            statusMessage: "Items reserved. Continue with PayMongo.",
+          }
+        : {
+            disabled: true,
+            label: "Payment ready",
+            statusMessage: "Items reserved. Payment is next.",
+          }
       : {
           disabled: !canContinueToPayment || detailsBusy,
           label: "Continue to Payment",
@@ -256,14 +272,18 @@ export function CheckoutDetailsPageView({
           loadingLabel:
             detailsStatus === "reserving"
               ? "Reserving items"
-              : "Preparing payment",
+              : detailsStatus === "creating-payment"
+                ? "Preparing PayMongo"
+                : "Preparing payment",
           onClick: onContinueToPayment,
           statusMessage:
             detailsStatus === "reserving"
               ? "Reserving items for payment."
-              : validationStatus === "pending"
-                ? "Checking cart before payment."
-              : null,
+              : detailsStatus === "creating-payment"
+                ? "Preparing PayMongo checkout."
+                : validationStatus === "pending"
+                  ? "Checking cart before payment."
+                  : null,
         };
 
   return (
@@ -408,6 +428,9 @@ export function CheckoutDetailsPage() {
   const [formMessage, setFormMessage] = React.useState<string | null>(null);
   const [detailsStatus, setDetailsStatus] =
     React.useState<CheckoutDetailsStatus>("idle");
+  const [paymentHandoffUrl, setPaymentHandoffUrl] = React.useState<
+    string | null
+  >(null);
   const [detailsReady, setDetailsReady] = React.useState(false);
   const formSummaryRef = React.useRef<HTMLDivElement | null>(null);
   const validationRequestIdRef = React.useRef(0);
@@ -518,6 +541,7 @@ export function CheckoutDetailsPage() {
         return next;
       });
       setDetailsStatus("idle");
+      setPaymentHandoffUrl(null);
     },
     []
   );
@@ -589,8 +613,42 @@ export function CheckoutDetailsPage() {
         reservationResult.cart,
         validationResult.state
       );
-      setDetailsStatus("reserved");
-      setFormMessage(null);
+      setDetailsStatus("creating-payment");
+
+      if (canUseLocalPayMongoCheckoutProxy()) {
+        const localPaymentResult = await createLocalPayMongoCheckoutHandoff({
+          attemptId: result.attempt.attemptId,
+          reservation: {
+            expiresAt: reservationResult.reservation.expiresAt,
+            reservationId: reservationResult.reservation.reservationId,
+          },
+          state: validationResult.state,
+        });
+
+        if (localPaymentResult.kind === "handoff") {
+          setPaymentHandoffUrl(localPaymentResult.checkoutUrl);
+          setDetailsStatus("reserved");
+          setFormMessage(null);
+          return;
+        }
+      }
+
+      const paymentResult = await createPayMongoPaymentHandoff({
+        attemptId: result.attempt.attemptId,
+        attemptToken: result.attempt.attemptToken,
+      });
+
+      if (paymentResult.kind === "handoff") {
+        setPaymentHandoffUrl(paymentResult.checkoutUrl);
+        setDetailsStatus("reserved");
+        setFormMessage(null);
+        return;
+      }
+
+      setPaymentHandoffUrl(null);
+      setDetailsStatus("idle");
+      setFormMessage(paymentResult.reason);
+      focusFormSummary();
       return;
     }
 
@@ -626,6 +684,7 @@ export function CheckoutDetailsPage() {
 
     if (detailsStatus === "reserved") {
       setDetailsStatus("idle");
+      setPaymentHandoffUrl(null);
       setFormMessage("Cart changed. Continue to Payment again after review.");
     }
 
@@ -677,6 +736,7 @@ export function CheckoutDetailsPage() {
       onDetailsChange={updateDetailField}
       onDetailsSubmit={handleDetailsSubmit}
       onRetryValidation={validateDirectCheckout}
+      paymentHandoffUrl={paymentHandoffUrl}
       state={state}
       validationMessage={validationMessage}
       validationStatus={validationStatus}

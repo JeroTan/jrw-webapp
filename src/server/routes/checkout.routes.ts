@@ -11,8 +11,10 @@ import { routeDetail } from "@/server/openapi/route-metadata";
 import { createCheckoutRepositories } from "@/server/repositories/CheckoutRepository";
 import {
   CheckoutService,
+  type CheckoutPaymentServiceInput,
   type CheckoutReservationServiceInput,
 } from "@/server/services/CheckoutService";
+import { PayMongoClient } from "@/lib/paymongo/PayMongoClient";
 import { GeneralError, type ErrorCodeType } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
 import type { CheckoutReservationResponse } from "@/domain/checkout/inventory-reservation";
@@ -196,6 +198,13 @@ const tboxCheckoutReservationBody = t.Object(
   { additionalProperties: false }
 );
 
+const tboxCheckoutPaymentBody = t.Object(
+  {
+    attemptToken: t.Optional(t.String({ minLength: 1, maxLength: 512 })),
+  },
+  { additionalProperties: false }
+);
+
 const tboxCheckoutReservationData = t.Object({
   attempt: t.Object({
     attemptId: t.String(),
@@ -210,6 +219,35 @@ const tboxCheckoutReservationData = t.Object({
   next: t.Object({
     paymentAllowed: t.Literal(true),
     payMongoCreationRequired: t.Literal(true),
+  }),
+});
+
+const tboxCheckoutPaymentData = t.Object({
+  attempt: t.Object({
+    attemptId: t.String(),
+    status: t.Literal("PAYMENT_CREATED"),
+  }),
+  reservation: t.Object({
+    reservationId: t.String(),
+    status: t.Literal("ACTIVE"),
+    expiresAt: t.String(),
+  }),
+  payment: t.Object({
+    amountCentavos: t.Integer({ minimum: 0 }),
+    currency: t.Literal("PHP"),
+    paymentId: t.String(),
+    provider: t.Literal("PAYMONGO"),
+    providerCheckoutSessionId: t.String(),
+    status: t.Literal("PAYMENT_PENDING"),
+  }),
+  handoff: t.Object({
+    checkoutUrl: t.String(),
+    redirectMethod: t.Literal("browser"),
+  }),
+  next: t.Object({
+    orderCreated: t.Literal(false),
+    receiptAvailable: t.Literal(false),
+    webhookRequired: t.Literal(true),
   }),
 });
 
@@ -312,8 +350,71 @@ function createInventoryReservationExecutor(
   };
 }
 
+function stringEnv(
+  env: (Partial<Env> & Record<string, unknown>) | undefined,
+  key: string
+): string | undefined {
+  const value = env?.[key] ?? process.env[key];
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+
+  if (!trimmed) {
+    return undefined;
+  }
+
+  const first = trimmed[0];
+  const last = trimmed[trimmed.length - 1];
+
+  return (first === `"` || first === `'`) && first === last
+    ? trimmed.slice(1, -1).trim()
+    : trimmed;
+}
+
+function booleanEnv(
+  env: (Partial<Env> & Record<string, unknown>) | undefined,
+  key: string
+): boolean | undefined {
+  const value = stringEnv(env, key);
+
+  if (!value) {
+    return undefined;
+  }
+
+  return value.toLowerCase() === "true";
+}
+
 function shouldUseInventoryDurableObject() {
   return process.env.JRW_USE_INVENTORY_DURABLE_OBJECT !== "false";
+}
+
+const PAYMONGO_DEV_PROXY_PATH = "/__jrw-dev/paymongo/checkout-sessions";
+
+function isLocalhostName(hostname: string) {
+  return (
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "::1" ||
+    hostname === "[::1]"
+  );
+}
+
+function payMongoProxyEndpoint(
+  request: Request,
+  env: (Partial<Env> & Record<string, unknown>) | undefined
+) {
+  if (stringEnv(env, "PAYMONGO_DEV_PROXY_DISABLED") === "true") {
+    return undefined;
+  }
+
+  const url = new URL(request.url);
+
+  return isLocalhostName(url.hostname)
+    ? new URL(PAYMONGO_DEV_PROXY_PATH, url.origin).toString()
+    : undefined;
 }
 
 function createRuntimeController(
@@ -338,6 +439,23 @@ function createRuntimeController(
     : undefined;
   const service = new CheckoutService({
     ...repositories,
+    payMongoClient: stringEnv(input.runtimeEnv, "PAYMONGO_SECRET_KEY")
+      ? new PayMongoClient({
+          secretKey: stringEnv(input.runtimeEnv, "PAYMONGO_SECRET_KEY")!,
+          proxyEndpoint: payMongoProxyEndpoint(input.request, input.runtimeEnv),
+        })
+      : undefined,
+    paymentConfig: {
+      appBaseUrl:
+        stringEnv(input.runtimeEnv, "APP_BASE_URL") ??
+        stringEnv(input.runtimeEnv, "PUBLIC_APP_BASE_URL") ??
+        new URL(input.request.url).origin,
+      paymentMethods: stringEnv(input.runtimeEnv, "PAYMONGO_PAYMENT_METHODS"),
+      sendEmailReceipt: booleanEnv(
+        input.runtimeEnv,
+        "PAYMONGO_SEND_EMAIL_RECEIPT"
+      ),
+    },
     reservationExecutor,
   });
 
@@ -371,6 +489,17 @@ const checkoutReservationErrors = [
   "CONFLICT_STATE",
   "IDEMPOTENCY_CONFLICT",
   "INVENTORY_UNAVAILABLE",
+  "RESOURCE_NOT_FOUND",
+  "PROVIDER_UNAVAILABLE",
+  "INTERNAL_ERROR",
+] as const;
+
+const checkoutPaymentErrors = [
+  "VALIDATION_FAILED",
+  "AUTH_FORBIDDEN",
+  "CONFLICT_STATE",
+  "IDEMPOTENCY_CONFLICT",
+  "PAYMENT_FAILED",
   "RESOURCE_NOT_FOUND",
   "PROVIDER_UNAVAILABLE",
   "INTERNAL_ERROR",
@@ -508,6 +637,55 @@ export function checkoutRoutes(
         response: {
           200: tboxApiSuccess(tboxCheckoutReservationData),
           ...openApiErrorResponses([400, 403, 404, 409, 500, 503]),
+        },
+      }
+    )
+    .post(
+      "/checkout/attempts/:attemptId/payments",
+      async (ctx) => {
+        const {
+          body,
+          params,
+          request,
+          requestContext,
+          requestId,
+          runtimeEnv,
+          set,
+        } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            body: unknown;
+            params: { attemptId: string };
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+          };
+        const controller = getController(
+          { request, requestId, runtimeEnv },
+          options
+        );
+        const result = await controller.createPayment({
+          actor: requestContext.actor,
+          attemptId: params.attemptId,
+          body,
+          requestId,
+        } satisfies CheckoutPaymentServiceInput);
+
+        set.status = result.status;
+        return result.body as never;
+      },
+      {
+        body: tboxCheckoutPaymentBody,
+        detail: routeDetail({
+          summary: "Create PayMongo checkout handoff",
+          description:
+            "Creates or reuses a server-owned PayMongo Hosted Checkout session for an active reserved checkout attempt. The browser submits only the checkout attempt token when needed; it cannot submit amount, currency, line items, card data, provider payloads, payment status, order state, or webhook fields. This endpoint creates no order, receipt, webhook, email, fulfillment transition, or direct card collection.",
+          tags: ["Checkout"],
+          auth: checkoutAuth,
+          rateLimitClass: "checkout-payment",
+          errorCodes: [...checkoutPaymentErrors],
+        }),
+        params: tboxCheckoutReservationParams,
+        response: {
+          200: tboxApiSuccess(tboxCheckoutPaymentData),
+          ...openApiErrorResponses([400, 402, 403, 404, 409, 500, 503]),
         },
       }
     );

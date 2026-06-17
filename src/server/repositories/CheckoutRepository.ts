@@ -1,4 +1,5 @@
 import { createDb, type AppDb } from "@/adapter/infrastructure/db/client";
+import { createId } from "@paralleldrive/cuid2";
 import type {
   CheckoutCartRequestItem,
   CheckoutCartServerLine,
@@ -18,10 +19,12 @@ import type {
 import { product_variants, products } from "@/domain/schema/catalog";
 import {
   checkout_attempts,
+  checkout_payment_items,
+  checkout_payments,
   checkout_reservation_items,
   checkout_reservations,
 } from "@/domain/schema/transactions";
-import { and, eq, gte, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, isNull, lte, sql } from "drizzle-orm";
 
 const ARCHIVED_STOCK_LOCK_VERSION = -1;
 
@@ -69,9 +72,21 @@ export type CheckoutRepository = {
     attemptId: string
   ): Promise<CheckoutReservationRecord | null>;
   findCheckoutAttempt(attemptId: string): Promise<CheckoutAttemptRecord | null>;
+  findPendingCheckoutPaymentForAttempt(
+    attemptId: string
+  ): Promise<CheckoutPaymentRecord | null>;
   findCartLines(
     items: CheckoutCartRequestItem[]
   ): Promise<CheckoutCartServerLine[]>;
+  createCheckoutPayment(
+    input: CreateCheckoutPaymentInput
+  ): Promise<CheckoutPaymentRecord>;
+  releaseCheckoutReservationForPaymentFailure(
+    input: ReleaseCheckoutReservationForPaymentFailureInput
+  ): Promise<void>;
+  releaseExpiredCheckoutReservations(
+    input: ReleaseExpiredCheckoutReservationsInput
+  ): Promise<number>;
   releaseStockLine(line: CheckoutReservationPlanLine): Promise<void>;
   reserveStockAndCreateCheckoutReservation(
     input: CreateCheckoutReservationInput
@@ -91,6 +106,7 @@ export type CheckoutAttemptStatus =
   | "DETAILS_CAPTURED"
   | "INVENTORY_RESERVED"
   | "PAYMENT_CREATED"
+  | "PAYMENT_CREATION_FAILED"
   | "RESERVATION_FAILED"
   | "UNKNOWN";
 
@@ -119,9 +135,43 @@ export type CheckoutReservationRecord = {
 };
 
 export type CheckoutReservationItemRecord = {
+  name?: string;
+  priceCentavos?: number;
   productId: string | null;
   quantity: number;
   reservationMode: "STOCK" | "PREORDER";
+  variantId: string | null;
+};
+
+export type CheckoutPaymentStatus =
+  | "PAYMENT_PENDING"
+  | "PAYMENT_PAID"
+  | "PAYMENT_FAILED"
+  | "PAYMENT_EXPIRED"
+  | "UNKNOWN";
+
+export type CheckoutPaymentRecord = {
+  amountCentavos: number;
+  checkoutAttemptId: string;
+  checkoutUrl: string;
+  createdAt: string;
+  currency: string;
+  livemode: boolean;
+  paymentId: string;
+  provider: string;
+  providerCheckoutSessionId: string;
+  providerReferenceNumber: string;
+  reservationId: string;
+  status: CheckoutPaymentStatus;
+  updatedAt: string;
+};
+
+export type CheckoutPaymentItemInput = {
+  amountCentavos: number;
+  currency: string;
+  name: string;
+  productId: string | null;
+  quantity: number;
   variantId: string | null;
 };
 
@@ -140,6 +190,33 @@ export type FailReservationInput = {
   now?: string;
   requestId: string;
   reservationId?: string;
+};
+
+export type CreateCheckoutPaymentInput = {
+  amountCentavos: number;
+  attemptId: string;
+  checkoutUrl: string;
+  currency: string;
+  items: CheckoutPaymentItemInput[];
+  livemode: boolean;
+  now?: string;
+  providerCheckoutSessionId: string;
+  providerReferenceNumber: string;
+  requestId: string;
+  reservationId: string;
+};
+
+export type ReleaseCheckoutReservationForPaymentFailureInput = {
+  attemptId: string;
+  now?: string;
+  requestId: string;
+  reservationId: string;
+};
+
+export type ReleaseExpiredCheckoutReservationsInput = {
+  limit?: number;
+  now?: string;
+  requestId: string;
 };
 
 class InventoryReservationUnavailableError extends Error {
@@ -204,6 +281,7 @@ function rowToServerLine(row: CheckoutLineRow): CheckoutCartServerLine {
 }
 
 type CheckoutAttemptRow = typeof checkout_attempts.$inferSelect;
+type CheckoutPaymentRow = typeof checkout_payments.$inferSelect;
 type CheckoutReservationRow = typeof checkout_reservations.$inferSelect;
 
 function attemptStatus(value: string): CheckoutAttemptStatus {
@@ -211,7 +289,20 @@ function attemptStatus(value: string): CheckoutAttemptStatus {
     case "DETAILS_CAPTURED":
     case "INVENTORY_RESERVED":
     case "PAYMENT_CREATED":
+    case "PAYMENT_CREATION_FAILED":
     case "RESERVATION_FAILED":
+      return value;
+    default:
+      return "UNKNOWN";
+  }
+}
+
+function paymentStatus(value: string): CheckoutPaymentStatus {
+  switch (value) {
+    case "PAYMENT_PENDING":
+    case "PAYMENT_PAID":
+    case "PAYMENT_FAILED":
+    case "PAYMENT_EXPIRED":
       return value;
     default:
       return "UNKNOWN";
@@ -251,6 +342,35 @@ function rowToReservation(
         ? row.status
         : "ACTIVE",
     subtotalCentavos: Number(row.subtotal_centavos),
+  };
+}
+
+function checkoutItemName(
+  productName: string | null,
+  variantName: string | null
+): string | undefined {
+  if (productName && variantName) {
+    return `${productName} - ${variantName}`;
+  }
+
+  return productName ?? variantName ?? undefined;
+}
+
+function rowToCheckoutPayment(row: CheckoutPaymentRow): CheckoutPaymentRecord {
+  return {
+    amountCentavos: Number(row.amount_centavos),
+    checkoutAttemptId: row.checkout_attempt_id,
+    checkoutUrl: row.checkout_url,
+    createdAt: row.created_at,
+    currency: row.currency,
+    livemode: Boolean(row.livemode),
+    paymentId: row.id,
+    provider: row.provider,
+    providerCheckoutSessionId: row.provider_checkout_session_id,
+    providerReferenceNumber: row.provider_reference_number,
+    reservationId: row.reservation_id,
+    status: paymentStatus(row.status),
+    updatedAt: row.updated_at,
   };
 }
 
@@ -302,6 +422,23 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
     return rows[0] ? rowToCheckoutAttempt(rows[0]) : null;
   }
 
+  async findPendingCheckoutPaymentForAttempt(
+    attemptId: string
+  ): Promise<CheckoutPaymentRecord | null> {
+    const rows = await this.db
+      .select()
+      .from(checkout_payments)
+      .where(
+        and(
+          eq(checkout_payments.checkout_attempt_id, attemptId),
+          eq(checkout_payments.status, "PAYMENT_PENDING")
+        )
+      )
+      .limit(1);
+
+    return rows[0] ? rowToCheckoutPayment(rows[0]) : null;
+  }
+
   async findActiveReservationForAttempt(
     attemptId: string
   ): Promise<CheckoutReservationRecord | null> {
@@ -322,17 +459,27 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
 
     const itemRows = await this.db
       .select({
+        priceCentavos: checkout_reservation_items.price_centavos,
         productId: checkout_reservation_items.product_id,
+        productName: products.name,
         quantity: checkout_reservation_items.quantity,
         reservationMode: checkout_reservation_items.reservation_mode,
         variantId: checkout_reservation_items.variant_id,
+        variantName: product_variants.name,
       })
       .from(checkout_reservation_items)
+      .leftJoin(products, eq(products.id, checkout_reservation_items.product_id))
+      .leftJoin(
+        product_variants,
+        eq(product_variants.id, checkout_reservation_items.variant_id)
+      )
       .where(eq(checkout_reservation_items.reservation_id, rows[0].id));
 
     return rowToReservation(
       rows[0],
       itemRows.map((item) => ({
+        name: checkoutItemName(item.productName, item.variantName),
+        priceCentavos: Number(item.priceCentavos),
         productId: item.productId,
         quantity: Number(item.quantity),
         reservationMode:
@@ -340,6 +487,263 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
         variantId: item.variantId,
       }))
     );
+  }
+
+  async createCheckoutPayment(
+    input: CreateCheckoutPaymentInput
+  ): Promise<CheckoutPaymentRecord> {
+    const now = input.now ?? new Date().toISOString();
+    const paymentId = createId();
+    const rows = await this.db
+      .insert(checkout_payments)
+      .values({
+        id: paymentId,
+        checkout_attempt_id: input.attemptId,
+        reservation_id: input.reservationId,
+        provider: "PAYMONGO",
+        provider_checkout_session_id: input.providerCheckoutSessionId,
+        provider_reference_number: input.providerReferenceNumber,
+        status: "PAYMENT_PENDING",
+        amount_centavos: input.amountCentavos,
+        currency: input.currency,
+        checkout_url: input.checkoutUrl,
+        livemode: input.livemode,
+        created_request_id: input.requestId,
+        created_at: now,
+        updated_at: now,
+      })
+      .returning();
+    const payment = rows[0];
+
+    if (!payment) {
+      throw new Error("CHECKOUT_PAYMENT_NOT_CREATED");
+    }
+
+    if (input.items.length > 0) {
+      await this.db.insert(checkout_payment_items).values(
+        input.items.map((item) => ({
+          id: createId(),
+          payment_id: payment.id,
+          product_id: item.productId,
+          variant_id: item.variantId,
+          name: item.name,
+          amount_centavos: item.amountCentavos,
+          currency: item.currency,
+          quantity: item.quantity,
+          created_at: now,
+        }))
+      );
+    }
+
+    const attemptRows = await this.db
+      .update(checkout_attempts)
+      .set({
+        status: "PAYMENT_CREATED",
+        updated_request_id: input.requestId,
+        updated_at: now,
+      })
+      .where(
+        and(
+          eq(checkout_attempts.id, input.attemptId),
+          eq(checkout_attempts.reservation_id, input.reservationId),
+          inArray(checkout_attempts.status, [
+            "INVENTORY_RESERVED",
+            "PAYMENT_CREATED",
+          ])
+        )
+      )
+      .returning({ id: checkout_attempts.id });
+
+    if (attemptRows.length !== 1) {
+      throw new Error("D1_CHECKOUT_ATTEMPT_NOT_PAYMENT_CREATABLE");
+    }
+
+    return rowToCheckoutPayment(payment);
+  }
+
+  async releaseCheckoutReservationForPaymentFailure(
+    input: ReleaseCheckoutReservationForPaymentFailureInput
+  ): Promise<void> {
+    const now = input.now ?? new Date().toISOString();
+    const reservations = await this.db
+      .select()
+      .from(checkout_reservations)
+      .where(
+        and(
+          eq(checkout_reservations.id, input.reservationId),
+          eq(checkout_reservations.checkout_attempt_id, input.attemptId),
+          eq(checkout_reservations.status, "ACTIVE")
+        )
+      )
+      .limit(1);
+
+    if (!reservations[0]) {
+      return;
+    }
+
+    const itemRows = await this.db
+      .select({
+        priceCentavos: checkout_reservation_items.price_centavos,
+        productId: checkout_reservation_items.product_id,
+        quantity: checkout_reservation_items.quantity,
+        reservationMode: checkout_reservation_items.reservation_mode,
+        variantId: checkout_reservation_items.variant_id,
+      })
+      .from(checkout_reservation_items)
+      .where(eq(checkout_reservation_items.reservation_id, input.reservationId));
+
+    for (const item of itemRows.reverse()) {
+      if (
+        item.reservationMode !== "STOCK" ||
+        !item.productId ||
+        !item.variantId
+      ) {
+        continue;
+      }
+
+      await this.releaseStockLine({
+        mode: "STOCK",
+        priceCentavos: Number(item.priceCentavos),
+        productId: item.productId,
+        quantity: Number(item.quantity),
+        variantId: item.variantId,
+      });
+    }
+
+    await this.db
+      .update(checkout_reservations)
+      .set({
+        status: "RELEASED",
+        updated_at: now,
+      })
+      .where(eq(checkout_reservations.id, input.reservationId));
+
+    await this.db
+      .update(checkout_attempts)
+      .set({
+        status: "PAYMENT_CREATION_FAILED",
+        reservation_id: null,
+        reservation_expires_at: null,
+        updated_request_id: input.requestId,
+        updated_at: now,
+      })
+      .where(
+        and(
+          eq(checkout_attempts.id, input.attemptId),
+          eq(checkout_attempts.reservation_id, input.reservationId)
+        )
+      );
+  }
+
+  async releaseExpiredCheckoutReservations(
+    input: ReleaseExpiredCheckoutReservationsInput
+  ): Promise<number> {
+    const now = input.now ?? new Date().toISOString();
+    const limit = Math.max(1, Math.min(Math.trunc(input.limit ?? 50), 200));
+    const reservations = await this.db
+      .select({
+        attemptId: checkout_reservations.checkout_attempt_id,
+        id: checkout_reservations.id,
+      })
+      .from(checkout_reservations)
+      .innerJoin(
+        checkout_attempts,
+        eq(checkout_attempts.id, checkout_reservations.checkout_attempt_id)
+      )
+      .where(
+        and(
+          eq(checkout_reservations.status, "ACTIVE"),
+          lte(checkout_reservations.expires_at, now),
+          eq(checkout_attempts.reservation_id, checkout_reservations.id),
+          inArray(checkout_attempts.status, [
+            "DETAILS_CAPTURED",
+            "INVENTORY_RESERVED",
+            "RESERVATION_FAILED",
+          ])
+        )
+      )
+      .orderBy(asc(checkout_reservations.expires_at))
+      .limit(limit);
+    let releasedCount = 0;
+
+    for (const reservation of reservations) {
+      const claimedRows = await this.db
+        .update(checkout_reservations)
+        .set({
+          status: "EXPIRED",
+          updated_at: now,
+        })
+        .where(
+          and(
+            eq(checkout_reservations.id, reservation.id),
+            eq(checkout_reservations.status, "ACTIVE"),
+            lte(checkout_reservations.expires_at, now)
+          )
+        )
+        .returning({
+          attemptId: checkout_reservations.checkout_attempt_id,
+          id: checkout_reservations.id,
+        });
+      const claimed = claimedRows[0];
+
+      if (!claimed) {
+        continue;
+      }
+
+      const itemRows = await this.db
+        .select({
+          priceCentavos: checkout_reservation_items.price_centavos,
+          productId: checkout_reservation_items.product_id,
+          quantity: checkout_reservation_items.quantity,
+          reservationMode: checkout_reservation_items.reservation_mode,
+          variantId: checkout_reservation_items.variant_id,
+        })
+        .from(checkout_reservation_items)
+        .where(eq(checkout_reservation_items.reservation_id, claimed.id));
+
+      for (const item of itemRows.reverse()) {
+        if (
+          item.reservationMode !== "STOCK" ||
+          !item.productId ||
+          !item.variantId
+        ) {
+          continue;
+        }
+
+        await this.releaseStockLine({
+          mode: "STOCK",
+          priceCentavos: Number(item.priceCentavos),
+          productId: item.productId,
+          quantity: Number(item.quantity),
+          variantId: item.variantId,
+        });
+      }
+
+      await this.db
+        .update(checkout_attempts)
+        .set({
+          status: "RESERVATION_FAILED",
+          reservation_id: null,
+          reservation_expires_at: null,
+          updated_request_id: input.requestId,
+          updated_at: now,
+        })
+        .where(
+          and(
+            eq(checkout_attempts.id, claimed.attemptId),
+            eq(checkout_attempts.reservation_id, claimed.id),
+            inArray(checkout_attempts.status, [
+              "DETAILS_CAPTURED",
+              "INVENTORY_RESERVED",
+              "RESERVATION_FAILED",
+            ])
+          )
+        );
+
+      releasedCount += 1;
+    }
+
+    return releasedCount;
   }
 
   async findCartLines(
@@ -585,6 +989,8 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
       return rowToReservation(
         reservation,
         input.lines.map((line) => ({
+          name: undefined,
+          priceCentavos: line.priceCentavos,
           productId: line.productId,
           quantity: line.quantity,
           reservationMode: line.mode,

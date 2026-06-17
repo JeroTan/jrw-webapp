@@ -9,6 +9,8 @@ import type {
   CheckoutDetailsResult,
   CheckoutDetailsServiceInput,
   CheckoutCartValidationServiceInput,
+  CheckoutPaymentResult,
+  CheckoutPaymentServiceInput,
   CheckoutReservationServiceInput,
 } from "@/server/services/CheckoutService";
 import type { CheckoutReservationResponse } from "@/domain/checkout/inventory-reservation";
@@ -24,6 +26,9 @@ export type CheckoutServiceLike = {
   reserveInventory(
     input: CheckoutReservationServiceInput
   ): Promise<AppResult<CheckoutReservationResponse>>;
+  createPayment(
+    input: CheckoutPaymentServiceInput
+  ): Promise<AppResult<CheckoutPaymentResult>>;
 };
 
 export type CheckoutControllerResult<T> = {
@@ -37,6 +42,7 @@ export type CheckoutCartValidationControllerInput = {
 };
 
 export type CheckoutDetailsControllerInput = CheckoutDetailsServiceInput;
+export type CheckoutPaymentControllerInput = CheckoutPaymentServiceInput;
 export type CheckoutReservationControllerInput = CheckoutReservationServiceInput;
 
 function errorResult<T>(
@@ -106,6 +112,23 @@ export class CheckoutController {
     input: CheckoutReservationControllerInput
   ): Promise<CheckoutControllerResult<CheckoutReservationResponse>> {
     const result = await this.service.reserveInventory(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+      status: 200,
+    };
+  }
+
+  async createPayment(
+    input: CheckoutPaymentControllerInput
+  ): Promise<CheckoutControllerResult<CheckoutPaymentResult>> {
+    const result = await this.service.createPayment(input);
 
     if (result.error) {
       return errorResult(result, input.requestId);

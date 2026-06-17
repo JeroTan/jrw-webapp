@@ -22,7 +22,11 @@ export const tboxApiMeta = t.Object(
 
 export const tboxApiErrorDetails = t.Object(
   {
+    minimumAmountCentavos: t.Optional(t.Number({ minimum: 0 })),
+    networkFailure: t.Optional(t.Boolean()),
+    providerStatus: t.Optional(t.Number({ minimum: 100, maximum: 599 })),
     requestId: t.Optional(t.String()),
+    subtotalCentavos: t.Optional(t.Number({ minimum: 0 })),
   },
   { additionalProperties: true }
 );

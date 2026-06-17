@@ -135,6 +135,84 @@ export const checkout_reservation_items = sqliteTable(
   ]
 );
 
+export const checkout_payments = sqliteTable(
+  "checkout_payments",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    checkout_attempt_id: text("checkout_attempt_id")
+      .notNull()
+      .references(() => checkout_attempts.id, { onDelete: "cascade" }),
+    reservation_id: text("reservation_id")
+      .notNull()
+      .references(() => checkout_reservations.id, { onDelete: "cascade" }),
+    provider: text("provider").notNull().default("PAYMONGO"),
+    provider_checkout_session_id: text("provider_checkout_session_id")
+      .notNull(),
+    provider_reference_number: text("provider_reference_number").notNull(),
+    status: text("status").notNull().default("PAYMENT_PENDING"),
+    amount_centavos: integer("amount_centavos").notNull(),
+    currency: text("currency").notNull().default("PHP"),
+    checkout_url: text("checkout_url").notNull(),
+    livemode: integer("livemode", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    created_request_id: text("created_request_id").notNull(),
+    updated_request_id: text("updated_request_id"),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("idx_checkout_payments_attempt_id").on(table.checkout_attempt_id),
+    index("idx_checkout_payments_reservation_id").on(table.reservation_id),
+    index("idx_checkout_payments_status").on(table.status),
+    index("idx_checkout_payments_created_at").on(table.created_at),
+    uniqueIndex("uq_checkout_payments_provider_session").on(
+      table.provider_checkout_session_id
+    ),
+    uniqueIndex("uq_checkout_payments_provider_reference").on(
+      table.provider_reference_number
+    ),
+    uniqueIndex("uq_checkout_payments_pending_attempt_reservation")
+      .on(table.checkout_attempt_id, table.reservation_id)
+      .where(sql`${table.status} = 'PAYMENT_PENDING'`),
+  ]
+);
+
+export const checkout_payment_items = sqliteTable(
+  "checkout_payment_items",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    payment_id: text("payment_id")
+      .notNull()
+      .references(() => checkout_payments.id, { onDelete: "cascade" }),
+    product_id: text("product_id").references(() => products.id, {
+      onDelete: "set null",
+    }),
+    variant_id: text("variant_id").references(() => product_variants.id, {
+      onDelete: "set null",
+    }),
+    name: text("name").notNull(),
+    amount_centavos: integer("amount_centavos").notNull(),
+    currency: text("currency").notNull().default("PHP"),
+    quantity: integer("quantity").notNull(),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("idx_checkout_payment_items_payment_id").on(table.payment_id),
+    index("idx_checkout_payment_items_variant_id").on(table.variant_id),
+  ]
+);
+
 export const order_snapshots = sqliteTable(
   "order_snapshots",
   {
@@ -213,6 +291,7 @@ export const checkoutAttemptsRelations = relations(
       references: [customers.id],
     }),
     reservations: many(checkout_reservations),
+    payments: many(checkout_payments),
   })
 );
 
@@ -224,6 +303,7 @@ export const checkoutReservationsRelations = relations(
       references: [checkout_attempts.id],
     }),
     items: many(checkout_reservation_items),
+    payments: many(checkout_payments),
   })
 );
 
@@ -240,6 +320,39 @@ export const checkoutReservationItemsRelations = relations(
     }),
     variant: one(product_variants, {
       fields: [checkout_reservation_items.variant_id],
+      references: [product_variants.id],
+    }),
+  })
+);
+
+export const checkoutPaymentsRelations = relations(
+  checkout_payments,
+  ({ one, many }) => ({
+    attempt: one(checkout_attempts, {
+      fields: [checkout_payments.checkout_attempt_id],
+      references: [checkout_attempts.id],
+    }),
+    reservation: one(checkout_reservations, {
+      fields: [checkout_payments.reservation_id],
+      references: [checkout_reservations.id],
+    }),
+    items: many(checkout_payment_items),
+  })
+);
+
+export const checkoutPaymentItemsRelations = relations(
+  checkout_payment_items,
+  ({ one }) => ({
+    payment: one(checkout_payments, {
+      fields: [checkout_payment_items.payment_id],
+      references: [checkout_payments.id],
+    }),
+    product: one(products, {
+      fields: [checkout_payment_items.product_id],
+      references: [products.id],
+    }),
+    variant: one(product_variants, {
+      fields: [checkout_payment_items.variant_id],
       references: [product_variants.id],
     }),
   })
