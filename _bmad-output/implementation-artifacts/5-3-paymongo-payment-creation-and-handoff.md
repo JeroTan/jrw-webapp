@@ -347,6 +347,9 @@ GPT-5 Codex
 - `npm run check` - passed with existing hints.
 - `npm run build-test` - attempted; `astro check` passed and Vitest reached 110/111 files, 722/725 tests, then failed on `vitest-pool` worker fork crash: `Worker exited unexpectedly`.
 - `npm run build-development` - attempted after final log/audit changes; `astro check` passed, `astro build` blocked by Cloudflare API authentication error `[code: 10000]` while starting remote proxy session.
+- `npx vitest run src/features/cart-checkout/components/cart-ui.test.tsx --reporter verbose` - passed, 23 tests including immediate PayMongo redirect after handoff creation.
+- `npm run check` - passed with 0 errors and 9 existing hints.
+- `npx vitest run --pool=threads --maxWorkers=1 --reporter=dot` - attempted; timed out after 15 minutes with no diagnostics, so full-suite completion remains environment-blocked while targeted Story 5.3 coverage passes.
 
 ### Completion Notes List
 
@@ -356,6 +359,8 @@ GPT-5 Codex
 - Added safe operational log and `payment.checkout_created` audit event details; scrubbers now preserve safe provider checkout session IDs while redacting checkout URLs, provider payloads, card data, contact PII, tokens, and secrets.
 - `worker-configuration.d.ts` not regenerated because payment env keys are read through runtime `Record<string, unknown>` and PayMongo secret should remain a Worker secret, not a committed var.
 - Full `npm run build-test` remains blocked by Vitest worker fork instability after nearly complete suite. Final targeted story suites and `npm run check` pass; final development build is blocked by Cloudflare API auth code 10000, not compile errors.
+- Updated successful local-proxy and backend PayMongo handoffs to call `window.location.assign(checkoutUrl)` immediately after safe response validation, removing the normal second-click payment friction while retaining the existing handoff link as recovery state if navigation does not leave the page.
+- Local browser QA restart was blocked by Cloudflare dev runtime error `Network connection lost`; redirect behavior is covered by a focused unit test and checkout UI suite.
 
 ### File List
 
@@ -388,3 +393,4 @@ GPT-5 Codex
 ### Change Log
 
 - 2026-06-16: Implemented PayMongo Hosted Checkout creation/handoff, payment persistence, safe audit/logging, UI PayMongo action, tests, and moved story to review.
+- 2026-06-19: Removed second-click PayMongo handoff friction by redirecting immediately after successful handoff creation; added redirect coverage and reran Story 5.3 completion checks.
