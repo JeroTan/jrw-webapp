@@ -8,6 +8,7 @@ import {
   CartPageView,
   CheckoutDetailsPageView,
   CheckoutFlowShell,
+  redirectToPayMongoCheckout,
 } from "@/features/cart-checkout";
 import {
   fetchCartProductDetail,
@@ -290,6 +291,21 @@ describe("cart checkout UI", () => {
     expect(markup).toContain("lucide-arrow-left");
     expect(markup).not.toContain("&lt;-");
     expect(markup).not.toContain("Payment ready");
+  });
+
+  it("redirects immediately when PayMongo handoff is ready", () => {
+    let assignedUrl = "";
+
+    redirectToPayMongoCheckout(
+      "https://checkout.paymongo.com/cs_test_redirect",
+      {
+        assign: (url) => {
+          assignedUrl = String(url);
+        },
+      }
+    );
+
+    expect(assignedUrl).toBe("https://checkout.paymongo.com/cs_test_redirect");
   });
 
   it("keeps receipt step history non-clickable", () => {

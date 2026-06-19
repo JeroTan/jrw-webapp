@@ -411,6 +411,13 @@ function prefillDetailsFromProfile(
   };
 }
 
+export function redirectToPayMongoCheckout(
+  checkoutUrl: string,
+  location: Pick<Location, "assign"> = window.location
+) {
+  location.assign(checkoutUrl);
+}
+
 export function CheckoutDetailsPage() {
   const state = useCartStore();
   const cartFingerprint = cartValidationFingerprint(state);
@@ -550,6 +557,13 @@ export function CheckoutDetailsPage() {
     window.setTimeout(() => formSummaryRef.current?.focus(), 0);
   }, []);
 
+  const redirectToPayMongo = React.useCallback((checkoutUrl: string) => {
+    setPaymentHandoffUrl(checkoutUrl);
+    setDetailsStatus("reserved");
+    setFormMessage(null);
+    redirectToPayMongoCheckout(checkoutUrl);
+  }, []);
+
   const handleContinueToPayment = React.useCallback(async () => {
     const validation = validateCheckoutContactDetails(detailsValues);
 
@@ -626,9 +640,7 @@ export function CheckoutDetailsPage() {
         });
 
         if (localPaymentResult.kind === "handoff") {
-          setPaymentHandoffUrl(localPaymentResult.checkoutUrl);
-          setDetailsStatus("reserved");
-          setFormMessage(null);
+          redirectToPayMongo(localPaymentResult.checkoutUrl);
           return;
         }
       }
@@ -639,9 +651,7 @@ export function CheckoutDetailsPage() {
       });
 
       if (paymentResult.kind === "handoff") {
-        setPaymentHandoffUrl(paymentResult.checkoutUrl);
-        setDetailsStatus("reserved");
-        setFormMessage(null);
+        redirectToPayMongo(paymentResult.checkoutUrl);
         return;
       }
 
@@ -667,7 +677,12 @@ export function CheckoutDetailsPage() {
     setDetailsStatus("idle");
     setFormMessage(reservationResult.reason);
     focusFormSummary();
-  }, [detailsValues, focusFormSummary, validateDirectCheckout]);
+  }, [
+    detailsValues,
+    focusFormSummary,
+    redirectToPayMongo,
+    validateDirectCheckout,
+  ]);
 
   const handleDetailsSubmit = React.useCallback(
     (event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>) => {
