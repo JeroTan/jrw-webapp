@@ -45,7 +45,6 @@ export type CustomerProfile = {
 export type CustomerRegistrationInput = {
   email: string;
   password: string;
-  displayName?: string;
   emailMarketingOptIn?: boolean;
 };
 

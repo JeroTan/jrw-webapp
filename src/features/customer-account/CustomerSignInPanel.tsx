@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useMemo, useState } from "react";
+import { FaGoogle } from "react-icons/fa";
 
 import { Button, ButtonLink } from "@/components/ui";
 import {
@@ -69,6 +70,7 @@ export function CustomerSignInPanel({ returnTo }: { returnTo?: string }) {
           label="Email"
           name="email"
           onChange={(event) => setEmail(event.currentTarget.value)}
+          placeholder="you@example.com"
           required
           maxLength={254}
           type="email"
@@ -80,6 +82,7 @@ export function CustomerSignInPanel({ returnTo }: { returnTo?: string }) {
           label="Password"
           name="password"
           onChange={(event) => setPassword(event.currentTarget.value)}
+          placeholder="Enter your password"
           required
           maxLength={1024}
           type="password"
@@ -96,6 +99,7 @@ export function CustomerSignInPanel({ returnTo }: { returnTo?: string }) {
             Sign in
           </Button>
           <ButtonLink fullWidth href={getGoogleOAuthStartHref(safeReturnTo)}>
+            <FaGoogle aria-hidden="true" className="size-4" />
             Continue with Google
           </ButtonLink>
         </div>

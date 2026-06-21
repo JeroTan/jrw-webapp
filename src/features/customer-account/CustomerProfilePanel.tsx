@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 
-import { Button } from "@/components/ui";
+import { Button, Checkbox } from "@/components/ui";
 import {
   CustomerAccountApiError,
   type CustomerProfile,
@@ -254,17 +254,14 @@ export function CustomerProfilePanel() {
             value={form.postalCode}
           />
         </div>
-        <label className="flex items-start gap-grid-xs text-sm leading-6 text-brand-content">
-          <input
-            checked={form.emailMarketingOptIn}
-            className="mt-1 size-4 rounded-none border-brand-border-strong accent-brand-accent"
-            onChange={(event) =>
-              updateField("emailMarketingOptIn", event.currentTarget.checked)
-            }
-            type="checkbox"
-          />
-          Send me JRW. updates and product notices.
-        </label>
+        <Checkbox
+          checked={form.emailMarketingOptIn}
+          label="Send me JRW. updates and product notices."
+          onChange={(event) =>
+            updateField("emailMarketingOptIn", event.currentTarget.checked)
+          }
+          size="sm"
+        />
         <Button loading={saving} loadingLabel="Saving profile" type="submit">
           Save profile
         </Button>

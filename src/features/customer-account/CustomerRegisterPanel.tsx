@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useMemo, useState } from "react";
 
-import { Button, ButtonLink } from "@/components/ui";
+import { Button, ButtonLink, Checkbox } from "@/components/ui";
 import { registerCustomer, sanitizeCustomerReturnTo } from "./api";
 import { AccountFormField } from "./components/AccountFormField";
 import { AccountShell } from "./components/AccountShell";
@@ -39,7 +39,7 @@ export function CustomerRegisterPanel({ returnTo }: { returnTo?: string }) {
   }`;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [displayName, setDisplayName] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [emailMarketingOptIn, setEmailMarketingOptIn] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -59,10 +59,13 @@ export function CustomerRegisterPanel({ returnTo }: { returnTo?: string }) {
         onSubmit={async (event) => {
           event.preventDefault();
           setError(null);
+          if (password !== confirmPassword) {
+            setError("Passwords do not match.");
+            return;
+          }
           setSubmitting(true);
           try {
             await registerCustomer({
-              displayName,
               email,
               emailMarketingOptIn,
               password,
@@ -80,8 +83,8 @@ export function CustomerRegisterPanel({ returnTo }: { returnTo?: string }) {
             Register
           </p>
           <p className="text-sm leading-6 text-brand-muted">
-            Start with email, password, and an optional display name. We will ask
-            you to verify your email next.
+            Start with email and password. You can change your display name
+            later from your profile.
           </p>
         </div>
 
@@ -101,6 +104,7 @@ export function CustomerRegisterPanel({ returnTo }: { returnTo?: string }) {
           label="Email"
           name="email"
           onChange={(event) => setEmail(event.currentTarget.value)}
+          placeholder="you@example.com"
           required
           maxLength={254}
           type="email"
@@ -113,6 +117,7 @@ export function CustomerRegisterPanel({ returnTo }: { returnTo?: string }) {
           label="Password"
           name="password"
           onChange={(event) => setPassword(event.currentTarget.value)}
+          placeholder="Create a password"
           required
           minLength={8}
           maxLength={1024}
@@ -120,28 +125,26 @@ export function CustomerRegisterPanel({ returnTo }: { returnTo?: string }) {
           value={password}
         />
         <AccountFormField
-          autoComplete="nickname"
-          helpText="This can be changed later from your profile."
-          id="customer-register-display-name"
-          label="Display name"
-          name="displayName"
-          maxLength={120}
-          onChange={(event) => setDisplayName(event.currentTarget.value)}
-          type="text"
-          value={displayName}
+          autoComplete="new-password"
+          id="customer-register-confirm-password"
+          label="Confirm password"
+          name="confirmPassword"
+          onChange={(event) => setConfirmPassword(event.currentTarget.value)}
+          placeholder="Confirm your password"
+          required
+          minLength={8}
+          maxLength={1024}
+          type="password"
+          value={confirmPassword}
         />
-
-        <label className="flex items-start gap-grid-xs border border-brand-border bg-brand-background p-grid-xs text-sm leading-6 text-brand-content">
-          <input
-            checked={emailMarketingOptIn}
-            className="mt-1 size-4 rounded-none border-brand-border-strong accent-brand-accent"
-            onChange={(event) =>
-              setEmailMarketingOptIn(event.currentTarget.checked)
-            }
-            type="checkbox"
-          />
-          <span>Send me JRW. updates and product notices.</span>
-        </label>
+        <Checkbox
+          checked={emailMarketingOptIn}
+          label="Send me JRW. updates and product notices."
+          onChange={(event) =>
+            setEmailMarketingOptIn(event.currentTarget.checked)
+          }
+          size="sm"
+        />
 
         <Button
           fullWidth

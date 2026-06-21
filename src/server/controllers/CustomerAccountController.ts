@@ -1,3 +1,4 @@
+import { createGeneratedCustomerDisplayName } from "@/domain/customers/customer-display-name";
 import { errorCodeToHttpStatus, publicErrorMessage } from "@/lib/api/errors";
 import {
   apiErrorWithRequestId,
@@ -94,8 +95,14 @@ export class CustomerAccountController {
   async registerCustomer(
     input: RegisterCustomerControllerInput
   ): Promise<CustomerAccountControllerResult<RegisterCustomerResult>> {
-    const result = await this.service.registerCustomer({
+    const generatedBody = {
       ...input.body,
+      displayName: createGeneratedCustomerDisplayName(
+        typeof input.body.email === "string" ? input.body.email : "customer"
+      ),
+    };
+    const result = await this.service.registerCustomer({
+      ...generatedBody,
       requestId: input.requestId,
       sourceIpHash: input.sourceIpHash,
     });
