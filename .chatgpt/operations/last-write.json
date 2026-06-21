@@ -1,26 +1,29 @@
 {
   "schema_version": 1,
-  "operation_id": "write-2026-06-21T11-36-54-023Z-63c78616",
-  "tool": "repo_write_file",
+  "operation_id": "write-2026-06-21T11-43-28-826Z-51d061a0",
+  "tool": "repo_write_changes",
   "repo_id": "jrw-simple-ecommerce-site",
-  "timestamp": "2026-06-21T11:36:54.023Z",
-  "head_sha_before": "180d09c13490f6a82cd4461c3b905faeec22d243",
-  "head_sha_after": "180d09c13490f6a82cd4461c3b905faeec22d243",
+  "timestamp": "2026-06-21T11:43:28.826Z",
+  "head_sha_before": "0ac063442610c490f3d6fa0d9b287a6f2391a4db",
+  "head_sha_after": "0ac063442610c490f3d6fa0d9b287a6f2391a4db",
   "touched_paths": [
-    "src/features/customer-account/CustomerSignInPanel.tsx"
+    "src/features/customer-account/customer-account-ui.test.tsx",
+    "src/features/storefront-shell/StorefrontHeader.test.tsx"
   ],
   "changed_paths": [
-    "src/features/customer-account/CustomerSignInPanel.tsx"
+    "src/features/customer-account/customer-account-ui.test.tsx",
+    "src/features/storefront-shell/StorefrontHeader.test.tsx"
   ],
   "created_paths": [],
   "modified_paths": [
-    "src/features/customer-account/CustomerSignInPanel.tsx"
+    "src/features/customer-account/customer-account-ui.test.tsx",
+    "src/features/storefront-shell/StorefrontHeader.test.tsx"
   ],
   "counts": {
-    "requested": 1,
-    "changed": 1,
+    "requested": 2,
+    "changed": 2,
     "created": 0,
     "unchanged": 0
   },
-  "summary": "Updated src/features/customer-account/CustomerSignInPanel.tsx."
+  "summary": "Applied 2 changes across 2 files."
 }

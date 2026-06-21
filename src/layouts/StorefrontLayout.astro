@@ -41,27 +41,29 @@ const initialAccountState = Astro.cookies.get(CUSTOMER_SESSION_COOKIE_NAME)?.val
   socialImageUrl={socialImageUrl}
   title={title}
 >
-  <a
-    class="absolute left-grid-sm top-grid-xs z-61 inline-flex min-h-control-md translate-y-[-160%] items-center border border-brand-border-strong bg-brand-surface px-grid-xs font-system text-xs font-bold no-underline focus-visible:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
-    href="#main-content"
-  >
-    Skip to main content
-  </a>
+  <div class="flex min-h-svh flex-col">
+    <a
+      class="absolute left-grid-sm top-grid-xs z-61 inline-flex min-h-control-md translate-y-[-160%] items-center border border-brand-border-strong bg-brand-surface px-grid-xs font-system text-xs font-bold no-underline focus-visible:translate-y-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+      href="#main-content"
+    >
+      Skip to main content
+    </a>
 
-  <StorefrontHeader
-    client:load
-    currentUrl={`${Astro.url.pathname}${Astro.url.search}`}
-    initialAccountState={initialAccountState}
-  />
+    <StorefrontHeader
+      client:load
+      currentUrl={`${Astro.url.pathname}${Astro.url.search}`}
+      initialAccountState={initialAccountState}
+    />
 
-  <main
-    aria-label={mainAriaLabel}
-    class={`mx-auto w-[min(100%,1440px)] 3xl:px-grid-lg xs:px-grid-md px-grid-sm p-grid-sm ${className || ""}`}
-    id="main-content"
-    role="main"
-  >
-    <slot />
-  </main>
+    <main
+      aria-label={mainAriaLabel}
+      class={`mx-auto w-[min(100%,1440px)] flex-1 3xl:px-grid-lg xs:px-grid-md px-grid-sm p-grid-sm ${className || ""}`}
+      id="main-content"
+      role="main"
+    >
+      <slot />
+    </main>
 
-  <StorefrontFooter />
+    <StorefrontFooter />
+  </div>
 </BaseLayout>

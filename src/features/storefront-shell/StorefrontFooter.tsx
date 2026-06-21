@@ -1,6 +1,6 @@
 export function StorefrontFooter() {
   return (
-    <footer className="mt-grid-lg border-t border-brand-border-strong bg-brand-surface">
+    <footer className="border-t border-brand-border-strong bg-brand-surface">
       <div className="mx-auto w-[min(100%,1440px)] px-grid-sm xs:px-grid-md 3xl:px-grid-lg flex min-h-[72px] flex-wrap items-center justify-between gap-grid-sm py-grid-sm">
         <p className="font-identity text-[1.05rem] font-bold">
           JRW. Lifestyle Products

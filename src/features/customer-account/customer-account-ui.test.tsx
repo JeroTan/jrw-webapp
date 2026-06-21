@@ -64,7 +64,7 @@ describe("customer account UI", () => {
       })
     );
 
-    expect(markup).toContain("Sign in to JRW.");
+    expect(markup).toContain("Welcome back.");
     expect(markup).toContain('type="email"');
     expect(markup).toContain('type="password"');
     expect(markup).toContain("Continue with Google");
@@ -81,9 +81,11 @@ describe("customer account UI", () => {
       createElement(CustomerRegistrationSuccess)
     );
 
-    expect(formMarkup).toContain("Create your account");
+    expect(formMarkup).toContain("Create account.");
     expect(formMarkup).toContain("Use an email you can verify.");
+    expect(formMarkup).toContain("Confirm password");
     expect(formMarkup).toContain("Send me JRW. updates and product notices.");
+    expect(formMarkup).not.toContain("Display name");
     expect(successMarkup).toContain("Verify your email");
     expect(successMarkup).toContain("Open the verification email we sent");
     expect(successMarkup).not.toMatch(/token|session|provider/i);
@@ -127,7 +129,6 @@ describe("customer account UI", () => {
     await expect(
       registerCustomer(
         {
-          displayName: "Nina",
           email: "nina@example.com",
           password: "password123",
         },

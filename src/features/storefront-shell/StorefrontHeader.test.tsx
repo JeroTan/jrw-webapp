@@ -10,22 +10,22 @@ import {
 import { StorefrontPublicNav } from "./components/Navigation/StorefrontPublicNav";
 
 describe("StorefrontHeader Customer navigation", () => {
-  it("shows sign-in and registration actions for Prospect state", () => {
+  it("shows sign-in action for Prospect state", () => {
     const markup = renderToStaticMarkup(createElement(StorefrontPublicNav));
 
     expect(markup).toContain('href="/account/sign-in"');
     expect(markup).toContain("SIGN IN");
-    expect(markup).toContain('href="/account/register"');
-    expect(markup).toContain("REGISTER");
+    expect(markup).not.toContain('href="/account/register"');
+    expect(markup).not.toContain("REGISTER");
   });
 
-  it("shows account, future orders, and sign-out without PII for Customer state", () => {
+  it("shows account and sign-out without PII for Customer state", () => {
     const markup = renderToStaticMarkup(createElement(StorefrontAuthNav));
 
-    expect(markup).toContain('href="/account/profile"');
+    expect(markup).toContain('href="/account"');
     expect(markup).toContain("ACCOUNT");
-    expect(markup).toContain('href="/account/orders"');
-    expect(markup).toContain("ORDERS");
+    expect(markup).not.toContain('href="/account/orders"');
+    expect(markup).not.toContain("ORDERS");
     expect(markup).toContain("SIGN OUT");
     expect(markup).not.toMatch(/[\w.+-]+@[\w.-]+/);
     expect(markup).not.toMatch(/phone|address|session|provider/i);
