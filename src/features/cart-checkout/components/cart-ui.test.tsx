@@ -308,6 +308,19 @@ describe("cart checkout UI", () => {
     expect(assignedUrl).toBe("https://checkout.paymongo.com/cs_test_redirect");
   });
 
+  it("does not redirect to an untrusted checkout URL", () => {
+    let assignedUrl = "";
+
+    const redirected = redirectToPayMongoCheckout("https://evil.example/cs_bad", {
+      assign: (url) => {
+        assignedUrl = String(url);
+      },
+    });
+
+    expect(redirected).toBe(false);
+    expect(assignedUrl).toBe("");
+  });
+
   it("keeps receipt step history non-clickable", () => {
     const markup = renderToStaticMarkup(
       createElement(
@@ -944,6 +957,7 @@ describe("cart checkout UI", () => {
     expect(capturedUrl).toBe(
       "/api/checkout/attempts/attempt_checkout_details/payments"
     );
+    expect(capturedUrl).not.toContain("/__jrw-dev/paymongo/checkout-sessions");
     expect(capturedBody).toEqual({
       attemptToken: "attempt_token_checkout_details",
     });
@@ -959,6 +973,51 @@ describe("cart checkout UI", () => {
       },
     });
     expect(JSON.stringify(result)).not.toMatch(/hash|stock_version|cardNumber/i);
+  });
+
+  it("rejects malicious checkout URLs from payment API responses", async () => {
+    const result = await createPayMongoPaymentHandoff(
+      {
+        attemptId: "attempt_checkout_details",
+        attemptToken: "attempt_token_checkout_details",
+      },
+      async () =>
+        new Response(
+          JSON.stringify({
+            data: {
+              attempt: {
+                attemptId: "attempt_checkout_details",
+                status: "PAYMENT_CREATED",
+              },
+              handoff: {
+                checkoutUrl: "https://evil.example/cs_bad",
+                redirectMethod: "browser",
+              },
+              next: {
+                orderCreated: false,
+                receiptAvailable: false,
+                webhookRequired: true,
+              },
+              payment: {
+                amountCentavos: 299800,
+                currency: "PHP",
+                paymentId: "payment_checkout_details",
+                provider: "PAYMONGO",
+                providerCheckoutSessionId: "cs_bad",
+                status: "PAYMENT_PENDING",
+              },
+              reservation: {
+                expiresAt: "2026-06-12T08:15:00.000Z",
+                reservationId: "reservation_checkout_details",
+                status: "ACTIVE",
+              },
+            },
+          }),
+          { status: 200 }
+        )
+    );
+
+    expect(result.kind).toBe("failure");
   });
 
   it("marks cart item unavailable when refreshed detail no longer sells variant", async () => {

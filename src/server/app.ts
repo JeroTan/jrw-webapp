@@ -162,6 +162,8 @@ export function createApp(options: CreateAppOptions = {}) {
     },
     checkout: {
       ...options.routes?.checkout,
+      operationalLogger:
+        options.routes?.checkout?.operationalLogger ?? operationalLogger,
     },
     products: {
       ...options.routes?.products,

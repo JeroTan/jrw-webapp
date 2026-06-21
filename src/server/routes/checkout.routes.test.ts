@@ -9,6 +9,7 @@ import {
 import { CheckoutService } from "@/server/services/CheckoutService";
 import { GeneralError } from "@/utils/general/error";
 import { Result } from "@/utils/general/result";
+import { createCheckoutPaymentExecutor } from "./checkout.routes";
 
 const validatedSummary = {
   issues: [],
@@ -127,6 +128,78 @@ function checkoutController(service: Partial<CheckoutServiceLike>) {
 }
 
 describe("checkout routes", () => {
+  it("routes payment execution through Durable Object payments path", async () => {
+    let receivedUrl = "";
+    let receivedBody: unknown;
+    const executor = createCheckoutPaymentExecutor({
+      get: () => ({
+        fetch: async (request: Request) => {
+          receivedUrl = request.url;
+          receivedBody = await request.json();
+          return new Response(
+            JSON.stringify({
+              data: {
+                attempt: {
+                  attemptId: "attempt_do_payment",
+                  status: "PAYMENT_CREATED",
+                },
+                handoff: {
+                  checkoutUrl: "https://checkout.paymongo.com/cs_do_payment",
+                  redirectMethod: "browser",
+                },
+                next: {
+                  orderCreated: false,
+                  receiptAvailable: false,
+                  webhookRequired: true,
+                },
+                payment: {
+                  amountCentavos: 3998,
+                  currency: "PHP",
+                  paymentId: "payment_do",
+                  provider: "PAYMONGO",
+                  providerCheckoutSessionId: "cs_do_payment",
+                  status: "PAYMENT_PENDING",
+                },
+                reservation: {
+                  expiresAt: "2026-06-20T10:15:00.000Z",
+                  reservationId: "reservation_do",
+                  status: "ACTIVE",
+                },
+              },
+            }),
+            { status: 200 }
+          );
+        },
+      }),
+      idFromName: () => ({}) as DurableObjectId,
+    } as unknown as DurableObjectNamespace, {
+      appBaseUrl: "http://localhost:7777",
+      paymentMethods: "card,gcash",
+      secretKey: "sk_test_forwarded_to_do",
+      sendEmailReceipt: false,
+    });
+
+    const result = await executor!({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId: "attempt_do_payment",
+      body: { attemptToken: "attempt_token_do" },
+      requestId: "req_do_payment",
+    });
+
+    expect(receivedUrl).toBe("https://inventory-reservation.internal/payments");
+    expect(receivedBody).toMatchObject({
+      attemptId: "attempt_do_payment",
+      body: { attemptToken: "attempt_token_do" },
+      runtimePaymentConfig: {
+        appBaseUrl: "http://localhost:7777",
+        paymentMethods: "card,gcash",
+        secretKey: "sk_test_forwarded_to_do",
+        sendEmailReceipt: false,
+      },
+    });
+    expect(result.content?.payment.paymentId).toBe("payment_do");
+  });
+
   it("documents cart validation endpoint with checkout metadata", async () => {
     const app = createApp();
     const response = await app.handle(

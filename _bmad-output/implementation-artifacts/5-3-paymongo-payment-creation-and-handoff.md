@@ -1,6 +1,6 @@
 # Story 5.3: PayMongo Payment Creation and Handoff
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -105,6 +105,21 @@ so that payment is handled by a provider while JRW never collects raw card detai
     - `npx vitest run src/features/cart-checkout/components/cart-ui.test.tsx src/features/cart-checkout/store.test.ts`
     - `npm run check`
   - [x] Run `npm run build-test` after targeted suites pass because this story touches payment handoff.
+
+### Review Findings
+
+- [x] [Review][Patch] Route payment creation through Inventory Durable Object with per-attempt serialization [src/cloudflare/durable-objects/InventoryDurableObject.ts:37]
+- [x] [Review][Patch] Prevent payment-failure release from regressing `PAYMENT_CREATED` or releasing a pending payment reservation [src/server/repositories/CheckoutRepository.ts:564]
+- [x] [Review][Patch] Persist payment row, payment items, and attempt transition atomically [src/server/repositories/CheckoutRepository.ts:492]
+- [x] [Review][Patch] Remove browser/local PayMongo proxy handoff and always call canonical JRW payment endpoint [src/features/cart-checkout/api.ts:880]
+- [x] [Review][Patch] Remove `proxyEndpoint` behavior from backend PayMongo client [src/lib/paymongo/PayMongoClient.ts:99]
+- [x] [Review][Patch] Reject non-HTTPS or non-`checkout.paymongo.com` checkout URLs before persistence and redirect [src/lib/paymongo/PayMongoClient.ts:68]
+- [x] [Review][Patch] Reject malformed payment envelopes and successful-looking bodies from non-success HTTP responses [src/features/cart-checkout/api.ts:453]
+- [x] [Review][Patch] Reject invalid reservation price/quantity totals instead of clamping payment payload values [src/server/services/CheckoutService.ts:358]
+- [x] [Review][Patch] Bound PayMongo requests and return scrubbed provider failures without operator-only UI guidance [src/lib/paymongo/PayMongoClient.ts:134]
+- [x] [Review][Patch] Wire runtime payment operational logging instead of default no-op logger [src/server/routes/checkout.routes.ts:420]
+- [x] [Review][Patch] Add concurrency, reservation-state, proxy-removal, localhost-endpoint, malicious-URL, and release-guard regression tests [src/server/services/CheckoutService.test.ts]
+- [x] [Review][Defer] Serialize existing expired-reservation cleanup and stock restoration as one claim/release operation [src/server/repositories/CheckoutRepository.ts:638] — deferred, pre-existing
 
 ## Endpoint Guard Checklist
 
@@ -350,6 +365,22 @@ GPT-5 Codex
 - `npx vitest run src/features/cart-checkout/components/cart-ui.test.tsx --reporter verbose` - passed, 23 tests including immediate PayMongo redirect after handoff creation.
 - `npm run check` - passed with 0 errors and 9 existing hints.
 - `npx vitest run --pool=threads --maxWorkers=1 --reporter=dot` - attempted; timed out after 15 minutes with no diagnostics, so full-suite completion remains environment-blocked while targeted Story 5.3 coverage passes.
+- `npx vitest run src/cloudflare/durable-objects/InventoryDurableObject.test.ts src/domain/payments/paymongo-checkout.test.ts src/lib/paymongo/PayMongoClient.test.ts src/server/repositories/CheckoutRepository.test.ts src/server/services/CheckoutService.test.ts src/server/routes/checkout.routes.test.ts src/features/cart-checkout/components/cart-ui.test.tsx --pool=threads --maxWorkers=1 --reporter=dot` - passed, 7 files, 91 tests.
+- `npx vitest run src/domain/checkout/cart-validation.test.ts src/domain/checkout/contact-delivery.test.ts src/domain/checkout/inventory-reservation.test.ts src/domain/payments/paymongo-checkout.test.ts src/lib/paymongo/PayMongoClient.test.ts src/domain/schema-invariants.test.ts src/server/repositories/CheckoutRepository.test.ts src/server/services/CheckoutService.test.ts src/server/routes/checkout.routes.test.ts src/features/cart-checkout/components/cart-ui.test.tsx src/features/cart-checkout/store.test.ts src/adapter/infrastructure/logging/operational-log.test.ts src/domain/audit/events.test.ts src/cloudflare/durable-objects/InventoryDurableObject.test.ts --pool=threads --maxWorkers=1 --reporter=dot` - passed, 14 files, 131 tests.
+- `npm run check` - passed with 0 errors and 9 existing hints.
+- `npm run build-test` - passed; Astro check passed with 0 errors and 9 existing hints, Vitest passed 113 files / 741 tests, Astro build completed.
+- `npx vitest run src/server/routes/checkout.routes.test.ts src/cloudflare/durable-objects/InventoryDurableObject.test.ts --pool=threads --maxWorkers=1 --reporter=dot` - passed, 2 files, 16 tests after DO runtime payment config forwarding hotfix.
+- `npx vitest run src/cloudflare/durable-objects/InventoryDurableObject.test.ts src/domain/payments/paymongo-checkout.test.ts src/lib/paymongo/PayMongoClient.test.ts src/server/repositories/CheckoutRepository.test.ts src/server/services/CheckoutService.test.ts src/server/routes/checkout.routes.test.ts src/features/cart-checkout/components/cart-ui.test.tsx --pool=threads --maxWorkers=1 --reporter=dot` - passed, 7 files, 91 tests after DO runtime payment config forwarding hotfix.
+- `npm run check` - passed with 0 errors and 9 existing hints after DO runtime payment config forwarding hotfix.
+- Browser/API diagnostic checkout against `http://localhost:7777`: details 200, cart validation 200, reservation 200, payment 200, returned PayMongo checkout URL `https://checkout.paymongo.com/...`.
+- Playwright browser checkout against `http://localhost:7777/checkout`: seeded cart, filled details, clicked `Continue to Payment`, and observed `BROWSER_REDIRECT_OK https://checkout.paymongo.com/...`.
+- `npx vitest run src/lib/paymongo/PayMongoClient.test.ts src/server/routes/checkout.routes.test.ts src/cloudflare/durable-objects/InventoryDurableObject.test.ts --pool=threads --maxWorkers=1 --reporter=dot` - passed, 3 files, 23 tests after Worker fetch invocation fix.
+- `npx vitest run src/cloudflare/durable-objects/InventoryDurableObject.test.ts src/domain/payments/paymongo-checkout.test.ts src/lib/paymongo/PayMongoClient.test.ts src/server/repositories/CheckoutRepository.test.ts src/server/services/CheckoutService.test.ts src/server/routes/checkout.routes.test.ts src/features/cart-checkout/components/cart-ui.test.tsx --pool=threads --maxWorkers=1 --reporter=dot` - passed, 7 files, 92 tests after Worker fetch invocation fix.
+- `npm run check` - passed with 0 errors and 9 existing hints after Worker fetch invocation fix.
+- `npm run build-test` - passed after Worker fetch invocation fix; Astro check passed with 0 errors and 9 existing hints, Vitest passed 113 files / 742 tests, Astro build completed.
+- `npx wrangler deploy --env development` - deployed development Worker version `7ce74c81-e751-4523-90b3-bf6b7d5984bc` after local/browser verification.
+- Remote API diagnostic checkout against `https://jrw-ecommerce-development.jerowe-tan99.workers.dev`: details 200, cart validation 200, reservation 200, payment 200, returned PayMongo checkout URL `https://checkout.paymongo.com/...`.
+- Remote Playwright browser checkout against `https://jrw-ecommerce-development.jerowe-tan99.workers.dev/checkout`: seeded cart, filled details, clicked `Continue to Payment`, and observed `REMOTE_BROWSER_REDIRECT_OK https://checkout.paymongo.com/...`.
 
 ### Completion Notes List
 
@@ -358,18 +389,31 @@ GPT-5 Codex
 - Added Workers-compatible `PayMongoClient` using global `fetch` plus backend-only Basic auth; frontend only calls JRW API and renders explicit PayMongo handoff button.
 - Added safe operational log and `payment.checkout_created` audit event details; scrubbers now preserve safe provider checkout session IDs while redacting checkout URLs, provider payloads, card data, contact PII, tokens, and secrets.
 - `worker-configuration.d.ts` not regenerated because payment env keys are read through runtime `Record<string, unknown>` and PayMongo secret should remain a Worker secret, not a committed var.
-- Full `npm run build-test` remains blocked by Vitest worker fork instability after nearly complete suite. Final targeted story suites and `npm run check` pass; final development build is blocked by Cloudflare API auth code 10000, not compile errors.
-- Updated successful local-proxy and backend PayMongo handoffs to call `window.location.assign(checkoutUrl)` immediately after safe response validation, removing the normal second-click payment friction while retaining the existing handoff link as recovery state if navigation does not leave the page.
+- Routed runtime payment creation through the Inventory Durable Object `/payments` path with per-attempt serialization, route-level payment executor wiring, and DO-local `CheckoutService` construction.
+- Forwarded runtime payment config from the outer checkout route into the Durable Object `/payments` request so local `.env` values and original request origin are available when DO creates the PayMongo session.
+- Fixed Workers runtime PayMongo calls by wrapping default global `fetch`; storing raw Worker `fetch` on the client and invoking it as `this.fetcher(...)` caused Cloudflare `Illegal invocation` errors.
+- Verified live local checkout in browser: `Continue to Payment` redirects to PayMongo Hosted Checkout.
+- Deployed and verified development Worker after local fixes; remote checkout now returns payment handoff and redirects to PayMongo Hosted Checkout.
+- Removed browser/local PayMongo proxy handoff and backend `proxyEndpoint` behavior; UI now always calls the canonical JRW payment endpoint before redirect.
+- Added trusted PayMongo checkout URL validation before persistence and browser redirect, strict response envelope validation, bounded provider requests, and scrubbed provider failures.
+- Hardened payment persistence/release behavior for concurrent payment attempts: batch payment creation, pending-payment reuse, guarded release, and no regression from `PAYMENT_CREATED`.
+- Full `npm run build-test` now passes after final review fixes.
+- Updated successful backend PayMongo handoffs to call `window.location.assign(checkoutUrl)` immediately after safe response validation, removing the normal second-click payment friction while retaining the existing handoff link as recovery state if navigation does not leave the page.
 - Local browser QA restart was blocked by Cloudflare dev runtime error `Network connection lost`; redirect behavior is covered by a focused unit test and checkout UI suite.
 
 ### File List
 
 - `.env.example`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/epic-5-context.md`
 - `_bmad-output/implementation-artifacts/5-3-paymongo-payment-creation-and-handoff.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `migrations/0027_checkout_paymongo_payments.sql`
 - `src/adapter/infrastructure/logging/operational-log.test.ts`
 - `src/adapter/infrastructure/logging/operational-log.ts`
+- `src/cloudflare/durable-objects/CheckoutPaymentAttemptCoordinator.ts`
+- `src/cloudflare/durable-objects/InventoryDurableObject.test.ts`
+- `src/cloudflare/durable-objects/InventoryDurableObject.ts`
 - `src/domain/audit/events.test.ts`
 - `src/domain/audit/events.ts`
 - `src/domain/payments/paymongo-checkout.test.ts`
@@ -382,6 +426,7 @@ GPT-5 Codex
 - `src/features/cart-checkout/components/cart-ui.test.tsx`
 - `src/lib/paymongo/PayMongoClient.test.ts`
 - `src/lib/paymongo/PayMongoClient.ts`
+- `src/server/app.ts`
 - `src/server/controllers/CheckoutController.ts`
 - `src/server/repositories/CheckoutRepository.test.ts`
 - `src/server/repositories/CheckoutRepository.ts`
@@ -394,3 +439,64 @@ GPT-5 Codex
 
 - 2026-06-16: Implemented PayMongo Hosted Checkout creation/handoff, payment persistence, safe audit/logging, UI PayMongo action, tests, and moved story to review.
 - 2026-06-19: Removed second-click PayMongo handoff friction by redirecting immediately after successful handoff creation; added redirect coverage and reran Story 5.3 completion checks.
+- 2026-06-21: Fixed BMad review findings for DO payment coordination, proxy removal, trusted checkout URL validation, release guards, atomic persistence, and regression tests; Story 5.3 targeted suites, `npm run check`, and `npm run build-test` passed; moved story to done.
+- 2026-06-21: Hotfixed DO payment runtime config forwarding so `.env`-loaded PayMongo secret and request-origin app base URL reach the Durable Object payment service in local dev; targeted tests and `npm run check` passed.
+- 2026-06-21: Fixed Cloudflare Worker `fetch` illegal invocation in `PayMongoClient`, verified API and Playwright browser redirect to PayMongo, reran targeted suites, `npm run check`, and `npm run build-test`.
+- 2026-06-21: Deployed development Worker version `7ce74c81-e751-4523-90b3-bf6b7d5984bc`; remote API and Playwright browser checks redirect to PayMongo.
+
+
+## Code Review - ChatGPT Browser Pass (2026-06-20)
+
+Review method: BMad `bmad-code-review` style pass using Acceptance Auditor + Edge Case Hunter + Blind Hunter against the committed current implementation. Repository worktree was clean at review start (`main`, HEAD `d21ecd57460909f07c5b1914d9cb0a1bc1a5a5e8`), so this review inspected current files rather than an unstaged diff. I could not run local commands from ChatGPT browser; findings are static-review findings for Codex/local follow-up.
+
+### Review Status
+
+Fixed and verified locally. Story moved to `done` after Story 5.3 targeted suites, `npm run check`, and `npm run build-test` passed.
+
+### Findings
+
+1. **P0 - Concurrent payment creation can undo a successful PayMongo handoff.**
+   - Files: `src/server/services/CheckoutService.ts`, `src/server/repositories/CheckoutRepository.ts`, `migrations/0027_checkout_paymongo_payments.sql`.
+   - Scenario: two fast `POST /api/checkout/attempts/:attemptId/payments` requests both pass `findPendingCheckoutPaymentForAttempt()` before either insert exists, so both call PayMongo. The first request can insert `checkout_payments` and transition the attempt to `PAYMENT_CREATED`. The second request can then fail on the pending-payment uniqueness constraint and enter the service `createCheckoutPayment` catch path, which calls `releaseCheckoutReservationForPaymentFailure()`. That release method only checks attempt id + reservation id, not current attempt status or existing pending payment, so it can mark the reservation `RELEASED`, clear the attempt reservation, and set status `PAYMENT_CREATION_FAILED` after a valid `PAYMENT_PENDING` payment was created.
+   - Impact: duplicate provider session risk, valid payment record attached to released reservation, attempt state regression, inventory restored while shopper is redirected to PayMongo, and later webhook/reconciliation ambiguity.
+   - Required fix: make payment creation idempotency atomic. Use a DB claim/lock or transaction-safe insert-before-provider design, or handle post-provider unique conflicts by fetching and returning the existing pending payment without releasing the reservation. Also guard `releaseCheckoutReservationForPaymentFailure()` so it cannot release a reservation with an existing `PAYMENT_PENDING` payment or an attempt already in `PAYMENT_CREATED`.
+   - Missing test: concurrent/double-click payment creation where both calls reach provider; assert only one provider session is accepted or the loser reuses existing, reservation remains `ACTIVE`, attempt remains `PAYMENT_CREATED`, and stock is not restored.
+
+2. **P0 - Local PayMongo proxy path bypasses backend payment persistence and audit.**
+   - Files: `src/features/cart-checkout/components/CheckoutDetailsPage.tsx`, `src/features/cart-checkout/api.ts`.
+   - Scenario: on localhost, `CheckoutDetailsPage` calls `createLocalPayMongoCheckoutHandoff()` before `createPayMongoPaymentHandoff()`. That helper builds a PayMongo payload from browser cart state and posts directly to `/__jrw-dev/paymongo/checkout-sessions`, then redirects on success.
+   - Impact: the normal backend payment endpoint is skipped, so no `checkout_payments` row is created, the attempt is not transitioned to `PAYMENT_CREATED`, idempotent retry does not exist, audit/operational logging is skipped, and the story’s backend-only/server-authoritative PayMongo boundary is weakened even if this is intended for local development only.
+   - Required fix: remove the frontend local PayMongo handoff path, or move the local proxy usage behind the backend `POST /api/checkout/attempts/:attemptId/payments` path only. The browser should always call the JRW payment endpoint and receive a persisted safe handoff response.
+   - Missing test: localhost checkout still posts to `/api/checkout/attempts/:attemptId/payments`; no frontend code path posts provider payload/line items to a PayMongo/proxy endpoint.
+
+3. **P1 - Payment persistence is not atomic with payment items and attempt transition.**
+   - Files: `src/server/repositories/CheckoutRepository.ts`.
+   - Scenario: `createCheckoutPayment()` inserts `checkout_payments`, then inserts `checkout_payment_items`, then updates `checkout_attempts`. If item insert or attempt update fails, the already inserted payment row can remain pending while the service catches and releases the reservation.
+   - Impact: stranded `PAYMENT_PENDING` rows, provider sessions without a consistent attempt state, and manual reconciliation burden. This overlaps with the concurrency issue but can also happen from DB/runtime failure after provider success.
+   - Required fix: wrap payment insert, item insert, and attempt transition in a transaction where supported, with a safe D1 fallback/compensation that marks the payment failed/manual-reconcile-required rather than leaving pending. If fallback cannot be fully atomic, tests must prove the compensating state is durable and safe.
+   - Missing test: force failure after payment insert and before/at attempt transition; assert no usable pending payment is left on a released reservation, and enough scrubbed reconciliation context remains.
+
+4. **P1 - Redirect URL trust is not enforced at the backend/client boundary.**
+   - Files: `src/lib/paymongo/PayMongoClient.ts`, `src/features/cart-checkout/components/CheckoutDetailsPage.tsx`, `src/features/cart-checkout/api.ts`.
+   - Scenario: `parseCheckoutSessionResponse()` accepts any string `attributes.checkout_url`, the API returns it, and `redirectToPayMongoCheckout()` calls `window.location.assign(checkoutUrl)` without a PayMongo-controlled host policy.
+   - Impact: a compromised mock/proxy/provider response or unexpected integration bug can turn payment handoff into an open redirect. Story AC requires redirect only after the URL is parsed and PayMongo-controlled, or after the server marks it trusted.
+   - Required fix: validate checkout URL server-side before persistence/response and/or return an explicit `trusted: true` flag only after validation. Client should redirect only trusted handoff URLs and otherwise show safe retry copy.
+   - Missing test: malicious `checkout_url` such as `https://evil.example/pay` is rejected before persistence and before browser redirect.
+
+### Positive Coverage Observed
+
+- The main server endpoint follows Route -> Controller -> Service -> Repository/Domain and uses optional guest/customer auth with attempt-token authorization.
+- Browser payment helper for the normal backend path submits only `attemptToken`; it does not submit amount, line items, provider status, or card data.
+- PayMongo client uses backend Basic auth and maps provider failures to safe public codes without raw provider body leakage.
+- Schema avoids raw provider payload, card/token fields, and obvious PII columns in payment tables.
+- Existing targeted tests cover core success, safe envelopes, backend-only auth for the normal path, provider failures, idempotent existing-payment reuse, and UI redirect behavior.
+
+### Codex Follow-Up Checklist
+
+- [x] Remove or reroute frontend local PayMongo proxy handoff so all UI payment starts go through `POST /api/checkout/attempts/:attemptId/payments`.
+- [x] Make payment creation race-safe and idempotent under double-click/concurrent requests.
+- [x] Prevent `releaseCheckoutReservationForPaymentFailure()` from releasing reservations that already have pending payments or attempts already marked `PAYMENT_CREATED`.
+- [x] Make payment insert + payment items + attempt transition atomic or add durable compensating state with tests.
+- [x] Validate PayMongo checkout URL trust before persistence/response/redirect.
+- [x] Add regression tests for concurrent payment creation, unique-conflict loser behavior, post-provider persistence failure, release guard, and malicious checkout URL rejection.
+- [x] Rerun Story 5.3 targeted suites, `npm run check`, and `npm run build-test` locally after fixes.

@@ -1,4 +1,7 @@
-import type { PayMongoCheckoutSessionPayload } from "@/domain/payments/paymongo-checkout";
+import {
+  isTrustedPayMongoCheckoutUrl,
+  type PayMongoCheckoutSessionPayload,
+} from "@/domain/payments/paymongo-checkout";
 import { GeneralError } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
 
@@ -12,8 +15,8 @@ export type PayMongoCheckoutSessionResult = {
 export type PayMongoClientOptions = {
   endpoint?: string;
   fetcher?: typeof fetch;
-  proxyEndpoint?: string;
   secretKey: string;
+  timeoutMs?: number;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -50,12 +53,10 @@ function checkoutPayloadTotalCentavos(
 }
 
 function providerFailureDetails(
-  payload: PayMongoCheckoutSessionPayload,
-  status?: number
-): Record<string, boolean | number> {
+  payload: PayMongoCheckoutSessionPayload
+): Record<string, number> {
   const subtotalCentavos = checkoutPayloadTotalCentavos(payload);
-  const details: Record<string, boolean | number> =
-    typeof status === "number" ? { providerStatus: status } : {};
+  const details: Record<string, number> = {};
 
   if (subtotalCentavos < PAYMONGO_MINIMUM_AMOUNT_CENTAVOS) {
     details.minimumAmountCentavos = PAYMONGO_MINIMUM_AMOUNT_CENTAVOS;
@@ -74,11 +75,16 @@ function parseCheckoutSessionResponse(
 
   const data = value.data;
   const attributes = isRecord(data.attributes) ? data.attributes : null;
+  const status =
+    attributes && typeof attributes.status === "string"
+      ? attributes.status
+      : "active";
 
   if (
     typeof data.id !== "string" ||
     !attributes ||
-    typeof attributes.checkout_url !== "string"
+    !isTrustedPayMongoCheckoutUrl(attributes.checkout_url) ||
+    status !== "active"
   ) {
     return null;
   }
@@ -88,23 +94,27 @@ function parseCheckoutSessionResponse(
     livemode:
       typeof attributes.livemode === "boolean" ? attributes.livemode : false,
     providerCheckoutSessionId: data.id,
-    status:
-      typeof attributes.status === "string" ? attributes.status : "active",
+    status,
   };
 }
 
 export class PayMongoClient {
   private readonly endpoint: string;
   private readonly fetcher: typeof fetch;
-  private readonly proxyEndpoint?: string;
   private readonly secretKey: string;
+  private readonly timeoutMs: number;
 
   constructor(options: PayMongoClientOptions) {
     this.endpoint =
       options.endpoint ?? "https://api.paymongo.com/v2/checkout_sessions";
-    this.fetcher = options.fetcher ?? fetch;
-    this.proxyEndpoint = options.proxyEndpoint;
+    this.fetcher = options.fetcher ?? ((input, init) => fetch(input, init));
     this.secretKey = cleanSecretKey(options.secretKey);
+    this.timeoutMs =
+      typeof options.timeoutMs === "number" &&
+      Number.isSafeInteger(options.timeoutMs) &&
+      options.timeoutMs > 0
+        ? Math.min(options.timeoutMs, 4_294_967_295)
+        : 15_000;
   }
 
   async createCheckoutSession(
@@ -121,26 +131,27 @@ export class PayMongoClient {
     payload: PayMongoCheckoutSessionPayload
   ): Promise<AppResult<PayMongoCheckoutSessionResult>> {
     try {
-      const useProxy = Boolean(this.proxyEndpoint);
       const headers: Record<string, string> = {
         Accept: "application/json",
+        Authorization: basicAuth(this.secretKey),
         "Content-Type": "application/json",
       };
 
-      if (!useProxy) {
-        headers.Authorization = basicAuth(this.secretKey);
-      }
-
-      const response = await this.fetcher(this.proxyEndpoint ?? this.endpoint, {
+      const response = await this.fetcher(this.endpoint, {
         body: JSON.stringify(payload),
         headers,
         method: "POST",
+        signal: AbortSignal.timeout(this.timeoutMs),
       });
 
       if (!response.ok) {
         return Result.error(
           new GeneralError(
-            providerFailureDetails(payload, response.status),
+            {
+              ...providerFailureDetails(payload),
+              providerStatus: response.status,
+              reason: "provider_http_error",
+            },
             providerErrorForStatus(response.status)
           )
         );
@@ -150,10 +161,22 @@ export class PayMongoClient {
 
       return parsed
         ? Result.okay(parsed)
-        : Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
-    } catch {
+        : Result.error(
+            new GeneralError(
+              { reason: "provider_response_invalid" },
+              "PROVIDER_UNAVAILABLE"
+            )
+          );
+    } catch (error) {
       return Result.error(
-        new GeneralError({ networkFailure: true }, "PROVIDER_UNAVAILABLE")
+        new GeneralError(
+          {
+            errorMessage: error instanceof Error ? error.message : String(error),
+            errorName: error instanceof Error ? error.name : typeof error,
+            reason: "provider_fetch_failed",
+          },
+          "PROVIDER_UNAVAILABLE"
+        )
       );
     }
   }

@@ -494,7 +494,26 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
   ): Promise<CheckoutPaymentRecord> {
     const now = input.now ?? new Date().toISOString();
     const paymentId = createId();
-    const rows = await this.db
+    const eligibleAttempts = await this.db
+      .select({ id: checkout_attempts.id })
+      .from(checkout_attempts)
+      .where(
+        and(
+          eq(checkout_attempts.id, input.attemptId),
+          eq(checkout_attempts.reservation_id, input.reservationId),
+          inArray(checkout_attempts.status, [
+            "INVENTORY_RESERVED",
+            "PAYMENT_CREATED",
+          ])
+        )
+      )
+      .limit(1);
+
+    if (eligibleAttempts.length !== 1) {
+      throw new Error("D1_CHECKOUT_ATTEMPT_NOT_PAYMENT_CREATABLE");
+    }
+
+    const paymentInsert = this.db
       .insert(checkout_payments)
       .values({
         id: paymentId,
@@ -513,29 +532,7 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
         updated_at: now,
       })
       .returning();
-    const payment = rows[0];
-
-    if (!payment) {
-      throw new Error("CHECKOUT_PAYMENT_NOT_CREATED");
-    }
-
-    if (input.items.length > 0) {
-      await this.db.insert(checkout_payment_items).values(
-        input.items.map((item) => ({
-          id: createId(),
-          payment_id: payment.id,
-          product_id: item.productId,
-          variant_id: item.variantId,
-          name: item.name,
-          amount_centavos: item.amountCentavos,
-          currency: item.currency,
-          quantity: item.quantity,
-          created_at: now,
-        }))
-      );
-    }
-
-    const attemptRows = await this.db
+    const attemptUpdate = this.db
       .update(checkout_attempts)
       .set({
         status: "PAYMENT_CREATED",
@@ -553,8 +550,39 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
         )
       )
       .returning({ id: checkout_attempts.id });
+    let paymentRows: CheckoutPaymentRow[];
+    let attemptRows: Array<{ id: string }>;
 
-    if (attemptRows.length !== 1) {
+    if (input.items.length > 0) {
+      const paymentItemInsert = this.db.insert(checkout_payment_items).values(
+        input.items.map((item) => ({
+          id: createId(),
+          payment_id: paymentId,
+          product_id: item.productId,
+          variant_id: item.variantId,
+          name: item.name,
+          amount_centavos: item.amountCentavos,
+          currency: item.currency,
+          quantity: item.quantity,
+          created_at: now,
+        }))
+      );
+
+      [paymentRows, , attemptRows] = await this.db.batch([
+        paymentInsert,
+        paymentItemInsert,
+        attemptUpdate,
+      ]);
+    } else {
+      [paymentRows, attemptRows] = await this.db.batch([
+        paymentInsert,
+        attemptUpdate,
+      ]);
+    }
+
+    const payment = paymentRows[0];
+
+    if (!payment || attemptRows.length !== 1) {
       throw new Error("D1_CHECKOUT_ATTEMPT_NOT_PAYMENT_CREATABLE");
     }
 
@@ -565,6 +593,40 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
     input: ReleaseCheckoutReservationForPaymentFailureInput
   ): Promise<void> {
     const now = input.now ?? new Date().toISOString();
+    const claimedAttempts = await this.db
+      .update(checkout_attempts)
+      .set({
+        status: "PAYMENT_CREATION_FAILED",
+        reservation_id: null,
+        reservation_expires_at: null,
+        updated_request_id: input.requestId,
+        updated_at: now,
+      })
+      .where(
+        and(
+          eq(checkout_attempts.id, input.attemptId),
+          eq(checkout_attempts.reservation_id, input.reservationId),
+          eq(checkout_attempts.status, "INVENTORY_RESERVED"),
+          sql`EXISTS (
+            SELECT 1 FROM ${checkout_reservations}
+            WHERE ${checkout_reservations.id} = ${input.reservationId}
+              AND ${checkout_reservations.checkout_attempt_id} = ${input.attemptId}
+              AND ${checkout_reservations.status} = 'ACTIVE'
+          )`,
+          sql`NOT EXISTS (
+            SELECT 1 FROM ${checkout_payments}
+            WHERE ${checkout_payments.checkout_attempt_id} = ${input.attemptId}
+              AND ${checkout_payments.reservation_id} = ${input.reservationId}
+              AND ${checkout_payments.status} = 'PAYMENT_PENDING'
+          )`
+        )
+      )
+      .returning({ id: checkout_attempts.id });
+
+    if (claimedAttempts.length !== 1) {
+      return;
+    }
+
     const reservations = await this.db
       .select()
       .from(checkout_reservations)
@@ -618,21 +680,7 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
       })
       .where(eq(checkout_reservations.id, input.reservationId));
 
-    await this.db
-      .update(checkout_attempts)
-      .set({
-        status: "PAYMENT_CREATION_FAILED",
-        reservation_id: null,
-        reservation_expires_at: null,
-        updated_request_id: input.requestId,
-        updated_at: now,
-      })
-      .where(
-        and(
-          eq(checkout_attempts.id, input.attemptId),
-          eq(checkout_attempts.reservation_id, input.reservationId)
-        )
-      );
+    return;
   }
 
   async releaseExpiredCheckoutReservations(

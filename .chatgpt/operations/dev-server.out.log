@@ -1,0 +1,2588 @@
+
+> jrw-simple-ecommerce-site@1.0.0 dev
+> cross-env CLOUDFLARE_ENV=development astro dev
+
+[2m10:35:35[22m [34m[@astrojs/cloudflare][39m Enabling image processing with Cloudflare Images for production with the "IMAGES" Images binding.
+[2m10:35:35[22m [34m[@astrojs/cloudflare][39m Enabling sessions with Cloudflare KV with the "SESSION" KV binding.
+[2m10:35:36[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+Using secrets defined in .env
+[2m10:36:35[22m [34m[types][39m Generated [2m107ms[22m
+[33m[1m10:36:35[22m [WARN] [content][39m Content config not loaded
+[2m10:36:35[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+[2m10:36:35[22m [34m[vite][39m Re-optimizing dependencies because vite config has changed
+[42m[1m astro [22m[49m [32mv6.1.9[39m [2mready in[22m 121619 [2mms[22m
+[2m┃[22m Local    [36mhttp://localhost:7777/[39m
+[2m┃[22m Network  [36mhttp://192.168.0.115:7777/[39m
+           [36mhttp://172.21.144.1:7777/[39m
+[2m10:37:30[22m [32mwatching for file changes...[39m
+[2m10:38:32[22m [34m[vite][39m [32m✨ new dependencies optimized: [33mjose[32m[39m
+[2m10:38:32[22m [34m[vite][39m [32m✨ optimized dependencies changed. reloading[39m
+[2m10:38:38[22m [34m[vite][39m [vite] program reload
+[33m[1m10:39:01[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:01[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:01[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:01[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:01[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:01[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:01[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:01[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:39:01[22m [34m[vite][39m 10:39:01 [200] POST /api/checkout/details 3024ms
+[33m[1m10:39:01[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:01[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  required: [ 'items' ],
+  properties: {
+    cartUpdatedAt: {
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    items: {
+      maxItems: 50,
+      minItems: 1,
+      type: 'array',
+      items: [Object],
+      Symbol(TypeBox.Kind): 'Array'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:02[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:02[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:02[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:02[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:02[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:02[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:02[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:02[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:02[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:02[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:02[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:02[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:39:02[22m [34m[vite][39m 10:39:02 [200] POST /api/checkout/cart-validations 644ms
+[33m[1m10:39:02[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:02[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'attemptId' ],
+  properties: {
+    attemptId: {
+      minLength: 1,
+      maxLength: 128,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:02[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:02[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  required: [ 'items' ],
+  properties: {
+    attemptToken: {
+      minLength: 1,
+      maxLength: 512,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    cartUpdatedAt: {
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    items: {
+      maxItems: 50,
+      minItems: 1,
+      type: 'array',
+      items: [Object],
+      Symbol(TypeBox.Kind): 'Array'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:06[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:06[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:06[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:06[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:06[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:06[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:06[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:06[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:06[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:06[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:06[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:06[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:06[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:06[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:39:06[22m [34m[vite][39m 10:39:06 [200] POST /api/checkout/attempts/g4g4wj53p2xj7r9qlj12w6s8/reservations 3573ms
+[33m[1m10:39:06[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:06[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'attemptId' ],
+  properties: {
+    attemptId: {
+      minLength: 1,
+      maxLength: 128,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:06[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:06[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  properties: {
+    attemptToken: {
+      minLength: 1,
+      maxLength: 512,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:09[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:09[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:09[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:09[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:09[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:09[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:09[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:09[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:09[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:09[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:09[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:09[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:09[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:09[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:39:09[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:39:09[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:39:09[22m [34m[vite][39m 10:39:09 [503] POST /api/checkout/attempts/g4g4wj53p2xj7r9qlj12w6s8/payments 3088ms
+[33m[1m10:41:17[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:17[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:17[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:17[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:17[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:17[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:17[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:17[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:41:17[22m [34m[vite][39m 10:41:17 [200] POST /api/checkout/details 1766ms
+[33m[1m10:41:18[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:18[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  required: [ 'items' ],
+  properties: {
+    cartUpdatedAt: {
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    items: {
+      maxItems: 50,
+      minItems: 1,
+      type: 'array',
+      items: [Object],
+      Symbol(TypeBox.Kind): 'Array'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:41:19[22m [34m[vite][39m 10:41:19 [200] POST /api/checkout/cart-validations 938ms
+[33m[1m10:41:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'attemptId' ],
+  properties: {
+    attemptId: {
+      minLength: 1,
+      maxLength: 128,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:19[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  required: [ 'items' ],
+  properties: {
+    attemptToken: {
+      minLength: 1,
+      maxLength: 512,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    cartUpdatedAt: {
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    items: {
+      maxItems: 50,
+      minItems: 1,
+      type: 'array',
+      items: [Object],
+      Symbol(TypeBox.Kind): 'Array'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:22[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:22[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:22[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:22[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:22[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:22[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:22[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:22[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:22[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:22[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:22[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:22[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:22[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:22[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:41:22[22m [34m[vite][39m 10:41:22 [200] POST /api/checkout/attempts/huol6kby5u1s4glcg375s9lo/reservations 3505ms
+[33m[1m10:41:23[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:23[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'attemptId' ],
+  properties: {
+    attemptId: {
+      minLength: 1,
+      maxLength: 128,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:23[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:23[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  properties: {
+    attemptToken: {
+      minLength: 1,
+      maxLength: 512,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:26[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:26[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:26[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:26[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:26[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:26[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:26[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:26[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:26[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:26[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:26[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:26[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:26[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:26[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:41:26[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:41:26[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:41:26[22m [34m[vite][39m 10:41:26 [503] POST /api/checkout/attempts/huol6kby5u1s4glcg375s9lo/payments 2777ms
+[33m[1m10:42:04[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:04[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:04[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:04[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:04[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:04[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:04[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:04[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:42:04[22m [34m[vite][39m 10:42:04 [200] POST /api/checkout/details 341ms
+[33m[1m10:42:05[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:05[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  required: [ 'items' ],
+  properties: {
+    cartUpdatedAt: {
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    items: {
+      maxItems: 50,
+      minItems: 1,
+      type: 'array',
+      items: [Object],
+      Symbol(TypeBox.Kind): 'Array'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:05[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:05[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:05[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:05[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:05[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:05[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:05[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:05[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:05[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:05[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:05[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:05[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:42:05[22m [34m[vite][39m 10:42:05 [200] POST /api/checkout/cart-validations 621ms
+[33m[1m10:42:05[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:05[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'attemptId' ],
+  properties: {
+    attemptId: {
+      minLength: 1,
+      maxLength: 128,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:05[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:05[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  required: [ 'items' ],
+  properties: {
+    attemptToken: {
+      minLength: 1,
+      maxLength: 512,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    cartUpdatedAt: {
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    items: {
+      maxItems: 50,
+      minItems: 1,
+      type: 'array',
+      items: [Object],
+      Symbol(TypeBox.Kind): 'Array'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:08[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:08[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:08[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:08[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:08[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:08[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:08[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:08[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:08[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:08[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:08[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:08[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:08[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:08[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:42:08[22m [34m[vite][39m 10:42:08 [200] POST /api/checkout/attempts/flnpv622ywhtsylkb5akwbcz/reservations 2925ms
+[33m[1m10:42:09[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:09[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'attemptId' ],
+  properties: {
+    attemptId: {
+      minLength: 1,
+      maxLength: 128,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:09[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:09[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  properties: {
+    attemptToken: {
+      minLength: 1,
+      maxLength: 512,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:11[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:11[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:11[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:11[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:11[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:11[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:11[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:11[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:11[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:11[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:11[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:11[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:11[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:11[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:11[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:11[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:42:11[22m [34m[vite][39m 10:42:11 [503] POST /api/checkout/attempts/flnpv622ywhtsylkb5akwbcz/payments 2702ms
+[33m[1m10:42:32[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:32[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:32[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:32[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:32[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:32[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:32[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:32[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:42:32[22m [34m[vite][39m 10:42:32 [200] POST /api/checkout/details 447ms
+[33m[1m10:42:33[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:33[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  required: [ 'items' ],
+  properties: {
+    cartUpdatedAt: {
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    items: {
+      maxItems: 50,
+      minItems: 1,
+      type: 'array',
+      items: [Object],
+      Symbol(TypeBox.Kind): 'Array'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:54[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:54[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:54[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:54[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:54[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:54[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:54[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:54[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:54[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:54[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:54[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:54[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:42:54[22m [34m[vite][39m 10:42:54 [200] POST /api/checkout/cart-validations 21563ms
+[33m[1m10:42:55[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:55[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'attemptId' ],
+  properties: {
+    attemptId: {
+      minLength: 1,
+      maxLength: 128,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:55[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:55[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  required: [ 'items' ],
+  properties: {
+    attemptToken: {
+      minLength: 1,
+      maxLength: 512,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    cartUpdatedAt: {
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    items: {
+      maxItems: 50,
+      minItems: 1,
+      type: 'array',
+      items: [Object],
+      Symbol(TypeBox.Kind): 'Array'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:57[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:57[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:57[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:57[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:57[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:57[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:57[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:57[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:57[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:57[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:57[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:57[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:57[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:57[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:42:57[22m [34m[vite][39m 10:42:57 [200] POST /api/checkout/attempts/fq1emuznjgun3r8e1apyq5mv/reservations 2553ms
+[33m[1m10:42:57[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:57[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'attemptId' ],
+  properties: {
+    attemptId: {
+      minLength: 1,
+      maxLength: 128,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:42:57[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:42:57[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  properties: {
+    attemptToken: {
+      minLength: 1,
+      maxLength: 512,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:00[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:00[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:00[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:00[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:00[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:00[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:00[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:00[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:00[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:00[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:00[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:00[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:00[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:00[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:00[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:00[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:43:00[22m [34m[vite][39m 10:43:00 [503] POST /api/checkout/attempts/fq1emuznjgun3r8e1apyq5mv/payments 2740ms
+[33m[1m10:43:51[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:51[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:51[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:51[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:51[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:51[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:51[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:51[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:43:51[22m [34m[vite][39m 10:43:51 [200] POST /api/checkout/details 402ms
+[33m[1m10:43:51[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:51[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  required: [ 'items' ],
+  properties: {
+    cartUpdatedAt: {
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    items: {
+      maxItems: 50,
+      minItems: 1,
+      type: 'array',
+      items: [Object],
+      Symbol(TypeBox.Kind): 'Array'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:52[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:52[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:52[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:52[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:52[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:52[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:52[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:52[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:52[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:52[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:52[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:52[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:43:52[22m [34m[vite][39m 10:43:52 [200] POST /api/checkout/cart-validations 615ms
+[33m[1m10:43:52[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:52[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'attemptId' ],
+  properties: {
+    attemptId: {
+      minLength: 1,
+      maxLength: 128,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:43:52[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:43:52[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  required: [ 'items' ],
+  properties: {
+    attemptToken: {
+      minLength: 1,
+      maxLength: 512,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    cartUpdatedAt: {
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    },
+    items: {
+      maxItems: 50,
+      minItems: 1,
+      type: 'array',
+      items: [Object],
+      Symbol(TypeBox.Kind): 'Array'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:16[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:16[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:16[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:16[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:16[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:16[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:16[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:16[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:16[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:16[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:16[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:16[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:16[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:16[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:44:16[22m [34m[vite][39m 10:44:16 [200] POST /api/checkout/attempts/n0jraelss238lfa8kdwpafwk/reservations 24004ms
+[33m[1m10:44:17[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:17[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'attemptId' ],
+  properties: {
+    attemptId: {
+      minLength: 1,
+      maxLength: 128,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:17[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:17[22m [WARN] [vite][39m {
+  additionalProperties: false,
+  type: 'object',
+  properties: {
+    attemptToken: {
+      minLength: 1,
+      maxLength: 512,
+      type: 'string',
+      Symbol(TypeBox.Kind): 'String',
+      Symbol(TypeBox.Optional): 'Optional'
+    }
+  },
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:44:19[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:44:19[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:44:19[22m [34m[vite][39m 10:44:19 [200] POST /api/checkout/attempts/n0jraelss238lfa8kdwpafwk/payments 2462ms
+[2m10:45:37[22m [34m[vite][39m 10:45:37 [200] /checkout 1303ms
+[2m10:45:47[22m [34m[vite][39m 10:45:47 [200] /checkout 26ms
+[33m[1m10:46:18[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:46:18[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'data', 'meta' ],
+  properties: {
+    data: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    },
+    meta: {
+      additionalProperties: true,
+      type: 'object',
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:46:18[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:46:18[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:46:18[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:46:18[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[33m[1m10:46:18[22m [WARN] [vite][39m Failed to create exactMirror. Please report the following code to https://github.com/elysiajs/elysia/issues
+[33m[1m10:46:18[22m [WARN] [vite][39m {
+  type: 'object',
+  required: [ 'error' ],
+  properties: {
+    error: {
+      type: 'object',
+      required: [Array],
+      properties: [Object],
+      Symbol(TypeBox.Kind): 'Object'
+    }
+  },
+  additionalProperties: false,
+  Symbol(TypeBox.Kind): 'Object'
+}
+[2m10:46:18[22m [34m[vite][39m 10:46:18 [200] /api/customer/auth/session 323ms
+[2m10:46:20[22m [34m[vite][39m 10:46:20 [200] POST /api/checkout/cart-validations 2237ms
+[2m10:48:06[22m [34m[vite][39m 10:48:06 [200] /checkout 535ms
+[2m10:48:08[22m [34m[vite][39m 10:48:08 [200] /api/customer/auth/session 135ms
+[2m10:48:09[22m [34m[vite][39m 10:48:09 [200] POST /api/checkout/cart-validations 1555ms
+[2m10:48:29[22m [34m[vite][39m 10:48:29 [200] /checkout 137ms
+[2m10:48:29[22m [34m[vite][39m 10:48:29 [200] /api/customer/auth/session 35ms
+[2m10:48:30[22m [34m[vite][39m 10:48:30 [200] POST /api/checkout/cart-validations 488ms
+[2m10:48:32[22m [34m[vite][39m 10:48:32 [200] POST /api/checkout/details 515ms
+[2m10:48:33[22m [34m[vite][39m 10:48:33 [200] POST /api/checkout/cart-validations 525ms
+[2m10:48:37[22m [34m[vite][39m 10:48:37 [200] POST /api/checkout/attempts/hxp4kopa4w8fuik6t5nljdux/reservations 3564ms
+[2m10:48:39[22m [34m[vite][39m 10:48:39 [200] POST /api/checkout/attempts/hxp4kopa4w8fuik6t5nljdux/payments 2288ms
+[2m11:00:12[22m [34m[vite][39m [vite] program reload
+[2m11:00:22[22m [34m[vite][39m [vite] program reload
+[2m11:17:52[22m [34m[vite][39m [vite] program reload

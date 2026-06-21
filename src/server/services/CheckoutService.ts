@@ -137,6 +137,7 @@ export type CheckoutServiceOptions = {
   operationalLogger?: OperationalLogger;
   paymentConfig?: CheckoutPaymentConfig;
   payMongoClient?: PayMongoClientLike;
+  paymentExecutor?: CheckoutPaymentExecutor;
   repository: CheckoutRepository;
   reservationExecutor?: CheckoutReservationExecutor;
 };
@@ -144,6 +145,10 @@ export type CheckoutServiceOptions = {
 export type CheckoutReservationExecutor = (
   input: CheckoutReservationServiceInput
 ) => Promise<AppResult<CheckoutReservationResponse>>;
+
+export type CheckoutPaymentExecutor = (
+  input: CheckoutPaymentServiceInput
+) => Promise<AppResult<CheckoutPaymentResult>>;
 
 export type CheckoutPaymentConfig = {
   appBaseUrl?: string;
@@ -379,17 +384,34 @@ const PAYMONGO_MINIMUM_AMOUNT_CENTAVOS = 100;
 
 function checkoutReservationPaymentTotalCentavos(
   reservation: CheckoutReservationRecord
-): number {
-  const itemsTotalCentavos = (reservation.items ?? []).reduce(
-    (total, item) =>
-      total + Math.max(0, item.priceCentavos ?? 0) * Math.max(1, item.quantity),
+): number | null {
+  const items = reservation.items ?? [];
+
+  if (
+    items.length === 0 ||
+    items.some(
+      (item) =>
+        !Number.isSafeInteger(item.priceCentavos) ||
+        (item.priceCentavos ?? -1) < 0 ||
+        !Number.isSafeInteger(item.quantity) ||
+        item.quantity < 1
+    )
+  ) {
+    return null;
+  }
+
+  const itemsTotalCentavos = items.reduce(
+    (total, item) => total + (item.priceCentavos ?? 0) * item.quantity,
     0
   );
   const subtotalCentavos = Number(reservation.subtotalCentavos);
 
-  return Number.isFinite(subtotalCentavos) && subtotalCentavos > 0
+  return Number.isSafeInteger(subtotalCentavos) &&
+    subtotalCentavos > 0 &&
+    Number.isSafeInteger(itemsTotalCentavos) &&
+    itemsTotalCentavos === subtotalCentavos
     ? subtotalCentavos
-    : itemsTotalCentavos;
+    : null;
 }
 
 function toCheckoutPaymentResult(
@@ -430,6 +452,7 @@ export class CheckoutService {
   private readonly auditPublisher: AuditEventPublisher;
   private readonly operationalLogger: OperationalLogger;
   private readonly paymentConfig: CheckoutPaymentConfig;
+  private readonly paymentExecutor?: CheckoutPaymentExecutor;
   private readonly payMongoClient?: PayMongoClientLike;
   private readonly reservationExecutor?: CheckoutReservationExecutor;
   private readonly repository: CheckoutRepository;
@@ -439,6 +462,7 @@ export class CheckoutService {
       options.auditPublisher ?? new NoopAuditEventPublisher();
     this.operationalLogger = options.operationalLogger ?? noopOperationalLogger;
     this.paymentConfig = options.paymentConfig ?? {};
+    this.paymentExecutor = options.paymentExecutor;
     this.payMongoClient = options.payMongoClient;
     this.repository = options.repository;
     this.reservationExecutor = options.reservationExecutor;
@@ -562,6 +586,20 @@ export class CheckoutService {
   async createPayment(
     input: CheckoutPaymentServiceInput
   ): Promise<AppResult<CheckoutPaymentResult>> {
+    if (this.paymentExecutor) {
+      try {
+        return await this.paymentExecutor(input);
+      } catch {
+        return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+      }
+    }
+
+    return this.createPaymentDirect(input);
+  }
+
+  private async createPaymentDirect(
+    input: CheckoutPaymentServiceInput
+  ): Promise<AppResult<CheckoutPaymentResult>> {
     try {
       await this.repository.releaseExpiredCheckoutReservations({
         now: input.now,
@@ -648,6 +686,17 @@ export class CheckoutService {
       const paymentSubtotalCentavos =
         checkoutReservationPaymentTotalCentavos(activeReservation);
 
+      if (paymentSubtotalCentavos === null) {
+        await this.repository.releaseCheckoutReservationForPaymentFailure({
+          attemptId: attempt.id,
+          now,
+          requestId: input.requestId,
+          reservationId: activeReservation.id,
+        });
+
+        return Result.error(new GeneralError({}, "PAYMENT_FAILED"));
+      }
+
       if (paymentSubtotalCentavos < PAYMONGO_MINIMUM_AMOUNT_CENTAVOS) {
         await this.repository.releaseCheckoutReservationForPaymentFailure({
           attemptId: attempt.id,
@@ -695,6 +744,21 @@ export class CheckoutService {
       );
 
       if (providerResult.error) {
+        this.operationalLogger.record(
+          createOperationalLogEvent({
+            requestId: input.requestId,
+            errorCode: providerResult.error.code,
+            targetResourceId: attempt.id,
+            details: {
+              action: "payment.checkout_provider_failed",
+              amountCentavos: paymentSubtotalCentavos,
+              attemptId: attempt.id,
+              providerErrorDetails: providerResult.error.data,
+              reservationId: activeReservation.id,
+            },
+          })
+        );
+
         await this.repository.releaseCheckoutReservationForPaymentFailure({
           attemptId: attempt.id,
           now,
@@ -702,9 +766,7 @@ export class CheckoutService {
           reservationId: activeReservation.id,
         });
 
-        return Result.error(
-          new GeneralError(providerResult.error.data ?? {}, providerResult.error.code)
-        );
+        return Result.error(new GeneralError({}, providerResult.error.code));
       }
 
       let payment: CheckoutPaymentRecord;
@@ -736,6 +798,42 @@ export class CheckoutService {
           reservationId: activeReservation.id,
         });
       } catch (error) {
+        this.operationalLogger.record(
+          createOperationalLogEvent({
+            requestId: input.requestId,
+            errorCode: "PROVIDER_UNAVAILABLE",
+            targetResourceId: attempt.id,
+            details: {
+              action: "payment.checkout_persistence_failed",
+              amountCentavos: paymentSubtotalCentavos,
+              attemptId: attempt.id,
+              errorMessage:
+                error instanceof Error ? error.message : String(error),
+              errorName: error instanceof Error ? error.name : typeof error,
+              providerCheckoutSessionId:
+                providerResult.content.providerCheckoutSessionId,
+              reservationId: activeReservation.id,
+            },
+          })
+        );
+
+        const persistedPayment = await this.repository
+          .findPendingCheckoutPaymentForAttempt(attempt.id)
+          .catch(() => null);
+
+        if (persistedPayment?.reservationId === activeReservation.id) {
+          this.recordPaymentOperationalEvent({
+            action: "payment.checkout_reused",
+            actor: input.actor,
+            payment: persistedPayment,
+            requestId: input.requestId,
+          });
+
+          return Result.okay(
+            toCheckoutPaymentResult(persistedPayment, activeReservation)
+          );
+        }
+
         await this.repository.releaseCheckoutReservationForPaymentFailure({
           attemptId: attempt.id,
           now,

@@ -378,6 +378,53 @@ class CheckoutRepositoryStub {
 }
 
 describe("CheckoutService", () => {
+  it("delegates payment creation to configured executor", async () => {
+    const repository = new CheckoutRepositoryStub();
+    let executorCalls = 0;
+    const service = new CheckoutService({
+      paymentExecutor: async (input) => {
+        executorCalls += 1;
+        return Result.okay({
+          attempt: { attemptId: input.attemptId, status: "PAYMENT_CREATED" },
+          handoff: {
+            checkoutUrl: "https://checkout.paymongo.com/cs_executor",
+            redirectMethod: "browser",
+          },
+          next: {
+            orderCreated: false,
+            receiptAvailable: false,
+            webhookRequired: true,
+          },
+          payment: {
+            amountCentavos: 3998,
+            currency: "PHP",
+            paymentId: "payment_executor",
+            provider: "PAYMONGO",
+            providerCheckoutSessionId: "cs_executor",
+            status: "PAYMENT_PENDING",
+          },
+          reservation: {
+            expiresAt: "2026-06-20T10:15:00.000Z",
+            reservationId: "reservation_executor",
+            status: "ACTIVE",
+          },
+        });
+      },
+      repository,
+    });
+
+    const result = await service.createPayment({
+      actor: { authenticated: false, role: "PROSPECT" },
+      attemptId: "attempt_executor",
+      body: { attemptToken: "attempt_token_executor" },
+      requestId: "req_executor",
+    });
+
+    expect(executorCalls).toBe(1);
+    expect(result.content?.payment.paymentId).toBe("payment_executor");
+    expect(repository.calls).toBe(0);
+  });
+
   it("returns a validated cart summary without payment or reservation collaborators", async () => {
     const repository = new CheckoutRepositoryStub();
     const service = new CheckoutService({ repository });

@@ -753,6 +753,75 @@ describe("CheckoutRepository", { timeout: 60_000 }, () => {
     }
   });
 
+  it("rolls back payment and attempt transition when payment item insert fails", async () => {
+    const { d1, mf } = await createCheckoutTestD1();
+
+    try {
+      const repository = new DrizzleCheckoutRepository(createDb(d1));
+      const attempt = await repository.createCheckoutAttempt({
+        attemptTokenHash: "hashed_attempt_token",
+        customerId: null,
+        details: checkoutDetails(),
+        now,
+        requestId: "req_checkout_attempt_guest",
+      });
+      const reservation = await repository.createCheckoutReservation({
+        attemptId: attempt.id,
+        cartFingerprint: "prod_linen:variant_linen_small:1999:1:1999",
+        expiresAt: "2026-06-12T08:15:00.000Z",
+        lines: [
+          {
+            mode: "STOCK",
+            priceCentavos: 1999,
+            productId: "prod_linen",
+            quantity: 1,
+            variantId: "variant_linen_small",
+          },
+        ],
+        now,
+        requestId: "req_checkout_reservation",
+        subtotalCentavos: 1999,
+      });
+
+      await expect(
+        repository.createCheckoutPayment({
+          amountCentavos: 1999,
+          attemptId: attempt.id,
+          checkoutUrl: "https://checkout.paymongo.com/cs_atomic_failure",
+          currency: "PHP",
+          items: [
+            {
+              amountCentavos: 1999,
+              currency: "PHP",
+              name: null as unknown as string,
+              productId: "prod_linen",
+              quantity: 1,
+              variantId: "variant_linen_small",
+            },
+          ],
+          livemode: false,
+          now,
+          providerCheckoutSessionId: "cs_atomic_failure",
+          providerReferenceNumber: "JRW-atomic-failure",
+          requestId: "req_checkout_payment",
+          reservationId: reservation.id,
+        })
+      ).rejects.toThrow();
+
+      const paymentCount = await d1
+        .prepare("SELECT COUNT(*) AS count FROM checkout_payments")
+        .first<{ count: number }>();
+
+      expect(paymentCount?.count).toBe(0);
+      await expect(repository.findCheckoutAttempt(attempt.id)).resolves.toMatchObject({
+        reservationId: reservation.id,
+        status: "INVENTORY_RESERVED",
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
   it("reuses existing pending payment for same checkout attempt", async () => {
     const { d1, mf } = await createCheckoutTestD1();
 
@@ -875,6 +944,86 @@ describe("CheckoutRepository", { timeout: 60_000 }, () => {
       expect(updatedAttempt).toMatchObject({
         reservationId: null,
         status: "PAYMENT_CREATION_FAILED",
+      });
+    } finally {
+      await mf.dispose();
+    }
+  });
+
+  it("keeps active reservation and stock held when pending payment exists", async () => {
+    const { d1, mf } = await createCheckoutTestD1();
+
+    try {
+      const repository = new DrizzleCheckoutRepository(createDb(d1));
+      const attempt = await repository.createCheckoutAttempt({
+        attemptTokenHash: "hashed_attempt_token",
+        customerId: null,
+        details: checkoutDetails(),
+        now,
+        requestId: "req_checkout_attempt_guest",
+      });
+      const reservation = await repository.reserveStockAndCreateCheckoutReservation({
+        attemptId: attempt.id,
+        cartFingerprint: "prod_linen:variant_linen_small:1999:2:3998",
+        expiresAt: "2026-06-12T08:15:00.000Z",
+        lines: [
+          {
+            mode: "STOCK",
+            priceCentavos: 1999,
+            productId: "prod_linen",
+            quantity: 2,
+            variantId: "variant_linen_small",
+          },
+        ],
+        now,
+        requestId: "req_checkout_reservation",
+        subtotalCentavos: 3998,
+      });
+
+      await repository.createCheckoutPayment({
+        amountCentavos: 3998,
+        attemptId: attempt.id,
+        checkoutUrl: "https://checkout.paymongo.com/cs_pending_guard",
+        currency: "PHP",
+        items: [
+          {
+            amountCentavos: 1999,
+            currency: "PHP",
+            name: "Linen Shirt - Size: Small",
+            productId: "prod_linen",
+            quantity: 2,
+            variantId: "variant_linen_small",
+          },
+        ],
+        livemode: false,
+        now,
+        providerCheckoutSessionId: "cs_pending_guard",
+        providerReferenceNumber: "JRW-pending-guard",
+        requestId: "req_checkout_payment",
+        reservationId: reservation!.id,
+      });
+
+      await repository.releaseCheckoutReservationForPaymentFailure({
+        attemptId: attempt.id,
+        now,
+        requestId: "req_losing_payment_request",
+        reservationId: reservation!.id,
+      });
+
+      const variant = await d1
+        .prepare("SELECT stock FROM product_variants WHERE id = ?")
+        .bind("variant_linen_small")
+        .first<Record<string, unknown>>();
+      const reservationRow = await d1
+        .prepare("SELECT status FROM checkout_reservations WHERE id = ?")
+        .bind(reservation!.id)
+        .first<Record<string, unknown>>();
+
+      expect(variant).toEqual({ stock: 1 });
+      expect(reservationRow).toEqual({ status: "ACTIVE" });
+      await expect(repository.findCheckoutAttempt(attempt.id)).resolves.toMatchObject({
+        reservationId: reservation!.id,
+        status: "PAYMENT_CREATED",
       });
     } finally {
       await mf.dispose();

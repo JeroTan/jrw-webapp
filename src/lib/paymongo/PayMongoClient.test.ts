@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { PayMongoClient } from "./PayMongoClient";
 
 const checkoutPayload = {
@@ -72,7 +72,7 @@ describe("PayMongoClient", () => {
     });
   });
 
-  it("uses local proxy endpoint without sending backend Basic auth", async () => {
+  it("always uses backend endpoint and Basic auth", async () => {
     let capturedUrl = "";
     let capturedAuth: unknown = "not-called";
     const client = new PayMongoClient({
@@ -95,8 +95,6 @@ describe("PayMongoClient", () => {
           { status: 200 }
         );
       },
-      proxyEndpoint:
-        "http://localhost:7777/__jrw-dev/paymongo/checkout-sessions",
       secretKey: "sk_test_secret_123",
     });
 
@@ -104,10 +102,52 @@ describe("PayMongoClient", () => {
 
     expect(result.error).toBeNull();
     expect(capturedUrl).toBe(
-      "http://localhost:7777/__jrw-dev/paymongo/checkout-sessions"
+      "https://api.paymongo.com/v2/checkout_sessions"
     );
-    expect(capturedAuth).toBeUndefined();
+    expect(capturedAuth).toBe(`Basic ${btoa("sk_test_secret_123:")}`);
     expect(result.content?.providerCheckoutSessionId).toBe("cs_test_proxy_123");
+  });
+
+  it("wraps default global fetch for Workers-compatible invocation", async () => {
+    const originalFetch = globalThis.fetch;
+    let fetchThis: unknown;
+
+    vi.stubGlobal("fetch", function (this: unknown) {
+      fetchThis = this;
+
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: {
+              id: "cs_test_global_fetch",
+              type: "checkout_session",
+              attributes: {
+                checkout_url:
+                  "https://checkout.paymongo.com/cs_test_global_fetch",
+                livemode: false,
+              },
+            },
+          }),
+          { status: 200 }
+        )
+      );
+    } as typeof fetch);
+
+    try {
+      const client = new PayMongoClient({
+        secretKey: "sk_test_secret_123",
+      });
+
+      const result = await client.createCheckoutSession(checkoutPayload);
+
+      expect(result.error).toBeNull();
+      expect(fetchThis).not.toBe(client);
+      expect(result.content?.providerCheckoutSessionId).toBe(
+        "cs_test_global_fetch"
+      );
+    } finally {
+      vi.stubGlobal("fetch", originalFetch);
+    }
   });
 
   it("trims matching quote wrappers from env-style secret values", async () => {
@@ -185,5 +225,30 @@ describe("PayMongoClient", () => {
     const result = await client.createCheckoutSession(checkoutPayload);
 
     expect(result.error?.code).toBe("PROVIDER_UNAVAILABLE");
+  });
+
+  it("rejects untrusted checkout URLs before persistence or redirect", async () => {
+    const client = new PayMongoClient({
+      fetcher: async () =>
+        new Response(
+          JSON.stringify({
+            data: {
+              id: "cs_bad",
+              attributes: {
+                checkout_url: "https://evil.example/cs_bad",
+                livemode: false,
+                status: "active",
+              },
+            },
+          }),
+          { status: 200 }
+        ),
+      secretKey: "sk_test_secret_123",
+    });
+
+    const result = await client.createCheckoutSession(checkoutPayload);
+
+    expect(result.error?.code).toBe("PROVIDER_UNAVAILABLE");
+    expect(result.content).toBeNull();
   });
 });

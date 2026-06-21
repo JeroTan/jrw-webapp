@@ -11,9 +11,13 @@ import { routeDetail } from "@/server/openapi/route-metadata";
 import { createCheckoutRepositories } from "@/server/repositories/CheckoutRepository";
 import {
   CheckoutService,
+  type CheckoutPaymentExecutor,
+  type CheckoutPaymentResult,
   type CheckoutPaymentServiceInput,
   type CheckoutReservationServiceInput,
 } from "@/server/services/CheckoutService";
+import type { OperationalLogger } from "@/adapter/infrastructure/logging/operational-log";
+import { isTrustedPayMongoCheckoutUrl } from "@/domain/payments/paymongo-checkout";
 import { PayMongoClient } from "@/lib/paymongo/PayMongoClient";
 import { GeneralError, type ErrorCodeType } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
@@ -30,6 +34,7 @@ export type CheckoutRoutesOptions = {
   controllerFactory?: (
     input: CheckoutControllerFactoryInput
   ) => CheckoutController;
+  operationalLogger?: OperationalLogger;
 };
 
 const tboxCheckoutVariantOption = t.Object({
@@ -252,8 +257,19 @@ const tboxCheckoutPaymentData = t.Object({
 });
 
 type InventoryDurableObjectEnvelope =
-  | { data: CheckoutReservationResponse }
+  | { data: CheckoutPaymentResult | CheckoutReservationResponse }
   | { error: { code: ErrorCodeType; details?: unknown } };
+
+type CheckoutPaymentDurableObjectRuntimeConfig = {
+  appBaseUrl: string;
+  paymentMethods?: string;
+  secretKey?: string;
+  sendEmailReceipt?: boolean;
+};
+
+type CheckoutPaymentDurableObjectRequest = CheckoutPaymentServiceInput & {
+  runtimePaymentConfig?: CheckoutPaymentDurableObjectRuntimeConfig;
+};
 
 function isInventoryDurableObjectEnvelope(
   value: unknown
@@ -294,6 +310,42 @@ function isCheckoutReservationResponse(
   );
 }
 
+function isCheckoutPaymentResult(value: unknown): value is CheckoutPaymentResult {
+  if (!isRecord(value)) return false;
+
+  const attempt = value.attempt;
+  const handoff = value.handoff;
+  const next = value.next;
+  const payment = value.payment;
+  const reservation = value.reservation;
+
+  return (
+    isRecord(attempt) &&
+    isRecord(handoff) &&
+    isRecord(next) &&
+    isRecord(payment) &&
+    isRecord(reservation) &&
+    typeof attempt.attemptId === "string" &&
+    attempt.status === "PAYMENT_CREATED" &&
+    isTrustedPayMongoCheckoutUrl(handoff.checkoutUrl) &&
+    handoff.redirectMethod === "browser" &&
+    next.orderCreated === false &&
+    next.receiptAvailable === false &&
+    next.webhookRequired === true &&
+    typeof payment.amountCentavos === "number" &&
+    Number.isSafeInteger(payment.amountCentavos) &&
+    payment.amountCentavos > 0 &&
+    payment.currency === "PHP" &&
+    typeof payment.paymentId === "string" &&
+    payment.provider === "PAYMONGO" &&
+    typeof payment.providerCheckoutSessionId === "string" &&
+    payment.status === "PAYMENT_PENDING" &&
+    typeof reservation.expiresAt === "string" &&
+    typeof reservation.reservationId === "string" &&
+    reservation.status === "ACTIVE"
+  );
+}
+
 function createInventoryReservationExecutor(
   namespace: DurableObjectNamespace | undefined
 ):
@@ -326,6 +378,64 @@ function createInventoryReservationExecutor(
         "data" in body &&
         response.ok &&
         isCheckoutReservationResponse(body.data)
+      ) {
+        return Result.okay(body.data);
+      }
+
+      if (
+        "error" in body &&
+        isRecord(body.error) &&
+        typeof body.error.code === "string"
+      ) {
+        return Result.error(
+          new GeneralError(
+            "details" in body.error ? (body.error.details ?? {}) : {},
+            body.error.code as ErrorCodeType
+          )
+        );
+      }
+
+      return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+    } catch {
+      return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+    }
+  };
+}
+
+export function createCheckoutPaymentExecutor(
+  namespace: DurableObjectNamespace | undefined,
+  runtimePaymentConfig?: CheckoutPaymentDurableObjectRuntimeConfig
+): CheckoutPaymentExecutor | undefined {
+  if (!namespace) {
+    return undefined;
+  }
+
+  return async (input) => {
+    try {
+      const id = namespace.idFromName("checkout-inventory");
+      const stub = namespace.get(id);
+      const durableObjectRequest: CheckoutPaymentDurableObjectRequest = {
+        ...input,
+        runtimePaymentConfig,
+      };
+      const response = await stub.fetch(
+        new Request("https://inventory-reservation.internal/payments", {
+          body: JSON.stringify(durableObjectRequest),
+          headers: { "Content-Type": "application/json" },
+          method: "POST",
+        })
+      );
+      const body = (await response.json()) as unknown;
+
+      if (!isInventoryDurableObjectEnvelope(body)) {
+        return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+      }
+
+      if (
+        "data" in body &&
+        response.ok &&
+        isCheckoutPaymentResult(body.data) &&
+        body.data.attempt.attemptId === input.attemptId
       ) {
         return Result.okay(body.data);
       }
@@ -391,34 +501,26 @@ function shouldUseInventoryDurableObject() {
   return process.env.JRW_USE_INVENTORY_DURABLE_OBJECT !== "false";
 }
 
-const PAYMONGO_DEV_PROXY_PATH = "/__jrw-dev/paymongo/checkout-sessions";
-
-function isLocalhostName(hostname: string) {
-  return (
-    hostname === "localhost" ||
-    hostname === "127.0.0.1" ||
-    hostname === "::1" ||
-    hostname === "[::1]"
-  );
-}
-
-function payMongoProxyEndpoint(
-  request: Request,
-  env: (Partial<Env> & Record<string, unknown>) | undefined
-) {
-  if (stringEnv(env, "PAYMONGO_DEV_PROXY_DISABLED") === "true") {
-    return undefined;
-  }
-
-  const url = new URL(request.url);
-
-  return isLocalhostName(url.hostname)
-    ? new URL(PAYMONGO_DEV_PROXY_PATH, url.origin).toString()
-    : undefined;
+function createCheckoutPaymentRuntimeConfig(
+  input: CheckoutControllerFactoryInput
+): CheckoutPaymentDurableObjectRuntimeConfig {
+  return {
+    appBaseUrl:
+      stringEnv(input.runtimeEnv, "APP_BASE_URL") ??
+      stringEnv(input.runtimeEnv, "PUBLIC_APP_BASE_URL") ??
+      new URL(input.request.url).origin,
+    paymentMethods: stringEnv(input.runtimeEnv, "PAYMONGO_PAYMENT_METHODS"),
+    secretKey: stringEnv(input.runtimeEnv, "PAYMONGO_SECRET_KEY"),
+    sendEmailReceipt: booleanEnv(
+      input.runtimeEnv,
+      "PAYMONGO_SEND_EMAIL_RECEIPT"
+    ),
+  };
 }
 
 function createRuntimeController(
-  input: CheckoutControllerFactoryInput
+  input: CheckoutControllerFactoryInput,
+  options: CheckoutRoutesOptions
 ): CheckoutController {
   const db = input.runtimeEnv?.DB;
 
@@ -430,6 +532,7 @@ function createRuntimeController(
   }
 
   const repositories = createCheckoutRepositories(db as D1Database);
+  const runtimePaymentConfig = createCheckoutPaymentRuntimeConfig(input);
   const reservationExecutor = shouldUseInventoryDurableObject()
     ? createInventoryReservationExecutor(
         input.runtimeEnv?.INVENTORY_DURABLE_OBJECT as
@@ -437,24 +540,27 @@ function createRuntimeController(
           | undefined
       )
     : undefined;
+  const paymentExecutor = shouldUseInventoryDurableObject()
+    ? createCheckoutPaymentExecutor(
+        input.runtimeEnv?.INVENTORY_DURABLE_OBJECT as
+          | DurableObjectNamespace
+          | undefined,
+        runtimePaymentConfig
+      )
+    : undefined;
   const service = new CheckoutService({
     ...repositories,
-    payMongoClient: stringEnv(input.runtimeEnv, "PAYMONGO_SECRET_KEY")
+    operationalLogger: options.operationalLogger,
+    paymentExecutor,
+    payMongoClient: runtimePaymentConfig.secretKey
       ? new PayMongoClient({
-          secretKey: stringEnv(input.runtimeEnv, "PAYMONGO_SECRET_KEY")!,
-          proxyEndpoint: payMongoProxyEndpoint(input.request, input.runtimeEnv),
+          secretKey: runtimePaymentConfig.secretKey,
         })
       : undefined,
     paymentConfig: {
-      appBaseUrl:
-        stringEnv(input.runtimeEnv, "APP_BASE_URL") ??
-        stringEnv(input.runtimeEnv, "PUBLIC_APP_BASE_URL") ??
-        new URL(input.request.url).origin,
-      paymentMethods: stringEnv(input.runtimeEnv, "PAYMONGO_PAYMENT_METHODS"),
-      sendEmailReceipt: booleanEnv(
-        input.runtimeEnv,
-        "PAYMONGO_SEND_EMAIL_RECEIPT"
-      ),
+      appBaseUrl: runtimePaymentConfig.appBaseUrl,
+      paymentMethods: runtimePaymentConfig.paymentMethods,
+      sendEmailReceipt: runtimePaymentConfig.sendEmailReceipt,
     },
     reservationExecutor,
   });
@@ -466,7 +572,9 @@ function getController(
   input: CheckoutControllerFactoryInput,
   options: CheckoutRoutesOptions
 ): CheckoutController {
-  return options.controllerFactory?.(input) ?? createRuntimeController(input);
+  return (
+    options.controllerFactory?.(input) ?? createRuntimeController(input, options)
+  );
 }
 
 const checkoutAuth = {

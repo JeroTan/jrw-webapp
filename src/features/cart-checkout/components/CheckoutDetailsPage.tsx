@@ -4,8 +4,6 @@ import { Button, ButtonLink, Checkbox, InputBox } from "@/components/ui";
 import { validateCheckoutContactDetails } from "@/domain/checkout/contact-delivery";
 import type { CartState } from "@/domain/checkout/cart";
 import {
-  canUseLocalPayMongoCheckoutProxy,
-  createLocalPayMongoCheckoutHandoff,
   createPayMongoPaymentHandoff,
   fetchCurrentCustomerProfile,
   fetchCustomerCheckoutSession,
@@ -15,6 +13,7 @@ import {
   type CheckoutDetailsFormValues,
   type CustomerProfileSummary,
 } from "../api";
+import { isTrustedPayMongoCheckoutUrl } from "@/domain/payments/paymongo-checkout";
 import {
   applyCheckoutValidationSummaryToStore,
   getCartSnapshot,
@@ -415,7 +414,12 @@ export function redirectToPayMongoCheckout(
   checkoutUrl: string,
   location: Pick<Location, "assign"> = window.location
 ) {
+  if (!isTrustedPayMongoCheckoutUrl(checkoutUrl)) {
+    return false;
+  }
+
   location.assign(checkoutUrl);
+  return true;
 }
 
 export function CheckoutDetailsPage() {
@@ -558,11 +562,19 @@ export function CheckoutDetailsPage() {
   }, []);
 
   const redirectToPayMongo = React.useCallback((checkoutUrl: string) => {
+    if (!isTrustedPayMongoCheckoutUrl(checkoutUrl)) {
+      setPaymentHandoffUrl(null);
+      setDetailsStatus("idle");
+      setFormMessage("Payment service returned an invalid checkout link. Try again.");
+      focusFormSummary();
+      return;
+    }
+
     setPaymentHandoffUrl(checkoutUrl);
     setDetailsStatus("reserved");
     setFormMessage(null);
     redirectToPayMongoCheckout(checkoutUrl);
-  }, []);
+  }, [focusFormSummary]);
 
   const handleContinueToPayment = React.useCallback(async () => {
     const validation = validateCheckoutContactDetails(detailsValues);
@@ -628,22 +640,6 @@ export function CheckoutDetailsPage() {
         validationResult.state
       );
       setDetailsStatus("creating-payment");
-
-      if (canUseLocalPayMongoCheckoutProxy()) {
-        const localPaymentResult = await createLocalPayMongoCheckoutHandoff({
-          attemptId: result.attempt.attemptId,
-          reservation: {
-            expiresAt: reservationResult.reservation.expiresAt,
-            reservationId: reservationResult.reservation.reservationId,
-          },
-          state: validationResult.state,
-        });
-
-        if (localPaymentResult.kind === "handoff") {
-          redirectToPayMongo(localPaymentResult.checkoutUrl);
-          return;
-        }
-      }
 
       const paymentResult = await createPayMongoPaymentHandoff({
         attemptId: result.attempt.attemptId,

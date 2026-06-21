@@ -86,6 +86,26 @@ function cleanString(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
 }
 
+export function isTrustedPayMongoCheckoutUrl(value: unknown): value is string {
+  if (typeof value !== "string") {
+    return false;
+  }
+
+  try {
+    const url = new URL(value);
+
+    return (
+      url.protocol === "https:" &&
+      url.hostname === "checkout.paymongo.com" &&
+      url.port === "" &&
+      url.username === "" &&
+      url.password === ""
+    );
+  } catch {
+    return false;
+  }
+}
+
 function safeLineItemName(item: CheckoutPaymentReservationItem): string {
   const explicitName = cleanString(item.name);
 
@@ -146,15 +166,27 @@ export function buildPayMongoReturnUrls(input: { appBaseUrl: string }) {
 export function buildPayMongoCheckoutSessionPayload(
   input: BuildPayMongoCheckoutSessionPayloadInput
 ): PayMongoCheckoutSessionPayload {
+  if (
+    input.reservation.items.some(
+      (item) =>
+        !Number.isSafeInteger(item.priceCentavos) ||
+        item.priceCentavos < 0 ||
+        !Number.isSafeInteger(item.quantity) ||
+        item.quantity < 1
+    )
+  ) {
+    throw new Error("INVALID_PAYMONGO_LINE_ITEM");
+  }
+
   return {
     data: {
       attributes: {
         cancel_url: input.cancelUrl,
         line_items: input.reservation.items.map((item) => ({
-          amount: Math.max(0, Math.round(item.priceCentavos)),
+          amount: item.priceCentavos,
           currency: input.currency ?? "PHP",
           name: safeLineItemName(item),
-          quantity: Math.max(1, Math.round(item.quantity)),
+          quantity: item.quantity,
         })),
         metadata: metadataStringMap(input.metadata),
         payment_method_types: normalizePayMongoPaymentMethods(
