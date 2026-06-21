@@ -1,0 +1,21 @@
+---
+import { StorefrontPlaceholder } from "@/features/storefront-shell";
+import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+---
+
+<StorefrontLayout
+  title="Orders | JRW"
+  description="Customer order history will appear here in the order-history story."
+  mainAriaLabel="Customer orders"
+>
+  <StorefrontPlaceholder
+    copy="Order history will connect here after the account order-status story. For now, manage your profile or continue browsing."
+    kicker="Account"
+    links={[
+      { href: "/account/profile", label: "Back to profile" },
+      { href: "/products", label: "Browse products" },
+    ]}
+    title="Orders connect here next"
+    titleId="account-orders-placeholder-title"
+  />
+</StorefrontLayout>

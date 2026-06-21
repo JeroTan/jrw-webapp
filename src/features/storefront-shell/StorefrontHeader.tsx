@@ -1,97 +1,41 @@
 import * as React from "react";
-import { storefrontNavLinks } from "./data";
-import { NavButton } from "./components/Navigation/Navbutton";
-import { ButtonLink } from "@/components/ui/ButtonLink";
+import { useEffect, useState } from "react";
+
+import { getCustomerSession } from "@/features/customer-account";
 import CartAction from "./components/Navigation/CartAction";
 import SearchForm from "./components/Navigation/SearchForm";
+import { StorefrontAuthNav } from "./components/Navigation/StorefrontAuthNav";
+import { StorefrontNav } from "./components/Navigation/StorefrontNav";
+import { StorefrontPublicNav } from "./components/Navigation/StorefrontPublicNav";
 
-const NAV_MATCH_BASE = "https://jrw.local";
+type HeaderAccountState = "public" | "authenticated";
 
-function parseRoute(route: string) {
-  const parsed = new URL(route, NAV_MATCH_BASE);
-  const pathname =
-    parsed.pathname.length > 1 ? parsed.pathname.replace(/\/$/, "") : "/";
+function useHeaderAccountState() {
+  const [accountState, setAccountState] =
+    useState<HeaderAccountState>("public");
 
-  return {
-    pathname,
-    searchParams: parsed.searchParams,
-  };
-}
+  useEffect(() => {
+    let mounted = true;
 
-function getActiveNavHref(currentUrl: string) {
-  const currentRoute = parseRoute(currentUrl);
+    getCustomerSession()
+      .then((session) => {
+        if (!mounted) return;
+        setAccountState(
+          session.authenticated && session.actor?.role === "CUSTOMER"
+            ? "authenticated"
+            : "public"
+        );
+      })
+      .catch(() => {
+        if (mounted) setAccountState("public");
+      });
 
-  if (
-    currentRoute.pathname === "/products" &&
-    currentRoute.searchParams.get("view") === "categories"
-  ) {
-    return "/categories";
-  }
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
-  if (
-    currentRoute.pathname === "/products" &&
-    currentRoute.searchParams.get("sort") === "new"
-  ) {
-    return "/products?sort=new";
-  }
-
-  if (
-    currentRoute.pathname === "/categories" ||
-    currentRoute.pathname.startsWith("/categories/")
-  ) {
-    return "/categories";
-  }
-
-  if (
-    currentRoute.pathname === "/brands" ||
-    currentRoute.pathname.startsWith("/brands/")
-  ) {
-    return "/brands";
-  }
-
-  if (
-    currentRoute.pathname === "/products" ||
-    currentRoute.pathname.startsWith("/products/")
-  ) {
-    return "/products";
-  }
-
-  return undefined;
-}
-
-function StorefrontNav({
-  currentUrl = "/",
-  mobile = false,
-}: {
-  currentUrl?: string;
-  mobile?: boolean;
-}) {
-  const activeNavHref = getActiveNavHref(currentUrl);
-
-  return (
-    <nav aria-label="Storefront navigation" className={"h-full"}>
-      <ul
-        className={`xl:h-full md:h-14 h-full list-none ${
-          mobile
-            ? "grid m-0 p-0"
-            : "flex xl:justify-start md:justify-end md:flex-nowrap flex-wrap md:overflow-x-auto "
-        }`}
-      >
-        {storefrontNavLinks.map((link, index) => (
-          <li className="xl:basis-auto basis-full h-full" key={link.href}>
-            <NavButton
-              active={link.href === activeNavHref}
-              href={link.href}
-              singleBorder={index !== storefrontNavLinks.length - 1}
-              dividerDirection={mobile ? "horizontal" : "vertical"}
-            >
-              {link.label}
-            </NavButton>
-          </li>
-        ))}
-      </ul>
-    </nav>
-  );
+  return accountState;
 }
 
 export function StorefrontHeader({
@@ -99,6 +43,14 @@ export function StorefrontHeader({
 }: {
   currentUrl?: string;
 }) {
+  const accountState = useHeaderAccountState();
+  const accountNav = () =>
+    accountState === "authenticated" ? (
+      <StorefrontAuthNav />
+    ) : (
+      <StorefrontPublicNav />
+    );
+
   return (
     <header
       className="border-b border-brand-border-strong bg-brand-surface"
@@ -134,9 +86,7 @@ export function StorefrontHeader({
 
         <div className="xl:my-0 my-2 flex items-center justify-self-end gap-grid-xs">
           <CartAction />
-          <ButtonLink href="/account" size="md" textSize="xs" paddingX="xs">
-            SIGN IN
-          </ButtonLink>
+          <div className="hidden md:block">{accountNav()}</div>
           <details className="md:hidden  group relative">
             <summary className="inline-flex min-h-control-md min-w-control-md list-none items-center justify-center gap-1.5 border border-brand-border-strong px-grid-xs font-system text-xs font-bold uppercase marker:hidden group-open:border-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent max-[374px]:px-1.5 max-[374px]:text-[0.6875rem] [&::-webkit-details-marker]:hidden">
               <span>Menu</span>
@@ -150,6 +100,7 @@ export function StorefrontHeader({
 
             <div className="absolute right-0 top-[calc(100%+8px)] z-30 grid w-[min(92vw,380px)] gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm">
               <SearchForm id="storefront-mobile-search" />
+              {accountNav()}
               <StorefrontNav currentUrl={currentUrl} mobile />
             </div>
           </details>

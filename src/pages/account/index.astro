@@ -1,21 +1,12 @@
 ---
-import { StorefrontPlaceholder } from "@/features/storefront-shell";
+import { AccountLanding } from "@/features/customer-account";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
 ---
 
 <StorefrontLayout
   title="Account | JRW"
-  description="Sign in or create account to continue checkout."
-  mainAriaLabel="Account placeholder"
+  description="Sign in or create a JRW customer account for profile reuse and future order history."
+  mainAriaLabel="Customer account"
 >
-  <StorefrontPlaceholder
-    copy="Browse JRW now, then return here when you need sign-in or account details."
-    kicker="Account"
-    links={[
-      { href: "/", label: "Back to storefront home" },
-      { href: "/products", label: "Browse products" },
-    ]}
-    title="Account access opens here"
-    titleId="account-placeholder-title"
-  />
+  <AccountLanding client:load />
 </StorefrontLayout>

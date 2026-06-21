@@ -1,0 +1,14 @@
+---
+import { CustomerSignInPanel } from "@/features/customer-account";
+import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+
+const returnTo = Astro.url.searchParams.get("returnTo") ?? undefined;
+---
+
+<StorefrontLayout
+  title="Sign in | JRW"
+  description="Sign in to your JRW customer account."
+  mainAriaLabel="Customer sign in"
+>
+  <CustomerSignInPanel client:load returnTo={returnTo} />
+</StorefrontLayout>

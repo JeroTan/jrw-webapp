@@ -1,5 +1,5 @@
 # generated: 2026-05-12T08:38:32+08:00
-# last_updated: 2026-06-21T11:47:47+08:00
+# last_updated: 2026-06-21T13:06:02+08:00
 # project: jrw-webapp
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-12T08:38:32+08:00"
-last_updated: "2026-06-21T11:47:47+08:00"
+last_updated: "2026-06-21T13:06:02+08:00"
 project: jrw-webapp
 project_key: NOKEY
 tracking_system: file-system
@@ -94,7 +94,7 @@ development_status:
   4-10-future-story-ui-fidelity-gate: done
   # Product detail correction from 2026-05-26 direct-adjustment request. Run before checkout validation/payment expansion.
   4-11-product-detail-composition-content-and-recommendations: done
-  4-12-customer-account-auth-pages-profile-and-nav: ready-for-dev
+  4-12-customer-account-auth-pages-profile-and-nav: review
   epic-4-retrospective: done
   epic-5: in-progress
   5-1-checkout-identity-contact-and-delivery-validation: done

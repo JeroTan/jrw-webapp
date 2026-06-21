@@ -6,5 +6,9 @@ declare namespace App {
       id: string;
       role: "ADMIN" | "SUPER_ADMIN";
     };
+    customerActor?: {
+      id: string;
+      role: "CUSTOMER";
+    };
   }
 }

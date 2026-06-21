@@ -1,6 +1,6 @@
 # Story 4.12: Customer Account Auth Pages, Profile, and Storefront Auth Navigation
 
-Status: ready-for-dev
+Status: review
 
 <!-- Correct-course follow-up from sprint-change-proposal-2026-06-21-customer-account-pages.md. -->
 
@@ -29,58 +29,58 @@ so that I can access JRW account benefits without using raw API routes and witho
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Confirm current Customer contracts and reuse them without new account semantics. (AC: 1-7, 13-14)
-  - [ ] Inspect Customer sign-in, session, sign-out, registration, profile, Google OAuth, recovery, and verification routes before coding.
-  - [ ] Reuse existing Customer session inspection, sign-in, sign-out, registration, and profile read/update endpoints.
-  - [ ] Do not use Admin auth routes, Admin repositories, Admin cookies, or any Admin/Super Admin account state in Customer UI.
-  - [ ] Preserve identity-realm separation: Customer UI uses Customer session state only.
+- [x] Task 1: Confirm current Customer contracts and reuse them without new account semantics. (AC: 1-7, 13-14)
+  - [x] Inspect Customer sign-in, session, sign-out, registration, profile, Google OAuth, recovery, and verification routes before coding.
+  - [x] Reuse existing Customer session inspection, sign-in, sign-out, registration, and profile read/update endpoints.
+  - [x] Do not use Admin auth routes, Admin repositories, Admin cookies, or any Admin/Super Admin account state in Customer UI.
+  - [x] Preserve identity-realm separation: Customer UI uses Customer session state only.
 
-- [ ] Task 2: Replace the placeholder account page with real account routes. (AC: 1-7, 14)
-  - [ ] Replace `src/pages/account/index.astro` placeholder with an account landing/router that sends authenticated Customers to `/account/profile` and unauthenticated visitors to sign-in/register choices.
-  - [ ] Add `src/pages/account/sign-in.astro`.
-  - [ ] Add `src/pages/account/register.astro`.
-  - [ ] Add `src/pages/account/profile.astro`.
-  - [ ] Include customer password reset and email verification result pages only if implementation can safely reuse existing behavior without expanding scope; otherwise document them as follow-up.
-  - [ ] All account pages must use storefront/account layout, not admin dashboard shell.
+- [x] Task 2: Replace the placeholder account page with real account routes. (AC: 1-7, 14)
+  - [x] Replace `src/pages/account/index.astro` placeholder with an account landing/router that sends authenticated Customers to `/account/profile` and unauthenticated visitors to sign-in/register choices.
+  - [x] Add `src/pages/account/sign-in.astro`.
+  - [x] Add `src/pages/account/register.astro`.
+  - [x] Add `src/pages/account/profile.astro`.
+  - [x] Include customer password reset and email verification result pages only if implementation can safely reuse existing behavior without expanding scope; otherwise document them as follow-up.
+  - [x] All account pages must use storefront/account layout, not admin dashboard shell.
 
-- [ ] Task 3: Build `src/features/customer-account/**` UI and client boundary. (AC: 1-5, 13-14)
-  - [ ] Add customer-account client helpers for session inspection, sign-in, sign-out, registration, profile read, and profile update.
-  - [ ] Add `CustomerSignInPanel` with email/password sign-in, Google OAuth start action, safe error messages, pending state, and safe `returnTo` handling.
-  - [ ] Add `CustomerRegisterPanel` with registration fields, privacy/verification copy, and safe success state.
-  - [ ] Add `CustomerProfilePanel` with editable allowed fields only: display name, name fields, phone, delivery/contact fields, and email marketing preference.
-  - [ ] Add account loading, empty, success, and error states using shared JRW primitives and Tailwind tokens.
+- [x] Task 3: Build `src/features/customer-account/**` UI and client boundary. (AC: 1-5, 13-14)
+  - [x] Add customer-account client helpers for session inspection, sign-in, sign-out, registration, profile read, and profile update.
+  - [x] Add `CustomerSignInPanel` with email/password sign-in, Google OAuth start action, safe error messages, pending state, and safe `returnTo` handling.
+  - [x] Add `CustomerRegisterPanel` with registration fields, privacy/verification copy, and safe success state.
+  - [x] Add `CustomerProfilePanel` with editable allowed fields only: display name, name fields, phone, delivery/contact fields, and email marketing preference.
+  - [x] Add account loading, empty, success, and error states using shared JRW primitives and Tailwind tokens.
 
-- [ ] Task 4: Add Customer page guard / middleware behavior. (AC: 6-7, 14)
-  - [ ] Add server-side or Astro middleware/page guard for protected Customer pages such as `/account/profile` and future `/account/orders/**`.
-  - [ ] Unauthenticated protected-page requests redirect before protected UI renders to `/account/sign-in?returnTo=<safe-relative-path>`.
-  - [ ] Authenticated Customers visiting `/account/sign-in` or `/account/register` redirect to `/account/profile` or safe `returnTo`.
-  - [ ] Reject unsafe `returnTo` values: absolute URLs, protocol-relative URLs, control characters, admin routes, API routes, and external origins.
-  - [ ] Keep guest checkout pages out of this guard; checkout must not become account-gated.
+- [x] Task 4: Add Customer page guard / middleware behavior. (AC: 6-7, 14)
+  - [x] Add server-side or Astro middleware/page guard for protected Customer pages such as `/account/profile` and future `/account/orders/**`.
+  - [x] Unauthenticated protected-page requests redirect before protected UI renders to `/account/sign-in?returnTo=<safe-relative-path>`.
+  - [x] Authenticated Customers visiting `/account/sign-in` or `/account/register` redirect to `/account/profile` or safe `returnTo`.
+  - [x] Reject unsafe `returnTo` values: absolute URLs, protocol-relative URLs, control characters, admin routes, API routes, and external origins.
+  - [x] Keep guest checkout pages out of this guard; checkout must not become account-gated.
 
-- [ ] Task 5: Refactor storefront header authenticated/public navigation. (AC: 8-12, 14)
-  - [ ] Keep `src/features/storefront-shell/StorefrontHeader.tsx` as the session-aware orchestrator. It owns high-level header layout, logo, search, cart composition, current URL/active nav wiring, and authenticated-vs-public branching.
-  - [ ] Move the current public sign-in/account behavior into `src/features/storefront-shell/components/Navigation/StorefrontPublicNav.tsx`.
-  - [ ] Add `src/features/storefront-shell/components/Navigation/StorefrontAuthNav.tsx` for authenticated Customer account/profile/future orders/sign-out actions.
-  - [ ] Do not let either nav component become cluttered with duplicated long `ButtonLink`/`Button` class strings or repeated CTA/button markup.
-  - [ ] Extract reusable storefront header CTA/action components before plugging them into public/auth nav states. Suggested names:
+- [x] Task 5: Refactor storefront header authenticated/public navigation. (AC: 8-12, 14)
+  - [x] Keep `src/features/storefront-shell/StorefrontHeader.tsx` as the session-aware orchestrator. It owns high-level header layout, logo, search, cart composition, current URL/active nav wiring, and authenticated-vs-public branching.
+  - [x] Move the current public sign-in/account behavior into `src/features/storefront-shell/components/Navigation/StorefrontPublicNav.tsx`.
+  - [x] Add `src/features/storefront-shell/components/Navigation/StorefrontAuthNav.tsx` for authenticated Customer account/profile/future orders/sign-out actions.
+  - [x] Do not let either nav component become cluttered with duplicated long `ButtonLink`/`Button` class strings or repeated CTA/button markup.
+  - [x] Extract reusable storefront header CTA/action components before plugging them into public/auth nav states. Suggested names:
     - `StorefrontHeaderAction.tsx`
     - `StorefrontHeaderCta.tsx`
     - `StorefrontAccountMenu.tsx` if authenticated actions need grouping
-  - [ ] Reuse these same extracted header CTA/action pieces anywhere the home/header/account CTA pattern repeats, including home CTA or repeated storefront header buttons when applicable.
-  - [ ] Public nav shows sign-in/register/account-entry actions for Prospect state.
-  - [ ] Auth nav shows profile/account/future orders/sign-out actions for Customer state and avoids PII-heavy labels in the header.
-  - [ ] Preserve current storefront nav links, cart action, search form, active route behavior, mobile menu behavior, and JRW focus/outline style.
+  - [x] Reuse these same extracted header CTA/action pieces anywhere the home/header/account CTA pattern repeats, including home CTA or repeated storefront header buttons when applicable.
+  - [x] Public nav shows sign-in/register/account-entry actions for Prospect state.
+  - [x] Auth nav shows profile/account/future orders/sign-out actions for Customer state and avoids PII-heavy labels in the header.
+  - [x] Preserve current storefront nav links, cart action, search form, active route behavior, mobile menu behavior, and JRW focus/outline style.
 
-- [ ] Task 6: Tests and validation. (AC: 1-14)
-  - [ ] Add UI tests for sign-in form success/failure and safe error display.
-  - [ ] Add UI tests for registration success/failure and verification-email success state.
-  - [ ] Add UI tests for profile load/update and field-level errors.
-  - [ ] Add page guard tests for unauthenticated protected profile redirect and authenticated auth-page redirect.
-  - [ ] Add safe `returnTo` tests for allowed relative paths and blocked unsafe paths.
-  - [ ] Add storefront header tests for Prospect state, Customer state, sign-out behavior, and no PII-heavy labels.
-  - [ ] Add static/import boundary tests or search checks proving Customer account UI does not import Admin repositories/routes/cookies.
-  - [ ] Run `npm run check`.
-  - [ ] Run relevant Vitest suites and document any blocker.
+- [x] Task 6: Tests and validation. (AC: 1-14)
+  - [x] Add UI tests for sign-in form success/failure and safe error display.
+  - [x] Add UI tests for registration success/failure and verification-email success state.
+  - [x] Add UI tests for profile load/update and field-level errors.
+  - [x] Add page guard tests for unauthenticated protected profile redirect and authenticated auth-page redirect.
+  - [x] Add safe `returnTo` tests for allowed relative paths and blocked unsafe paths.
+  - [x] Add storefront header tests for Prospect state, Customer state, sign-out behavior, and no PII-heavy labels.
+  - [x] Add static/import boundary tests or search checks proving Customer account UI does not import Admin repositories/routes/cookies.
+  - [x] Run `npm run check`.
+  - [x] Run relevant Vitest suites and document any blocker.
 
 ## Dev Notes
 
@@ -187,20 +187,67 @@ Run `npm run build-test` before marking done if runtime/middleware changes are s
 
 ### Agent Model Used
 
-TBD
+GPT-5.5 Thinking (initial slice) and Codex (completion) via `/bmad-dev-story`
 
 ### Debug Log References
 
-TBD
+- 2026-06-21: Activated `/bmad-dev-story`, read `.agents/skills/bmad-dev-story/SKILL.md`, checklist, workflow customization, `_bmad/bmm/config.yaml`, `_bmad-output/project-context.md`, Story 4.12, and relevant account/header source files.
+- 2026-06-21: Marked Story 4.12 and sprint status from `ready-for-dev` to `in-progress`.
+- 2026-06-21: Inspected current Customer auth/profile contracts in `src/server/routes/auth.routes.ts`, `src/server/routes/customer.routes.ts`, and `src/server/routes/google-oauth.routes.ts`.
+- 2026-06-21: Implemented first account UI/header slice through MCP repo writes only. Test commands were not executed in this environment; Codex must run the targeted suites and `npm run check` before marking tasks complete.
+- 2026-06-21: Codex resumed `/bmad-dev-story`, confirmed Customer auth, registration, profile, Google OAuth, recovery, verification, cookie, and repository boundaries, then ran baseline `npm run check` with 0 errors.
+- 2026-06-21: Added failing tests first for Customer account flows, safe errors, field validation, `returnTo`, page guards, header states, sign-out, mobile account navigation, and Admin-realm import boundaries; confirmed expected red failures before implementation.
+- 2026-06-21: Added Customer page-session inspection and Astro middleware guard, composed it with existing Admin guard, and protected `/account/profile` plus `/account/orders/**` without gating checkout.
+- 2026-06-21: Hardened Customer return-path parsing, safe error copy, profile field errors, sign-out failure handling, and mobile account navigation.
+- 2026-06-21: Targeted Story 4.12 suite passed 37/37 tests. `npm run build-test` passed Astro check, all 779 Vitest tests across 116 files, and Cloudflare server build.
 
 ### Completion Notes List
 
-TBD
+- Replaced `/account` placeholder and added storefront sign-in, registration, profile, and protected future-orders placeholder routes.
+- Added Customer-only API/UI boundary using existing `/api/customer/auth/**`, `/api/customers`, `/api/customers/me`, and `/api/oauth/google/sessions` contracts. Customer UI has no Admin route, repository, cookie, role, or state usage.
+- Added safe account forms and states: scrubbed errors, verification-email result, allowed profile fields, client field validation, pending/loading/success/error handling, and same-origin Customer `returnTo` parsing.
+- Added server-side Customer page-session inspection and middleware redirects before protected UI render. Authenticated Customers bypass auth forms; unauthenticated visitors cannot render profile/orders pages; checkout remains public.
+- Refactored storefront header into session-aware orchestration with small public/auth nav components and shared CTA/action wrappers. Desktop and mobile preserve logo, search, cart, store links, active states, and focus treatment.
+- `/account/orders` remains an explicitly protected Epic 6 placeholder so authenticated navigation has a live target without implementing order history early.
+- Password-reset and email-verification result pages remain follow-up UI work; existing endpoints were inspected but adding those pages would expand Story 4.12 scope.
+- Validation complete: targeted Story 4.12 tests 37/37; full `npm run build-test` 116 files and 779 tests passed; Astro check and Cloudflare server build passed.
 
 ### File List
 
-TBD
+- `_bmad-output/implementation-artifacts/4-12-customer-account-auth-pages-profile-and-nav.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/domain/auth/customer-account-navigation.ts`
+- `src/env.d.ts`
+- `src/features/customer-account/AccountLanding.tsx`
+- `src/features/customer-account/CustomerProfilePanel.tsx`
+- `src/features/customer-account/CustomerRegisterPanel.tsx`
+- `src/features/customer-account/CustomerSignInPanel.tsx`
+- `src/features/customer-account/api.ts`
+- `src/features/customer-account/components/AccountFormField.tsx`
+- `src/features/customer-account/components/AccountShell.tsx`
+- `src/features/customer-account/customer-account-ui.test.tsx`
+- `src/features/customer-account/errors.ts`
+- `src/features/customer-account/index.ts`
+- `src/features/customer-account/profile-validation.ts`
+- `src/features/storefront-shell/StorefrontHeader.tsx`
+- `src/features/storefront-shell/StorefrontHeader.test.tsx`
+- `src/features/storefront-shell/components/Navigation/StorefrontAuthNav.tsx`
+- `src/features/storefront-shell/components/Navigation/StorefrontHeaderAction.tsx`
+- `src/features/storefront-shell/components/Navigation/StorefrontHeaderCta.tsx`
+- `src/features/storefront-shell/components/Navigation/StorefrontNav.tsx`
+- `src/features/storefront-shell/components/Navigation/StorefrontPublicNav.tsx`
+- `src/middleware/auth/customer-page-guard.test.ts`
+- `src/middleware/auth/customer-page-guard.ts`
+- `src/middleware/index.ts`
+- `src/pages/account/index.astro`
+- `src/pages/account/orders/index.astro`
+- `src/pages/account/profile.astro`
+- `src/pages/account/register.astro`
+- `src/pages/account/sign-in.astro`
+- `src/server/auth/customer-page-session.ts`
 
 ## Change Log
 
 - 2026-06-21: Created approved Correct Course Story 4.12 for missing Customer account UI, authenticated storefront nav, Customer page guard, and `StorefrontHeader` public/auth componentization.
+- 2026-06-21: Began `/bmad-dev-story` implementation; added first account UI/header refactor slice and left remaining validation/middleware/tests for Codex completion.
+- 2026-06-21: Completed Customer account pages/UI, server-side page guard, public/auth storefront navigation, safe return handling, and regression coverage; moved story to review.

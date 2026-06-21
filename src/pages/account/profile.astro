@@ -1,0 +1,12 @@
+---
+import { CustomerProfilePanel } from "@/features/customer-account";
+import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+---
+
+<StorefrontLayout
+  title="Profile | JRW"
+  description="Manage your JRW customer profile."
+  mainAriaLabel="Customer profile"
+>
+  <CustomerProfilePanel client:load />
+</StorefrontLayout>
