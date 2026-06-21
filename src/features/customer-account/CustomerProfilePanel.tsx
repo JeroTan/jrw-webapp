@@ -9,7 +9,7 @@ import {
   updateCustomerProfile,
 } from "./api";
 import { AccountFormField } from "./components/AccountFormField";
-import { AccountShell } from "./components/AccountShell";
+import { AccountDashboardShell } from "./components/AccountDashboardShell";
 import { customerAccountErrorMessage } from "./errors";
 import {
   type CustomerProfileFieldErrors,
@@ -73,20 +73,20 @@ export function CustomerProfilePanel() {
 
   if (loading) {
     return (
-      <AccountShell
+      <AccountDashboardShell
         description="Loading your safe customer profile."
         title="Your profile"
       >
         <p className="border border-brand-border bg-brand-background p-grid-sm text-sm text-brand-muted">
           Loading account details...
         </p>
-      </AccountShell>
+      </AccountDashboardShell>
     );
   }
 
   if (!profile || !form) {
     return (
-      <AccountShell
+      <AccountDashboardShell
         description="We could not load your account details right now."
         title="Your profile"
       >
@@ -96,7 +96,7 @@ export function CustomerProfilePanel() {
         >
           {error ?? "Profile unavailable."}
         </p>
-      </AccountShell>
+      </AccountDashboardShell>
     );
   }
 
@@ -109,11 +109,11 @@ export function CustomerProfilePanel() {
   }
 
   return (
-    <AccountShell
-      description="Update the details JRW. can reuse for faster checkout and future order history."
+    <AccountDashboardShell
+      description="Update the details JRW. can reuse for faster checkout and future account features."
       title="Your profile"
     >
-      <div className="grid gap-grid-xs border border-brand-border bg-brand-background p-grid-sm text-sm text-brand-content">
+      <div className="grid gap-1 text-sm text-brand-content">
         <p>
           Signed in as <strong>{profile.email}</strong>
         </p>
@@ -269,6 +269,6 @@ export function CustomerProfilePanel() {
           Save profile
         </Button>
       </form>
-    </AccountShell>
+    </AccountDashboardShell>
   );
 }

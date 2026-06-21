@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
-  "operation_id": "write-2026-06-21T08-06-19-636Z-357591b5",
+  "operation_id": "write-2026-06-21T08-41-51-248Z-419884e4",
   "tool": "repo_write_changes",
   "repo_id": "jrw-simple-ecommerce-site",
-  "timestamp": "2026-06-21T08:06:19.636Z",
-  "head_sha_before": "7e5596657bc57f5658f2133ef795a6d930282ed8",
-  "head_sha_after": "7e5596657bc57f5658f2133ef795a6d930282ed8",
+  "timestamp": "2026-06-21T08:41:51.248Z",
+  "head_sha_before": "b60ed6af1aeb33feecf4c67ce3a1ca57bad24a77",
+  "head_sha_after": "b60ed6af1aeb33feecf4c67ce3a1ca57bad24a77",
   "touched_paths": [
-    "src/features/customer-account/components/AccountShell.tsx"
+    "src/features/customer-account/CustomerProfilePanel.tsx"
   ],
   "changed_paths": [
-    "src/features/customer-account/components/AccountShell.tsx"
+    "src/features/customer-account/CustomerProfilePanel.tsx"
   ],
   "created_paths": [],
   "modified_paths": [
-    "src/features/customer-account/components/AccountShell.tsx"
+    "src/features/customer-account/CustomerProfilePanel.tsx"
   ],
   "counts": {
     "requested": 1,

@@ -35,9 +35,6 @@ export function AccountShell({
       </div>
 
       <div className="flex flex-wrap gap-grid-xs border-t border-brand-border-strong bg-brand-surface p-grid-sm">
-        <ButtonLink href="/products" size="sm" textSize="xs" paddingX="xs">
-          Browse products
-        </ButtonLink>
         <ButtonLink
           href="/"
           size="sm"

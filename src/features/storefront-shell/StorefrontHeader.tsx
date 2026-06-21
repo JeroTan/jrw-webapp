@@ -20,11 +20,7 @@ function useHeaderAccountState() {
     getCustomerSession()
       .then((session) => {
         if (!mounted) return;
-        setAccountState(
-          session.authenticated && session.actor?.role === "CUSTOMER"
-            ? "authenticated"
-            : "public"
-        );
+        setAccountState(session.authenticated ? "authenticated" : "public");
       })
       .catch(() => {
         if (mounted) setAccountState("public");
