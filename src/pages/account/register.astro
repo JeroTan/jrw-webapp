@@ -1,6 +1,8 @@
 ---
 import { CustomerRegisterPanel } from "@/features/customer-account";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+
+const returnTo = Astro.url.searchParams.get("returnTo") ?? undefined;
 ---
 
 <StorefrontLayout
@@ -8,5 +10,5 @@ import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
   description="Create a JRW customer account for profile reuse and future order history."
   mainAriaLabel="Customer registration"
 >
-  <CustomerRegisterPanel client:load />
+  <CustomerRegisterPanel client:load returnTo={returnTo} />
 </StorefrontLayout>

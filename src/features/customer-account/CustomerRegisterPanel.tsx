@@ -1,8 +1,8 @@
 import * as React from "react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { Button, ButtonLink } from "@/components/ui";
-import { registerCustomer } from "./api";
+import { registerCustomer, sanitizeCustomerReturnTo } from "./api";
 import { AccountFormField } from "./components/AccountFormField";
 import { AccountShell } from "./components/AccountShell";
 import { customerAccountErrorMessage } from "./errors";
@@ -13,7 +13,7 @@ export function CustomerRegistrationSuccess() {
       description="Check your inbox for a verification email before signing in."
       title="Verify your email"
     >
-      <div className="grid max-w-xl gap-grid-sm border border-brand-border bg-brand-background p-grid-sm">
+      <div className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-md">
         <p className="text-sm leading-6 text-brand-content">
           Your JRW. customer account was created. Open the verification email we
           sent to continue.
@@ -29,7 +29,14 @@ export function CustomerRegistrationSuccess() {
   );
 }
 
-export function CustomerRegisterPanel() {
+export function CustomerRegisterPanel({ returnTo }: { returnTo?: string }) {
+  const safeReturnTo = useMemo(
+    () => sanitizeCustomerReturnTo(returnTo) ?? "/account/profile",
+    [returnTo]
+  );
+  const signInHref = `/account/sign-in${
+    safeReturnTo ? `?returnTo=${encodeURIComponent(safeReturnTo)}` : ""
+  }`;
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -44,11 +51,11 @@ export function CustomerRegisterPanel() {
 
   return (
     <AccountShell
-      description="Create a Customer account for profile reuse and future order history. You can still shop as a guest."
-      title="Create your account"
+      description="Create a customer account for profile reuse and future order history."
+      title="Create account."
     >
       <form
-        className="grid max-w-xl gap-grid-sm"
+        className="grid gap-grid-sm"
         onSubmit={async (event) => {
           event.preventDefault();
           setError(null);
@@ -68,6 +75,16 @@ export function CustomerRegisterPanel() {
           }
         }}
       >
+        <div className="grid gap-1 border-b border-brand-border pb-grid-sm">
+          <p className="font-system text-xs font-bold uppercase tracking-[0.16em] text-brand-muted">
+            Register
+          </p>
+          <p className="text-sm leading-6 text-brand-muted">
+            Start with email, password, and an optional display name. We will ask
+            you to verify your email next.
+          </p>
+        </div>
+
         {error ? (
           <p
             className="border border-brand-danger bg-brand-surface p-grid-xs text-sm text-brand-danger"
@@ -76,10 +93,7 @@ export function CustomerRegisterPanel() {
             {error}
           </p>
         ) : null}
-        <p className="text-sm leading-6 text-brand-muted">
-          We use these details to create your account and send its verification
-          email.
-        </p>
+
         <AccountFormField
           autoComplete="email"
           helpText="Use an email you can verify."
@@ -107,6 +121,7 @@ export function CustomerRegisterPanel() {
         />
         <AccountFormField
           autoComplete="nickname"
+          helpText="This can be changed later from your profile."
           id="customer-register-display-name"
           label="Display name"
           name="displayName"
@@ -115,7 +130,8 @@ export function CustomerRegisterPanel() {
           type="text"
           value={displayName}
         />
-        <label className="flex items-start gap-grid-xs text-sm leading-6 text-brand-content">
+
+        <label className="flex items-start gap-grid-xs border border-brand-border bg-brand-background p-grid-xs text-sm leading-6 text-brand-content">
           <input
             checked={emailMarketingOptIn}
             className="mt-1 size-4 rounded-none border-brand-border-strong accent-brand-accent"
@@ -124,20 +140,28 @@ export function CustomerRegisterPanel() {
             }
             type="checkbox"
           />
-          Send me JRW. updates and product notices.
+          <span>Send me JRW. updates and product notices.</span>
         </label>
-        <div className="flex flex-wrap gap-grid-xs">
-          <Button
-            loading={submitting}
-            loadingLabel="Creating account"
-            type="submit"
+
+        <Button
+          fullWidth
+          loading={submitting}
+          loadingLabel="Creating account"
+          type="submit"
+        >
+          Create account
+        </Button>
+
+        <p className="border-t border-brand-border pt-grid-sm text-center text-sm leading-6 text-brand-muted">
+          Already have an account?{" "}
+          <a
+            className="font-system font-bold uppercase text-brand-content underline-offset-4 hover:text-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+            href={signInHref}
           >
-            Create account
-          </Button>
-          <ButtonLink href="/account/sign-in" variant="ghost">
-            Already have an account?
-          </ButtonLink>
-        </div>
+            Sign in
+          </a>
+          .
+        </p>
       </form>
     </AccountShell>
   );

@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
-  "operation_id": "write-2026-06-21T04-33-36-567Z-ec959e57",
+  "operation_id": "write-2026-06-21T07-37-55-990Z-6de6d8cb",
   "tool": "repo_write_changes",
   "repo_id": "jrw-simple-ecommerce-site",
-  "timestamp": "2026-06-21T04:33:36.567Z",
-  "head_sha_before": "aedadff44e31caf4916e0076e18199eecd5bebeb",
-  "head_sha_after": "aedadff44e31caf4916e0076e18199eecd5bebeb",
+  "timestamp": "2026-06-21T07:37:55.990Z",
+  "head_sha_before": "ad6d6014f38f43c8f56ff5e7f2e8b0ed3ab817ff",
+  "head_sha_after": "ad6d6014f38f43c8f56ff5e7f2e8b0ed3ab817ff",
   "touched_paths": [
-    "_bmad-output/implementation-artifacts/4-12-customer-account-auth-pages-profile-and-nav.md"
+    "src/features/customer-account/components/AccountShell.tsx"
   ],
   "changed_paths": [
-    "_bmad-output/implementation-artifacts/4-12-customer-account-auth-pages-profile-and-nav.md"
+    "src/features/customer-account/components/AccountShell.tsx"
   ],
   "created_paths": [],
   "modified_paths": [
-    "_bmad-output/implementation-artifacts/4-12-customer-account-auth-pages-profile-and-nav.md"
+    "src/features/customer-account/components/AccountShell.tsx"
   ],
   "counts": {
     "requested": 1,
