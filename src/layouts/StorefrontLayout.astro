@@ -4,6 +4,7 @@ import {
   StorefrontHeader,
 } from "@/features/storefront-shell";
 import BaseLayout from "@/layouts/BaseLayout.astro";
+import { CUSTOMER_SESSION_COOKIE_NAME } from "@/server/auth/session-cookie";
 
 interface Props {
   canonicalUrl?: string;
@@ -26,6 +27,10 @@ const {
   socialImageUrl,
   class: className,
 } = Astro.props;
+
+const initialAccountState = Astro.cookies.get(CUSTOMER_SESSION_COOKIE_NAME)?.value
+  ? "authenticated"
+  : "public";
 ---
 
 <BaseLayout
@@ -46,6 +51,7 @@ const {
   <StorefrontHeader
     client:load
     currentUrl={`${Astro.url.pathname}${Astro.url.search}`}
+    initialAccountState={initialAccountState}
   />
 
   <main

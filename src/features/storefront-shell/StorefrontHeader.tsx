@@ -10,9 +10,9 @@ import { StorefrontPublicNav } from "./components/Navigation/StorefrontPublicNav
 
 type HeaderAccountState = "public" | "authenticated";
 
-function useHeaderAccountState() {
+function useHeaderAccountState(initialAccountState: HeaderAccountState = "public") {
   const [accountState, setAccountState] =
-    useState<HeaderAccountState>("public");
+    useState<HeaderAccountState>(initialAccountState);
 
   useEffect(() => {
     let mounted = true;
@@ -36,10 +36,12 @@ function useHeaderAccountState() {
 
 export function StorefrontHeader({
   currentUrl = "/",
+  initialAccountState = "public",
 }: {
   currentUrl?: string;
+  initialAccountState?: HeaderAccountState;
 }) {
-  const accountState = useHeaderAccountState();
+  const accountState = useHeaderAccountState(initialAccountState);
   const accountNav = () =>
     accountState === "authenticated" ? (
       <StorefrontAuthNav />
