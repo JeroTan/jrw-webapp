@@ -212,7 +212,7 @@ export async function updateCustomerProfile(
 }
 
 export function getGoogleOAuthStartHref(returnTo?: string) {
-  const safeReturnTo = sanitizeCustomerReturnTo(returnTo) ?? "/account/profile";
+  const safeReturnTo = sanitizeCustomerReturnTo(returnTo) ?? "/";
   return `/api/oauth/google/sessions?returnTo=${encodeURIComponent(safeReturnTo)}`;
 }
 import { sanitizeCustomerReturnTo } from "@/domain/auth/customer-account-navigation";

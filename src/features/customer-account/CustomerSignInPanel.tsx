@@ -14,9 +14,10 @@ import { customerAccountErrorMessage } from "./errors";
 
 export function CustomerSignInPanel({ returnTo }: { returnTo?: string }) {
   const safeReturnTo = useMemo(
-    () => sanitizeCustomerReturnTo(returnTo) ?? "/account/profile",
+    () => sanitizeCustomerReturnTo(returnTo),
     [returnTo]
   );
+  const postAuthRedirect = safeReturnTo ?? "/";
   const registerHref = `/account/register${
     safeReturnTo ? `?returnTo=${encodeURIComponent(safeReturnTo)}` : ""
   }`;
@@ -38,7 +39,7 @@ export function CustomerSignInPanel({ returnTo }: { returnTo?: string }) {
           setSubmitting(true);
           try {
             await signInCustomer({ email, password });
-            window.location.assign(safeReturnTo);
+            window.location.assign(postAuthRedirect);
           } catch (submitError) {
             setError(customerAccountErrorMessage("sign-in", submitError));
           } finally {

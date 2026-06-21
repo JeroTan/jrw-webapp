@@ -31,7 +31,7 @@ export function CustomerRegistrationSuccess() {
 
 export function CustomerRegisterPanel({ returnTo }: { returnTo?: string }) {
   const safeReturnTo = useMemo(
-    () => sanitizeCustomerReturnTo(returnTo) ?? "/account/profile",
+    () => sanitizeCustomerReturnTo(returnTo),
     [returnTo]
   );
   const signInHref = `/account/sign-in${

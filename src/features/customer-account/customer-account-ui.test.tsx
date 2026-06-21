@@ -235,7 +235,7 @@ describe("customer account UI", () => {
   });
 
   it.each([
-    ["/account/profile", "/account/profile"],
+    ["/account/profile", undefined],
     ["/account/orders?tab=open#recent", "/account/orders?tab=open#recent"],
     ["https://evil.test/path", undefined],
     ["//evil.test/path", undefined],
@@ -252,7 +252,7 @@ describe("customer account UI", () => {
 
   it("builds Google OAuth start URL only from a safe Customer return path", () => {
     expect(getGoogleOAuthStartHref("/admin/accounts")).toBe(
-      "/api/oauth/google/sessions?returnTo=%2Faccount%2Fprofile"
+      "/api/oauth/google/sessions?returnTo=%2F"
     );
   });
 

@@ -22,9 +22,19 @@ const customerSession = {
 };
 
 describe("Customer page guard middleware", () => {
-  it.each(["/account/profile", "/account/orders", "/account/orders/ORD-1"])(
+  it.each([
+    ["/account/profile", "https://jrw.test/account/sign-in"],
+    [
+      "/account/orders",
+      `https://jrw.test/account/sign-in?returnTo=${encodeURIComponent("/account/orders")}`,
+    ],
+    [
+      "/account/orders/ORD-1",
+      `https://jrw.test/account/sign-in?returnTo=${encodeURIComponent("/account/orders/ORD-1")}`,
+    ],
+  ])(
     "redirects unauthenticated protected page %s before rendering",
-    async (pathname) => {
+    async (pathname, expectedLocation) => {
       const next = vi.fn(async () => new Response("protected UI"));
       const guard = createCustomerPageGuard({
         inspectSession: async () => ({
@@ -38,9 +48,7 @@ describe("Customer page guard middleware", () => {
       );
 
       expect(response.status).toBe(302);
-      expect(response.headers.get("location")).toBe(
-        `https://jrw.test/account/sign-in?returnTo=${encodeURIComponent(pathname)}`
-      );
+      expect(response.headers.get("location")).toBe(expectedLocation);
       expect(response.headers.get("cache-control")).toBe("no-store");
       expect(next).not.toHaveBeenCalled();
     }

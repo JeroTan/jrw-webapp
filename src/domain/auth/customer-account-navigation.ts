@@ -7,7 +7,11 @@ function isBlockedRoute(pathname: string): boolean {
     normalized === "/admin" ||
     normalized.startsWith("/admin/") ||
     normalized === "/api" ||
-    normalized.startsWith("/api/")
+    normalized.startsWith("/api/") ||
+    normalized === "/account" ||
+    normalized === "/account/profile" ||
+    normalized === "/account/sign-in" ||
+    normalized === "/account/register"
   );
 }
 
