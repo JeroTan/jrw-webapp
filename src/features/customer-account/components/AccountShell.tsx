@@ -15,13 +15,13 @@ export function AccountShell({
   title: string;
 }) {
   return (
-    <section className="overflow-hidden border border-brand-border-strong bg-brand-surface">
-      <div className="grid lg:grid-cols-[minmax(340px,520px)_minmax(0,0.95fr)]">
+    <section className="overflow-hidden border border-brand-border-strong bg-brand-background">
+      <div className="grid lg:grid-cols-[minmax(340px,520px)_1fr]">
         <div className="grid content-start gap-grid-md border-b border-brand-border-strong bg-brand-surface p-grid-md lg:border-b-0 lg:border-r">
           {children}
         </div>
 
-        <aside className="grid content-start gap-grid-sm bg-brand-background p-grid-md">
+        <aside className="grid min-w-0 content-start gap-grid-sm bg-brand-background p-grid-md">
           <p className="font-system text-xs font-bold uppercase tracking-[0.22em] text-brand-muted">
             {eyebrow}
           </p>
