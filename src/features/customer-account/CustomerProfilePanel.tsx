@@ -113,17 +113,30 @@ export function CustomerProfilePanel() {
       description="Update the details JRW. can reuse for faster checkout and future account features."
       title="Your profile"
     >
-      <div className="grid gap-1 text-sm text-brand-content">
-        <p>
-          Signed in as <strong>{profile.email}</strong>
-        </p>
-        <p className="text-brand-muted">
-          Email verification:{" "}
-          {profile.emailVerified ? "Verified" : "Needs verification"}
-        </p>
-      </div>
+      <section
+        aria-label="Profile summary"
+        className="grid gap-grid-sm border border-brand-border-strong bg-brand-background p-grid-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-end"
+      >
+        <div className="grid gap-1 text-sm text-brand-content">
+          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+            Signed-in email
+          </p>
+          <p className="m-0 text-base">
+            <strong>{profile.email}</strong>
+          </p>
+        </div>
+        <div className="grid gap-1 border-brand-border md:border-l md:pl-grid-sm">
+          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+            Email verification
+          </p>
+          <p className="m-0 text-sm text-brand-content">
+            {profile.emailVerified ? "Verified" : "Needs verification"}
+          </p>
+        </div>
+      </section>
+
       <form
-        className="grid max-w-3xl gap-grid-sm"
+        className="grid w-full gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm"
         noValidate
         onSubmit={async (event) => {
           event.preventDefault();
@@ -148,6 +161,18 @@ export function CustomerProfilePanel() {
           }
         }}
       >
+        <div className="grid gap-1 border-b border-brand-border pb-grid-sm">
+          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+            Profile details
+          </p>
+          <h2 className="m-0 font-heading text-2xl font-bold text-brand-content">
+            Customer information
+          </h2>
+          <p className="m-0 max-w-[64ch] text-sm text-brand-muted">
+            Keep your contact and delivery details current for checkout.
+          </p>
+        </div>
+
         {error ? (
           <p
             className="border border-brand-danger bg-brand-surface p-grid-xs text-sm text-brand-danger"
@@ -254,17 +279,19 @@ export function CustomerProfilePanel() {
             value={form.postalCode}
           />
         </div>
-        <Checkbox
-          checked={form.emailMarketingOptIn}
-          label="Send me JRW. updates and product notices."
-          onChange={(event) =>
-            updateField("emailMarketingOptIn", event.currentTarget.checked)
-          }
-          size="sm"
-        />
-        <Button loading={saving} loadingLabel="Saving profile" type="submit">
-          Save profile
-        </Button>
+        <div className="grid gap-grid-sm border-t border-brand-border pt-grid-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-center">
+          <Checkbox
+            checked={form.emailMarketingOptIn}
+            label="Send me JRW. updates and product notices."
+            onChange={(event) =>
+              updateField("emailMarketingOptIn", event.currentTarget.checked)
+            }
+            size="sm"
+          />
+          <Button loading={saving} loadingLabel="Saving profile" type="submit">
+            Save profile
+          </Button>
+        </div>
       </form>
     </AccountDashboardShell>
   );

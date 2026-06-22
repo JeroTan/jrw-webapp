@@ -5,6 +5,11 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 
+vi.mock("lucide-react", () => ({
+  ChevronDown: "svg",
+  ChevronUp: "svg",
+}));
+
 import { AccountFormField } from "./components/AccountFormField";
 import { AccountDashboardShell } from "./components/AccountDashboardShell";
 import {
@@ -58,7 +63,7 @@ function featureFiles(root: string): string[] {
 }
 
 describe("customer account UI", () => {
-  it("connects Profile and Orders through the account sidebar", () => {
+  it("renders the customer account selector and desktop sidebar without the removed header chrome", () => {
     const markup = renderToStaticMarkup(
       createElement(AccountDashboardShell, {
         children: createElement("p", null, "Order history"),
@@ -66,11 +71,19 @@ describe("customer account UI", () => {
       })
     );
 
+    expect(markup).toContain("Account space");
+    expect(markup).toContain("<summary");
+    expect(markup).toContain(">Orders</span>");
     expect(markup).toContain('href="/account/profile"');
     expect(markup).toContain(">Profile</a>");
     expect(markup).toContain('href="/account/orders"');
     expect(markup).toContain('aria-current="page"');
     expect(markup).toContain(">Orders</a>");
+    expect(markup).not.toContain("Storefront home");
+    expect(markup).not.toContain(">Menu</button>");
+    expect(markup).not.toContain(">Close</button>");
+    expect(markup).not.toContain("Private workspace");
+    expect(markup).not.toContain("Account workspace summary");
   });
 
   it("renders Customer sign-in and Google OAuth actions with a safe return path", () => {
