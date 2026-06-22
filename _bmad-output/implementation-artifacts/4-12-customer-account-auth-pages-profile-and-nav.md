@@ -1,6 +1,6 @@
 # Story 4.12: Customer Account Auth Pages, Profile, and Storefront Auth Navigation
 
-Status: review
+Status: done
 
 <!-- Correct-course follow-up from sprint-change-proposal-2026-06-21-customer-account-pages.md. -->
 
@@ -15,13 +15,13 @@ so that I can access JRW account benefits without using raw API routes and witho
 1. Given a Prospect opens `/account/sign-in`, when the page renders, then it shows a Customer sign-in form using the existing Customer sign-in endpoint and a Google sign-in action using the existing Google OAuth start route.
 2. Given a Prospect opens `/account/register`, when the page renders, then it shows a Customer registration form using the existing Customer registration endpoint, shows privacy/verification copy, and never creates Admin or Super Admin accounts.
 3. Given registration succeeds, when the response returns, then the UI shows a safe verification-email state and does not expose sensitive account/session/provider/internal values.
-4. Given a Customer signs in successfully, when a safe `returnTo` path exists, then the browser navigates only to that same-origin relative path; otherwise it navigates to `/account/profile` or the account landing page.
+4. Given a Customer signs in successfully, when a safe `returnTo` path exists, then the browser navigates only to that same-origin relative path; otherwise it navigates to `/` for the storefront home experience.
 5. Given a valid Customer session opens `/account/profile`, when the page renders, then it loads the safe profile from the existing Customer profile endpoint, allows editing allowed fields only, and saves through the existing Customer profile update endpoint.
 6. Given an unauthenticated visitor opens protected account pages such as `/account/profile`, when middleware/page guard runs, then the page redirects to `/account/sign-in?returnTo=/account/profile` before rendering protected account UI.
 7. Given an authenticated Customer opens `/account/sign-in` or `/account/register`, when middleware/page guard runs, then the page redirects to `/account/profile` or the safe `returnTo` path instead of showing auth forms.
-8. Given the storefront header renders, when no Customer is authenticated, then account navigation shows `SIGN IN` / register/account-entry actions; when a Customer is authenticated, it shows account/profile/future orders/sign-out state without exposing PII-heavy data.
+8. Given the storefront header renders, when no Customer is authenticated, then account navigation shows `SIGN IN` / account-entry actions without a register CTA; when a Customer is authenticated, it shows account/profile/future orders/sign-out state without exposing PII-heavy data. Protected account pages share a sidebar with working `Profile` and `Orders` links and correct active-page state.
 9. Given `StorefrontHeader` is refactored, when the header renders, then `StorefrontHeader.tsx` owns the high-level header layout, Customer session branching, logo/search/cart composition, and calls `StorefrontPublicNav.tsx` or `StorefrontAuthNav.tsx` based on Customer authentication state.
-10. Given unauthenticated header state renders, when no Customer session exists, then `StorefrontPublicNav.tsx` renders public account CTAs such as sign in/register using shared storefront header CTA/action components rather than duplicating long button/link class strings.
+10. Given unauthenticated header state renders, when no Customer session exists, then `StorefrontPublicNav.tsx` renders the public sign-in/account-entry CTA using shared storefront header CTA/action components rather than duplicating long button/link class strings. Registration remains available from `/account` and `/account/sign-in`, not from the header.
 11. Given authenticated header state renders, when a Customer session exists, then `StorefrontAuthNav.tsx` renders profile/account/future orders/sign-out actions using the same shared storefront header CTA/action components and without exposing PII-heavy profile data.
 12. Given header CTA/action markup is repeated across public/auth nav or home/header actions, when implementation refactors the header, then reusable components are extracted first and plugged into `StorefrontPublicNav.tsx` and `StorefrontAuthNav.tsx` so both components stay small and uncluttered.
 13. Given Customer signs out, when sign-out succeeds, then the Customer session cookie is cleared by the existing endpoint and storefront navigation returns to Prospect state.
@@ -67,7 +67,7 @@ so that I can access JRW account benefits without using raw API routes and witho
     - `StorefrontHeaderCta.tsx`
     - `StorefrontAccountMenu.tsx` if authenticated actions need grouping
   - [x] Reuse these same extracted header CTA/action pieces anywhere the home/header/account CTA pattern repeats, including home CTA or repeated storefront header buttons when applicable.
-  - [x] Public nav shows sign-in/register/account-entry actions for Prospect state.
+  - [x] Public nav shows sign-in/account-entry action for Prospect state and intentionally omits a register CTA from the header.
   - [x] Auth nav shows profile/account/future orders/sign-out actions for Customer state and avoids PII-heavy labels in the header.
   - [x] Preserve current storefront nav links, cart action, search form, active route behavior, mobile menu behavior, and JRW focus/outline style.
 
@@ -81,6 +81,12 @@ so that I can access JRW account benefits without using raw API routes and witho
   - [x] Add static/import boundary tests or search checks proving Customer account UI does not import Admin repositories/routes/cookies.
   - [x] Run `npm run check`.
   - [x] Run relevant Vitest suites and document any blocker.
+
+### Review Findings
+
+- [x] [Review][Patch] Google OAuth return path bypasses Customer blocked-route sanitizer [src/domain/auth/google-oauth.ts:158]
+- [x] [Review][Patch] Storefront header SSR trusts Customer cookie presence instead of session validity [src/layouts/StorefrontLayout.astro:31]
+- [x] [Review][Patch] Authenticated header nav omits profile and future orders actions [src/features/storefront-shell/components/Navigation/StorefrontAuthNav.tsx:25]
 
 ## Dev Notes
 
@@ -200,6 +206,7 @@ GPT-5.5 Thinking (initial slice) and Codex (completion) via `/bmad-dev-story`
 - 2026-06-21: Added Customer page-session inspection and Astro middleware guard, composed it with existing Admin guard, and protected `/account/profile` plus `/account/orders/**` without gating checkout.
 - 2026-06-21: Hardened Customer return-path parsing, safe error copy, profile field errors, sign-out failure handling, and mobile account navigation.
 - 2026-06-21: Targeted Story 4.12 suite passed 37/37 tests. `npm run build-test` passed Astro check, all 779 Vitest tests across 116 files, and Cloudflare server build.
+- 2026-06-22: BMAD code review patched Google OAuth Customer return-path sanitization, SSR header session inspection, and authenticated profile/orders nav. Product clarification documented that header omits register CTA and sign-in fallback goes home.
 
 ### Completion Notes List
 
@@ -207,16 +214,19 @@ GPT-5.5 Thinking (initial slice) and Codex (completion) via `/bmad-dev-story`
 - Added Customer-only API/UI boundary using existing `/api/customer/auth/**`, `/api/customers`, `/api/customers/me`, and `/api/oauth/google/sessions` contracts. Customer UI has no Admin route, repository, cookie, role, or state usage.
 - Added safe account forms and states: scrubbed errors, verification-email result, allowed profile fields, client field validation, pending/loading/success/error handling, and same-origin Customer `returnTo` parsing.
 - Added server-side Customer page-session inspection and middleware redirects before protected UI render. Authenticated Customers bypass auth forms; unauthenticated visitors cannot render profile/orders pages; checkout remains public.
-- Refactored storefront header into session-aware orchestration with small public/auth nav components and shared CTA/action wrappers. Desktop and mobile preserve logo, search, cart, store links, active states, and focus treatment.
+- Refactored storefront header into session-aware orchestration with small public/auth nav components and shared CTA/action wrappers. SSR uses session inspection instead of cookie presence; desktop and mobile preserve logo, search, cart, store links, active states, and focus treatment.
 - `/account/orders` remains an explicitly protected Epic 6 placeholder so authenticated navigation has a live target without implementing order history early.
 - Password-reset and email-verification result pages remain follow-up UI work; existing endpoints were inspected but adding those pages would expand Story 4.12 scope.
 - Validation complete: targeted Story 4.12 tests 37/37; full `npm run build-test` 116 files and 779 tests passed; Astro check and Cloudflare server build passed.
+- Review patch validation complete: targeted Vitest suites for OAuth, header nav, SSR header session state, account UI, and Customer page guard passed; `npm run check` passed with 0 errors and existing warnings only.
 
 ### File List
 
 - `_bmad-output/implementation-artifacts/4-12-customer-account-auth-pages-profile-and-nav.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 - `src/domain/auth/customer-account-navigation.ts`
+- `src/domain/auth/google-oauth.ts`
+- `src/domain/auth/google-oauth.test.ts`
 - `src/env.d.ts`
 - `src/features/customer-account/AccountLanding.tsx`
 - `src/features/customer-account/CustomerProfilePanel.tsx`
@@ -236,6 +246,7 @@ GPT-5.5 Thinking (initial slice) and Codex (completion) via `/bmad-dev-story`
 - `src/features/storefront-shell/components/Navigation/StorefrontHeaderCta.tsx`
 - `src/features/storefront-shell/components/Navigation/StorefrontNav.tsx`
 - `src/features/storefront-shell/components/Navigation/StorefrontPublicNav.tsx`
+- `src/layouts/StorefrontLayout.astro`
 - `src/middleware/auth/customer-page-guard.test.ts`
 - `src/middleware/auth/customer-page-guard.ts`
 - `src/middleware/index.ts`
@@ -244,6 +255,8 @@ GPT-5.5 Thinking (initial slice) and Codex (completion) via `/bmad-dev-story`
 - `src/pages/account/profile.astro`
 - `src/pages/account/register.astro`
 - `src/pages/account/sign-in.astro`
+- `src/server/auth/customer-header-session.test.ts`
+- `src/server/auth/customer-header-session.ts`
 - `src/server/auth/customer-page-session.ts`
 
 ## Change Log
@@ -251,3 +264,4 @@ GPT-5.5 Thinking (initial slice) and Codex (completion) via `/bmad-dev-story`
 - 2026-06-21: Created approved Correct Course Story 4.12 for missing Customer account UI, authenticated storefront nav, Customer page guard, and `StorefrontHeader` public/auth componentization.
 - 2026-06-21: Began `/bmad-dev-story` implementation; added first account UI/header refactor slice and left remaining validation/middleware/tests for Codex completion.
 - 2026-06-21: Completed Customer account pages/UI, server-side page guard, public/auth storefront navigation, safe return handling, and regression coverage; moved story to review.
+- 2026-06-22: Applied BMAD review patches and moved story to done.

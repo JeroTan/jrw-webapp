@@ -19,13 +19,13 @@ describe("StorefrontHeader Customer navigation", () => {
     expect(markup).not.toContain("REGISTER");
   });
 
-  it("shows account and sign-out without PII for Customer state", () => {
+  it("shows profile, orders, and sign-out without PII for Customer state", () => {
     const markup = renderToStaticMarkup(createElement(StorefrontAuthNav));
 
-    expect(markup).toContain('href="/account"');
-    expect(markup).toContain("ACCOUNT");
-    expect(markup).not.toContain('href="/account/orders"');
-    expect(markup).not.toContain("ORDERS");
+    expect(markup).toContain('href="/account/profile"');
+    expect(markup).toContain("PROFILE");
+    expect(markup).toContain('href="/account/orders"');
+    expect(markup).toContain("ORDERS");
     expect(markup).toContain("SIGN OUT");
     expect(markup).not.toMatch(/[\w.+-]+@[\w.-]+/);
     expect(markup).not.toMatch(/phone|address|session|provider/i);

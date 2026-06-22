@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 
 import { AccountFormField } from "./components/AccountFormField";
+import { AccountDashboardShell } from "./components/AccountDashboardShell";
 import {
   CustomerRegisterPanel,
   CustomerRegistrationSuccess,
@@ -57,6 +58,21 @@ function featureFiles(root: string): string[] {
 }
 
 describe("customer account UI", () => {
+  it("connects Profile and Orders through the account sidebar", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AccountDashboardShell, {
+        children: createElement("p", null, "Order history"),
+        currentSection: "orders",
+      })
+    );
+
+    expect(markup).toContain('href="/account/profile"');
+    expect(markup).toContain(">Profile</a>");
+    expect(markup).toContain('href="/account/orders"');
+    expect(markup).toContain('aria-current="page"');
+    expect(markup).toContain(">Orders</a>");
+  });
+
   it("renders Customer sign-in and Google OAuth actions with a safe return path", () => {
     const markup = renderToStaticMarkup(
       createElement(CustomerSignInPanel, {

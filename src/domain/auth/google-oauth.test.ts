@@ -50,6 +50,11 @@ describe("google oauth domain decisions", () => {
     expect(normalizeOAuthReturnPath("//evil.example/path")).toBe("/");
     expect(normalizeOAuthReturnPath("javascript:alert(1)")).toBe("/");
     expect(normalizeOAuthReturnPath("/safe\npath")).toBe("/");
+    expect(normalizeOAuthReturnPath("/admin/accounts")).toBe("/");
+    expect(normalizeOAuthReturnPath("/api/customers/me")).toBe("/");
+    expect(normalizeOAuthReturnPath("/account/profile")).toBe("/");
+    expect(normalizeOAuthReturnPath("/account/sign-in")).toBe("/");
+    expect(normalizeOAuthReturnPath("/account/register")).toBe("/");
   });
 
   it("validates OAuth state as present, unexpired, and unused", async () => {

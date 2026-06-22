@@ -4,7 +4,8 @@ import {
   StorefrontHeader,
 } from "@/features/storefront-shell";
 import BaseLayout from "@/layouts/BaseLayout.astro";
-import { CUSTOMER_SESSION_COOKIE_NAME } from "@/server/auth/session-cookie";
+import { resolveCustomerHeaderAccountState } from "@/server/auth/customer-header-session";
+import { env } from "cloudflare:workers";
 
 interface Props {
   canonicalUrl?: string;
@@ -28,9 +29,23 @@ const {
   class: className,
 } = Astro.props;
 
-const initialAccountState = Astro.cookies.get(CUSTOMER_SESSION_COOKIE_NAME)?.value
-  ? "authenticated"
-  : "public";
+const varyHeader = Astro.response.headers.get("vary");
+if (!varyHeader) {
+  Astro.response.headers.set("vary", "cookie");
+} else if (
+  !varyHeader
+    .toLowerCase()
+    .split(",")
+    .map((value) => value.trim())
+    .includes("cookie")
+) {
+  Astro.response.headers.set("vary", `${varyHeader}, cookie`);
+}
+
+const initialAccountState = await resolveCustomerHeaderAccountState({
+  request: Astro.request,
+  runtimeEnv: env as Partial<Env> & Record<string, unknown>,
+});
 ---
 
 <BaseLayout

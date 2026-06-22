@@ -3,6 +3,7 @@ import {
   hashSessionToken,
 } from "@/lib/crypto/session-token";
 import type { ErrorCodeType } from "@/utils/general/error";
+import { sanitizeCustomerReturnTo } from "./customer-account-navigation";
 
 export const GOOGLE_OAUTH_PROVIDER = "GOOGLE" as const;
 export const GOOGLE_OAUTH_TOKEN_BYTES = 32;
@@ -156,25 +157,9 @@ function customerStatusFailure(
 }
 
 export function normalizeOAuthReturnPath(value: unknown): string {
-  if (typeof value !== "string") return "/";
-
-  const trimmed = value.trim();
-  if (!trimmed || !trimmed.startsWith("/") || trimmed.startsWith("//")) {
-    return "/";
-  }
-
-  if (/[\u0000-\u001F\u007F]/.test(trimmed)) {
-    return "/";
-  }
-
-  try {
-    const url = new URL(trimmed, "https://jrw.local");
-    if (url.origin !== "https://jrw.local") return "/";
-
-    return `${url.pathname}${url.search}${url.hash}`;
-  } catch {
-    return "/";
-  }
+  return typeof value === "string"
+    ? (sanitizeCustomerReturnTo(value) ?? "/")
+    : "/";
 }
 
 export function hashGoogleOAuthMaterial(value: string): Promise<string> {

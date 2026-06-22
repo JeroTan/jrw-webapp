@@ -7,6 +7,11 @@ const sidebarLinks = [
     label: "Profile",
     value: "profile",
   },
+  {
+    href: "/account/orders",
+    label: "Orders",
+    value: "orders",
+  },
 ] as const;
 
 type AccountDashboardSection = (typeof sidebarLinks)[number]["value"];

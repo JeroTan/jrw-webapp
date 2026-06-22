@@ -22,7 +22,8 @@ export function StorefrontAuthNav() {
       aria-label="Customer account"
       className="flex flex-wrap items-center gap-grid-xs"
     >
-      <StorefrontHeaderCta href="/account">ACCOUNT</StorefrontHeaderCta>
+      <StorefrontHeaderCta href="/account/profile">PROFILE</StorefrontHeaderCta>
+      <StorefrontHeaderCta href="/account/orders">ORDERS</StorefrontHeaderCta>
       <StorefrontHeaderAction
         loading={signingOut}
         loadingLabel="Signing out"
