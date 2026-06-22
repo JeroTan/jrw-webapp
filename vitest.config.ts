@@ -9,6 +9,8 @@ export default defineConfig({
   },
   test: {
     exclude: [...configDefaults.exclude, "tests/qa/**"],
-    fileParallelism: false,
+    fileParallelism: true,
+    maxWorkers: 2,
+    pool: "threads",
   },
 });
