@@ -1,5 +1,5 @@
 import * as React from "react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
 import { Button, ButtonLink } from "@/components/ui";
 import { mergeClassNames } from "@/components/utils";
 import type { CartState } from "@/domain/checkout/cart";
@@ -77,48 +77,86 @@ function stepBackHref(step: CheckoutStepId, currentStep: CheckoutStepId) {
 
 function CheckoutStepper({ currentStep }: { currentStep: CheckoutStepId }) {
   const currentIndex = stepIndex(currentStep);
+  const currentStepItem = checkoutSteps[currentIndex] ?? checkoutSteps[0]!;
+  const currentStepLabel = `${currentStepItem.number} ${currentStepItem.label}`;
+
+  function renderStep(
+    step: (typeof checkoutSteps)[number],
+    index: number,
+    options: { unframed?: boolean } = {}
+  ) {
+    const isReached = index <= currentIndex;
+    const isCurrent = step.id === currentStep;
+    const href = stepBackHref(step.id, currentStep);
+    const stepClassName = mergeClassNames(
+      options.unframed
+        ? "inline-flex min-h-control-sm w-full items-center justify-between px-grid-sm font-system text-xs font-bold uppercase leading-none"
+        : "inline-flex min-h-control-sm w-full items-center justify-between border px-grid-xs font-system text-xs font-bold uppercase leading-none md:w-auto",
+      isReached
+        ? mergeClassNames(
+            !options.unframed && "border-brand-accent",
+            "bg-brand-accent text-brand-surface"
+          )
+        : mergeClassNames(
+            !options.unframed && "border-brand-border-strong",
+            "bg-brand-surface text-brand-content"
+          ),
+      href &&
+        "no-underline hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus:outline-2 focus:outline-offset-2 focus:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
+    );
+    const stepLabel = `${step.number} ${step.label}`;
+
+    return href ? (
+      <a
+        aria-label={`Go back to ${step.label} step`}
+        className={stepClassName}
+        href={href}
+      >
+        {stepLabel}
+      </a>
+    ) : (
+      <span aria-current={isCurrent ? "step" : undefined} className={stepClassName}>
+        {stepLabel}
+      </span>
+    );
+  }
 
   return (
-    <ol className="m-0 grid list-none border-b border-brand-border p-0 md:grid-cols-4">
-      {checkoutSteps.map((step, index) => {
-        const isReached = index <= currentIndex;
-        const isCurrent = step.id === currentStep;
-        const href = stepBackHref(step.id, currentStep);
-        const stepClassName = mergeClassNames(
-          "inline-flex min-h-control-sm items-center border px-grid-xs font-system text-xs font-bold uppercase leading-none",
-          isReached
-            ? "border-brand-accent bg-brand-accent text-brand-surface"
-            : "border-brand-border-strong bg-brand-surface text-brand-content",
-          href &&
-            "no-underline hover:outline-2 hover:outline-offset-2 hover:outline-brand-accent focus:outline-2 focus:outline-offset-2 focus:outline-brand-accent focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent"
-        );
-        const stepLabel = `${step.number} ${step.label}`;
+    <>
+      <details className="group grid w-full border-b border-brand-border md:hidden">
+        <summary className="inline-flex min-h-control-md w-full cursor-pointer list-none items-center justify-between border-b border-brand-border bg-brand-surface px-grid-sm py-grid-sm font-system text-xs font-bold uppercase text-brand-content focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-accent [&::-webkit-details-marker]:hidden">
+          <span>{currentStepLabel}</span>
+          <ChevronDown
+            aria-hidden="true"
+            className="size-4 group-open:hidden"
+            strokeWidth={2}
+          />
+          <ChevronUp
+            aria-hidden="true"
+            className="hidden size-4 group-open:inline"
+            strokeWidth={2}
+          />
+        </summary>
+        <ol className="m-0 grid w-full list-none p-0">
+          {checkoutSteps.map((step, index) => (
+            <li className="grid" key={step.id}>
+              {renderStep(step, index, { unframed: true })}
+            </li>
+          ))}
+        </ol>
+      </details>
 
-        return (
+      <ol className="m-0 hidden list-none border-b border-brand-border p-0 md:grid md:grid-cols-4">
+        {checkoutSteps.map((step, index) => (
           <li
             className="border-b border-brand-border p-grid-sm md:border-r md:border-b-0 last:border-b-0 md:last:border-r-0"
             key={step.id}
           >
-            {href ? (
-              <a
-                aria-label={`Go back to ${step.label} step`}
-                className={stepClassName}
-                href={href}
-              >
-                {stepLabel}
-              </a>
-            ) : (
-              <span
-                aria-current={isCurrent ? "step" : undefined}
-                className={stepClassName}
-              >
-                {stepLabel}
-              </span>
-            )}
+            {renderStep(step, index)}
           </li>
-        );
-      })}
-    </ol>
+        ))}
+      </ol>
+    </>
   );
 }
 
