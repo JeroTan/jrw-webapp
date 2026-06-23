@@ -1,20 +1,20 @@
 {
   "schema_version": 1,
-  "operation_id": "write-2026-06-22T07-42-22-172Z-2c501aff",
+  "operation_id": "write-2026-06-22T23-53-21-669Z-6f815098",
   "tool": "repo_write_file",
   "repo_id": "jrw-simple-ecommerce-site",
-  "timestamp": "2026-06-22T07:42:22.172Z",
-  "head_sha_before": "fe9eb18c2e718b49243e4bf7698f7aa8317b64b1",
-  "head_sha_after": "fe9eb18c2e718b49243e4bf7698f7aa8317b64b1",
+  "timestamp": "2026-06-22T23:53:21.669Z",
+  "head_sha_before": "49ea8251bef1318ae54eda9c1e27ab73ea7690b5",
+  "head_sha_after": "49ea8251bef1318ae54eda9c1e27ab73ea7690b5",
   "touched_paths": [
-    "src/features/cart-checkout/components/CheckoutFlow.tsx"
+    "_bmad-output/implementation-artifacts/5-4-paymongo-webhook-verification-and-idempotency.md"
   ],
   "changed_paths": [
-    "src/features/cart-checkout/components/CheckoutFlow.tsx"
+    "_bmad-output/implementation-artifacts/5-4-paymongo-webhook-verification-and-idempotency.md"
   ],
   "created_paths": [],
   "modified_paths": [
-    "src/features/cart-checkout/components/CheckoutFlow.tsx"
+    "_bmad-output/implementation-artifacts/5-4-paymongo-webhook-verification-and-idempotency.md"
   ],
   "counts": {
     "requested": 1,
@@ -22,5 +22,5 @@
     "created": 0,
     "unchanged": 0
   },
-  "summary": "Updated src/features/cart-checkout/components/CheckoutFlow.tsx."
+  "summary": "Updated _bmad-output/implementation-artifacts/5-4-paymongo-webhook-verification-and-idempotency.md."
 }

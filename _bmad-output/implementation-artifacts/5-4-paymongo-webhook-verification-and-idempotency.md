@@ -1,6 +1,6 @@
 # Story 5.4: PayMongo Webhook Verification and Idempotency
 
-Status: ready-for-dev
+Status: in-progress
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -280,14 +280,27 @@ For this story, expected checklist interpretation:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5.5 Thinking
 
 ### Debug Log References
 
+- 2026-06-23: Started Story 5.4 through `/bmad-dev-story`. Read BMAD dev-story workflow, sprint status, project context, story file, and most listed UPDATE files. `.env.example` and `worker-configuration.d.ts` could not be loaded through the repo tool due safety/size guards and must be reviewed locally before final completion.
+- 2026-06-23: Added a pure domain slice for PayMongo webhook signature verification, raw-body payload hashing, safe event identity/reference extraction, supported/unsupported event classification, and idempotency decisioning. Did not run commands in this environment.
+
 ### Completion Notes List
+
+- Partial implementation only. Added domain-level webhook primitives and tests under `src/domain/payments/**`.
+- Scope intentionally stayed narrow: no route, controller, service, repository, migration, Worker env type, `.env.example`, order confirmation, receipt, email, inventory release, or UI changes were implemented.
+- Tests were authored but not executed here; Codex/local environment must run the listed commands and continue the remaining story tasks.
 
 ### File List
 
+- `src/domain/payments/paymongo-webhook.ts`
+- `src/domain/payments/paymongo-webhook.test.ts`
+- `_bmad-output/implementation-artifacts/5-4-paymongo-webhook-verification-and-idempotency.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+
 ### Change Log
 
+- 2026-06-23: Marked Story 5.4 in-progress and added domain-level PayMongo webhook verification/idempotency helper slice with tests.
 - 2026-06-21: Story created with backend webhook verification/idempotency scope and ready-for-dev status.
