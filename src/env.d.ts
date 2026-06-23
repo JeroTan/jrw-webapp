@@ -12,3 +12,19 @@ declare namespace App {
     };
   }
 }
+
+interface Env {
+  PAYMONGO_PAYMENT_METHODS?: string;
+  PAYMONGO_SECRET_KEY?: string;
+  PAYMONGO_SEND_EMAIL_RECEIPT?: string;
+  PAYMONGO_WEBHOOK_SECRET?: string;
+}
+
+declare namespace NodeJS {
+  interface ProcessEnv {
+    PAYMONGO_PAYMENT_METHODS?: string;
+    PAYMONGO_SECRET_KEY?: string;
+    PAYMONGO_SEND_EMAIL_RECEIPT?: string;
+    PAYMONGO_WEBHOOK_SECRET?: string;
+  }
+}

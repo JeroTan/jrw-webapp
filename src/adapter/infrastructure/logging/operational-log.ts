@@ -47,6 +47,7 @@ const sensitiveKeyPatterns = [
   /provider.*response/i,
   /payment.*payload/i,
   /payment.*response/i,
+  /raw.*body/i,
   /raw.*payment/i,
   /raw.*payload/i,
   /card/i,
@@ -108,6 +109,10 @@ function scrubValue(
   }
 
   if (typeof value === "string") {
+    if (/^event_?type$/i.test(key)) {
+      return value;
+    }
+
     return shouldRedactString(value) ? REDACTED_LOG_VALUE : value;
   }
 

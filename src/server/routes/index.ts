@@ -14,6 +14,10 @@ import {
   type CategoryRoutesOptions,
 } from "./categories.routes";
 import { checkoutRoutes, type CheckoutRoutesOptions } from "./checkout.routes";
+import {
+  paymentWebhookRoutes,
+  type PaymentWebhookRoutesOptions,
+} from "./payment-webhook.routes";
 import { customerRoutes, type CustomerRoutesOptions } from "./customer.routes";
 import { foundationRoutes } from "./foundation.routes";
 import {
@@ -52,6 +56,7 @@ export type ServerRoutesOptions = {
   brands?: BrandRoutesOptions;
   categories?: CategoryRoutesOptions;
   checkout?: CheckoutRoutesOptions;
+  paymentWebhooks?: PaymentWebhookRoutesOptions;
   customers?: CustomerRoutesOptions;
   googleOAuth?: GoogleOAuthRoutesOptions;
   images?: ImageRoutesOptions;
@@ -79,6 +84,7 @@ export function serverRoutes(
     .use((routes) => brandsRoutes(routes, options.brands))
     .use((routes) => categoriesRoutes(routes, options.categories))
     .use((routes) => checkoutRoutes(routes, options.checkout))
+    .use((routes) => paymentWebhookRoutes(routes, options.paymentWebhooks))
     .use((routes) => productsRoutes(routes, options.products))
     .use((routes) => imagesRoutes(routes, options.images))
     .use((routes) => variantsRoutes(routes, options.variants))

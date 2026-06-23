@@ -1,6 +1,6 @@
 # Story 5.4: PayMongo Webhook Verification and Idempotency
 
-Status: in-progress
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -22,24 +22,24 @@ so that payment events cannot be spoofed or duplicated.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock webhook scope and preserve checkout/payment boundaries. (AC: 1-7)
-  - [ ] Re-read every UPDATE file listed in Current Code Intelligence before editing.
-  - [ ] Implement PayMongo webhook verification and idempotency only. Do not implement final order confirmation, receipt page, payment emails, fulfillment transitions, refunds/returns, or long-running stale reservation release in this story.
-  - [ ] Treat PayMongo webhooks as payment-event input, not as proof to create customer-visible order confirmation yet; Story 5.5 owns reconciliation/order confirmation and Story 5.7 owns receipt/status emails.
-  - [ ] Preserve guest checkout and existing PayMongo handoff from Story 5.3.
-  - [ ] Keep all mutation server-side and idempotent.
+- [x] Task 1: Lock webhook scope and preserve checkout/payment boundaries. (AC: 1-7)
+  - [x] Re-read every UPDATE file listed in Current Code Intelligence before editing.
+  - [x] Implement PayMongo webhook verification and idempotency only. Do not implement final order confirmation, receipt page, payment emails, fulfillment transitions, refunds/returns, or long-running stale reservation release in this story.
+  - [x] Treat PayMongo webhooks as payment-event input, not as proof to create customer-visible order confirmation yet; Story 5.5 owns reconciliation/order confirmation and Story 5.7 owns receipt/status emails.
+  - [x] Preserve guest checkout and existing PayMongo handoff from Story 5.3.
+  - [x] Keep all mutation server-side and idempotent.
 
-- [ ] Task 2: Add webhook domain rules. (AC: 1-6)
-  - [ ] Create domain helpers under `src/domain/payments/**`, recommended `paymongo-webhook.ts`, for raw-body signature verification input validation, event ID/type extraction, payload hashing, duplicate/idempotency decision, and supported/unsupported event decisions.
-  - [ ] Signature verification must use the exact raw request body bytes/string, not a re-serialized object. Do not verify after `JSON.stringify(parsedBody)`.
-  - [ ] Verification must require the configured PayMongo webhook secret. Missing runtime secret maps to `PROVIDER_UNAVAILABLE` or documented safe server config code without mutation.
-  - [ ] Use Workers-compatible Web Crypto APIs for HMAC/signature comparison unless project evidence proves another compatible approach. Use constant-time comparison semantics for digests/signatures.
-  - [ ] Normalize supported event types explicitly. Minimum supported processing target should include PayMongo Hosted Checkout paid event used by current handoff flow; unsupported events must be persisted as ignored, not silently dropped.
-  - [ ] Produce stable payload hash from the exact verified raw body or canonical verified payload, and use it to detect conflicting duplicate event IDs.
+- [x] Task 2: Add webhook domain rules. (AC: 1-6)
+  - [x] Create domain helpers under `src/domain/payments/**`, recommended `paymongo-webhook.ts`, for raw-body signature verification input validation, event ID/type extraction, payload hashing, duplicate/idempotency decision, and supported/unsupported event decisions.
+  - [x] Signature verification must use the exact raw request body bytes/string, not a re-serialized object. Do not verify after `JSON.stringify(parsedBody)`.
+  - [x] Verification must require the configured PayMongo webhook secret. Missing runtime secret maps to `PROVIDER_UNAVAILABLE` or documented safe server config code without mutation.
+  - [x] Use Workers-compatible Web Crypto APIs for HMAC/signature comparison unless project evidence proves another compatible approach. Use constant-time comparison semantics for digests/signatures.
+  - [x] Normalize supported event types explicitly. Minimum supported processing target should include PayMongo Hosted Checkout paid event used by current handoff flow; unsupported events must be persisted as ignored, not silently dropped.
+  - [x] Produce stable payload hash from the exact verified raw body or canonical verified payload, and use it to detect conflicting duplicate event IDs.
 
-- [ ] Task 3: Add webhook persistence and migration. (AC: 2-6)
-  - [ ] Add next migration after `0027_checkout_paymongo_payments.sql`; do not edit old migrations.
-  - [ ] Add Drizzle schema table such as `payment_webhook_events` or `paymongo_webhook_events` with at least:
+- [x] Task 3: Add webhook persistence and migration. (AC: 2-6)
+  - [x] Add next migration after `0027_checkout_paymongo_payments.sql`; do not edit old migrations.
+  - [x] Add Drizzle schema table such as `payment_webhook_events` or `paymongo_webhook_events` with at least:
     - `id`
     - `provider` default `PAYMONGO`
     - `provider_event_id` unique
@@ -50,65 +50,65 @@ so that payment events cannot be spoofed or duplicated.
     - provider safe references such as checkout session ID/payment intent/payment ID when available
     - `first_request_id`, `last_request_id`
     - `received_at`, `processed_at`, `created_at`, `updated_at`
-  - [ ] Do not store raw webhook payload, raw signature, headers, authorization values, checkout URL, card data, checkout email, phone, address, attempt token, or provider secret.
-  - [ ] Add indexes for provider event ID, event type, processing status, related payment ID, and created time.
-  - [ ] Add schema invariant tests proving webhook table does not contain raw payload/signature/header/token/card/contact PII columns.
+  - [x] Do not store raw webhook payload, raw signature, headers, authorization values, checkout URL, card data, checkout email, phone, address, attempt token, or provider secret.
+  - [x] Add indexes for provider event ID, event type, processing status, related payment ID, and created time.
+  - [x] Add schema invariant tests proving webhook table does not contain raw payload/signature/header/token/card/contact PII columns.
 
-- [ ] Task 4: Add repository methods for atomic idempotency. (AC: 2-6)
-  - [ ] Extend `CheckoutRepository` or add a payment repository that can claim/record webhook events before side effects.
-  - [ ] The first valid event with a new provider event ID records the event before any payment/order/inventory/email mutation.
-  - [ ] Exact duplicate with same payload hash returns existing safe idempotent result and does not re-run side effects.
-  - [ ] Same provider event ID with different payload hash marks/returns conflict and blocks mutation.
-  - [ ] Unsupported event types should record `IGNORED` idempotently.
-  - [ ] If using D1 fallback without explicit transaction support, design guarded updates/unique constraints so duplicates and conflicts stay safe under concurrent webhook retries.
+- [x] Task 4: Add repository methods for atomic idempotency. (AC: 2-6)
+  - [x] Extend `CheckoutRepository` or add a payment repository that can claim/record webhook events before side effects.
+  - [x] The first valid event with a new provider event ID records the event before any payment/order/inventory/email mutation.
+  - [x] Exact duplicate with same payload hash returns existing safe idempotent result and does not re-run side effects.
+  - [x] Same provider event ID with different payload hash marks/returns conflict and blocks mutation.
+  - [x] Unsupported event types should record `IGNORED` idempotently.
+  - [x] If using D1 fallback without explicit transaction support, design guarded updates/unique constraints so duplicates and conflicts stay safe under concurrent webhook retries.
 
-- [ ] Task 5: Add webhook service/controller/route. (AC: 1-7)
-  - [ ] Add a public unauthenticated webhook route under the API prefix, recommended `POST /api/payments/paymongo/webhooks` or a similarly explicit PayMongo payment route.
-  - [ ] Register the route in `src/server/routes/index.ts` and wire `createApp` route options/loggers consistently with other route groups.
-  - [ ] Route must use the raw `Request` body for signature verification before validation/parsing side effects. If Elysia body parsing would consume or transform the body, handle the route with `request.text()`/raw body and avoid using parsed `body` for verification.
-  - [ ] Route metadata must declare public auth, rate-limit class such as `payment-webhook`, tags, safe error codes, and why no customer/admin/brand auth applies: provider signature is the auth boundary.
-  - [ ] Controller returns a standard safe envelope or documented provider-compatible response. Do not expose provider payload, signature details, or internal verification failures.
-  - [ ] Add `.env.example`, Worker runtime docs/types if needed for `PAYMONGO_WEBHOOK_SECRET`. Never commit secret values.
+- [x] Task 5: Add webhook service/controller/route. (AC: 1-7)
+  - [x] Add a public unauthenticated webhook route under the API prefix, recommended `POST /api/payments/paymongo/webhooks` or a similarly explicit PayMongo payment route.
+  - [x] Register the route in `src/server/routes/index.ts` and wire `createApp` route options/loggers consistently with other route groups.
+  - [x] Route must use the raw `Request` body for signature verification before validation/parsing side effects. If Elysia body parsing would consume or transform the body, handle the route with `request.text()`/raw body and avoid using parsed `body` for verification.
+  - [x] Route metadata must declare public auth, rate-limit class such as `payment-webhook`, tags, safe error codes, and why no customer/admin/brand auth applies: provider signature is the auth boundary.
+  - [x] Controller returns a standard safe envelope or documented provider-compatible response. Do not expose provider payload, signature details, or internal verification failures.
+  - [x] Add `.env.example`, Worker runtime docs/types if needed for `PAYMONGO_WEBHOOK_SECRET`. Never commit secret values.
 
-- [ ] Task 6: Process supported events without finalizing future-story state. (AC: 3-6)
-  - [ ] Link event to `checkout_payments` using provider checkout session ID, provider payment ID, metadata references, or other safe provider reference from the verified payload.
-  - [ ] For the paid checkout-session event, update only payment state that is safe for this story, such as moving `checkout_payments.status` from `PAYMENT_PENDING` to `PAYMENT_PAID`, if and only if the event maps unambiguously to one existing payment.
-  - [ ] Do not create orders, send payment/receipt emails, release stock for failed/cancelled payment, or mark fulfillment state. Those belong to Stories 5.5, 5.6, and 5.7.
-  - [ ] Unsupported, failed, cancelled, expired, refund-related, or ambiguous events are recorded/ignored safely unless the story explicitly implements a narrow payment status transition with tests.
-  - [ ] Invalid state transitions must reject or mark failed with safe code; never downgrade a paid payment to pending or duplicate mutation.
+- [x] Task 6: Process supported events without finalizing future-story state. (AC: 3-6)
+  - [x] Link event to `checkout_payments` using provider checkout session ID, provider payment ID, metadata references, or other safe provider reference from the verified payload.
+  - [x] For the paid checkout-session event, update only payment state that is safe for this story, such as moving `checkout_payments.status` from `PAYMENT_PENDING` to `PAYMENT_PAID`, if and only if the event maps unambiguously to one existing payment.
+  - [x] Do not create orders, send payment/receipt emails, release stock for failed/cancelled payment, or mark fulfillment state. Those belong to Stories 5.5, 5.6, and 5.7.
+  - [x] Unsupported, failed, cancelled, expired, refund-related, or ambiguous events are recorded/ignored safely unless the story explicitly implements a narrow payment status transition with tests.
+  - [x] Invalid state transitions must reject or mark failed with safe code; never downgrade a paid payment to pending or duplicate mutation.
 
-- [ ] Task 7: Add safe logging and audit events. (AC: 1, 3-7)
-  - [ ] Reuse `createOperationalLogEvent`, `scrubLogDetails`, `createAuditEvent`, and existing scrubbers. Do not invent ad hoc logger shapes.
-  - [ ] Use existing audit action types `payment.webhook_processed` and `payment.webhook_rejected` from `src/domain/audit/events.ts`.
-  - [ ] Safe operational/audit details may include request ID, provider event ID, event type, payload hash prefix, provider checkout session ID/payment ID, JRW payment ID, status, and idempotency decision.
-  - [ ] Never log PayMongo webhook secret, raw signature/header, raw payload, raw provider response, checkout URL, checkout email, phone, address, card data, attempt token, OAuth/session/JWT tokens, or stack traces.
-  - [ ] Add redaction tests for webhook-specific keys (`signature`, `webhookSecret`, `rawPayload`, `rawBody`, provider payload, checkout URL, contact PII).
+- [x] Task 7: Add safe logging and audit events. (AC: 1, 3-7)
+  - [x] Reuse `createOperationalLogEvent`, `scrubLogDetails`, `createAuditEvent`, and existing scrubbers. Do not invent ad hoc logger shapes.
+  - [x] Use existing audit action types `payment.webhook_processed` and `payment.webhook_rejected` from `src/domain/audit/events.ts`.
+  - [x] Safe operational/audit details may include request ID, provider event ID, event type, payload hash prefix, provider checkout session ID/payment ID, JRW payment ID, status, and idempotency decision.
+  - [x] Never log PayMongo webhook secret, raw signature/header, raw payload, raw provider response, checkout URL, checkout email, phone, address, card data, attempt token, OAuth/session/JWT tokens, or stack traces.
+  - [x] Add redaction tests for webhook-specific keys (`signature`, `webhookSecret`, `rawPayload`, `rawBody`, provider payload, checkout URL, contact PII).
 
-- [ ] Task 8: Add tests and QA gates. (AC: 1-7)
-  - [ ] Domain tests for signature verification success/failure, raw-body dependency, payload hash, supported/unsupported event decisions, duplicate same-hash event, conflicting duplicate hash, and idempotency decision.
-  - [ ] Repository/D1 tests for event claim, duplicate exact retry, conflict update, ignored unsupported event, no raw payload/schema invariant, and payment status update guarded by existing payment.
-  - [ ] Service tests for invalid signature no mutation, missing secret no mutation, valid paid event success, duplicate retry no duplicate side effects, conflicting duplicate blocked, unsupported event ignored, ambiguous/unmatched payment safe handling.
-  - [ ] Route tests for public auth metadata, rate-limit class, raw request body verification, invalid signature response, valid event envelope, no mutation before verification, safe error details, and request ID.
-  - [ ] Audit/logging tests for processed/rejected webhook events and scrubbed sensitive fields.
-  - [ ] Minimum commands:
+- [x] Task 8: Add tests and QA gates. (AC: 1-7)
+  - [x] Domain tests for signature verification success/failure, raw-body dependency, payload hash, supported/unsupported event decisions, duplicate same-hash event, conflicting duplicate hash, and idempotency decision.
+  - [x] Repository/D1 tests for event claim, duplicate exact retry, conflict update, ignored unsupported event, no raw payload/schema invariant, and payment status update guarded by existing payment.
+  - [x] Service tests for invalid signature no mutation, missing secret no mutation, valid paid event success, duplicate retry no duplicate side effects, conflicting duplicate blocked, unsupported event ignored, ambiguous/unmatched payment safe handling.
+  - [x] Route tests for public auth metadata, rate-limit class, raw request body verification, invalid signature response, valid event envelope, no mutation before verification, safe error details, and request ID.
+  - [x] Audit/logging tests for processed/rejected webhook events and scrubbed sensitive fields.
+  - [x] Minimum commands:
     - `npx vitest run src/domain/payments/paymongo-webhook.test.ts src/domain/payments/paymongo-checkout.test.ts`
     - `npx vitest run src/server/repositories/CheckoutRepository.test.ts src/server/services/CheckoutService.test.ts src/server/routes/checkout.routes.test.ts src/domain/schema-invariants.test.ts`
     - `npx vitest run src/adapter/infrastructure/logging/operational-log.test.ts src/domain/audit/events.test.ts`
     - `npm run check`
-  - [ ] Run `npm run build-test` if route registration, schema, Worker env types, or migration/schema changes are broad.
+  - [x] Run `npm run build-test` if route registration, schema, Worker env types, or migration/schema changes are broad.
 
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint. Mark non-applicable items as `N/A` with reason.
 
-- [ ] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
-- [ ] Route-level RBAC guard runs before validation or side effects for protected endpoints.
-- [ ] Service/controller enforces actor state before mutation: authenticated, active, verified, approved.
-- [ ] Brand-scoped reads or writes enforce active brand membership or elevated permission server-side.
-- [ ] Public/customer endpoints explicitly document why brand membership is not required.
-- [ ] Denial tests cover unauthenticated actor, wrong role, invalid account state, missing brand membership, and elevated actor path where applicable.
-- [ ] Error response uses safe envelope codes and does not leak provider/internal authorization details.
-- [ ] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
+- [x] Route auth metadata declares public auth and webhook rate-limit class.
+- [x] N/A - no RBAC guard applies because PayMongo signature verification is provider auth boundary.
+- [x] N/A - no customer/admin actor state applies before webhook mutation.
+- [x] N/A - webhook payments are seller-of-record payment events, not brand-scoped admin reads/writes.
+- [x] Route metadata explicitly documents why customer/admin/brand auth is not required.
+- [x] Denial tests focus on invalid signature, missing secret/no mutation, duplicate conflict, unsupported event, malformed payload, and no mutation before verification.
+- [x] Error response uses safe envelope codes and does not leak provider/internal authorization details.
+- [x] OpenAPI/endpoint catalog lists auth mode, rate-limit class, and denial codes.
 
 For this story, expected checklist interpretation:
 
@@ -286,21 +286,55 @@ GPT-5.5 Thinking
 
 - 2026-06-23: Started Story 5.4 through `/bmad-dev-story`. Read BMAD dev-story workflow, sprint status, project context, story file, and most listed UPDATE files. `.env.example` and `worker-configuration.d.ts` could not be loaded through the repo tool due safety/size guards and must be reviewed locally before final completion.
 - 2026-06-23: Added a pure domain slice for PayMongo webhook signature verification, raw-body payload hashing, safe event identity/reference extraction, supported/unsupported event classification, and idempotency decisioning. Did not run commands in this environment.
+- 2026-06-23: Continued Story 5.4 locally. Verified current PayMongo docs: Hosted Checkout V2 uses `checkout_session.payment.paid`; webhook header is `Paymongo-Signature` with `t`, `te`, and `li`; signature input is `${timestamp}.${rawBody}`.
+- 2026-06-23: Refactored signature/HMAC/payload hash helpers to `src/lib/paymongo/PayMongoWebhookVerifier.ts`, keeping pure event parsing/classification/idempotency in `src/domain/payments/paymongo-webhook.ts`.
+- 2026-06-23: Added webhook migration/schema, D1 repository claim/duplicate/conflict/ignored processing, service/controller/route, env docs/types, safe audit/logging hardening, and tests.
+- 2026-06-23: `npx vitest run src/domain/payments/paymongo-webhook.test.ts src/domain/payments/paymongo-checkout.test.ts src/lib/paymongo/PayMongoWebhookVerifier.test.ts` passed.
+- 2026-06-23: `npx vitest run src/server/repositories/PaymentWebhookRepository.test.ts src/domain/schema-invariants.test.ts` passed.
+- 2026-06-23: `npx vitest run src/server/services/CheckoutService.test.ts src/server/services/PaymentWebhookService.test.ts src/server/routes/checkout.routes.test.ts src/server/routes/payment-webhook.routes.test.ts src/domain/schema-invariants.test.ts` passed.
+- 2026-06-23: `npx vitest run src/server/repositories/CheckoutRepository.test.ts --reporter=json --outputFile=$env:TEMP/jrw-vitest-checkout-repo.json` passed after an earlier transient Miniflare/undici `fetch failed: other side closed` in the broad suite.
+- 2026-06-23: `npx vitest run src/adapter/infrastructure/logging/operational-log.test.ts src/domain/audit/events.test.ts` passed.
+- 2026-06-23: `npm run check` passed with existing unrelated hints only.
+- 2026-06-23: `npm run build-test` passed: Astro check, 122 Vitest files / 806 tests, and Astro build.
 
 ### Completion Notes List
 
-- Partial implementation only. Added domain-level webhook primitives and tests under `src/domain/payments/**`.
-- Scope intentionally stayed narrow: no route, controller, service, repository, migration, Worker env type, `.env.example`, order confirmation, receipt, email, inventory release, or UI changes were implemented.
-- Tests were authored but not executed here; Codex/local environment must run the listed commands and continue the remaining story tasks.
+- Completed implementation. Webhook verification now uses exact raw body text and official PayMongo `Paymongo-Signature` `t/te/li` fields.
+- Added dedicated modular provider verifier under `src/lib/paymongo/**`; domain file now owns only event extraction/classification/idempotency decisions.
+- Added `payment_webhook_events` persistence with unique provider event key, payload hash conflict detection, ignored unsupported events, and no raw payload/signature/contact/card/secret columns.
+- Added guarded `PAYMENT_PENDING -> PAYMENT_PAID` update for supported Hosted Checkout paid events when provider checkout session maps to one existing JRW payment. No orders, receipts, emails, fulfillment changes, or inventory release were added.
+- Added public `POST /api/payments/paymongo/webhooks` route with raw text parsing, safe response envelopes, public route metadata, and webhook rate-limit class.
+- Added `PAYMONGO_WEBHOOK_SECRET` docs/types; no real secrets committed.
 
 ### File List
 
+- `.env.example`
+- `migrations/0028_paymongo_webhook_events.sql`
+- `src/adapter/infrastructure/logging/operational-log.ts`
+- `src/adapter/infrastructure/logging/operational-log.test.ts`
+- `src/domain/audit/events.ts`
+- `src/domain/audit/events.test.ts`
 - `src/domain/payments/paymongo-webhook.ts`
 - `src/domain/payments/paymongo-webhook.test.ts`
+- `src/domain/schema/transactions.ts`
+- `src/domain/schema-invariants.test.ts`
+- `src/env.d.ts`
+- `src/lib/paymongo/PayMongoWebhookVerifier.ts`
+- `src/lib/paymongo/PayMongoWebhookVerifier.test.ts`
+- `src/server/app.ts`
+- `src/server/controllers/PaymentWebhookController.ts`
+- `src/server/repositories/PaymentWebhookRepository.ts`
+- `src/server/repositories/PaymentWebhookRepository.test.ts`
+- `src/server/routes/index.ts`
+- `src/server/routes/payment-webhook.routes.ts`
+- `src/server/routes/payment-webhook.routes.test.ts`
+- `src/server/services/PaymentWebhookService.ts`
+- `src/server/services/PaymentWebhookService.test.ts`
 - `_bmad-output/implementation-artifacts/5-4-paymongo-webhook-verification-and-idempotency.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ### Change Log
 
+- 2026-06-23: Completed PayMongo webhook verification/idempotency implementation with modular verifier, persistence, route, safe logs/audit, env docs, and passing QA gates.
 - 2026-06-23: Marked Story 5.4 in-progress and added domain-level PayMongo webhook verification/idempotency helper slice with tests.
 - 2026-06-21: Story created with backend webhook verification/idempotency scope and ready-for-dev status.

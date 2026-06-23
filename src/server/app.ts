@@ -165,6 +165,12 @@ export function createApp(options: CreateAppOptions = {}) {
       operationalLogger:
         options.routes?.checkout?.operationalLogger ?? operationalLogger,
     },
+    paymentWebhooks: {
+      ...options.routes?.paymentWebhooks,
+      operationalLogger:
+        options.routes?.paymentWebhooks?.operationalLogger ??
+        operationalLogger,
+    },
     products: {
       ...options.routes?.products,
     },

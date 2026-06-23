@@ -18,6 +18,7 @@ import {
   checkout_reservation_items,
   checkout_reservations,
   orders,
+  payment_webhook_events,
 } from "./schema/transactions";
 
 function getColumnName(column: unknown): string | undefined {
@@ -571,6 +572,58 @@ describe("checkout schema invariants", () => {
       expect.arrayContaining([
         "idx_checkout_payment_items_payment_id",
         "idx_checkout_payment_items_variant_id",
+      ])
+    );
+  });
+
+  it("stores webhook idempotency without payload, signature, or customer data", () => {
+    const config = getTableConfig(payment_webhook_events);
+    const columns = config.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const indexes = config.indexes.map((index) => index.config.name);
+
+    expect(columns).toEqual(
+      expect.arrayContaining([
+        "provider_event_id",
+        "event_type",
+        "payload_hash",
+        "processing_status",
+        "related_payment_id",
+        "provider_checkout_session_id",
+        "provider_payment_id",
+        "provider_payment_intent_id",
+        "first_request_id",
+        "last_request_id",
+        "received_at",
+        "processed_at",
+      ])
+    );
+    expect(columns).not.toEqual(
+      expect.arrayContaining([
+        "raw_payload",
+        "provider_payload",
+        "raw_signature",
+        "signature",
+        "headers",
+        "authorization",
+        "checkout_url",
+        "card_data",
+        "card_number",
+        "checkout_email",
+        "phone",
+        "street_address",
+        "attempt_token",
+        "provider_secret",
+      ])
+    );
+    expect(indexes).toEqual(
+      expect.arrayContaining([
+        "uq_payment_webhook_events_provider_event_id",
+        "idx_payment_webhook_events_event_type",
+        "idx_payment_webhook_events_processing_status",
+        "idx_payment_webhook_events_related_payment_id",
+        "idx_payment_webhook_events_created_at",
       ])
     );
   });

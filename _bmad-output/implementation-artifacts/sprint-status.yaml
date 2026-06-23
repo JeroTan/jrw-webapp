@@ -100,7 +100,7 @@ development_status:
   5-1-checkout-identity-contact-and-delivery-validation: done
   5-2-server-cart-validation-and-inventory-reservation: done
   5-3-paymongo-payment-creation-and-handoff: done
-  5-4-paymongo-webhook-verification-and-idempotency: in-progress
+  5-4-paymongo-webhook-verification-and-idempotency: done
   5-5-payment-reconciliation-and-order-confirmation: backlog
   5-6-release-reserved-inventory-after-failed-or-cancelled-payment: backlog
   5-7-checkout-receipt-payment-status-and-payment-emails: backlog

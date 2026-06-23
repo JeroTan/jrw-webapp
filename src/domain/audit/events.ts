@@ -120,6 +120,7 @@ const auditSensitiveKeyPatterns = [
   /provider.*response/i,
   /payment.*payload/i,
   /payment.*response/i,
+  /raw.*body/i,
   /raw.*payment/i,
   /raw.*payload/i,
   /card/i,
@@ -171,6 +172,10 @@ function scrubAuditValue(
   }
 
   if (typeof value === "string") {
+    if (/^event_?type$/i.test(key)) {
+      return value;
+    }
+
     return shouldRedactAuditString(value) ? AUDIT_REDACTED_VALUE : value;
   }
 

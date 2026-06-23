@@ -107,4 +107,52 @@ describe("audit event foundation", () => {
       /checkout\.paymongo|424242|nina@example|Sampaguita/i
     );
   });
+
+  it("scrubs webhook secrets, signatures, raw payloads, and contact details", () => {
+    const event = createAuditEvent({
+      eventId: "evt_webhook_scrub",
+      requestId: "req_webhook_scrub",
+      action: "payment.webhook_rejected",
+      actor: {
+        type: "system",
+        role: "SYSTEM",
+        safeIdentifier: "paymongo-webhook",
+      },
+      target: {
+        entity: "payment",
+        entityId: "evt_safe",
+      },
+      safeDetails: {
+        eventType: "checkout_session.payment.paid",
+        providerCheckoutSessionId: "cs_test_safe",
+        providerEventId: "evt_safe",
+        webhookSecret: "whsec_raw",
+        paymongoSignature: "t=1496734173,te=raw,li=",
+        rawBody: "{\"billing\":{\"email\":\"buyer@example.test\"}}",
+        rawPayload: { card: "4242424242424242" },
+        providerPayload: { checkout_url: "https://checkout.paymongo.com/raw" },
+        checkoutEmail: "buyer@example.test",
+        phone: "+63 917 111 2222",
+        streetAddress: "123 Sample St",
+      },
+      occurredAt: "2026-06-23T08:00:00.000Z",
+    });
+
+    expect(event.safeDetails).toMatchObject({
+      eventType: "checkout_session.payment.paid",
+      providerCheckoutSessionId: "cs_test_safe",
+      providerEventId: "evt_safe",
+      webhookSecret: AUDIT_REDACTED_VALUE,
+      paymongoSignature: AUDIT_REDACTED_VALUE,
+      rawBody: AUDIT_REDACTED_VALUE,
+      rawPayload: AUDIT_REDACTED_VALUE,
+      providerPayload: AUDIT_REDACTED_VALUE,
+      checkoutEmail: AUDIT_REDACTED_VALUE,
+      phone: AUDIT_REDACTED_VALUE,
+      streetAddress: AUDIT_REDACTED_VALUE,
+    });
+    expect(JSON.stringify(event)).not.toMatch(
+      /whsec_raw|raw-signature|buyer@example|424242|checkout\.paymongo|Sample St/i
+    );
+  });
 });

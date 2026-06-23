@@ -140,6 +140,43 @@ describe("operational logging foundation", () => {
     );
   });
 
+  it("scrubs webhook secrets, signatures, raw body, and provider payload details", () => {
+    const details = scrubLogDetails({
+      eventType: "checkout_session.payment.paid",
+      providerCheckoutSessionId: "cs_test_safe",
+      providerEventId: "evt_safe",
+      providerPaymentId: "pay_safe",
+      webhookSecret: "whsec_raw",
+      paymongoSignature: "t=1496734173,te=raw,li=",
+      signature: "raw-signature",
+      rawBody: "{\"billing\":{\"email\":\"buyer@example.test\"}}",
+      rawPayload: { card: "4242424242424242" },
+      providerPayload: { checkout_url: "https://checkout.paymongo.com/raw" },
+      checkoutEmail: "buyer@example.test",
+      phone: "+63 917 111 2222",
+      streetAddress: "123 Sample St",
+    });
+
+    expect(details).toMatchObject({
+      eventType: "checkout_session.payment.paid",
+      providerCheckoutSessionId: "cs_test_safe",
+      providerEventId: "evt_safe",
+      providerPaymentId: "pay_safe",
+      webhookSecret: REDACTED_LOG_VALUE,
+      paymongoSignature: REDACTED_LOG_VALUE,
+      signature: REDACTED_LOG_VALUE,
+      rawBody: REDACTED_LOG_VALUE,
+      rawPayload: REDACTED_LOG_VALUE,
+      providerPayload: REDACTED_LOG_VALUE,
+      checkoutEmail: REDACTED_LOG_VALUE,
+      phone: REDACTED_LOG_VALUE,
+      streetAddress: REDACTED_LOG_VALUE,
+    });
+    expect(JSON.stringify(details)).not.toMatch(
+      /whsec_raw|raw-signature|buyer@example|424242|checkout\.paymongo|Sample St/i
+    );
+  });
+
   it("scrubs non-Error GeneralError instances and circular details", () => {
     const circular: Record<string, unknown> = { safe: "ok", count: 1n };
     circular.self = circular;

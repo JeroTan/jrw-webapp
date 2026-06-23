@@ -213,6 +213,50 @@ export const checkout_payment_items = sqliteTable(
   ]
 );
 
+export const payment_webhook_events = sqliteTable(
+  "payment_webhook_events",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    provider: text("provider").notNull().default("PAYMONGO"),
+    provider_event_id: text("provider_event_id").notNull(),
+    event_type: text("event_type").notNull(),
+    payload_hash: text("payload_hash").notNull(),
+    processing_status: text("processing_status").notNull().default("RECEIVED"),
+    related_payment_id: text("related_payment_id").references(
+      () => checkout_payments.id,
+      { onDelete: "set null" }
+    ),
+    provider_checkout_session_id: text("provider_checkout_session_id"),
+    provider_payment_id: text("provider_payment_id"),
+    provider_payment_intent_id: text("provider_payment_intent_id"),
+    first_request_id: text("first_request_id").notNull(),
+    last_request_id: text("last_request_id").notNull(),
+    received_at: text("received_at").notNull(),
+    processed_at: text("processed_at"),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("uq_payment_webhook_events_provider_event_id").on(
+      table.provider_event_id
+    ),
+    index("idx_payment_webhook_events_event_type").on(table.event_type),
+    index("idx_payment_webhook_events_processing_status").on(
+      table.processing_status
+    ),
+    index("idx_payment_webhook_events_related_payment_id").on(
+      table.related_payment_id
+    ),
+    index("idx_payment_webhook_events_created_at").on(table.created_at),
+  ]
+);
+
 export const order_snapshots = sqliteTable(
   "order_snapshots",
   {
@@ -337,6 +381,7 @@ export const checkoutPaymentsRelations = relations(
       references: [checkout_reservations.id],
     }),
     items: many(checkout_payment_items),
+    webhookEvents: many(payment_webhook_events),
   })
 );
 
@@ -354,6 +399,16 @@ export const checkoutPaymentItemsRelations = relations(
     variant: one(product_variants, {
       fields: [checkout_payment_items.variant_id],
       references: [product_variants.id],
+    }),
+  })
+);
+
+export const paymentWebhookEventsRelations = relations(
+  payment_webhook_events,
+  ({ one }) => ({
+    payment: one(checkout_payments, {
+      fields: [payment_webhook_events.related_payment_id],
+      references: [checkout_payments.id],
     }),
   })
 );
