@@ -2,7 +2,9 @@ import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { Button, Select, Textarea } from "@/components/ui";
 import { mergeClassNames } from "@/components/utils";
+import { createProductCategoryDraft } from "../createProductCategoryDraft";
 import { inventoryStateConsistent } from "../inventoryStateConsistent";
+import { previewProductReadiness } from "../previewProductReadiness";
 import { zodCreateProductInput } from "../productEditorSchema";
 import { slugifyProductText } from "../slugifyProductText";
 import {
@@ -28,6 +30,7 @@ import type {
   ProductReadinessResult,
   ProductStatus,
   ProductMutationInput,
+  ProductCategoryDraft,
   ProductOrganizationRecord,
   ProductRecord,
   ProductVariantRecord,
@@ -60,6 +63,8 @@ type ProductEditorFormState = {
   description: string;
   brandId: string;
   categoryIds: string[];
+  categoryDraftName: string;
+  categoryDrafts: ProductCategoryDraft[];
 };
 
 type ProductEditorValidationState = {
@@ -75,6 +80,10 @@ export type ProductEditorSaveInput = {
     persist: boolean;
     brandId: string | null;
     categoryIds: string[];
+    categoryDrafts: Array<{
+      name: string;
+      slug: string;
+    }>;
   };
 };
 
@@ -119,6 +128,8 @@ function toEditorFormState(input: {
       description: "",
       brandId: "",
       categoryIds: [],
+      categoryDraftName: "",
+      categoryDrafts: [],
     };
   }
 
@@ -132,6 +143,8 @@ function toEditorFormState(input: {
       mode === "edit"
         ? (organization?.categories ?? []).map((category) => category.id)
         : [],
+    categoryDraftName: "",
+    categoryDrafts: [],
   };
 }
 
@@ -170,6 +183,10 @@ function issueToField(path: string): keyof ProductEditorFormState | undefined {
       return "brandId";
     case "categoryIds":
       return "categoryIds";
+    case "categoryDraftName":
+      return "categoryDraftName";
+    case "categoryDrafts":
+      return "categoryDrafts";
     default:
       return undefined;
   }
@@ -185,6 +202,7 @@ function validateProductInput(
     allowOrganization: boolean;
     availableBrandIds: Set<string>;
     availableCategoryIds: Set<string>;
+    draftCategoryIds: Set<string>;
   }
 ):
   | {
@@ -236,7 +254,9 @@ function validateProductInput(
     }
 
     const unknownCategoryIds = form.categoryIds.filter(
-      (categoryId) => !options.availableCategoryIds.has(categoryId)
+      (categoryId) =>
+        !options.availableCategoryIds.has(categoryId) &&
+        !options.draftCategoryIds.has(categoryId)
     );
     if (unknownCategoryIds.length > 0) {
       return {
@@ -250,6 +270,11 @@ function validateProductInput(
       };
     }
   }
+
+  const selectedCategoryIds = new Set(form.categoryIds);
+  const selectedCategoryDrafts = form.categoryDrafts.filter((category) =>
+    selectedCategoryIds.has(category.id)
+  );
 
   return {
     okay: true,
@@ -268,8 +293,15 @@ function validateProductInput(
             form.categoryIds
               .map((categoryId) => categoryId.trim())
               .filter((categoryId) => categoryId.length > 0)
+              .filter((categoryId) =>
+                options.availableCategoryIds.has(categoryId)
+              )
           )
         ),
+        categoryDrafts: selectedCategoryDrafts.map((category) => ({
+          name: category.name,
+          slug: category.slug,
+        })),
       },
     },
   };
@@ -289,6 +321,8 @@ function applyProductOrganizationFields(
   return {
     ...form,
     ...productOrganizationFields(input),
+    categoryDraftName: "",
+    categoryDrafts: [],
   };
 }
 
@@ -314,6 +348,23 @@ function parseSerializedFormState(
             (categoryId): categoryId is string => typeof categoryId === "string"
           )
         : fallback.categoryIds,
+      categoryDraftName:
+        typeof parsed.categoryDraftName === "string"
+          ? parsed.categoryDraftName
+          : fallback.categoryDraftName,
+      categoryDrafts: Array.isArray(parsed.categoryDrafts)
+        ? parsed.categoryDrafts.filter(
+            (category): category is ProductCategoryDraft =>
+              typeof category === "object" &&
+              category !== null &&
+              "id" in category &&
+              "name" in category &&
+              "slug" in category &&
+              typeof category.id === "string" &&
+              typeof category.name === "string" &&
+              typeof category.slug === "string"
+          )
+        : fallback.categoryDrafts,
     };
   } catch {
     return fallback;
@@ -897,6 +948,14 @@ export function ProductEditor({
     () => serializeFormState(form) !== baselineForm,
     [baselineForm, form]
   );
+  const previewReadiness = useMemo(
+    () =>
+      previewProductReadiness({
+        hasSelectedCategory: form.categoryIds.length > 0,
+        readiness,
+      }),
+    [form.categoryIds.length, readiness]
+  );
 
   const availableBrandIds = useMemo(
     () => new Set(availableBrands.map((brand) => brand.id)),
@@ -905,6 +964,10 @@ export function ProductEditor({
   const availableCategoryIds = useMemo(
     () => new Set(availableCategories.map((category) => category.id)),
     [availableCategories]
+  );
+  const draftCategoryIds = useMemo(
+    () => new Set(form.categoryDrafts.map((category) => category.id)),
+    [form.categoryDrafts]
   );
 
   useEffect(() => {
@@ -952,6 +1015,64 @@ export function ProductEditor({
     updateField("slug", value);
   }
 
+  function addCategoryDraft() {
+    const nextName = form.categoryDraftName.trim();
+    if (nextName.length === 0) {
+      return;
+    }
+
+    const normalizedName = nextName.toLowerCase();
+    const existingCategory = availableCategories.find(
+      (category) => category.name.trim().toLowerCase() === normalizedName
+    );
+    if (existingCategory) {
+      updateField("categoryIds", [
+        ...new Set([...form.categoryIds, existingCategory.id]),
+      ]);
+      updateField("categoryDraftName", "");
+      return;
+    }
+
+    const existingDraft = form.categoryDrafts.find(
+      (category) => category.name.trim().toLowerCase() === normalizedName
+    );
+    if (existingDraft) {
+      updateField("categoryIds", [
+        ...new Set([...form.categoryIds, existingDraft.id]),
+      ]);
+      updateField("categoryDraftName", "");
+      return;
+    }
+
+    const draft = createProductCategoryDraft(
+      nextName,
+      form.categoryDrafts.length + 1
+    );
+
+    setForm((previous) => ({
+      ...previous,
+      categoryDraftName: "",
+      categoryDrafts: [...previous.categoryDrafts, draft],
+      categoryIds: [...new Set([...previous.categoryIds, draft.id])],
+    }));
+    if (validation.fields.categoryIds || validation.summary.length > 0) {
+      setValidation(emptyValidationState());
+    }
+  }
+
+  function removeCategoryDraft(categoryId: string) {
+    setForm((previous) => ({
+      ...previous,
+      categoryDrafts: previous.categoryDrafts.filter(
+        (category) => category.id !== categoryId
+      ),
+      categoryIds: previous.categoryIds.filter((id) => id !== categoryId),
+    }));
+    if (validation.fields.categoryIds || validation.summary.length > 0) {
+      setValidation(emptyValidationState());
+    }
+  }
+
   function handleClose() {
     if (
       open &&
@@ -965,37 +1086,54 @@ export function ProductEditor({
     onClose();
   }
 
+  function validateCurrentProductInput():
+    | { okay: true; value: ProductEditorSaveInput }
+    | { okay: false; validation: ProductEditorValidationState } {
+    if (mode === "edit" && mutationsBlocked) {
+      return {
+        okay: false,
+        validation: {
+          summary: [
+            mutationBlockReason ??
+              "You need active membership in this product brand.",
+          ],
+          fields: {},
+        },
+      };
+    }
+
+    return validateProductInput(form, {
+      allowOrganization: mode === "edit" && organizationReady,
+      availableBrandIds,
+      availableCategoryIds,
+      draftCategoryIds,
+    });
+  }
+
+  async function saveCurrentProductChanges(): Promise<boolean> {
+    const result = validateCurrentProductInput();
+
+    if (!result.okay) {
+      setValidation(result.validation);
+      return false;
+    }
+
+    await onSave(result.value);
+    setBaselineForm(serializeFormState(form));
+    setValidation(emptyValidationState());
+    return true;
+  }
+
   async function handleSubmit(
     event: React.SyntheticEvent<HTMLFormElement, SubmitEvent>
   ) {
     event.preventDefault();
 
-    if (mode === "edit" && mutationsBlocked) {
-      setValidation({
-        summary: [
-          mutationBlockReason ??
-            "You need active membership in this product brand.",
-        ],
-        fields: {},
-      });
-      return;
-    }
-
-    const result = validateProductInput(form, {
-      allowOrganization: mode === "edit" && organizationReady,
-      availableBrandIds,
-      availableCategoryIds,
-    });
-
-    if (!result.okay) {
-      setValidation(result.validation);
-      return;
-    }
-
     try {
-      await onSave(result.value);
-      setBaselineForm(serializeFormState(form));
-      setValidation(emptyValidationState());
+      const saved = await saveCurrentProductChanges();
+      if (!saved) {
+        return;
+      }
       if (mode === "edit" && editingProductId) {
         await reloadPublishDependencies(editingProductId);
       }
@@ -1120,6 +1258,13 @@ export function ProductEditor({
     setStatusBusy(true);
     setStatusFeedback(null);
     try {
+      if (isDirty) {
+        const saved = await saveCurrentProductChanges();
+        if (!saved) {
+          return;
+        }
+      }
+
       const nextProduct = await publishProduct(editingProductId);
       setCurrentStatus(nextProduct.status);
       await reloadReadiness(editingProductId);
@@ -1506,11 +1651,18 @@ export function ProductEditor({
               <CategoryAssignmentPicker
                 categories={availableCategories}
                 disabled={!organizationReady || saving || mutationsBlocked}
+                draftCategories={form.categoryDrafts}
                 error={validation.fields.categoryIds}
                 loading={!organizationReady && !organizationUnavailable}
+                newCategoryName={form.categoryDraftName}
+                onAddCategoryDraft={addCategoryDraft}
                 onChange={(categoryIds) =>
                   updateField("categoryIds", categoryIds)
                 }
+                onNewCategoryNameChange={(categoryDraftName) =>
+                  updateField("categoryDraftName", categoryDraftName)
+                }
+                onRemoveCategoryDraft={removeCategoryDraft}
                 selectedCategoryIds={form.categoryIds}
               />
             </>
@@ -1707,7 +1859,7 @@ export function ProductEditor({
               onRefresh={async () => {
                 await reloadReadiness(editingProductId);
               }}
-              readiness={readiness}
+              readiness={previewReadiness}
             />
 
             <PublishControl
@@ -1717,7 +1869,7 @@ export function ProductEditor({
               onPublish={handlePublish}
               onUnpublish={handleUnpublish}
               publishBlockedReason={mutationBlockReason}
-              readiness={readiness}
+              readiness={previewReadiness}
               status={currentStatus}
             />
           </section>

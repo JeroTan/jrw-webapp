@@ -11,6 +11,8 @@ import {
   fetchProductOrganization,
   updateProduct,
 } from "../api";
+import { mergeAssignableCategories } from "../mergeAssignableCategories";
+import { persistProductCategoryDrafts } from "../persistProductCategoryDrafts";
 import { productActionErrorMessage } from "../productActionErrorMessage";
 import { productCanMutate } from "../productCanMutate";
 import type {
@@ -180,6 +182,14 @@ export function ProductDetailDashboard({
       let nextOrganization = organization;
 
       if (input.organization.persist) {
+        const createdCategories = await persistProductCategoryDrafts(
+          input.organization.categoryDrafts
+        );
+        const categoryIds = [
+          ...input.organization.categoryIds,
+          ...createdCategories.map((category) => category.id),
+        ];
+
         const brandMutation = await assignProductBrand(product.id, {
           brandId: input.organization.brandId,
         });
@@ -187,10 +197,16 @@ export function ProductDetailDashboard({
         nextOrganization = brandMutation.organization;
 
         const categoryMutation = await assignProductCategories(product.id, {
-          categoryIds: input.organization.categoryIds,
+          categoryIds,
         });
         nextProduct = categoryMutation.product;
         nextOrganization = categoryMutation.organization;
+
+        if (createdCategories.length > 0) {
+          setAvailableCategories((previous) =>
+            mergeAssignableCategories(previous, createdCategories)
+          );
+        }
       }
 
       setProduct(nextProduct);

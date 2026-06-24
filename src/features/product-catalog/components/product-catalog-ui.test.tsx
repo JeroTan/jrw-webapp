@@ -157,7 +157,7 @@ describe("product catalog UI", () => {
     expect(markup).toContain("lg:grid-cols-12");
     expect(markup).toContain("lg:col-span-4");
     expect(markup).toContain("xl:col-span-3");
-    expect(markup).toContain("h-55");
+    expect(markup).toContain("aspect-square");
     expect(markup).toContain("JRW Studio / Apparel / Available");
     expect(markup).toContain('aria-label="View Linen Shirt"');
     expect(markup).toContain('type="submit"');
@@ -173,7 +173,7 @@ describe("product catalog UI", () => {
     expect(markup).toContain("min-h-90");
     expect(markup).toContain("border-r border-b");
     expect(markup).toContain("bg-brand-surface");
-    expect(markup).toContain("h-55");
+    expect(markup).toContain("aspect-square");
     expect(markup).toContain("object-cover");
     expect(markup).toContain("JRW Studio / Apparel / Available");
     expect(markup).toContain("text-[0.6875rem]");

@@ -364,6 +364,36 @@ export async function fetchAssignableCategories(): Promise<
   }));
 }
 
+export async function createAssignableCategory(input: {
+  name: string;
+  slug?: string;
+}): Promise<ProductAssignableCategory> {
+  const response = await adminProductFetch("/api/admin/categories", {
+    method: "POST",
+    headers: {
+      accept: "application/json",
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      description: null,
+      isVisible: true,
+      name: input.name,
+      slug: input.slug,
+      sortOrder: 0,
+    }),
+  });
+  const payload = await readApiEnvelope<{
+    category: ProductAssignableCategory;
+  }>(response);
+
+  return {
+    id: payload.category.id,
+    name: payload.category.name,
+    slug: payload.category.slug,
+    status: payload.category.status,
+  };
+}
+
 export async function fetchProductVariants(
   productId: string,
   query: { page?: number; pageSize?: number } = {}

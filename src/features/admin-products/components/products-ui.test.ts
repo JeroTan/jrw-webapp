@@ -8,6 +8,17 @@ import {
 } from "./ProductEditor";
 import { ProductDetailDashboard } from "./ProductDetailDashboard";
 import { ProductList, filterProductsByQuery } from "./ProductList";
+import { createProductImageResizeFailureNotice } from "../createProductImageResizeFailureNotice";
+import { createProductImageResizeNotice } from "../createProductImageResizeNotice";
+import { createProductImageSizeNotice } from "../createProductImageSizeNotice";
+import { createResizedProductImageFileName } from "../createResizedProductImageFileName";
+import { createProductCategoryDraft } from "../createProductCategoryDraft";
+import { formatProductImageFileSize } from "../formatProductImageFileSize";
+import { isProductImageResizeRequired } from "../isProductImageResizeRequired";
+import { mergeAssignableCategories } from "../mergeAssignableCategories";
+import { productImageUploadMaxBytes } from "../productImageUploadPolicy";
+import { resizeProductImageDimensions } from "../resizeProductImageDimensions";
+import { previewProductReadiness } from "../previewProductReadiness";
 import type {
   ProductAssignableBrand,
   ProductAssignableCategory,
@@ -171,10 +182,15 @@ describe("products UI surfaces", () => {
     expect(editMarkup).toContain("Edit product");
     expect(editMarkup).toContain("kitchen-scale");
     expect(editMarkup).toContain("Membership status");
+    expect(editMarkup).toContain("Add category");
+    expect(editMarkup).toContain("Selected");
     expect(editMarkup).toContain("Lighting");
     expect(editMarkup).toContain("1 selected");
     expect(editMarkup).not.toContain("Next catalog steps");
     expect(editMarkup).toContain("Upload image");
+    expect(editMarkup).toContain(
+      "Images larger than 5MB are reduced before upload."
+    );
     expect(editMarkup).toContain("Variant matrix");
     expect(editMarkup).toContain("Inventory adjuster");
     expect(editMarkup).toContain("Save changes");
@@ -223,6 +239,86 @@ describe("products UI surfaces", () => {
   it("suggests editable slugs from product names", () => {
     expect(suggestedProductSlug(" Desk Lamp / Metal ")).toBe("desk-lamp-metal");
     expect(suggestedProductSlug("")).toBe("");
+  });
+
+  it("creates category drafts and merges assignable categories by name", () => {
+    expect(createProductCategoryDraft(" Tee Shirt ", 2)).toEqual({
+      id: "draft-category-2-tee-shirt",
+      name: "Tee Shirt",
+      slug: "tee-shirt",
+    });
+
+    expect(
+      mergeAssignableCategories(categories, [
+        {
+          id: "cat_2",
+          name: "Apparel",
+          slug: "apparel",
+          status: "ACTIVE",
+        },
+      ]).map((category) => category.name)
+    ).toEqual(["Apparel", "Lighting"]);
+  });
+
+  it("preflights oversized product images before upload", () => {
+    const oversizedJpeg = new File(
+      [new Uint8Array(productImageUploadMaxBytes + 1)],
+      "front-shot.jpg",
+      { type: "image/jpeg" }
+    );
+    const normalJpeg = new File(["tiny"], "front-shot.jpg", {
+      type: "image/jpeg",
+    });
+
+    expect(isProductImageResizeRequired(oversizedJpeg)).toBe(true);
+    expect(isProductImageResizeRequired(normalJpeg)).toBe(false);
+    expect(createResizedProductImageFileName(oversizedJpeg, "image/webp")).toBe(
+      "front-shot.webp"
+    );
+    expect(formatProductImageFileSize(productImageUploadMaxBytes)).toBe("5MB");
+    expect(createProductImageSizeNotice(oversizedJpeg)).toContain(
+      "Image size detected: 5.0MB. Bigger than 5MB"
+    );
+    expect(createProductImageSizeNotice(normalJpeg)).toBe(
+      "Image size detected: 1KB. Uploading now."
+    );
+    expect(
+      createProductImageResizeNotice({
+        originalSize: productImageUploadMaxBytes + 1,
+        resizedSize: 1024,
+      })
+    ).toBe("Image reduced from 5.0MB to 1KB before upload.");
+    expect(createProductImageResizeFailureNotice(oversizedJpeg)).toContain(
+      "Could not reduce below 5MB here."
+    );
+    expect(
+      resizeProductImageDimensions({
+        height: 2000,
+        maxDimension: 2000,
+        width: 4000,
+      })
+    ).toEqual({
+      height: 1000,
+      width: 2000,
+    });
+  });
+
+  it("previews staged category assignment before publish readiness refresh", () => {
+    expect(
+      previewProductReadiness({
+        hasSelectedCategory: true,
+        readiness: {
+          isReady: false,
+          missingItems: [
+            "At least one category assignment is required.",
+            "At least one active variant is required.",
+          ],
+        },
+      })
+    ).toEqual({
+      isReady: false,
+      missingItems: ["At least one active variant is required."],
+    });
   });
 
   it("validates inventory quantity and state before submit", () => {

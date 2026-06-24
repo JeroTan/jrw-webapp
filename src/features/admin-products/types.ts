@@ -97,6 +97,12 @@ export type ProductAssignableCategory = {
   status: "ACTIVE" | "ARCHIVED";
 };
 
+export type ProductCategoryDraft = {
+  id: string;
+  name: string;
+  slug: string;
+};
+
 export type ProductVariantStatus = "ACTIVE" | "ARCHIVED";
 export type InventoryState =
   | "IN_STOCK"

@@ -22,6 +22,8 @@ import {
   fetchAssignableCategories,
   fetchProductListWithQuery,
 } from "../api";
+import { mergeAssignableCategories } from "../mergeAssignableCategories";
+import { persistProductCategoryDrafts } from "../persistProductCategoryDrafts";
 import { productActionErrorMessage } from "../productActionErrorMessage";
 import { productCanMutate } from "../productCanMutate";
 import { ProductEditor, type ProductEditorSaveInput } from "./ProductEditor";
@@ -187,6 +189,9 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
   const [brandScopeKnown, setBrandScopeKnown] = useState(false);
   const [toast, setToast] = useState<ToastState | null>(null);
   const [editorState, setEditorState] = useState<EditorState | null>(null);
+  const [createdProduct, setCreatedProduct] = useState<ProductRecord | null>(
+    null
+  );
   const [archiveCandidate, setArchiveCandidate] =
     useState<ProductRecord | null>(null);
   const [saving, setSaving] = useState(false);
@@ -440,6 +445,13 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
     try {
       if (editorState?.mode === "create") {
         let nextProduct = await createProduct(input.identity);
+        const createdCategories = await persistProductCategoryDrafts(
+          input.organization.categoryDrafts
+        );
+        const categoryIds = [
+          ...input.organization.categoryIds,
+          ...createdCategories.map((category) => category.id),
+        ];
 
         if (input.organization.brandId !== null) {
           const brandMutation = await assignProductBrand(nextProduct.id, {
@@ -448,26 +460,30 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
           nextProduct = brandMutation.product;
         }
 
-        if (input.organization.categoryIds.length > 0) {
+        if (categoryIds.length > 0) {
           const categoryMutation = await assignProductCategories(
             nextProduct.id,
             {
-              categoryIds: input.organization.categoryIds,
+              categoryIds,
             }
           );
           nextProduct = categoryMutation.product;
         }
 
+        if (createdCategories.length > 0) {
+          setAvailableCategories((previous) =>
+            mergeAssignableCategories(previous, createdCategories)
+          );
+        }
         setProducts((previous) => sortProducts([...previous, nextProduct]));
+        setEditorState(null);
+        setCreatedProduct(nextProduct);
         setToast({
           tone: "success",
-          title: "Product created",
-          message: "Add category and variant next. Image upload is optional.",
+          title: "New product added",
+          message: "Product is draft until you publish it.",
         });
         setRefreshToken((value) => value + 1);
-        if (typeof window !== "undefined") {
-          window.location.assign(`/admin/products/${nextProduct.id}`);
-        }
         return;
       }
 
@@ -745,6 +761,28 @@ export function ProductListDashboard(props: ProductListDashboardProps) {
         title="Archive product"
         tone="danger"
       />
+
+      <ConfirmDialog
+        cancelLabel="Close"
+        confirmLabel="Update product"
+        message="New product was added as draft."
+        onCancel={() => setCreatedProduct(null)}
+        onConfirm={() => {
+          if (!createdProduct || typeof window === "undefined") {
+            return;
+          }
+
+          window.location.assign(`/admin/products/${createdProduct.id}`);
+        }}
+        open={createdProduct !== null}
+        title="New product added"
+      >
+        <p>
+          {createdProduct
+            ? `${createdProduct.name} was created as draft.`
+            : "Product was created as draft."}
+        </p>
+      </ConfirmDialog>
 
       {toast ? (
         <aside className="fixed bottom-grid-md right-grid-md z-60 max-md:bottom-grid-sm max-md:left-grid-sm max-md:right-grid-sm">

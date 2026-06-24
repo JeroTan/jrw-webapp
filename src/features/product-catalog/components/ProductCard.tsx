@@ -20,7 +20,7 @@ function productInitials(name: string): string {
 function ProductImage({ product }: ProductCardProps) {
   if (product.imageSrc) {
     return (
-      <div className="grid h-55 place-items-center overflow-hidden border-b border-brand-border bg-brand-background">
+      <div className="grid aspect-square place-items-center overflow-hidden border-b border-brand-border bg-brand-background">
         <img
           alt={product.imageAlt}
           className="h-full w-full object-cover"
@@ -34,7 +34,7 @@ function ProductImage({ product }: ProductCardProps) {
   return (
     <div
       aria-label={`${product.name} image coming soon`}
-      className="grid h-55 place-items-center border-b border-brand-border bg-[linear-gradient(135deg,var(--color-brand-background)_0_25%,var(--color-brand-surface)_25%_50%,var(--color-brand-border)_50%_75%,var(--color-brand-surface)_75%)] bg-size-[28px_28px] p-grid-sm text-center font-system text-xs font-bold uppercase text-brand-muted"
+      className="grid aspect-square place-items-center border-b border-brand-border bg-[linear-gradient(135deg,var(--color-brand-background)_0_25%,var(--color-brand-surface)_25%_50%,var(--color-brand-border)_50%_75%,var(--color-brand-surface)_75%)] bg-size-[28px_28px] p-grid-sm text-center font-system text-xs font-bold uppercase text-brand-muted"
       role="img"
     >
       <span className="grid size-28 place-items-center border border-brand-border bg-brand-surface font-identity text-[2.375rem] font-black text-brand-content">
