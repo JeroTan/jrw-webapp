@@ -7,6 +7,7 @@ import {
   ProductDetailErrorState,
   ProductDetailPage,
   ProductGallery,
+  redirectProductBuyNowToCheckout,
   VariantSelector,
 } from "@/features/product-detail";
 import { nextQuantityFromInputValue } from "@/features/product-detail/components/product-quantity-control/ProductQuantityControl";
@@ -358,6 +359,18 @@ describe("product detail UI", () => {
     expect(availabilityLabelForCartCapacity("Available", 12, 12)).toBe(
       "Available (cart limit reached)"
     );
+  });
+
+  it("routes buy now directly to checkout details", () => {
+    let assignedUrl = "";
+
+    redirectProductBuyNowToCheckout({
+      assign: (url) => {
+        assignedUrl = String(url);
+      },
+    });
+
+    expect(assignedUrl).toBe("/checkout");
   });
 
   it("renders safe recovery state for missing or unavailable products", () => {

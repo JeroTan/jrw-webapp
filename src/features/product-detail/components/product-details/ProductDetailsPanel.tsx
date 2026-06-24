@@ -11,6 +11,7 @@ import {
   useCartStore,
 } from "@/features/cart-checkout/store";
 import type { StorefrontProductDetailResult } from "../../types";
+import { redirectProductBuyNowToCheckout } from "../../redirectProductBuyNowToCheckout";
 import {
   selectionFromVariant,
   type VariantSelection,
@@ -259,7 +260,7 @@ export function ProductDetailsPanel({
 
   function handleBuy() {
     if (addSelectedItemToCart()) {
-      window.location.href = "/cart";
+      redirectProductBuyNowToCheckout();
     }
   }
 
