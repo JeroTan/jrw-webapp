@@ -23,6 +23,7 @@ import type {
   ProcessPaidCheckoutSessionInput,
   ProcessPaidCheckoutSessionResult,
 } from "@/server/repositories/PaymentWebhookRepository";
+import type { PaymentReconciliationResult } from "@/server/services/PaymentReconciliationService";
 import { GeneralError } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
 
@@ -55,11 +56,27 @@ export type PaymentWebhookServiceResult = {
     paymentId: string;
     status: "PAYMENT_PAID";
   };
+  order?: {
+    emailStatus: PaymentReconciliationResult["email"]["status"];
+    fulfillmentStatus: string;
+    orderId: string;
+    orderNumber: string;
+    totalCentavos: number;
+  };
+};
+
+export type PaymentReconciliationServiceLike = {
+  confirmPaidPayment(input: {
+    now?: string;
+    paymentId: string;
+    requestId: string;
+  }): Promise<AppResult<PaymentReconciliationResult>>;
 };
 
 export type PaymentWebhookServiceOptions = {
   auditPublisher?: AuditEventPublisher;
   operationalLogger?: OperationalLogger;
+  reconciliationService?: PaymentReconciliationServiceLike;
   repository: PaymentWebhookRepositoryLike;
 };
 
@@ -83,11 +100,14 @@ function errorForVerification(
 export class PaymentWebhookService {
   private readonly auditPublisher: AuditEventPublisher;
   private readonly operationalLogger: OperationalLogger;
+  private readonly reconciliationService?: PaymentReconciliationServiceLike;
   private readonly repository: PaymentWebhookRepositoryLike;
 
   constructor(options: PaymentWebhookServiceOptions) {
-    this.auditPublisher = options.auditPublisher ?? new NoopAuditEventPublisher();
+    this.auditPublisher =
+      options.auditPublisher ?? new NoopAuditEventPublisher();
     this.operationalLogger = options.operationalLogger ?? noopOperationalLogger;
+    this.reconciliationService = options.reconciliationService;
     this.repository = options.repository;
   }
 
@@ -159,6 +179,18 @@ export class PaymentWebhookService {
     }
 
     if (claim.decision === "duplicate") {
+      const reconciliation = claim.event.relatedPaymentId
+        ? await this.confirmPaidPayment({
+            now,
+            paymentId: claim.event.relatedPaymentId,
+            requestId: input.requestId,
+          })
+        : null;
+
+      if (reconciliation?.error) {
+        return Result.error(reconciliation.error);
+      }
+
       this.recordOperationalProcessed({
         eventType: claim.event.eventType,
         idempotent: true,
@@ -181,6 +213,18 @@ export class PaymentWebhookService {
               payment: {
                 paymentId: claim.event.relatedPaymentId,
                 status: "PAYMENT_PAID" as const,
+              },
+            }
+          : {}),
+        ...(reconciliation?.content
+          ? {
+              order: {
+                emailStatus: reconciliation.content.email.status,
+                fulfillmentStatus:
+                  reconciliation.content.order.fulfillmentStatus,
+                orderId: reconciliation.content.order.orderId,
+                orderNumber: reconciliation.content.order.orderNumber,
+                totalCentavos: reconciliation.content.order.totalCentavos,
               },
             }
           : {}),
@@ -265,6 +309,14 @@ export class PaymentWebhookService {
         requestId: input.requestId,
         status: "PROCESSED",
       });
+      const reconciliation = await this.confirmPaidPayment({
+        paymentId: input.processed.paymentId,
+        requestId: input.requestId,
+      });
+
+      if (reconciliation.error) {
+        return Result.error(reconciliation.error);
+      }
 
       return Result.okay({
         event: {
@@ -277,6 +329,18 @@ export class PaymentWebhookService {
           paymentId: input.processed.paymentId,
           status: "PAYMENT_PAID",
         },
+        ...(reconciliation.content
+          ? {
+              order: {
+                emailStatus: reconciliation.content.email.status,
+                fulfillmentStatus:
+                  reconciliation.content.order.fulfillmentStatus,
+                orderId: reconciliation.content.order.orderId,
+                orderNumber: reconciliation.content.order.orderNumber,
+                totalCentavos: reconciliation.content.order.totalCentavos,
+              },
+            }
+          : {}),
       });
     }
 
@@ -302,6 +366,18 @@ export class PaymentWebhookService {
         status: "FAILED",
       },
     });
+  }
+
+  private async confirmPaidPayment(input: {
+    now?: string;
+    paymentId: string;
+    requestId: string;
+  }): Promise<AppResult<PaymentReconciliationResult | null>> {
+    if (!this.reconciliationService) {
+      return Result.okay(null);
+    }
+
+    return this.reconciliationService.confirmPaidPayment(input);
   }
 
   private recordOperationalRejection(input: {

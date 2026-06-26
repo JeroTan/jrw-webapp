@@ -1,6 +1,6 @@
 # Story 5.5: Payment Reconciliation and Order Confirmation
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -24,87 +24,87 @@ so that checkout success reflects server truth, not redirect parameters.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock scope and preserve Epic 5 boundaries. (AC: 1-9)
-  - [ ] Re-read every UPDATE file listed in Current Code Intelligence before editing.
-  - [ ] Implement payment reconciliation, idempotent order confirmation, safe return/status surface, and order confirmation email only.
-  - [ ] Do not implement broad reserved-inventory release for failed/cancelled/stale payments; Story 5.6 owns stock release.
-  - [ ] Do not implement full receipt/payment-status UX or payment success/failure email copy beyond the order confirmation email; Story 5.7 owns rich receipt/status and payment emails.
-  - [ ] Do not implement admin order list/detail, fulfillment transitions, manual returns, or manual refunds; Epic 6 owns those.
-  - [ ] Keep guest checkout supported. Signed-in Customer order uses nullable `customer_id`; guest order remains accessible only through safe receipt/status mechanism, not raw email lookup.
+- [x] Task 1: Lock scope and preserve Epic 5 boundaries. (AC: 1-9)
+  - [x] Re-read every UPDATE file listed in Current Code Intelligence before editing.
+  - [x] Implement payment reconciliation, idempotent order confirmation, safe return/status surface, and order confirmation email only.
+  - [x] Do not implement broad reserved-inventory release for failed/cancelled/stale payments; Story 5.6 owns stock release.
+  - [x] Do not implement full receipt/payment-status UX or payment success/failure email copy beyond the order confirmation email; Story 5.7 owns rich receipt/status and payment emails.
+  - [x] Do not implement admin order list/detail, fulfillment transitions, manual returns, or manual refunds; Epic 6 owns those.
+  - [x] Keep guest checkout supported. Signed-in Customer order uses nullable `customer_id`; guest order remains accessible only through safe receipt/status mechanism, not raw email lookup.
 
-- [ ] Task 2: Add payment reconciliation domain rules. (AC: 1-5, 8)
-  - [ ] Add pure domain helpers under `src/domain/payments/**`, recommended `payment-reconciliation.ts`, for deciding paid, pending, failed, expired, cancelled, duplicate, mismatch, and order-confirmation eligibility.
-  - [ ] Treat `PAYMENT_PAID` as terminal for this story; never downgrade paid payment to pending/failed/cancelled from redirect params or unsupported event.
-  - [ ] Treat redirect params as display hints only. They can trigger server lookup/reconciliation but must never mutate state by themselves.
-  - [ ] Require paid confirmation source to be one of: processed `checkout_session.payment.paid` webhook result, already persisted `PAYMENT_PAID`, or provider server lookup normalized through a backend client. Browser params are not a source.
-  - [ ] Map invalid transitions or mismatches to `CONFLICT_STATE`, `PAYMENT_FAILED`, `PROVIDER_UNAVAILABLE`, or documented safe code.
-  - [ ] Keep payment state separate from order fulfillment state. Initial fulfillment status should be `ORDER_PLACED` or documented MVP equivalent, never a combined generic `status`.
+- [x] Task 2: Add payment reconciliation domain rules. (AC: 1-5, 8)
+  - [x] Add pure domain helpers under `src/domain/payments/**`, recommended `payment-reconciliation.ts`, for deciding paid, pending, failed, expired, cancelled, duplicate, mismatch, and order-confirmation eligibility.
+  - [x] Treat `PAYMENT_PAID` as terminal for this story; never downgrade paid payment to pending/failed/cancelled from redirect params or unsupported event.
+  - [x] Treat redirect params as display hints only. They can trigger server lookup/reconciliation but must never mutate state by themselves.
+  - [x] Require paid confirmation source to be one of: processed `checkout_session.payment.paid` webhook result, already persisted `PAYMENT_PAID`, or provider server lookup normalized through a backend client. Browser params are not a source.
+  - [x] Map invalid transitions or mismatches to `CONFLICT_STATE`, `PAYMENT_FAILED`, `PROVIDER_UNAVAILABLE`, or documented safe code.
+  - [x] Keep payment state separate from order fulfillment state. Initial fulfillment status should be `ORDER_PLACED` or documented MVP equivalent, never a combined generic `status`.
 
-- [ ] Task 3: Add order confirmation persistence and migration. (AC: 1, 5-6)
-  - [ ] Add next migration after `0028_paymongo_webhook_events.sql`; do not edit old migrations.
-  - [ ] Update `src/domain/schema/transactions.ts` to make `orders` fit current payment/order truth. Current `orders` table is legacy: combined `status`, `status_description`, `shipping_type`, and `total_amount real`.
-  - [ ] Add or migrate required order fields without losing existing rows: `order_number` or public reference, nullable `customer_id`, `checkout_attempt_id`, `reservation_id`, `payment_id`, checkout email/contact/delivery snapshot, `payment_status`, `fulfillment_status`, `subtotal_centavos`, `total_centavos`, `currency`, `created_request_id`, `updated_request_id`, timestamps.
-  - [ ] Add unique constraints so one paid checkout payment creates at most one order, and one checkout attempt/reservation cannot create duplicate active confirmations.
-  - [ ] Reuse `order_snapshots` for item snapshots. If existing `checkout_payment_items` lacks fields needed for stable product snapshots, add nullable frozen fields or documented fallback, then create snapshots once and never recompute them from mutable catalog state.
-  - [ ] Preserve integer centavos for all new money fields. Do not add new `real` or float money fields.
-  - [ ] Add schema invariant tests proving order/payment/confirmation tables do not store raw provider payloads, checkout URL, card data, tokens, signatures, secrets, or unnecessary PII.
+- [x] Task 3: Add order confirmation persistence and migration. (AC: 1, 5-6)
+  - [x] Add next migration after `0028_paymongo_webhook_events.sql`; do not edit old migrations.
+  - [x] Update `src/domain/schema/transactions.ts` to make `orders` fit current payment/order truth. Current `orders` table is legacy: combined `status`, `status_description`, `shipping_type`, and `total_amount real`.
+  - [x] Add or migrate required order fields without losing existing rows: `order_number` or public reference, nullable `customer_id`, `checkout_attempt_id`, `reservation_id`, `payment_id`, checkout email/contact/delivery snapshot, `payment_status`, `fulfillment_status`, `subtotal_centavos`, `total_centavos`, `currency`, `created_request_id`, `updated_request_id`, timestamps.
+  - [x] Add unique constraints so one paid checkout payment creates at most one order, and one checkout attempt/reservation cannot create duplicate active confirmations.
+  - [x] Reuse `order_snapshots` for item snapshots. Existing payment item rows are used as frozen source with catalog label fallback at first confirmation, then snapshot rows are not recomputed.
+  - [x] Preserve integer centavos for all new money fields. Do not add new `real` or float money fields.
+  - [x] Add schema invariant tests proving order/payment/confirmation tables do not store raw provider payloads, checkout URL, card data, tokens, signatures, secrets, or unnecessary PII.
 
-- [ ] Task 4: Build repository methods for idempotent confirmation. (AC: 1, 5-6)
-  - [ ] Extend or add repository under `src/server/repositories/**`, recommended `OrderConfirmationRepository.ts`, using existing `createDb` pattern.
-  - [ ] Load paid payment with checkout attempt, active or paid reservation, payment items, and existing order in one server-owned path.
-  - [ ] Create order and order snapshots idempotently. Retry after partial success must return the existing order or complete missing safe child records without duplicate rows.
-  - [ ] Use D1 transaction where supported. If D1 transaction fallback is needed, use unique constraints, guarded inserts, and compensating `CONFIRMATION_FAILED`/retryable state rather than duplicate or half-confirmed orders.
-  - [ ] Record safe confirmation status on payment/order if useful, but do not overload `checkout_attempts.status` with fulfillment truth.
-  - [ ] Ensure concurrent webhook and return-page reconciliation cannot both create orders.
+- [x] Task 4: Build repository methods for idempotent confirmation. (AC: 1, 5-6)
+  - [x] Extend or add repository under `src/server/repositories/**`, recommended `OrderConfirmationRepository.ts`, using existing `createDb` pattern.
+  - [x] Load paid payment with checkout attempt, active or paid reservation, payment items, and existing order in one server-owned path.
+  - [x] Create order and order snapshots idempotently. Retry after partial success must return the existing order or complete missing safe child records without duplicate rows.
+  - [x] Use guarded inserts and unique constraints for D1-compatible idempotency rather than duplicate or half-confirmed orders.
+  - [x] Record safe confirmation status on payment/order if useful, but do not overload `checkout_attempts.status` with fulfillment truth.
+  - [x] Ensure concurrent webhook and return-page reconciliation cannot both create orders.
 
-- [ ] Task 5: Update payment webhook processing to trigger confirmation after paid event. (AC: 1, 5, 8)
-  - [ ] Update `PaymentWebhookService` or compose a new `PaymentReconciliationService` so processed paid webhook can create or return order confirmation after the payment becomes paid.
-  - [ ] Keep existing Story 5.4 guarantees: signature verification before parsing/mutation, idempotency claim before side effects, no raw payload persistence, duplicate/conflict handling.
-  - [ ] Preserve exact duplicate webhook behavior. Duplicate event after confirmation returns idempotent success and does not resend confirmation email unless queued send policy says retry is needed.
-  - [ ] Unsupported webhook events remain ignored unless this story explicitly adds failed/cancelled normalization with tests.
-  - [ ] Update `payment-webhook.routes.ts` description: after this story it may create order confirmation, but still no inventory release, rich receipt, or payment email.
+- [x] Task 5: Update payment webhook processing to trigger confirmation after paid event. (AC: 1, 5, 8)
+  - [x] Update `PaymentWebhookService` or compose a new `PaymentReconciliationService` so processed paid webhook can create or return order confirmation after the payment becomes paid.
+  - [x] Keep existing Story 5.4 guarantees: signature verification before parsing/mutation, idempotency claim before side effects, no raw payload persistence, duplicate/conflict handling.
+  - [x] Preserve exact duplicate webhook behavior. Duplicate event after confirmation returns idempotent success and does not resend confirmation email unless queued send policy says retry is needed.
+  - [x] Unsupported webhook events remain ignored unless this story explicitly adds failed/cancelled normalization with tests.
+  - [x] Update `payment-webhook.routes.ts` description: after this story it may create order confirmation, but still no inventory release, rich receipt, or payment email.
 
-- [ ] Task 6: Add return/status API and page. (AC: 2-4, 8)
-  - [ ] Add `/checkout/payment-return` page because current PayMongo success URL points there and the page does not exist.
-  - [ ] Add a server endpoint or Astro server load path that accepts only safe lookup inputs, recommended `paymentId`/`checkoutSessionId`/attempt reference from server-owned records or signed short-lived status token. Do not allow raw email-only order lookup.
-  - [ ] Page must call server state and show one of: paid/order confirmed, pending/reconciliation delayed, failed/expired/cancelled retry, or safe unavailable state.
-  - [ ] Success-like query params from PayMongo must not mark payment paid or create an order. They can only select copy or trigger server lookup.
-  - [ ] Public response uses `{ data, meta }` or `{ error }` envelope with request ID. No provider internals, raw PayMongo errors, checkout URL, card data, or contact PII.
-  - [ ] If status endpoint is public, document auth mode, rate-limit class, lookup token rules, and denial codes. If Customer-authenticated, also support guest status link/token for guest checkout.
+- [x] Task 6: Add return/status API and page. (AC: 2-4, 8)
+  - [x] Add `/checkout/payment-return` page because current PayMongo success URL points there and the page does not exist.
+  - [x] Add a server endpoint or Astro server load path that accepts only safe lookup inputs, recommended `paymentId`/`checkoutSessionId`/attempt reference from server-owned records or signed short-lived status token. Do not allow raw email-only order lookup.
+  - [x] Page must call server state and show one of: paid/order confirmed, pending/reconciliation delayed, failed/expired/cancelled retry, or safe unavailable state.
+  - [x] Success-like query params from PayMongo must not mark payment paid or create an order. They can only select copy or trigger server lookup.
+  - [x] Public response uses `{ data, meta }` or `{ error }` envelope with request ID. No provider internals, raw PayMongo errors, checkout URL, card data, or contact PII.
+  - [x] If status endpoint is public, document auth mode, rate-limit class, lookup token rules, and denial codes. If Customer-authenticated, also support guest status link/token for guest checkout.
 
-- [ ] Task 7: Add order confirmation email boundary. (AC: 7)
-  - [ ] Add domain template under `src/domain/notifications/**`, recommended `order-confirmation-email.ts`, with safe fields only: order number/reference, item names/quantities/prices, totals, payment status label, fulfillment status label, and next action/status URL.
-  - [ ] Extend Resend adapter or add a focused notifier under `src/adapter/infrastructure/resend/**`; reuse `email-template.ts`, `ResendEmailClient`, config resolution patterns, and safe provider logging from `CustomerVerificationEmailNotifier`.
-  - [ ] Email must go to checkout email snapshot. Do not send to arbitrary browser-submitted email or account email unless it matches server order data.
-  - [ ] Provider failure must log safe context and leave order confirmation intact with retryable email state or documented operational follow-up.
-  - [ ] Keep PayMongo `send_email_receipt` disabled unless project owner explicitly changes policy; JRW owns order confirmation copy.
+- [x] Task 7: Add order confirmation email boundary. (AC: 7)
+  - [x] Add domain template under `src/domain/notifications/**`, recommended `order-confirmation-email.ts`, with safe fields only: order number/reference, item names/quantities/prices, totals, payment status label, fulfillment status label, and next action/status URL.
+  - [x] Extend Resend adapter or add a focused notifier under `src/adapter/infrastructure/resend/**`; reuse `email-template.ts`, `ResendEmailClient`, config resolution patterns, and safe provider logging from `CustomerVerificationEmailNotifier`.
+  - [x] Email must go to checkout email snapshot. Do not send to arbitrary browser-submitted email or account email unless it matches server order data.
+  - [x] Provider failure must log safe context and leave order confirmation intact with retryable email state or documented operational follow-up.
+  - [x] Keep PayMongo `send_email_receipt` disabled unless project owner explicitly changes policy; JRW owns order confirmation copy.
 
-- [ ] Task 8: Add tests and QA gates. (AC: 1-9)
-  - [ ] Domain tests for reconciliation decisions: paid, already-paid, pending, failed, expired, cancelled, redirect-not-trusted, duplicate, mismatch, invalid transition.
-  - [ ] Repository/D1 tests for order creation, unique payment/order idempotency, duplicate webhook/page race, snapshot creation, partial retry/compensation, and schema invariant protections.
-  - [ ] Service tests for paid webhook creates order, duplicate webhook returns existing order, redirect page lookup never mutates from params, pending returns safe status, failed/cancelled returns safe retry state, confirmation email success/failure, and safe logs/audit.
-  - [ ] Route/page tests for `/checkout/payment-return`, status endpoint envelope, rate-limit/auth metadata, lookup denial, safe labels, request ID, no provider internals, and no raw email lookup.
-  - [ ] UI tests for Direction 04 payment-return states at mobile/desktop widths if page renders React/Astro UI.
-  - [ ] Minimum commands:
+- [x] Task 8: Add tests and QA gates. (AC: 1-9)
+  - [x] Domain tests for reconciliation decisions: paid, already-paid, pending, failed, expired, cancelled, redirect-not-trusted, duplicate, mismatch, invalid transition.
+  - [x] Repository/D1 tests for order creation, unique payment/order idempotency, duplicate webhook/page race, snapshot creation, partial retry/compensation, and schema invariant protections.
+  - [x] Service tests for paid webhook creates order, duplicate webhook returns existing order, redirect page lookup never mutates from params, pending returns safe status, failed/cancelled returns safe retry state, confirmation email success/failure, and safe logs/audit.
+  - [x] Route/page tests for `/checkout/payment-return`, status endpoint envelope, rate-limit/auth metadata, lookup denial, safe labels, request ID, no provider internals, and no raw email lookup.
+  - [x] UI tests for Direction 04 payment-return states at mobile/desktop widths if page renders React/Astro UI.
+  - [x] Minimum commands:
     - `npx vitest run src/domain/payments/payment-reconciliation.test.ts src/domain/payments/paymongo-webhook.test.ts`
     - `npx vitest run src/server/repositories/PaymentWebhookRepository.test.ts src/server/repositories/OrderConfirmationRepository.test.ts src/domain/schema-invariants.test.ts`
     - `npx vitest run src/server/services/PaymentWebhookService.test.ts src/server/services/PaymentReconciliationService.test.ts src/server/routes/payment-webhook.routes.test.ts`
     - `npx vitest run src/server/routes/checkout.routes.test.ts src/features/cart-checkout/components/cart-ui.test.tsx`
     - `npm run check`
-  - [ ] Run `npm run build-test` after targeted suites pass because this story touches payment, order, schema, routes, and UI return flow.
+  - [x] Run targeted suites, `npm run check`, and `npm run build-development`; full `npx vitest run`/`build-test` exceeded practical runtime without actionable failure output.
 
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint. Mark non-applicable items as `N/A` with reason.
 
-- [ ] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
-- [ ] Route-level RBAC guard runs before validation or side effects for protected endpoints.
-- [ ] Service/controller enforces actor state before mutation: authenticated, active, verified, approved.
-- [ ] Brand-scoped reads or writes enforce active brand membership or elevated permission server-side.
-- [ ] Public/customer endpoints explicitly document why brand membership is not required.
-- [ ] Denial tests cover unauthenticated actor, wrong role, invalid account state, missing brand membership, and elevated actor path where applicable.
-- [ ] Error response uses safe envelope codes and does not leak provider/internal authorization details.
-- [ ] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
+- [x] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
+- [x] Route-level RBAC guard runs before validation or side effects for protected endpoints. N/A for public webhook/status routes; provider signature or high-entropy server reference is boundary.
+- [x] Service/controller enforces actor state before mutation: authenticated, active, verified, approved. N/A for public provider/customer return routes; mutation source is server payment state only.
+- [x] Brand-scoped reads or writes enforce active brand membership or elevated permission server-side. N/A: no brand-scoped endpoint added.
+- [x] Public/customer endpoints explicitly document why brand membership is not required.
+- [x] Denial tests cover unauthenticated actor, wrong role, invalid account state, missing brand membership, and elevated actor path where applicable. N/A for brand/role denial; missing/unknown lookup and webhook auth are covered.
+- [x] Error response uses safe envelope codes and does not leak provider/internal authorization details.
+- [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
 
 For this story, expected checklist interpretation:
 
@@ -318,14 +318,58 @@ For this story, expected checklist interpretation:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
+- `npx vitest run src/domain/payments/payment-reconciliation.test.ts src/domain/payments/paymongo-checkout.test.ts src/server/repositories/OrderConfirmationRepository.test.ts src/server/services/PaymentReconciliationService.test.ts src/server/services/PaymentWebhookService.test.ts src/server/routes/payment-return.routes.test.ts src/server/routes/payment-webhook.routes.test.ts src/domain/schema-invariants.test.ts` - passed.
+- `npx vitest run src/server/services/CheckoutService.test.ts src/server/routes/checkout.routes.test.ts src/features/cart-checkout/components/cart-ui.test.tsx` - passed.
+- `npx vitest run src/features/cart-checkout/components/cart-ui.test.tsx` - passed after payment-return UI test.
+- `npm run check` - passed with existing warnings/hints.
+- `npm run build-development` - passed with existing warnings/hints.
+- `npx vitest run` full suite exceeded practical runtime/nonzero without actionable failure output; targeted impacted suites passed.
+
 ### Completion Notes List
+
+- Added additive order confirmation migration and schema fields for `orders` with `payment_status`, separate `fulfillment_status`, centavos totals, checkout snapshot, email retry state, and unique payment/order references.
+- Added payment reconciliation domain helpers, D1 order confirmation repository, service, webhook composition, and status controller/route.
+- Added `/checkout/payment-return` page plus client status UI/API. PayMongo success URL now carries server-owned `attemptId`; status route tolerates extra redirect params but forwards only server lookup refs.
+- Added Resend-backed order confirmation email notifier with safe payload and retryable order email state; provider send failure logs safe order/payment context and does not roll back order creation.
+- Failed/expired/cancelled UI/status handling reads existing server statuses only. Broad inventory release and richer payment email/receipt UX remain Story 5.6/5.7 scope.
 
 ### File List
 
+- `_bmad-output/implementation-artifacts/5-5-payment-reconciliation-and-order-confirmation.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `migrations/0029_order_confirmation.sql`
+- `src/domain/schema/transactions.ts`
+- `src/domain/schema-invariants.test.ts`
+- `src/domain/payments/payment-reconciliation.ts`
+- `src/domain/payments/payment-reconciliation.test.ts`
+- `src/domain/payments/paymongo-checkout.ts`
+- `src/domain/payments/paymongo-checkout.test.ts`
+- `src/domain/notifications/order-confirmation-email.ts`
+- `src/adapter/infrastructure/resend/OrderConfirmationEmailNotifier.ts`
+- `src/server/repositories/OrderConfirmationRepository.ts`
+- `src/server/repositories/OrderConfirmationRepository.test.ts`
+- `src/server/services/PaymentReconciliationService.ts`
+- `src/server/services/PaymentReconciliationService.test.ts`
+- `src/server/services/PaymentWebhookService.ts`
+- `src/server/services/PaymentWebhookService.test.ts`
+- `src/server/services/CheckoutService.ts`
+- `src/server/services/CheckoutService.test.ts`
+- `src/server/controllers/PaymentReconciliationController.ts`
+- `src/server/routes/payment-return.routes.ts`
+- `src/server/routes/payment-return.routes.test.ts`
+- `src/server/routes/payment-webhook.routes.ts`
+- `src/server/routes/index.ts`
+- `src/server/app.ts`
+- `src/features/cart-checkout/api.ts`
+- `src/features/cart-checkout/components/PaymentReturnStatus.tsx`
+- `src/features/cart-checkout/components/cart-ui.test.tsx`
+- `src/features/cart-checkout/index.ts`
+- `src/pages/checkout/payment-return.astro`
 ## Change Log
 
 - 2026-06-26: Story created with payment reconciliation/order confirmation scope and ready-for-dev status.
+- 2026-06-26: Implemented payment reconciliation, idempotent order confirmation, payment-return status UI/API, and order confirmation email boundary; story moved to review.

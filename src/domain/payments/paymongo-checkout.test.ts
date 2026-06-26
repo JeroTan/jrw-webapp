@@ -87,11 +87,13 @@ describe("PayMongo checkout domain", () => {
   it("builds checkout return URLs from server-owned base URL", () => {
     expect(
       buildPayMongoReturnUrls({
+        attemptId: "attempt_123",
         appBaseUrl: "https://jrw.test/root/",
       })
     ).toEqual({
       cancelUrl: "https://jrw.test/checkout",
-      successUrl: "https://jrw.test/checkout/payment-return",
+      successUrl:
+        "https://jrw.test/checkout/payment-return?attemptId=attempt_123",
     });
   });
 

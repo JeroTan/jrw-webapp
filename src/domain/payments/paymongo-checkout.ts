@@ -154,12 +154,20 @@ export function normalizePayMongoPaymentMethods(
   return unique.length > 0 ? unique : [...DEFAULT_PAYMONGO_PAYMENT_METHODS];
 }
 
-export function buildPayMongoReturnUrls(input: { appBaseUrl: string }) {
+export function buildPayMongoReturnUrls(input: {
+  appBaseUrl: string;
+  attemptId?: string;
+}) {
   const baseUrl = parseBaseUrl(input.appBaseUrl);
+  const successUrl = new URL("/checkout/payment-return", baseUrl);
+
+  if (input.attemptId) {
+    successUrl.searchParams.set("attemptId", input.attemptId);
+  }
 
   return {
     cancelUrl: new URL("/checkout", baseUrl).toString(),
-    successUrl: new URL("/checkout/payment-return", baseUrl).toString(),
+    successUrl: successUrl.toString(),
   };
 }
 
@@ -215,7 +223,11 @@ export function decideCheckoutPaymentCreation(input: {
   const expiresAt = Date.parse(input.reservationExpiresAt);
   const now = Date.parse(input.now);
 
-  if (!Number.isFinite(expiresAt) || !Number.isFinite(now) || expiresAt <= now) {
+  if (
+    !Number.isFinite(expiresAt) ||
+    !Number.isFinite(now) ||
+    expiresAt <= now
+  ) {
     return { code: "CONFLICT_STATE", decision: "reject" };
   }
 

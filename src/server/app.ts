@@ -168,8 +168,12 @@ export function createApp(options: CreateAppOptions = {}) {
     paymentWebhooks: {
       ...options.routes?.paymentWebhooks,
       operationalLogger:
-        options.routes?.paymentWebhooks?.operationalLogger ??
-        operationalLogger,
+        options.routes?.paymentWebhooks?.operationalLogger ?? operationalLogger,
+    },
+    paymentReturns: {
+      ...options.routes?.paymentReturns,
+      operationalLogger:
+        options.routes?.paymentReturns?.operationalLogger ?? operationalLogger,
     },
     products: {
       ...options.routes?.products,

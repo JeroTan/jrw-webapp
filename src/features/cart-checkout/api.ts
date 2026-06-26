@@ -127,6 +127,36 @@ export type CheckoutPaymentClientResult =
   | { kind: "denied"; reason: string }
   | { kind: "failure"; networkFailure?: boolean; reason: string };
 
+export type PaymentReturnStatusResult = {
+  canRetry: boolean;
+  next: {
+    refreshAllowed: boolean;
+    retryCheckoutAllowed: boolean;
+  };
+  order?: {
+    orderId: string;
+    orderNumber: string;
+    totalCentavos: number;
+  };
+  payment: {
+    paymentId: string;
+    status: string;
+  };
+  status:
+    | "cancelled"
+    | "confirmed"
+    | "expired"
+    | "failed"
+    | "pending"
+    | "refunded"
+    | "unknown";
+};
+
+export type PaymentReturnStatusClientResult =
+  | { kind: "loaded"; status: PaymentReturnStatusResult }
+  | { kind: "missing"; reason: string }
+  | { kind: "failure"; reason: string };
+
 export type CustomerSessionSummary = {
   authenticated: boolean;
   actor: null | {
@@ -165,6 +195,7 @@ type CustomerProfileEnvelope = ApiResponse<CustomerProfileSummary>;
 type CheckoutDetailsEnvelope = ApiResponse<CheckoutDetailsResult>;
 type CheckoutReservationEnvelope = ApiResponse<CheckoutReservationResult>;
 type CheckoutPaymentEnvelope = ApiResponse<CheckoutPaymentResult>;
+type PaymentReturnStatusEnvelope = ApiResponse<PaymentReturnStatusResult>;
 
 export type CheckoutCartValidationClientResult =
   | { kind: "valid"; summary: CheckoutCartValidationSummary }
@@ -467,6 +498,28 @@ function isCheckoutPaymentResult(
     value.next.orderCreated === false &&
     value.next.receiptAvailable === false &&
     value.next.webhookRequired === true
+  );
+}
+
+function isPaymentReturnStatusResult(
+  value: unknown
+): value is PaymentReturnStatusResult {
+  return (
+    isRecord(value) &&
+    isRecord(value.payment) &&
+    isRecord(value.next) &&
+    typeof value.canRetry === "boolean" &&
+    typeof value.payment.paymentId === "string" &&
+    typeof value.payment.status === "string" &&
+    typeof value.next.refreshAllowed === "boolean" &&
+    typeof value.next.retryCheckoutAllowed === "boolean" &&
+    (value.status === "cancelled" ||
+      value.status === "confirmed" ||
+      value.status === "expired" ||
+      value.status === "failed" ||
+      value.status === "pending" ||
+      value.status === "refunded" ||
+      value.status === "unknown")
   );
 }
 
@@ -908,6 +961,63 @@ export async function createPayMongoPaymentHandoff(
     return {
       kind: "failure",
       reason: "Payment service is unavailable. Try again in a moment.",
+    };
+  }
+}
+
+export async function fetchPaymentReturnStatus(
+  input: {
+    attemptId?: string | null;
+    paymentId?: string | null;
+    providerCheckoutSessionId?: string | null;
+  },
+  fetcher: typeof fetch = fetch
+): Promise<PaymentReturnStatusClientResult> {
+  const params = new URLSearchParams();
+
+  if (input.attemptId) params.set("attemptId", input.attemptId);
+  if (input.paymentId) params.set("paymentId", input.paymentId);
+  if (input.providerCheckoutSessionId) {
+    params.set("providerCheckoutSessionId", input.providerCheckoutSessionId);
+  }
+
+  if (Array.from(params).length === 0) {
+    return {
+      kind: "missing",
+      reason: "Checkout status link is missing payment reference.",
+    };
+  }
+
+  try {
+    const response = await fetcher(`/api/checkout/payment-return?${params}`, {
+      credentials: "same-origin",
+      headers: {
+        Accept: "application/json",
+      },
+    });
+    const body = (await response.json()) as PaymentReturnStatusEnvelope;
+
+    if ("data" in body && isPaymentReturnStatusResult(body.data)) {
+      return { kind: "loaded", status: body.data };
+    }
+
+    if ("error" in body && body.error.code === "RESOURCE_NOT_FOUND") {
+      return {
+        kind: "missing",
+        reason: "Checkout status is not available yet.",
+      };
+    }
+
+    return {
+      kind: "failure",
+      reason: response.ok
+        ? "Could not read payment status."
+        : "Could not read payment status.",
+    };
+  } catch {
+    return {
+      kind: "failure",
+      reason: "Payment status is unavailable. Try again in a moment.",
     };
   }
 }

@@ -374,8 +374,59 @@ describe("checkout schema invariants", () => {
     const customerIdColumn = orderConfig.columns.find(
       (column) => getColumnName(column) === "customer_id"
     );
+    const columnNames = orderConfig.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const indexNames = orderConfig.indexes.map((index) => index.config.name);
 
     expect(customerIdColumn?.notNull).toBe(false);
+    expect(columnNames).toEqual(
+      expect.arrayContaining([
+        "order_number",
+        "checkout_attempt_id",
+        "reservation_id",
+        "payment_id",
+        "checkout_email",
+        "full_name",
+        "phone",
+        "street_address",
+        "barangay",
+        "city_province",
+        "postal_code",
+        "payment_status",
+        "fulfillment_status",
+        "subtotal_centavos",
+        "total_centavos",
+        "currency",
+        "order_confirmation_email_status",
+        "created_request_id",
+        "updated_request_id",
+      ])
+    );
+    expect(columnNames).not.toEqual(
+      expect.arrayContaining([
+        "provider_payload",
+        "raw_provider_payload",
+        "payment_payload",
+        "payment_response",
+        "checkout_url",
+        "card_data",
+        "card_number",
+        "cvv",
+        "attempt_token",
+        "raw_token",
+      ])
+    );
+    expect(indexNames).toEqual(
+      expect.arrayContaining([
+        "uq_orders_order_number",
+        "uq_orders_payment_id",
+        "idx_orders_checkout_attempt_id",
+        "idx_orders_reservation_id",
+        "idx_orders_payment_status",
+        "idx_orders_fulfillment_status",
+      ])
+    );
   });
 
   it("stores checkout attempt contact snapshot without role or provider fields", () => {

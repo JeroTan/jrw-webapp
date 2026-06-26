@@ -156,10 +156,7 @@ export type CheckoutPaymentConfig = {
   sendEmailReceipt?: boolean;
 };
 
-export type PayMongoClientLike = Pick<
-  PayMongoClient,
-  "createCheckoutSession"
->;
+export type PayMongoClientLike = Pick<PayMongoClient, "createCheckoutSession">;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -722,6 +719,7 @@ export class CheckoutService {
       );
       const urls = buildPayMongoReturnUrls({
         appBaseUrl: this.paymentConfig.appBaseUrl ?? "",
+        attemptId: attempt.id,
       });
       const paymentMethods = normalizePayMongoPaymentMethods(
         this.paymentConfig.paymentMethods
@@ -916,8 +914,7 @@ export class CheckoutService {
             attemptId: input.payment.checkoutAttemptId,
             currency: input.payment.currency,
             paymentId: input.payment.paymentId,
-            providerCheckoutSessionId:
-              input.payment.providerCheckoutSessionId,
+            providerCheckoutSessionId: input.payment.providerCheckoutSessionId,
             reservationId: input.payment.reservationId,
             status: input.payment.status,
           },
@@ -948,8 +945,7 @@ export class CheckoutService {
             attemptId: input.payment.checkoutAttemptId,
             currency: input.payment.currency,
             paymentId: input.payment.paymentId,
-            providerCheckoutSessionId:
-              input.payment.providerCheckoutSessionId,
+            providerCheckoutSessionId: input.payment.providerCheckoutSessionId,
             reservationId: input.payment.reservationId,
             status: input.payment.status,
           },

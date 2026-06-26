@@ -5,4 +5,5 @@ export * from "./components/CartPage";
 export * from "./components/CartSummary";
 export * from "./components/CheckoutDetailsPage";
 export * from "./components/CheckoutFlow";
+export * from "./components/PaymentReturnStatus";
 export * from "./store";

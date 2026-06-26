@@ -298,9 +298,11 @@ class CheckoutRepositoryStub {
 
       if (
         attempt?.reservationId !== reservation.id ||
-        !["DETAILS_CAPTURED", "INVENTORY_RESERVED", "RESERVATION_FAILED"].includes(
-          attempt.status
-        )
+        ![
+          "DETAILS_CAPTURED",
+          "INVENTORY_RESERVED",
+          "RESERVATION_FAILED",
+        ].includes(attempt.status)
       ) {
         continue;
       }
@@ -1032,7 +1034,8 @@ describe("CheckoutService", () => {
             ],
             payment_method_types: ["card", "gcash"],
             send_email_receipt: false,
-            success_url: "https://jrw.test/checkout/payment-return",
+            success_url:
+              "https://jrw.test/checkout/payment-return?attemptId=attempt_1",
           },
         },
       },

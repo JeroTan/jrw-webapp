@@ -11,24 +11,77 @@ import { sql, relations } from "drizzle-orm";
 import { customers } from "./identity";
 import { products, product_variants, type VariationChain } from "./catalog";
 
-export const orders = sqliteTable("orders", {
-  id: text("id")
-    .primaryKey()
-    .$defaultFn(() => createId()),
-  customer_id: text("customer_id").references(() => customers.id, {
-    onDelete: "set null",
-  }),
-  status: text("status").notNull().default("PENDING"),
-  status_description: text("status_description"),
-  shipping_type: text("shipping_type").notNull().default("STANDARD"),
-  total_amount: real("total_amount").notNull(),
-  created_at: text("created_at")
-    .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
-  updated_at: text("updated_at")
-    .notNull()
-    .default(sql`CURRENT_TIMESTAMP`),
-});
+export const orders = sqliteTable(
+  "orders",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    order_number: text("order_number"),
+    customer_id: text("customer_id").references(() => customers.id, {
+      onDelete: "set null",
+    }),
+    checkout_attempt_id: text("checkout_attempt_id").references(
+      () => checkout_attempts.id,
+      { onDelete: "set null" }
+    ),
+    reservation_id: text("reservation_id").references(
+      () => checkout_reservations.id,
+      { onDelete: "set null" }
+    ),
+    payment_id: text("payment_id").references(() => checkout_payments.id, {
+      onDelete: "set null",
+    }),
+    status: text("status").notNull().default("PENDING"),
+    status_description: text("status_description"),
+    shipping_type: text("shipping_type").notNull().default("STANDARD"),
+    total_amount: real("total_amount").notNull(),
+    checkout_email: text("checkout_email"),
+    full_name: text("full_name"),
+    phone: text("phone"),
+    street_address: text("street_address"),
+    barangay: text("barangay"),
+    city_province: text("city_province"),
+    postal_code: text("postal_code"),
+    payment_status: text("payment_status").notNull().default("PAYMENT_PENDING"),
+    fulfillment_status: text("fulfillment_status")
+      .notNull()
+      .default("ORDER_PLACED"),
+    subtotal_centavos: integer("subtotal_centavos").notNull().default(0),
+    total_centavos: integer("total_centavos").notNull().default(0),
+    currency: text("currency").notNull().default("PHP"),
+    order_confirmation_email_status: text("order_confirmation_email_status")
+      .notNull()
+      .default("PENDING"),
+    order_confirmation_email_sent_at: text("order_confirmation_email_sent_at"),
+    order_confirmation_email_last_attempt_at: text(
+      "order_confirmation_email_last_attempt_at"
+    ),
+    order_confirmation_email_message_id: text(
+      "order_confirmation_email_message_id"
+    ),
+    created_request_id: text("created_request_id"),
+    updated_request_id: text("updated_request_id"),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("uq_orders_order_number")
+      .on(table.order_number)
+      .where(sql`${table.order_number} IS NOT NULL`),
+    uniqueIndex("uq_orders_payment_id")
+      .on(table.payment_id)
+      .where(sql`${table.payment_id} IS NOT NULL`),
+    index("idx_orders_checkout_attempt_id").on(table.checkout_attempt_id),
+    index("idx_orders_reservation_id").on(table.reservation_id),
+    index("idx_orders_payment_status").on(table.payment_status),
+    index("idx_orders_fulfillment_status").on(table.fulfillment_status),
+  ]
+);
 
 export const checkout_attempts = sqliteTable(
   "checkout_attempts",
@@ -148,16 +201,15 @@ export const checkout_payments = sqliteTable(
       .notNull()
       .references(() => checkout_reservations.id, { onDelete: "cascade" }),
     provider: text("provider").notNull().default("PAYMONGO"),
-    provider_checkout_session_id: text("provider_checkout_session_id")
-      .notNull(),
+    provider_checkout_session_id: text(
+      "provider_checkout_session_id"
+    ).notNull(),
     provider_reference_number: text("provider_reference_number").notNull(),
     status: text("status").notNull().default("PAYMENT_PENDING"),
     amount_centavos: integer("amount_centavos").notNull(),
     currency: text("currency").notNull().default("PHP"),
     checkout_url: text("checkout_url").notNull(),
-    livemode: integer("livemode", { mode: "boolean" })
-      .notNull()
-      .default(false),
+    livemode: integer("livemode", { mode: "boolean" }).notNull().default(false),
     created_request_id: text("created_request_id").notNull(),
     updated_request_id: text("updated_request_id"),
     created_at: text("created_at")

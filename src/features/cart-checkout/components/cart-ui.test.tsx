@@ -8,6 +8,7 @@ import {
   CartPageView,
   CheckoutDetailsPageView,
   CheckoutFlowShell,
+  PaymentReturnStatusView,
   redirectToPayMongoCheckout,
 } from "@/features/cart-checkout";
 import {
@@ -311,11 +312,14 @@ describe("cart checkout UI", () => {
   it("does not redirect to an untrusted checkout URL", () => {
     let assignedUrl = "";
 
-    const redirected = redirectToPayMongoCheckout("https://evil.example/cs_bad", {
-      assign: (url) => {
-        assignedUrl = String(url);
-      },
-    });
+    const redirected = redirectToPayMongoCheckout(
+      "https://evil.example/cs_bad",
+      {
+        assign: (url) => {
+          assignedUrl = String(url);
+        },
+      }
+    );
 
     expect(redirected).toBe(false);
     expect(assignedUrl).toBe("");
@@ -323,16 +327,13 @@ describe("cart checkout UI", () => {
 
   it("keeps receipt step history non-clickable", () => {
     const markup = renderToStaticMarkup(
-      createElement(
-        CheckoutFlowShell,
-        {
-          children: createElement("div", null, "Receipt ready"),
-          currentStep: "receipt",
-          state: activeCart,
-          title: "Receipt",
-          titleId: "receipt-title",
-        }
-      )
+      createElement(CheckoutFlowShell, {
+        children: createElement("div", null, "Receipt ready"),
+        currentStep: "receipt",
+        state: activeCart,
+        title: "Receipt",
+        titleId: "receipt-title",
+      })
     );
 
     expect(markup).toContain("04 Receipt");
@@ -972,7 +973,9 @@ describe("cart checkout UI", () => {
         status: "PAYMENT_PENDING",
       },
     });
-    expect(JSON.stringify(result)).not.toMatch(/hash|stock_version|cardNumber/i);
+    expect(JSON.stringify(result)).not.toMatch(
+      /hash|stock_version|cardNumber/i
+    );
   });
 
   it("rejects malicious checkout URLs from payment API responses", async () => {
@@ -1067,5 +1070,38 @@ describe("cart checkout UI", () => {
       availabilityStatus: "UNAVAILABLE",
       staleReason: "Selected option is unavailable right now.",
     });
+  });
+
+  it("renders payment return confirmation without provider internals", () => {
+    const markup = renderToStaticMarkup(
+      createElement(PaymentReturnStatusView, {
+        result: {
+          kind: "loaded",
+          status: {
+            canRetry: false,
+            next: {
+              refreshAllowed: false,
+              retryCheckoutAllowed: false,
+            },
+            order: {
+              orderId: "order_1",
+              orderNumber: "JRW-2026-ORDER1",
+              totalCentavos: 3998,
+            },
+            payment: {
+              paymentId: "payment_1",
+              status: "PAYMENT_PAID",
+            },
+            status: "confirmed",
+          },
+        },
+      })
+    );
+
+    expect(markup).toContain("Order confirmed");
+    expect(markup).toContain("JRW-2026-ORDER1");
+    expect(markup).not.toMatch(
+      /checkout\.paymongo|cs_test|nina@example|Sampaguita|attemptToken|card/i
+    );
   });
 });

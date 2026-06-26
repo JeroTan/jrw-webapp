@@ -87,7 +87,9 @@ describe("PaymentWebhookService", () => {
     const repository = repositoryStub();
     const auditEvents: unknown[] = [];
     const service = new PaymentWebhookService({
-      auditPublisher: { publish: async (event) => void auditEvents.push(event) },
+      auditPublisher: {
+        publish: async (event) => void auditEvents.push(event),
+      },
       repository,
     });
 
@@ -129,6 +131,51 @@ describe("PaymentWebhookService", () => {
         payment: { paymentId: "payment_1", status: "PAYMENT_PAID" },
       })
     );
+  });
+
+  it("confirms order after valid paid webhook reaches PAYMENT_PAID", async () => {
+    const rawBody = rawPaidEvent();
+    const reconciliationCalls: unknown[] = [];
+    const service = new PaymentWebhookService({
+      reconciliationService: {
+        confirmPaidPayment: async (input) => {
+          reconciliationCalls.push(input);
+          return Result.okay({
+            email: { status: "SENT" as const },
+            order: {
+              fulfillmentStatus: "ORDER_PLACED",
+              orderId: "order_1",
+              orderNumber: "JRW-2026-ORDER1",
+              totalCentavos: 3998,
+            },
+            payment: { paymentId: input.paymentId, status: "PAYMENT_PAID" },
+          });
+        },
+      },
+      repository: repositoryStub(),
+    });
+    const result = await service.processPayMongoWebhook({
+      now,
+      nowMs,
+      rawBody,
+      requestId: "req_paid_order",
+      signatureHeader: await signature(rawBody),
+      webhookSecret,
+    });
+
+    expect(reconciliationCalls).toEqual([
+      { paymentId: "payment_1", requestId: "req_paid_order" },
+    ]);
+    expect(result.content).toMatchObject({
+      order: {
+        emailStatus: "SENT",
+        fulfillmentStatus: "ORDER_PLACED",
+        orderId: "order_1",
+        orderNumber: "JRW-2026-ORDER1",
+        totalCentavos: 3998,
+      },
+      payment: { paymentId: "payment_1", status: "PAYMENT_PAID" },
+    });
   });
 
   it("returns duplicate exact retries without processing payment again", async () => {
