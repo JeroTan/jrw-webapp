@@ -14,6 +14,7 @@ type CheckoutFlowShellProps = {
   currentStep: CheckoutStepId;
   state: CartState;
   summaryAction?: CheckoutSummaryAction;
+  summaryOverride?: CheckoutSummaryOverride;
   title: string;
   titleId: string;
 };
@@ -26,6 +27,16 @@ type CheckoutSummaryAction = {
   loadingLabel?: string;
   onClick?: () => void;
   statusMessage?: string | null;
+};
+
+type CheckoutSummarySnapshot = ReturnType<typeof getCartSummary>;
+
+type CheckoutSummaryOverride = Pick<
+  CheckoutSummarySnapshot,
+  "hasBlockingIssues" | "lineItemCount" | "subtotalLabel" | "totalQuantity"
+> & {
+  description?: string;
+  title?: string;
 };
 
 const checkoutSteps: { id: CheckoutStepId; label: string; number: string }[] = [
@@ -164,12 +175,18 @@ function CheckoutFlowSummary({
   currentStep,
   state,
   summaryAction,
+  summaryOverride,
 }: {
   currentStep: CheckoutStepId;
   state: CartState;
   summaryAction?: CheckoutSummaryAction;
+  summaryOverride?: CheckoutSummaryOverride;
 }) {
-  const summary = getCartSummary(state);
+  const summary = summaryOverride ?? getCartSummary(state);
+  const summaryTitle = summaryOverride?.title ?? "Cart summary";
+  const summaryDescription =
+    summaryOverride?.description ??
+    `${summary.totalQuantity} item quantity across ${summary.lineItemCount} line items.`;
   const cta = checkoutCta[currentStep];
   const isBlocked = state.items.length === 0 || summary.hasBlockingIssues;
   const checkoutValidation = useCheckoutValidationAction({
@@ -182,7 +199,7 @@ function CheckoutFlowSummary({
     <aside className="grid content-start gap-grid-sm border-t border-brand-border-strong bg-brand-surface p-grid-sm lg:border-t-0 lg:border-l">
       <div className="grid gap-1">
         <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-          Cart summary
+          {summaryTitle}
         </p>
         <div className="flex items-end justify-between gap-grid-sm">
           <span className="font-system text-sm font-bold uppercase text-brand-muted">
@@ -193,8 +210,7 @@ function CheckoutFlowSummary({
           </strong>
         </div>
         <p className="m-0 text-sm text-brand-muted">
-          {summary.totalQuantity} item quantity across {summary.lineItemCount}{" "}
-          line items.
+          {summaryDescription}
         </p>
       </div>
 
@@ -273,6 +289,7 @@ export function CheckoutFlowShell({
   currentStep,
   state,
   summaryAction,
+  summaryOverride,
   title,
   titleId,
 }: CheckoutFlowShellProps) {
@@ -316,6 +333,7 @@ export function CheckoutFlowShell({
         currentStep={currentStep}
         state={state}
         summaryAction={summaryAction}
+        summaryOverride={summaryOverride}
       />
     </section>
   );

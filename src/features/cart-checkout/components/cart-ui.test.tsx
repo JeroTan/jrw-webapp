@@ -8,6 +8,7 @@ import {
   CartPageView,
   CheckoutDetailsPageView,
   CheckoutFlowShell,
+  PaymentReturnCheckoutView,
   PaymentReturnStatusView,
   redirectToPayMongoCheckout,
 } from "@/features/cart-checkout";
@@ -1103,5 +1104,68 @@ describe("cart checkout UI", () => {
     expect(markup).not.toMatch(
       /checkout\.paymongo|cs_test|nina@example|Sampaguita|attemptToken|card/i
     );
+  });
+
+  it("renders payment return inside checkout receipt step", () => {
+    const markup = renderToStaticMarkup(
+      createElement(PaymentReturnCheckoutView, {
+        result: {
+          kind: "loaded",
+          status: {
+            canRetry: false,
+            next: {
+              refreshAllowed: true,
+              retryCheckoutAllowed: false,
+            },
+            payment: {
+              paymentId: "payment_1",
+              status: "PAYMENT_PENDING",
+            },
+            status: "pending",
+          },
+        },
+        state: activeCart,
+      })
+    );
+
+    expect(markup).toContain("04 Receipt");
+    expect(markup).toContain("Payment pending");
+    expect(markup).toContain("Cart summary");
+    expect(markup).not.toMatch(
+      /checkout\.paymongo|cs_test|nina@example|Sampaguita|attemptToken|card/i
+    );
+  });
+
+  it("uses server order total for confirmed receipt summary", () => {
+    const markup = renderToStaticMarkup(
+      createElement(PaymentReturnCheckoutView, {
+        result: {
+          kind: "loaded",
+          status: {
+            canRetry: false,
+            next: {
+              refreshAllowed: false,
+              retryCheckoutAllowed: false,
+            },
+            order: {
+              orderId: "order_1",
+              orderNumber: "JRW-2026-ORDER1",
+              totalCentavos: 3998,
+            },
+            payment: {
+              paymentId: "payment_1",
+              status: "PAYMENT_PAID",
+            },
+            status: "confirmed",
+          },
+        },
+        state: activeCart,
+      })
+    );
+
+    expect(markup).toContain("Order summary");
+    expect(markup).toContain("JRW-2026-ORDER1");
+    expect(markup).toContain("PHP 39.98");
+    expect(markup).not.toContain("PHP 2,998.00");
   });
 });

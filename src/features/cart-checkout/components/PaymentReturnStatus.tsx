@@ -1,11 +1,14 @@
 import * as React from "react";
 import { Button, ButtonLink } from "@/components/ui";
+import type { CartState } from "@/domain/checkout/cart";
 import { formatCatalogPrice } from "@/domain/products/price-format";
 import {
   fetchPaymentReturnStatus,
   type PaymentReturnStatusClientResult,
   type PaymentReturnStatusResult,
 } from "../api";
+import { useCartStore } from "../store";
+import { CheckoutFlowShell } from "./CheckoutFlow";
 
 export type PaymentReturnStatusProps = {
   attemptId?: string | null;
@@ -138,7 +141,106 @@ export function PaymentReturnStatusView({
   );
 }
 
+function receiptSummaryMessage(result: PaymentReturnStatusClientResult): string {
+  if (result.kind !== "loaded") {
+    return result.kind === "missing"
+      ? "Checkout status unavailable."
+      : "Payment status unavailable. Try again in a moment.";
+  }
+
+  switch (result.status.status) {
+    case "confirmed":
+      return result.status.order?.orderNumber
+        ? `Order ${result.status.order.orderNumber} confirmed.`
+        : "Order confirmed.";
+    case "failed":
+      return "Payment failed. No order placed.";
+    case "expired":
+      return "Payment expired. No order placed.";
+    case "cancelled":
+      return "Payment cancelled. No order placed.";
+    case "refunded":
+      return "Payment refunded.";
+    case "unknown":
+      return "Payment status unavailable.";
+    case "pending":
+    default:
+      return "Payment pending. Refresh after PayMongo confirms.";
+  }
+}
+
+function receiptSummaryOverride(result: PaymentReturnStatusClientResult) {
+  if (
+    result.kind !== "loaded" ||
+    result.status.status !== "confirmed" ||
+    !result.status.order
+  ) {
+    return undefined;
+  }
+
+  return {
+    description: `Order ${result.status.order.orderNumber}`,
+    hasBlockingIssues: false,
+    lineItemCount: 0,
+    subtotalLabel: formatCatalogPrice(result.status.order.totalCentavos),
+    title: "Order summary",
+    totalQuantity: 0,
+  };
+}
+
+export function PaymentReturnCheckoutView({
+  onRefresh,
+  refreshing = false,
+  result,
+  state,
+}: {
+  onRefresh?: () => void;
+  refreshing?: boolean;
+  result: PaymentReturnStatusClientResult;
+  state: CartState;
+}) {
+  const isConfirmed =
+    result.kind === "loaded" && result.status.status === "confirmed";
+  const loaded = result.kind === "loaded" ? result.status : null;
+  const canRefresh = !loaded || loaded.next.refreshAllowed;
+  const retryCheckoutAllowed = Boolean(loaded?.next.retryCheckoutAllowed);
+  const summaryAction = isConfirmed
+    ? { href: "/products", label: "Continue shopping" }
+    : canRefresh && onRefresh
+      ? {
+          disabled: refreshing,
+          label: "Check status",
+          loading: refreshing,
+          loadingLabel: "Checking",
+          onClick: onRefresh,
+        }
+      : retryCheckoutAllowed
+        ? { href: "/checkout", label: "Return to checkout" }
+        : { href: "/products", label: "Continue shopping" };
+
+  return (
+    <CheckoutFlowShell
+      currentStep="receipt"
+      state={state}
+      summaryAction={{
+        ...summaryAction,
+        statusMessage: receiptSummaryMessage(result),
+      }}
+      summaryOverride={receiptSummaryOverride(result)}
+      title="Checkout receipt"
+      titleId="checkout-receipt-return-title"
+    >
+      <PaymentReturnStatusView
+        onRefresh={onRefresh}
+        refreshing={refreshing}
+        result={result}
+      />
+    </CheckoutFlowShell>
+  );
+}
+
 export function PaymentReturnStatus(props: PaymentReturnStatusProps) {
+  const state = useCartStore();
   const [result, setResult] = React.useState<PaymentReturnStatusClientResult>({
     kind: "failure",
     reason: "Checking server payment status.",
@@ -157,10 +259,11 @@ export function PaymentReturnStatus(props: PaymentReturnStatusProps) {
   }, [loadStatus]);
 
   return (
-    <PaymentReturnStatusView
+    <PaymentReturnCheckoutView
       onRefresh={loadStatus}
       refreshing={refreshing}
       result={result}
+      state={state}
     />
   );
 }
