@@ -1,5 +1,4 @@
 import * as React from "react";
-import { Button, ButtonLink } from "@/components/ui";
 import type { CartState } from "@/domain/checkout/cart";
 import { formatCatalogPrice } from "@/domain/products/price-format";
 import {
@@ -61,21 +60,11 @@ function statusCopy(status: PaymentReturnStatusResult["status"]): {
 }
 
 export function PaymentReturnStatusView({
-  onRefresh,
   result,
-  refreshing = false,
 }: {
-  onRefresh?: () => void;
-  refreshing?: boolean;
   result: PaymentReturnStatusClientResult;
 }) {
   const loaded = result.kind === "loaded" ? result.status : null;
-  const showRefreshAction = Boolean(
-    loaded?.next.refreshAllowed || result.kind !== "loaded"
-  );
-  const showRetryAction = Boolean(
-    loaded?.next.retryCheckoutAllowed || result.kind === "missing"
-  );
   const copy = loaded
     ? statusCopy(loaded.status)
     : {
@@ -120,27 +109,6 @@ export function PaymentReturnStatusView({
             </dd>
           </div>
         </dl>
-      ) : null}
-
-      {showRefreshAction || showRetryAction ? (
-        <div className="flex flex-wrap gap-grid-xs">
-          {showRefreshAction ? (
-            <Button
-              loading={refreshing}
-              loadingLabel="Checking"
-              onClick={onRefresh}
-              textSize="xs"
-              variant="primary"
-            >
-              Check status
-            </Button>
-          ) : null}
-          {showRetryAction ? (
-            <ButtonLink href="/checkout" textSize="xs" variant="secondary">
-              Return to checkout
-            </ButtonLink>
-          ) : null}
-        </div>
       ) : null}
     </section>
   );
@@ -237,11 +205,7 @@ export function PaymentReturnCheckoutView({
       title="Checkout receipt"
       titleId="checkout-receipt-return-title"
     >
-      <PaymentReturnStatusView
-        onRefresh={onRefresh}
-        refreshing={refreshing}
-        result={result}
-      />
+      <PaymentReturnStatusView result={result} />
     </CheckoutFlowShell>
   );
 }

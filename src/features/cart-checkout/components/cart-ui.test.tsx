@@ -1108,6 +1108,33 @@ describe("cart checkout UI", () => {
     );
   });
 
+  it("keeps payment return status content free of inline actions", () => {
+    const markup = renderToStaticMarkup(
+      createElement(PaymentReturnStatusView, {
+        result: {
+          kind: "loaded",
+          status: {
+            canRetry: true,
+            next: {
+              refreshAllowed: true,
+              retryCheckoutAllowed: true,
+            },
+            payment: {
+              paymentId: "payment_1",
+              status: "PAYMENT_PENDING",
+            },
+            status: "pending",
+          },
+        },
+      })
+    );
+
+    expect(markup).toContain("Payment pending");
+    expect(markup).not.toMatch(
+      /<button|href=|Check status|Return to checkout/i
+    );
+  });
+
   it("renders payment return inside checkout receipt step", () => {
     const markup = renderToStaticMarkup(
       createElement(PaymentReturnCheckoutView, {
