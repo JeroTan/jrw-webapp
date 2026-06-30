@@ -12,8 +12,11 @@ import {
 } from "@/adapter/infrastructure/logging/operational-log";
 import type {
   ConfirmPaidPaymentInput,
+  MarkProviderCheckoutSessionPaidInput,
+  MarkProviderCheckoutSessionPaidResult,
   OrderConfirmationRepositoryLike,
   PaymentReturnLookupInput,
+  PaymentReturnRecord,
 } from "@/server/repositories/OrderConfirmationRepository";
 import { GeneralError } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
@@ -64,10 +67,25 @@ export type PaymentReturnStatusResult = {
     | "unknown";
 };
 
+export type CheckoutSessionPaymentStatusResult = {
+  paid: boolean;
+  providerCheckoutSessionId: string;
+  providerPaymentId?: string;
+  providerPaymentIntentId?: string;
+  status: string;
+};
+
+export type CheckoutSessionPaymentStatusProvider = {
+  getCheckoutSessionPaymentStatus(
+    providerCheckoutSessionId: string
+  ): Promise<AppResult<CheckoutSessionPaymentStatusResult>>;
+};
+
 export type PaymentReconciliationServiceOptions = {
   auditPublisher?: AuditEventPublisher;
   emailNotifier?: OrderConfirmationEmailNotifier;
   operationalLogger?: OperationalLogger;
+  paymentStatusProvider?: CheckoutSessionPaymentStatusProvider;
   repository: OrderConfirmationRepositoryLike;
 };
 
@@ -92,6 +110,7 @@ export class PaymentReconciliationService {
   private readonly auditPublisher: AuditEventPublisher;
   private readonly emailNotifier: OrderConfirmationEmailNotifier;
   private readonly operationalLogger: OperationalLogger;
+  private readonly paymentStatusProvider?: CheckoutSessionPaymentStatusProvider;
   private readonly repository: OrderConfirmationRepositoryLike;
 
   constructor(options: PaymentReconciliationServiceOptions) {
@@ -100,6 +119,7 @@ export class PaymentReconciliationService {
     this.emailNotifier =
       options.emailNotifier ?? new FailingOrderConfirmationEmailNotifier();
     this.operationalLogger = options.operationalLogger ?? noopOperationalLogger;
+    this.paymentStatusProvider = options.paymentStatusProvider;
     this.repository = options.repository;
   }
 
@@ -146,6 +166,10 @@ export class PaymentReconciliationService {
         },
       });
     } catch (error) {
+      if (error instanceof GeneralError) {
+        return Result.error(error);
+      }
+
       if (providerFailure(error)) {
         return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
       }
@@ -204,6 +228,16 @@ export class PaymentReconciliationService {
         });
       }
 
+      const fallback = await this.reconcilePendingPaymentFromProvider({
+        now: input.now,
+        record,
+        requestId: input.requestId,
+      });
+
+      if (fallback) {
+        return Result.okay(fallback);
+      }
+
       return Result.okay({
         canRetry: record.canRetry,
         next: {
@@ -226,12 +260,121 @@ export class PaymentReconciliationService {
         status: record.status,
       });
     } catch (error) {
+      if (error instanceof GeneralError) {
+        return Result.error(error);
+      }
+
       if (providerFailure(error)) {
         return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
       }
 
       return Result.error(new GeneralError({}, "INTERNAL_ERROR"));
     }
+  }
+
+  private async reconcilePendingPaymentFromProvider(input: {
+    now?: string;
+    record: PaymentReturnRecord;
+    requestId: string;
+  }): Promise<PaymentReturnStatusResult | null> {
+    if (
+      input.record.paymentStatus !== "PAYMENT_PENDING" ||
+      input.record.status !== "pending" ||
+      !this.paymentStatusProvider
+    ) {
+      return null;
+    }
+
+    const providerStatus =
+      await this.paymentStatusProvider.getCheckoutSessionPaymentStatus(
+        input.record.providerCheckoutSessionId
+      );
+
+    if (providerStatus.error) {
+      this.recordProviderFallbackFailure({
+        paymentId: input.record.paymentId,
+        reason: providerStatus.error.code,
+        requestId: input.requestId,
+      });
+
+      return null;
+    }
+
+    if (
+      providerStatus.content.providerCheckoutSessionId !==
+      input.record.providerCheckoutSessionId
+    ) {
+      this.recordProviderFallbackFailure({
+        paymentId: input.record.paymentId,
+        reason: "provider_session_mismatch",
+        requestId: input.requestId,
+      });
+
+      return null;
+    }
+
+    if (!providerStatus.content.paid) {
+      return null;
+    }
+
+    const marked = await this.markProviderCheckoutSessionPaid({
+      now: input.now,
+      providerCheckoutSessionId: input.record.providerCheckoutSessionId,
+      requestId: input.requestId,
+    });
+
+    if (
+      marked.decision !== "paid" &&
+      marked.decision !== "already-paid"
+    ) {
+      this.recordProviderFallbackFailure({
+        paymentId:
+          marked.decision === "invalid-state"
+            ? marked.paymentId
+            : input.record.paymentId,
+        reason: marked.decision,
+        requestId: input.requestId,
+      });
+
+      return null;
+    }
+
+    const confirmation = await this.confirmPaidPayment({
+      now: input.now,
+      paymentId: marked.paymentId,
+      requestId: input.requestId,
+    });
+
+    if (confirmation.error) {
+      throw new GeneralError(
+        confirmation.error.data ?? {},
+        confirmation.error.code
+      );
+    }
+
+    return {
+      canRetry: false,
+      next: {
+        refreshAllowed: false,
+        retryCheckoutAllowed: false,
+      },
+      order: {
+        orderId: confirmation.content.order.orderId,
+        orderNumber: confirmation.content.order.orderNumber,
+        totalCentavos: confirmation.content.order.totalCentavos,
+      },
+      payment: {
+        paymentId: marked.paymentId,
+        status: "PAYMENT_PAID",
+      },
+      status: "confirmed",
+    };
+  }
+
+  private async markProviderCheckoutSessionPaid(
+    input: MarkProviderCheckoutSessionPaidInput
+  ): Promise<MarkProviderCheckoutSessionPaidResult> {
+    return this.repository.markProviderCheckoutSessionPaid(input);
   }
 
   private async sendOrderConfirmationEmailIfNeeded(input: {
@@ -328,6 +471,29 @@ export class PaymentReconciliationService {
       );
     } catch {
       // Logging must never mask order confirmation.
+    }
+  }
+
+  private recordProviderFallbackFailure(input: {
+    paymentId: string;
+    reason: string;
+    requestId: string;
+  }) {
+    try {
+      this.operationalLogger.record(
+        createOperationalLogEvent({
+          requestId: input.requestId,
+          errorCode: "PROVIDER_UNAVAILABLE",
+          targetResourceId: input.paymentId,
+          details: {
+            action: "payment.return_provider_reconciliation_skipped",
+            paymentId: input.paymentId,
+            reason: input.reason,
+          },
+        })
+      );
+    } catch {
+      // Logging must never mask payment-return status.
     }
   }
 

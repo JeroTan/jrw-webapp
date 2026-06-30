@@ -52,6 +52,21 @@ export type ConfirmPaidPaymentResult =
   | { decision: "missing-payment" }
   | { decision: "not-paid"; paymentId: string; paymentStatus: string };
 
+export type MarkProviderCheckoutSessionPaidInput = {
+  now?: string;
+  providerCheckoutSessionId: string;
+  requestId: string;
+};
+
+export type MarkProviderCheckoutSessionPaidResult =
+  | {
+      decision: "already-paid" | "paid";
+      paymentId: string;
+      paymentStatus: "PAYMENT_PAID";
+    }
+  | { decision: "invalid-state"; paymentId: string; paymentStatus: string }
+  | { decision: "missing-payment" };
+
 export type PaymentReturnLookupInput = {
   attemptId?: string | null;
   paymentId?: string | null;
@@ -104,6 +119,9 @@ export type OrderConfirmationRepositoryLike = {
     orderId: string;
     requestId: string;
   }): Promise<void>;
+  markProviderCheckoutSessionPaid(
+    input: MarkProviderCheckoutSessionPaidInput
+  ): Promise<MarkProviderCheckoutSessionPaidResult>;
 };
 
 type PaymentItemSnapshotSource = {
@@ -470,6 +488,98 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
         typeof row.totalCentavos === "number"
           ? Number(row.totalCentavos)
           : null,
+    };
+  }
+
+  async markProviderCheckoutSessionPaid(
+    input: MarkProviderCheckoutSessionPaidInput
+  ): Promise<MarkProviderCheckoutSessionPaidResult> {
+    const now = input.now ?? new Date().toISOString();
+    const providerCheckoutSessionId = cleanString(
+      input.providerCheckoutSessionId
+    );
+
+    if (!providerCheckoutSessionId) {
+      return { decision: "missing-payment" };
+    }
+
+    const paymentRows = await this.db
+      .select()
+      .from(checkout_payments)
+      .where(
+        and(
+          eq(checkout_payments.provider, "PAYMONGO"),
+          eq(
+            checkout_payments.provider_checkout_session_id,
+            providerCheckoutSessionId
+          )
+        )
+      )
+      .limit(1);
+    const payment = paymentRows[0];
+
+    if (!payment) {
+      return { decision: "missing-payment" };
+    }
+
+    if (payment.status === "PAYMENT_PAID") {
+      return {
+        decision: "already-paid",
+        paymentId: payment.id,
+        paymentStatus: "PAYMENT_PAID",
+      };
+    }
+
+    if (payment.status !== "PAYMENT_PENDING") {
+      return {
+        decision: "invalid-state",
+        paymentId: payment.id,
+        paymentStatus: payment.status,
+      };
+    }
+
+    const rows = await this.db
+      .update(checkout_payments)
+      .set({
+        status: "PAYMENT_PAID",
+        updated_request_id: input.requestId,
+        updated_at: now,
+      })
+      .where(
+        and(
+          eq(checkout_payments.id, payment.id),
+          eq(checkout_payments.status, "PAYMENT_PENDING")
+        )
+      )
+      .returning({ id: checkout_payments.id, status: checkout_payments.status });
+
+    if (rows[0]) {
+      return {
+        decision: "paid",
+        paymentId: rows[0].id,
+        paymentStatus: "PAYMENT_PAID",
+      };
+    }
+
+    const latestRows = await this.db
+      .select({ id: checkout_payments.id, status: checkout_payments.status })
+      .from(checkout_payments)
+      .where(eq(checkout_payments.id, payment.id))
+      .limit(1);
+    const latest = latestRows[0];
+
+    if (latest?.status === "PAYMENT_PAID") {
+      return {
+        decision: "already-paid",
+        paymentId: latest.id,
+        paymentStatus: "PAYMENT_PAID",
+      };
+    }
+
+    return {
+      decision: "invalid-state",
+      paymentId: payment.id,
+      paymentStatus: latest?.status ?? payment.status,
     };
   }
 

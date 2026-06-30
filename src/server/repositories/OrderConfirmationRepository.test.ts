@@ -391,4 +391,51 @@ describe("DrizzleOrderConfirmationRepository", () => {
       await mf.dispose();
     }
   }, 20_000);
+
+  it("marks provider checkout session paid idempotently", async () => {
+    const { d1, mf, repository } = await createOrderConfirmationTestD1();
+
+    try {
+      await d1
+        .prepare(
+          `UPDATE checkout_payments SET status = 'PAYMENT_PENDING' WHERE id = ?`
+        )
+        .bind("payment_1")
+        .run();
+
+      const first = await repository.markProviderCheckoutSessionPaid({
+        now,
+        providerCheckoutSessionId: "cs_test_123",
+        requestId: "req_mark_paid_1",
+      });
+      const second = await repository.markProviderCheckoutSessionPaid({
+        now,
+        providerCheckoutSessionId: "cs_test_123",
+        requestId: "req_mark_paid_2",
+      });
+      const payment = await d1
+        .prepare(
+          `SELECT status, updated_request_id FROM checkout_payments WHERE id = ?`
+        )
+        .bind("payment_1")
+        .first<{ status: string; updated_request_id: string }>();
+
+      expect(first).toEqual({
+        decision: "paid",
+        paymentId: "payment_1",
+        paymentStatus: "PAYMENT_PAID",
+      });
+      expect(second).toEqual({
+        decision: "already-paid",
+        paymentId: "payment_1",
+        paymentStatus: "PAYMENT_PAID",
+      });
+      expect(payment).toEqual({
+        status: "PAYMENT_PAID",
+        updated_request_id: "req_mark_paid_1",
+      });
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
 });

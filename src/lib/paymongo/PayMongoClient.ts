@@ -12,7 +12,16 @@ export type PayMongoCheckoutSessionResult = {
   status: string;
 };
 
+export type PayMongoCheckoutSessionPaymentStatusResult = {
+  paid: boolean;
+  providerCheckoutSessionId: string;
+  providerPaymentId?: string;
+  providerPaymentIntentId?: string;
+  status: string;
+};
+
 export type PayMongoClientOptions = {
+  checkoutSessionStatusEndpoint?: string;
   endpoint?: string;
   fetcher?: typeof fetch;
   secretKey: string;
@@ -21,6 +30,12 @@ export type PayMongoClientOptions = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function cleanString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
 }
 
 function basicAuth(secretKey: string) {
@@ -98,13 +113,79 @@ function parseCheckoutSessionResponse(
   };
 }
 
+function stringAt(
+  value: Record<string, unknown> | null,
+  key: string
+): string | null {
+  return cleanString(value?.[key]);
+}
+
+function recordAt(
+  value: Record<string, unknown> | null,
+  key: string
+): Record<string, unknown> | null {
+  const nested = value?.[key];
+
+  return isRecord(nested) ? nested : null;
+}
+
+function paymentStatus(payment: Record<string, unknown>): string | null {
+  return (
+    stringAt(recordAt(payment, "attributes"), "status") ??
+    stringAt(payment, "status")
+  );
+}
+
+function parseCheckoutSessionPaymentStatusResponse(
+  value: unknown
+): PayMongoCheckoutSessionPaymentStatusResult | null {
+  if (!isRecord(value) || !isRecord(value.data)) {
+    return null;
+  }
+
+  const data = value.data;
+  const attributes = isRecord(data.attributes) ? data.attributes : null;
+  const providerCheckoutSessionId = cleanString(data.id);
+
+  if (!providerCheckoutSessionId || !attributes) {
+    return null;
+  }
+
+  const sessionStatus = stringAt(attributes, "status") ?? "unknown";
+  const payments = attributes.payments;
+  const paymentRows = Array.isArray(payments)
+    ? payments.filter(isRecord)
+    : [];
+  const paidPayment =
+    paymentRows.find((payment) => paymentStatus(payment) === "paid") ?? null;
+  const firstPayment = paymentRows[0] ?? null;
+  const providerPaymentId =
+    stringAt(paidPayment, "id") ?? stringAt(firstPayment, "id") ?? undefined;
+  const providerPaymentIntentId =
+    stringAt(recordAt(attributes, "payment_intent"), "id") ??
+    stringAt(attributes, "payment_intent_id") ??
+    undefined;
+
+  return {
+    paid: Boolean(paidPayment),
+    providerCheckoutSessionId,
+    ...(providerPaymentId ? { providerPaymentId } : {}),
+    ...(providerPaymentIntentId ? { providerPaymentIntentId } : {}),
+    status: sessionStatus,
+  };
+}
+
 export class PayMongoClient {
+  private readonly checkoutSessionStatusEndpoint: string;
   private readonly endpoint: string;
   private readonly fetcher: typeof fetch;
   private readonly secretKey: string;
   private readonly timeoutMs: number;
 
   constructor(options: PayMongoClientOptions) {
+    this.checkoutSessionStatusEndpoint =
+      options.checkoutSessionStatusEndpoint ??
+      "https://api.paymongo.com/v1/checkout_sessions";
     this.endpoint =
       options.endpoint ?? "https://api.paymongo.com/v2/checkout_sessions";
     this.fetcher = options.fetcher ?? ((input, init) => fetch(input, init));
@@ -125,6 +206,64 @@ export class PayMongoClient {
     }
 
     return this.createCheckoutSessionRequest(payload);
+  }
+
+  async getCheckoutSessionPaymentStatus(
+    providerCheckoutSessionId: string
+  ): Promise<AppResult<PayMongoCheckoutSessionPaymentStatusResult>> {
+    const checkoutSessionId = cleanString(providerCheckoutSessionId);
+
+    if (!this.secretKey || !checkoutSessionId) {
+      return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+    }
+
+    try {
+      const response = await this.fetcher(
+        `${this.checkoutSessionStatusEndpoint}/${encodeURIComponent(
+          checkoutSessionId
+        )}`,
+        {
+          headers: {
+            Accept: "application/json",
+            Authorization: basicAuth(this.secretKey),
+          },
+          method: "GET",
+          signal: AbortSignal.timeout(this.timeoutMs),
+        }
+      );
+
+      if (!response.ok) {
+        return Result.error(
+          new GeneralError(
+            {
+              providerStatus: response.status,
+              reason: "provider_http_error",
+            },
+            "PROVIDER_UNAVAILABLE"
+          )
+        );
+      }
+
+      const parsed = parseCheckoutSessionPaymentStatusResponse(
+        await response.json()
+      );
+
+      return parsed
+        ? Result.okay(parsed)
+        : Result.error(
+            new GeneralError(
+              { reason: "provider_response_invalid" },
+              "PROVIDER_UNAVAILABLE"
+            )
+          );
+    } catch (error) {
+      return Result.error(
+        new GeneralError(
+          { reason: "provider_fetch_failed" },
+          "PROVIDER_UNAVAILABLE"
+        )
+      );
+    }
   }
 
   private async createCheckoutSessionRequest(
@@ -170,11 +309,7 @@ export class PayMongoClient {
     } catch (error) {
       return Result.error(
         new GeneralError(
-          {
-            errorMessage: error instanceof Error ? error.message : String(error),
-            errorName: error instanceof Error ? error.name : typeof error,
-            reason: "provider_fetch_failed",
-          },
+          { reason: "provider_fetch_failed" },
           "PROVIDER_UNAVAILABLE"
         )
       );

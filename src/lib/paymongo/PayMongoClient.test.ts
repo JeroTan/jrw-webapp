@@ -251,4 +251,163 @@ describe("PayMongoClient", () => {
     expect(result.error?.code).toBe("PROVIDER_UNAVAILABLE");
     expect(result.content).toBeNull();
   });
+
+  it("reads paid checkout-session status through backend-only v1 lookup", async () => {
+    let capturedUrl = "";
+    let capturedAuth = "";
+    const client = new PayMongoClient({
+      checkoutSessionStatusEndpoint:
+        "https://api.paymongo.test/v1/checkout_sessions",
+      fetcher: async (url, init) => {
+        capturedUrl = String(url);
+        capturedAuth = String(
+          (init?.headers as Record<string, string>).Authorization
+        );
+
+        return new Response(
+          JSON.stringify({
+            data: {
+              id: "cs_paid_123",
+              attributes: {
+                payment_intent: { id: "pi_paid_123" },
+                payments: [
+                  {
+                    id: "pay_paid_123",
+                    attributes: { status: "paid" },
+                  },
+                ],
+                status: "active",
+              },
+            },
+          }),
+          { status: 200 }
+        );
+      },
+      secretKey: "sk_test_secret_123",
+    });
+
+    const result =
+      await client.getCheckoutSessionPaymentStatus("cs_paid_123");
+
+    expect(result.error).toBeNull();
+    expect(capturedUrl).toBe(
+      "https://api.paymongo.test/v1/checkout_sessions/cs_paid_123"
+    );
+    expect(capturedAuth).toBe(`Basic ${btoa("sk_test_secret_123:")}`);
+    expect(result.content).toEqual({
+      paid: true,
+      providerCheckoutSessionId: "cs_paid_123",
+      providerPaymentId: "pay_paid_123",
+      providerPaymentIntentId: "pi_paid_123",
+      status: "active",
+    });
+  });
+
+  it("keeps unpaid checkout-session status non-mutating", async () => {
+    const client = new PayMongoClient({
+      checkoutSessionStatusEndpoint:
+        "https://api.paymongo.test/v1/checkout_sessions",
+      fetcher: async () =>
+        new Response(
+          JSON.stringify({
+            data: {
+              id: "cs_pending_123",
+              attributes: {
+                payments: [
+                  {
+                    id: "pay_pending_123",
+                    attributes: { status: "awaiting_payment_method" },
+                  },
+                ],
+                status: "active",
+              },
+            },
+          }),
+          { status: 200 }
+        ),
+      secretKey: "sk_test_secret_123",
+    });
+
+    const result =
+      await client.getCheckoutSessionPaymentStatus("cs_pending_123");
+
+    expect(result.error).toBeNull();
+    expect(result.content).toMatchObject({
+      paid: false,
+      providerCheckoutSessionId: "cs_pending_123",
+      status: "active",
+    });
+  });
+
+  it("does not treat checkout-session status as paid without a paid payment row", async () => {
+    const client = new PayMongoClient({
+      checkoutSessionStatusEndpoint:
+        "https://api.paymongo.test/v1/checkout_sessions",
+      fetcher: async () =>
+        new Response(
+          JSON.stringify({
+            data: {
+              id: "cs_status_paid_without_payment",
+              attributes: {
+                payments: [],
+                status: "paid",
+              },
+            },
+          }),
+          { status: 200 }
+        ),
+      secretKey: "sk_test_secret_123",
+    });
+
+    const result = await client.getCheckoutSessionPaymentStatus(
+      "cs_status_paid_without_payment"
+    );
+
+    expect(result.error).toBeNull();
+    expect(result.content).toMatchObject({
+      paid: false,
+      providerCheckoutSessionId: "cs_status_paid_without_payment",
+      status: "paid",
+    });
+  });
+
+  it("maps invalid checkout-session status lookup without leaking provider payload", async () => {
+    const client = new PayMongoClient({
+      fetcher: async () =>
+        new Response(
+          JSON.stringify({
+            errors: [{ detail: "secret sk_test_secret_123 failed" }],
+          }),
+          { status: 401 }
+        ),
+      secretKey: "sk_test_secret_123",
+    });
+
+    const result =
+      await client.getCheckoutSessionPaymentStatus("cs_bad_123");
+
+    expect(result.error?.code).toBe("PROVIDER_UNAVAILABLE");
+    expect(JSON.stringify(result.error)).not.toMatch(
+      /sk_test_secret_123|checkout\.paymongo|payments|Authorization/i
+    );
+  });
+
+  it("maps thrown checkout-session status errors without leaking exception detail", async () => {
+    const client = new PayMongoClient({
+      fetcher: async () => {
+        throw new Error(
+          "secret sk_test_secret_123 checkout.paymongo.com Authorization payments"
+        );
+      },
+      secretKey: "sk_test_secret_123",
+    });
+
+    const result =
+      await client.getCheckoutSessionPaymentStatus("cs_throw_123");
+
+    expect(result.error?.code).toBe("PROVIDER_UNAVAILABLE");
+    expect(JSON.stringify(result.error)).not.toMatch(
+      /sk_test_secret_123|checkout\.paymongo|payments|Authorization/i
+    );
+  });
 });
