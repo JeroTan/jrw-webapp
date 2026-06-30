@@ -1,6 +1,6 @@
 # Story 5.5: Payment Reconciliation and Order Confirmation
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -92,6 +92,24 @@ so that checkout success reflects server truth, not redirect parameters.
     - `npx vitest run src/server/routes/checkout.routes.test.ts src/features/cart-checkout/components/cart-ui.test.tsx`
     - `npm run check`
   - [x] Run targeted suites, `npm run check`, and `npm run build-development`; full `npx vitest run`/`build-test` exceeded practical runtime without actionable failure output.
+
+### Review Findings
+
+- [x] [Review][Patch] Duplicate paid webhook left in `RECEIVED` did not retry processing — fixed by re-running paid-session processing for exact duplicate supported events that were claimed but not completed.
+- [x] [Review][Patch] Duplicate failed webhook retried reconciliation for non-paid payment — fixed by reconciling duplicates only when prior event status is `PROCESSED`.
+- [x] [Review][Patch] `SENDING` order confirmation email could wedge forever — fixed with stale `SENDING` reclaim after the send-claim timeout while preserving fresh in-flight sends.
+- [x] [Review][Patch] Payment-return lookup with multiple identifiers could show wrong payment — fixed by requiring all supplied identifiers to match the same payment row.
+- [x] [Review][Patch] Attempt lookup could hide confirmed payment behind later pending retry — fixed by prioritizing rows with confirmed orders / paid payments before latest pending rows.
+- [x] [Review][Patch] Same checkout attempt/reservation could create duplicate orders — fixed with unique order indexes and repository fallback to existing confirmation.
+- [x] [Review][Patch] Provider fallback kept explicit expired/cancelled/failed session statuses pending — fixed by normalizing supported terminal provider states to local payment terminal statuses.
+- [x] [Review][Patch] Order snapshots preferred mutable catalog labels — fixed by preferring frozen payment-item labels.
+- [x] [Review][Patch] Confirmation email missed required status fields — fixed with payment label, fulfillment label, status URL, and item price summary.
+- [x] [Review][Patch] Older status response could regress newer refresh state — fixed with request sequencing in the payment-return React component.
+- [x] [Review][Patch] Paid payment with no frozen items could create empty order — fixed by rejecting confirmation when payment items are absent.
+- [x] [Review][Defer] Existing legacy `orders.status` and `orders.total_amount real` remain for backward compatibility; new Story 5.5 reads/writes canonical `payment_status`, `fulfillment_status`, and centavos fields.
+- [x] [Review][Defer] Provider-paid fallback still does not verify amount/currency/livemode from PayMongo GET response because current local session ID is server-created and PayMongo response parsing lacks stable amount fields; revisit if provider status response contract is expanded.
+- [x] [Review][Defer] Image reference is not available in `checkout_payment_items`; order snapshot `image_r2_key` remains `null` until checkout payment item schema stores frozen image reference.
+- [x] [Review][Dismiss] Checkout URL persistence in `checkout_payments` is intentional Story 5.3 handoff state, not raw provider payload storage in order confirmation.
 
 ## Endpoint Guard Checklist
 

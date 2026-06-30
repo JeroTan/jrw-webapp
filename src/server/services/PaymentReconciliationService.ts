@@ -5,6 +5,7 @@ import {
 } from "@/domain/audit/events";
 import type { OrderConfirmationEmailNotifier } from "@/domain/notifications/order-confirmation-email";
 import { FailingOrderConfirmationEmailNotifier } from "@/domain/notifications/order-confirmation-email";
+import { paymentReturnStatusFromPayment } from "@/domain/payments/payment-reconciliation";
 import {
   createOperationalLogEvent,
   noopOperationalLogger,
@@ -14,9 +15,12 @@ import type {
   ConfirmPaidPaymentInput,
   MarkProviderCheckoutSessionPaidInput,
   MarkProviderCheckoutSessionPaidResult,
+  MarkProviderCheckoutSessionTerminalInput,
+  MarkProviderCheckoutSessionTerminalResult,
   OrderConfirmationRepositoryLike,
   PaymentReturnLookupInput,
   PaymentReturnRecord,
+  ProviderTerminalPaymentStatus,
 } from "@/server/repositories/OrderConfirmationRepository";
 import { GeneralError } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
@@ -104,6 +108,22 @@ function safeSystemActor() {
     role: "SYSTEM" as const,
     safeIdentifier: "payment-reconciliation",
   };
+}
+
+function terminalPaymentStatusFromProviderStatus(
+  status: string
+): ProviderTerminalPaymentStatus | null {
+  switch (status.trim().toLowerCase()) {
+    case "cancelled":
+    case "canceled":
+      return "PAYMENT_CANCELLED";
+    case "expired":
+      return "PAYMENT_EXPIRED";
+    case "failed":
+      return "PAYMENT_FAILED";
+    default:
+      return null;
+  }
 }
 
 export class PaymentReconciliationService {
@@ -314,7 +334,53 @@ export class PaymentReconciliationService {
     }
 
     if (!providerStatus.content.paid) {
-      return null;
+      const terminalStatus = terminalPaymentStatusFromProviderStatus(
+        providerStatus.content.status
+      );
+
+      if (!terminalStatus) {
+        return null;
+      }
+
+      const marked = await this.markProviderCheckoutSessionTerminal({
+        now: input.now,
+        providerCheckoutSessionId: input.record.providerCheckoutSessionId,
+        requestId: input.requestId,
+        targetStatus: terminalStatus,
+      });
+
+      if (
+        marked.decision !== "terminal" &&
+        marked.decision !== "already-terminal"
+      ) {
+        this.recordProviderFallbackFailure({
+          paymentId:
+            marked.decision === "invalid-state"
+              ? marked.paymentId
+              : input.record.paymentId,
+          reason: marked.decision,
+          requestId: input.requestId,
+        });
+
+        return null;
+      }
+
+      const status = paymentReturnStatusFromPayment({
+        paymentStatus: marked.paymentStatus,
+      });
+
+      return {
+        canRetry: true,
+        next: {
+          refreshAllowed: false,
+          retryCheckoutAllowed: true,
+        },
+        payment: {
+          paymentId: marked.paymentId,
+          status: marked.paymentStatus,
+        },
+        status,
+      };
     }
 
     const marked = await this.markProviderCheckoutSessionPaid({
@@ -323,10 +389,7 @@ export class PaymentReconciliationService {
       requestId: input.requestId,
     });
 
-    if (
-      marked.decision !== "paid" &&
-      marked.decision !== "already-paid"
-    ) {
+    if (marked.decision !== "paid" && marked.decision !== "already-paid") {
       this.recordProviderFallbackFailure({
         paymentId:
           marked.decision === "invalid-state"
@@ -377,6 +440,12 @@ export class PaymentReconciliationService {
     return this.repository.markProviderCheckoutSessionPaid(input);
   }
 
+  private async markProviderCheckoutSessionTerminal(
+    input: MarkProviderCheckoutSessionTerminalInput
+  ): Promise<MarkProviderCheckoutSessionTerminalResult> {
+    return this.repository.markProviderCheckoutSessionTerminal(input);
+  }
+
   private async sendOrderConfirmationEmailIfNeeded(input: {
     emailStatus: "FAILED" | "PENDING" | "SENT" | "SENDING";
     now?: string;
@@ -384,7 +453,7 @@ export class PaymentReconciliationService {
     paymentId: string;
     requestId: string;
   }): Promise<"FAILED" | "PENDING" | "SENT" | "SENDING"> {
-    if (input.emailStatus === "SENT" || input.emailStatus === "SENDING") {
+    if (input.emailStatus === "SENT") {
       return input.emailStatus;
     }
 

@@ -54,8 +54,11 @@ function repositoryStub(
       calls.push("getOrderConfirmationEmail");
       return {
         currency: "PHP" as const,
+        fulfillmentStatusLabel: "Order placed",
         items: [{ amountCentavos: 1999, name: "Linen Shirt", quantity: 2 }],
         orderNumber: "JRW-2026-ORDER1",
+        paymentStatusLabel: "Payment paid",
+        statusUrl: "/checkout/payment-return?paymentId=payment_1",
         toEmail: "nina@example.com",
         totalCentavos: 3998,
       };
@@ -72,6 +75,14 @@ function repositoryStub(
         decision: "paid" as const,
         paymentId: "payment_1",
         paymentStatus: "PAYMENT_PAID" as const,
+      };
+    },
+    markProviderCheckoutSessionTerminal: async (input) => {
+      calls.push("markProviderCheckoutSessionTerminal");
+      return {
+        decision: "terminal" as const,
+        paymentId: "payment_1",
+        paymentStatus: input.targetStatus,
       };
     },
     ...overrides,
@@ -256,6 +267,35 @@ describe("PaymentReconciliationService", () => {
       next: { refreshAllowed: true, retryCheckoutAllowed: false },
     });
     expect(repository.calls).toEqual([]);
+  });
+
+  it("normalizes expired PayMongo fallback into retryable terminal payment state", async () => {
+    const repository = repositoryStub({
+      findPaymentReturnRecord: async () => pendingPaymentRecord(),
+    });
+    const service = new PaymentReconciliationService({
+      paymentStatusProvider: {
+        getCheckoutSessionPaymentStatus: async (providerCheckoutSessionId) =>
+          Result.okay({
+            paid: false,
+            providerCheckoutSessionId,
+            status: "expired",
+          }),
+      },
+      repository,
+    });
+
+    const result = await service.getPaymentReturnStatus({
+      attemptId: "attempt_1",
+      requestId: "req_fallback_expired",
+    });
+
+    expect(repository.calls).toEqual(["markProviderCheckoutSessionTerminal"]);
+    expect(result.content).toMatchObject({
+      status: "expired",
+      next: { refreshAllowed: false, retryCheckoutAllowed: true },
+      payment: { paymentId: "payment_1", status: "PAYMENT_EXPIRED" },
+    });
   });
 
   it("keeps pending return when PayMongo fallback returns a different session id", async () => {

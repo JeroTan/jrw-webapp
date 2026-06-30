@@ -143,6 +143,8 @@ async function createOrderConfirmationTestD1() {
       updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
     )`,
     `CREATE UNIQUE INDEX uq_orders_payment_id ON orders(payment_id) WHERE payment_id IS NOT NULL`,
+    `CREATE UNIQUE INDEX uq_orders_checkout_attempt_id ON orders(checkout_attempt_id) WHERE checkout_attempt_id IS NOT NULL`,
+    `CREATE UNIQUE INDEX uq_orders_reservation_id ON orders(reservation_id) WHERE reservation_id IS NOT NULL`,
     `CREATE TABLE order_snapshots (
       id text PRIMARY KEY NOT NULL,
       order_id text NOT NULL,
@@ -359,6 +361,67 @@ describe("DrizzleOrderConfirmationRepository", () => {
     }
   }, 20_000);
 
+  it("returns existing order for a second paid payment on the same attempt and reservation", async () => {
+    const { d1, mf, repository } = await createOrderConfirmationTestD1();
+
+    try {
+      const first = await repository.createOrderConfirmationForPaidPayment({
+        now,
+        paymentId: "payment_1",
+        requestId: "req_confirm_1",
+      });
+
+      await d1
+        .prepare(
+          `INSERT INTO checkout_payments (
+            id, checkout_attempt_id, reservation_id, provider,
+            provider_checkout_session_id, provider_reference_number, status,
+            amount_centavos, currency, checkout_url, livemode,
+            created_request_id, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          "payment_2",
+          "attempt_1",
+          "reservation_1",
+          "PAYMONGO",
+          "cs_test_456",
+          "JRW-attempt_1-reservation_1-retry",
+          "PAYMENT_PAID",
+          3998,
+          "PHP",
+          "https://checkout.paymongo.com/cs_test_456",
+          0,
+          "req_payment_2",
+          "2026-06-26T05:01:00.000Z",
+          "2026-06-26T05:01:00.000Z"
+        )
+        .run();
+
+      const second = await repository.createOrderConfirmationForPaidPayment({
+        now,
+        paymentId: "payment_2",
+        requestId: "req_confirm_2",
+      });
+      const orderCount = await d1
+        .prepare(`SELECT count(*) AS count FROM orders`)
+        .first<{ count: number }>();
+
+      expect(second).toMatchObject({
+        created: false,
+        decision: "confirmed",
+        order: {
+          orderId:
+            first.decision === "confirmed" ? first.order.orderId : undefined,
+          paymentId: "payment_1",
+        },
+      });
+      expect(Number(orderCount?.count ?? 0)).toBe(1);
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
   it("does not create an order for pending payment", async () => {
     const { d1, mf, repository } = await createOrderConfirmationTestD1();
 
@@ -380,6 +443,36 @@ describe("DrizzleOrderConfirmationRepository", () => {
         decision: "not-paid",
         paymentId: "payment_1",
         paymentStatus: "PAYMENT_PENDING",
+      });
+
+      const orderCount = await d1
+        .prepare(`SELECT count(*) AS count FROM orders`)
+        .first<{ count: number }>();
+
+      expect(Number(orderCount?.count ?? 0)).toBe(0);
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("does not create an order when paid payment has no frozen payment items", async () => {
+    const { d1, mf, repository } = await createOrderConfirmationTestD1();
+
+    try {
+      await d1
+        .prepare(`DELETE FROM checkout_payment_items WHERE payment_id = ?`)
+        .bind("payment_1")
+        .run();
+
+      await expect(
+        repository.createOrderConfirmationForPaidPayment({
+          now,
+          paymentId: "payment_1",
+          requestId: "req_missing_items",
+        })
+      ).resolves.toEqual({
+        decision: "missing-payment-items",
+        paymentId: "payment_1",
       });
 
       const orderCount = await d1
@@ -433,6 +526,153 @@ describe("DrizzleOrderConfirmationRepository", () => {
       expect(payment).toEqual({
         status: "PAYMENT_PAID",
         updated_request_id: "req_mark_paid_1",
+      });
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("marks provider checkout session expired idempotently", async () => {
+    const { d1, mf, repository } = await createOrderConfirmationTestD1();
+
+    try {
+      await d1
+        .prepare(
+          `UPDATE checkout_payments SET status = 'PAYMENT_PENDING' WHERE id = ?`
+        )
+        .bind("payment_1")
+        .run();
+
+      const first = await repository.markProviderCheckoutSessionTerminal({
+        now,
+        providerCheckoutSessionId: "cs_test_123",
+        requestId: "req_mark_expired_1",
+        targetStatus: "PAYMENT_EXPIRED",
+      });
+      const second = await repository.markProviderCheckoutSessionTerminal({
+        now,
+        providerCheckoutSessionId: "cs_test_123",
+        requestId: "req_mark_expired_2",
+        targetStatus: "PAYMENT_EXPIRED",
+      });
+      const payment = await d1
+        .prepare(
+          `SELECT status, updated_request_id FROM checkout_payments WHERE id = ?`
+        )
+        .bind("payment_1")
+        .first<{ status: string; updated_request_id: string }>();
+
+      expect(first).toEqual({
+        decision: "terminal",
+        paymentId: "payment_1",
+        paymentStatus: "PAYMENT_EXPIRED",
+      });
+      expect(second).toEqual({
+        decision: "already-terminal",
+        paymentId: "payment_1",
+        paymentStatus: "PAYMENT_EXPIRED",
+      });
+      expect(payment).toEqual({
+        status: "PAYMENT_EXPIRED",
+        updated_request_id: "req_mark_expired_1",
+      });
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("reclaims stale SENDING order confirmation email but not fresh sends", async () => {
+    const { mf, repository } = await createOrderConfirmationTestD1();
+
+    try {
+      const confirmation =
+        await repository.createOrderConfirmationForPaidPayment({
+          now,
+          paymentId: "payment_1",
+          requestId: "req_confirm_email_claim",
+        });
+
+      if (confirmation.decision !== "confirmed") {
+        throw new Error("expected confirmed order");
+      }
+
+      const orderId = confirmation.order.orderId;
+
+      await expect(
+        repository.claimOrderConfirmationEmail({
+          now,
+          orderId,
+          requestId: "req_claim_1",
+        })
+      ).resolves.toBe(true);
+      await expect(
+        repository.claimOrderConfirmationEmail({
+          now: "2026-06-26T05:01:00.000Z",
+          orderId,
+          requestId: "req_claim_fresh",
+        })
+      ).resolves.toBe(false);
+      await expect(
+        repository.claimOrderConfirmationEmail({
+          now: "2026-06-26T05:16:00.000Z",
+          orderId,
+          requestId: "req_claim_stale",
+        })
+      ).resolves.toBe(true);
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("prefers confirmed order when attempt lookup also has a later pending payment", async () => {
+    const { d1, mf, repository } = await createOrderConfirmationTestD1();
+
+    try {
+      const confirmation =
+        await repository.createOrderConfirmationForPaidPayment({
+          now,
+          paymentId: "payment_1",
+          requestId: "req_confirm_lookup",
+        });
+
+      await d1
+        .prepare(
+          `INSERT INTO checkout_payments (
+            id, checkout_attempt_id, reservation_id, provider,
+            provider_checkout_session_id, provider_reference_number, status,
+            amount_centavos, currency, checkout_url, livemode,
+            created_request_id, created_at, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          "payment_2",
+          "attempt_1",
+          "reservation_1",
+          "PAYMONGO",
+          "cs_test_456",
+          "JRW-attempt_1-reservation_1-retry",
+          "PAYMENT_PENDING",
+          3998,
+          "PHP",
+          "https://checkout.paymongo.com/cs_test_456",
+          0,
+          "req_payment_2",
+          "2026-06-26T05:01:00.000Z",
+          "2026-06-26T05:01:00.000Z"
+        )
+        .run();
+
+      const record = await repository.findPaymentReturnRecord({
+        attemptId: "attempt_1",
+      });
+
+      expect(record).toMatchObject({
+        orderId:
+          confirmation.decision === "confirmed"
+            ? confirmation.order.orderId
+            : undefined,
+        paymentId: "payment_1",
+        status: "confirmed",
       });
     } finally {
       await mf.dispose();

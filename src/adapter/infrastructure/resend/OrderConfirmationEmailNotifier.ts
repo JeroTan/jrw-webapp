@@ -14,6 +14,7 @@ import {
 } from "./CustomerVerificationEmailNotifier";
 
 type ResendOrderConfirmationEmailNotifierOptions = {
+  appBaseUrl: string;
   client: ResendEmailClient;
   fromEmail: string;
 };
@@ -51,8 +52,21 @@ function resendProviderError(response: unknown): unknown | undefined {
 function itemSummary(input: OrderConfirmationEmailInput): string {
   return input.items
     .slice(0, 6)
-    .map((item) => `${item.quantity} x ${item.name}`)
+    .map(
+      (item) =>
+        `${item.quantity} x ${item.name} @ ${formatCatalogPrice(
+          item.amountCentavos
+        )}`
+    )
     .join("; ");
+}
+
+function absoluteStatusUrl(appBaseUrl: string, statusUrl: string): string {
+  try {
+    return new URL(statusUrl, appBaseUrl).toString();
+  } catch {
+    return appBaseUrl;
+  }
 }
 
 function orderConfirmationTemplate(input: OrderConfirmationEmailInput) {
@@ -65,6 +79,8 @@ function orderConfirmationTemplate(input: OrderConfirmationEmailInput) {
           "Payment is confirmed. We will prepare your order and send updates when fulfillment changes.",
       }),
       emailMeta({ label: "Order", value: input.orderNumber }),
+      emailMeta({ label: "Payment", value: input.paymentStatusLabel }),
+      emailMeta({ label: "Fulfillment", value: input.fulfillmentStatusLabel }),
       emailMeta({
         label: "Total",
         value: formatCatalogPrice(input.totalCentavos),
@@ -72,15 +88,18 @@ function orderConfirmationTemplate(input: OrderConfirmationEmailInput) {
       ...(input.items.length > 0
         ? [emailMeta({ label: "Items", value: itemSummary(input) })]
         : []),
+      emailMeta({ label: "Status", value: input.statusUrl }),
     ],
   });
 }
 
 export class ResendOrderConfirmationEmailNotifier implements OrderConfirmationEmailNotifier {
+  private readonly appBaseUrl: string;
   private readonly client: ResendEmailClient;
   private readonly fromEmail: string;
 
   constructor(options: ResendOrderConfirmationEmailNotifierOptions) {
+    this.appBaseUrl = options.appBaseUrl;
     this.client = options.client;
     this.fromEmail = options.fromEmail;
   }
@@ -88,7 +107,10 @@ export class ResendOrderConfirmationEmailNotifier implements OrderConfirmationEm
   async sendOrderConfirmationEmail(
     input: OrderConfirmationEmailInput
   ): Promise<OrderConfirmationEmailResult> {
-    const template = orderConfirmationTemplate(input);
+    const template = orderConfirmationTemplate({
+      ...input,
+      statusUrl: absoluteStatusUrl(this.appBaseUrl, input.statusUrl),
+    });
 
     try {
       const response = await this.client.emails.send({
@@ -122,6 +144,7 @@ export function createOrderConfirmationEmailNotifier(
   }
 
   return new ResendOrderConfirmationEmailNotifier({
+    appBaseUrl: config.content.appBaseUrl,
     client: new LazyResendEmailClient(config.content.apiKey),
     fromEmail: config.content.fromEmail,
   });

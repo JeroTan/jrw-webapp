@@ -1,5 +1,5 @@
 import { createId } from "@paralleldrive/cuid2";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, or, sql, type SQL } from "drizzle-orm";
 import type { AppDb } from "@/adapter/infrastructure/db/client";
 import {
   type OrderConfirmationEmailStatus,
@@ -49,6 +49,7 @@ export type ConfirmPaidPaymentResult =
       decision: "confirmed";
       order: OrderConfirmationRecord;
     }
+  | { decision: "missing-payment-items"; paymentId: string }
   | { decision: "missing-payment" }
   | { decision: "not-paid"; paymentId: string; paymentStatus: string };
 
@@ -63,6 +64,27 @@ export type MarkProviderCheckoutSessionPaidResult =
       decision: "already-paid" | "paid";
       paymentId: string;
       paymentStatus: "PAYMENT_PAID";
+    }
+  | { decision: "invalid-state"; paymentId: string; paymentStatus: string }
+  | { decision: "missing-payment" };
+
+export type ProviderTerminalPaymentStatus =
+  | "PAYMENT_CANCELLED"
+  | "PAYMENT_EXPIRED"
+  | "PAYMENT_FAILED";
+
+export type MarkProviderCheckoutSessionTerminalInput = {
+  now?: string;
+  providerCheckoutSessionId: string;
+  requestId: string;
+  targetStatus: ProviderTerminalPaymentStatus;
+};
+
+export type MarkProviderCheckoutSessionTerminalResult =
+  | {
+      decision: "already-terminal" | "terminal";
+      paymentId: string;
+      paymentStatus: ProviderTerminalPaymentStatus;
     }
   | { decision: "invalid-state"; paymentId: string; paymentStatus: string }
   | { decision: "missing-payment" };
@@ -87,8 +109,11 @@ export type PaymentReturnRecord = {
 
 export type OrderConfirmationEmailRecord = {
   currency: "PHP";
+  fulfillmentStatusLabel: string;
   items: OrderConfirmationEmailItem[];
   orderNumber: string;
+  paymentStatusLabel: string;
+  statusUrl: string;
   toEmail: string;
   totalCentavos: number;
 };
@@ -122,6 +147,9 @@ export type OrderConfirmationRepositoryLike = {
   markProviderCheckoutSessionPaid(
     input: MarkProviderCheckoutSessionPaidInput
   ): Promise<MarkProviderCheckoutSessionPaidResult>;
+  markProviderCheckoutSessionTerminal(
+    input: MarkProviderCheckoutSessionTerminalInput
+  ): Promise<MarkProviderCheckoutSessionTerminalResult>;
 };
 
 type PaymentItemSnapshotSource = {
@@ -136,6 +164,8 @@ type PaymentItemSnapshotSource = {
   variantName: string | null;
   variantOptions: unknown;
 };
+
+const EMAIL_SEND_CLAIM_TIMEOUT_MS = 15 * 60 * 1000;
 
 function cleanString(value: unknown): string | null {
   return typeof value === "string" && value.trim().length > 0
@@ -183,6 +213,48 @@ function fulfillmentStatus(value: string): OrderFulfillmentStatus {
     default:
       return "ORDER_PLACED";
   }
+}
+
+function fulfillmentStatusLabel(value: string): string {
+  switch (fulfillmentStatus(value)) {
+    case "ORDER_PLACED":
+      return "Order placed";
+    case "PROCESSING":
+      return "Processing";
+    case "SHIPPED":
+      return "Shipped";
+    case "DELIVERED":
+      return "Delivered";
+    case "CANCELLED":
+      return "Cancelled";
+    default:
+      return "Order placed";
+  }
+}
+
+function paymentStatusLabel(value: string): string {
+  switch (value) {
+    case "PAYMENT_PAID":
+      return "Payment paid";
+    case "PAYMENT_PENDING":
+      return "Payment pending";
+    case "PAYMENT_FAILED":
+      return "Payment failed";
+    case "PAYMENT_EXPIRED":
+      return "Payment expired";
+    case "PAYMENT_CANCELLED":
+      return "Payment cancelled";
+    case "PAYMENT_REFUNDED":
+      return "Payment refunded";
+    default:
+      return "Payment status unavailable";
+  }
+}
+
+function paymentReturnStatusPath(paymentId: string): string {
+  const params = new URLSearchParams({ paymentId });
+
+  return `/checkout/payment-return?${params.toString()}`;
 }
 
 function rowToOrderConfirmation(row: OrderRow): OrderConfirmationRecord {
@@ -282,6 +354,14 @@ function canRetryPaymentStatus(status: PaymentReturnStatus): boolean {
   );
 }
 
+function staleEmailClaimCutoff(now: string): string | null {
+  const parsed = Date.parse(now);
+
+  return Number.isFinite(parsed)
+    ? new Date(parsed - EMAIL_SEND_CLAIM_TIMEOUT_MS).toISOString()
+    : null;
+}
+
 export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepositoryLike {
   constructor(private readonly db: AppDb) {}
 
@@ -348,6 +428,33 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
       };
     }
 
+    const existingForAttemptOrReservation =
+      await this.findOrderByAttemptOrReservation({
+        checkoutAttemptId: source.checkoutAttemptId,
+        reservationId: source.reservationId,
+      });
+
+    if (existingForAttemptOrReservation) {
+      await this.ensureSnapshotsForOrder({
+        now,
+        orderId: existingForAttemptOrReservation.id,
+        paymentId:
+          existingForAttemptOrReservation.payment_id ?? input.paymentId,
+      });
+
+      return {
+        created: false,
+        decision: "confirmed",
+        order: rowToOrderConfirmation(existingForAttemptOrReservation),
+      };
+    }
+
+    const paymentItems = await this.paymentItemSnapshotSources(input.paymentId);
+
+    if (paymentItems.length === 0) {
+      return { decision: "missing-payment-items", paymentId: input.paymentId };
+    }
+
     const orderId = createId();
     const orderNumber = orderNumberFromId(orderId, now);
     const fulfillment = initialOrderFulfillmentStatus();
@@ -396,6 +503,7 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
       await this.ensureSnapshotsForOrder({
         now,
         orderId: order.id,
+        paymentItems,
         paymentId: input.paymentId,
       });
 
@@ -406,13 +514,22 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
       };
     } catch (error) {
       if (isUniqueConstraintError(error)) {
-        const duplicate = await this.findOrderByPaymentId(input.paymentId);
+        const duplicate =
+          (await this.findOrderByPaymentId(input.paymentId)) ??
+          (await this.findOrderByAttemptOrReservation({
+            checkoutAttemptId: source.checkoutAttemptId,
+            reservationId: source.reservationId,
+          }));
 
         if (duplicate) {
           await this.ensureSnapshotsForOrder({
             now,
             orderId: duplicate.id,
-            paymentId: input.paymentId,
+            paymentItems:
+              duplicate.payment_id === input.paymentId
+                ? paymentItems
+                : undefined,
+            paymentId: duplicate.payment_id ?? input.paymentId,
           });
 
           return {
@@ -430,21 +547,33 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
   async findPaymentReturnRecord(
     input: PaymentReturnLookupInput
   ): Promise<PaymentReturnRecord | null> {
-    const condition = cleanString(input.paymentId)
-      ? eq(checkout_payments.id, cleanString(input.paymentId)!)
-      : cleanString(input.providerCheckoutSessionId)
-        ? eq(
-            checkout_payments.provider_checkout_session_id,
-            cleanString(input.providerCheckoutSessionId)!
-          )
-        : cleanString(input.attemptId)
-          ? eq(
-              checkout_payments.checkout_attempt_id,
-              cleanString(input.attemptId)!
-            )
-          : null;
+    const paymentId = cleanString(input.paymentId);
+    const providerCheckoutSessionId = cleanString(
+      input.providerCheckoutSessionId
+    );
+    const attemptId = cleanString(input.attemptId);
+    const lookupConditions: SQL[] = [];
 
-    if (!condition) {
+    if (paymentId) {
+      lookupConditions.push(eq(checkout_payments.id, paymentId));
+    }
+
+    if (providerCheckoutSessionId) {
+      lookupConditions.push(
+        eq(
+          checkout_payments.provider_checkout_session_id,
+          providerCheckoutSessionId
+        )
+      );
+    }
+
+    if (attemptId) {
+      lookupConditions.push(
+        eq(checkout_payments.checkout_attempt_id, attemptId)
+      );
+    }
+
+    if (lookupConditions.length === 0) {
       return null;
     }
 
@@ -461,8 +590,14 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
       })
       .from(checkout_payments)
       .leftJoin(orders, eq(orders.payment_id, checkout_payments.id))
-      .where(and(eq(checkout_payments.provider, "PAYMONGO"), condition))
-      .orderBy(desc(checkout_payments.created_at), desc(checkout_payments.id))
+      .where(
+        and(eq(checkout_payments.provider, "PAYMONGO"), ...lookupConditions)
+      )
+      .orderBy(
+        sql`CASE WHEN ${orders.id} IS NOT NULL THEN 0 WHEN ${checkout_payments.status} = 'PAYMENT_PAID' THEN 1 ELSE 2 END`,
+        desc(checkout_payments.created_at),
+        desc(checkout_payments.id)
+      )
       .limit(1);
     const row = rows[0];
 
@@ -551,7 +686,10 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
           eq(checkout_payments.status, "PAYMENT_PENDING")
         )
       )
-      .returning({ id: checkout_payments.id, status: checkout_payments.status });
+      .returning({
+        id: checkout_payments.id,
+        status: checkout_payments.status,
+      });
 
     if (rows[0]) {
       return {
@@ -583,12 +721,108 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
     };
   }
 
+  async markProviderCheckoutSessionTerminal(
+    input: MarkProviderCheckoutSessionTerminalInput
+  ): Promise<MarkProviderCheckoutSessionTerminalResult> {
+    const now = input.now ?? new Date().toISOString();
+    const providerCheckoutSessionId = cleanString(
+      input.providerCheckoutSessionId
+    );
+
+    if (!providerCheckoutSessionId) {
+      return { decision: "missing-payment" };
+    }
+
+    const paymentRows = await this.db
+      .select()
+      .from(checkout_payments)
+      .where(
+        and(
+          eq(checkout_payments.provider, "PAYMONGO"),
+          eq(
+            checkout_payments.provider_checkout_session_id,
+            providerCheckoutSessionId
+          )
+        )
+      )
+      .limit(1);
+    const payment = paymentRows[0];
+
+    if (!payment) {
+      return { decision: "missing-payment" };
+    }
+
+    if (payment.status === input.targetStatus) {
+      return {
+        decision: "already-terminal",
+        paymentId: payment.id,
+        paymentStatus: input.targetStatus,
+      };
+    }
+
+    if (payment.status !== "PAYMENT_PENDING") {
+      return {
+        decision: "invalid-state",
+        paymentId: payment.id,
+        paymentStatus: payment.status,
+      };
+    }
+
+    const rows = await this.db
+      .update(checkout_payments)
+      .set({
+        status: input.targetStatus,
+        updated_request_id: input.requestId,
+        updated_at: now,
+      })
+      .where(
+        and(
+          eq(checkout_payments.id, payment.id),
+          eq(checkout_payments.status, "PAYMENT_PENDING")
+        )
+      )
+      .returning({
+        id: checkout_payments.id,
+        status: checkout_payments.status,
+      });
+
+    if (rows[0]) {
+      return {
+        decision: "terminal",
+        paymentId: rows[0].id,
+        paymentStatus: input.targetStatus,
+      };
+    }
+
+    const latestRows = await this.db
+      .select({ id: checkout_payments.id, status: checkout_payments.status })
+      .from(checkout_payments)
+      .where(eq(checkout_payments.id, payment.id))
+      .limit(1);
+    const latest = latestRows[0];
+
+    if (latest?.status === input.targetStatus) {
+      return {
+        decision: "already-terminal",
+        paymentId: latest.id,
+        paymentStatus: input.targetStatus,
+      };
+    }
+
+    return {
+      decision: "invalid-state",
+      paymentId: payment.id,
+      paymentStatus: latest?.status ?? payment.status,
+    };
+  }
+
   async claimOrderConfirmationEmail(input: {
     now?: string;
     orderId: string;
     requestId: string;
   }): Promise<boolean> {
     const now = input.now ?? new Date().toISOString();
+    const staleSendingBefore = staleEmailClaimCutoff(now);
     const rows = await this.db
       .update(orders)
       .set({
@@ -600,7 +834,9 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
       .where(
         and(
           eq(orders.id, input.orderId),
-          sql`${orders.order_confirmation_email_status} IN ('PENDING', 'FAILED')`
+          staleSendingBefore
+            ? sql`(${orders.order_confirmation_email_status} IN ('PENDING', 'FAILED') OR (${orders.order_confirmation_email_status} = 'SENDING' AND (${orders.order_confirmation_email_last_attempt_at} IS NULL OR ${orders.order_confirmation_email_last_attempt_at} <= ${staleSendingBefore})))`
+            : sql`${orders.order_confirmation_email_status} IN ('PENDING', 'FAILED')`
         )
       )
       .returning({ id: orders.id });
@@ -654,7 +890,10 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
       .select({
         checkoutEmail: orders.checkout_email,
         currency: orders.currency,
+        fulfillmentStatus: orders.fulfillment_status,
         orderNumber: orders.order_number,
+        paymentId: orders.payment_id,
+        paymentStatus: orders.payment_status,
         totalCentavos: orders.total_centavos,
       })
       .from(orders)
@@ -662,7 +901,7 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
       .limit(1);
     const order = orderRows[0];
 
-    if (!order?.checkoutEmail || !order.orderNumber) {
+    if (!order?.checkoutEmail || !order.orderNumber || !order.paymentId) {
       return null;
     }
 
@@ -682,12 +921,15 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
 
     return {
       currency: "PHP",
+      fulfillmentStatusLabel: fulfillmentStatusLabel(order.fulfillmentStatus),
       items: itemRows.map((item) => ({
         amountCentavos: Number(item.amountCentavos),
         name: `${item.productName} - ${item.variantName}`,
         quantity: Number(item.quantity),
       })),
       orderNumber: order.orderNumber,
+      paymentStatusLabel: paymentStatusLabel(order.paymentStatus),
+      statusUrl: paymentReturnStatusPath(order.paymentId),
       toEmail: order.checkoutEmail,
       totalCentavos: Number(order.totalCentavos),
     };
@@ -705,19 +947,50 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
     return rows[0] ?? null;
   }
 
+  private async findOrderByAttemptOrReservation(input: {
+    checkoutAttemptId: string | null;
+    reservationId: string | null;
+  }): Promise<OrderRow | null> {
+    const conditions: SQL[] = [];
+
+    if (input.checkoutAttemptId) {
+      conditions.push(eq(orders.checkout_attempt_id, input.checkoutAttemptId));
+    }
+
+    if (input.reservationId) {
+      conditions.push(eq(orders.reservation_id, input.reservationId));
+    }
+
+    if (conditions.length === 0) {
+      return null;
+    }
+
+    const rows = await this.db
+      .select()
+      .from(orders)
+      .where(conditions.length === 1 ? conditions[0] : or(...conditions))
+      .orderBy(desc(orders.created_at), desc(orders.id))
+      .limit(1);
+
+    return rows[0] ?? null;
+  }
+
   private async ensureSnapshotsForOrder(input: {
     now: string;
     orderId: string;
+    paymentItems?: PaymentItemSnapshotSource[];
     paymentId: string;
   }): Promise<void> {
-    const items = await this.paymentItemSnapshotSources(input.paymentId);
+    const items =
+      input.paymentItems ??
+      (await this.paymentItemSnapshotSources(input.paymentId));
 
     for (const item of items) {
       const fallbackNames = splitPaymentItemName(item.name);
       const productName =
-        cleanString(item.productName) ?? fallbackNames.productName;
+        fallbackNames.productName ?? cleanString(item.productName) ?? "Product";
       const variantName =
-        cleanString(item.variantName) ?? fallbackNames.variantName;
+        fallbackNames.variantName ?? cleanString(item.variantName) ?? "Variant";
       const productSlug =
         cleanString(item.productSlug) ?? cleanString(item.productId);
       const variantOptions = normalizeVariantOptions(item.variantOptions);

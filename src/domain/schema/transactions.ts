@@ -76,6 +76,12 @@ export const orders = sqliteTable(
     uniqueIndex("uq_orders_payment_id")
       .on(table.payment_id)
       .where(sql`${table.payment_id} IS NOT NULL`),
+    uniqueIndex("uq_orders_checkout_attempt_id")
+      .on(table.checkout_attempt_id)
+      .where(sql`${table.checkout_attempt_id} IS NOT NULL`),
+    uniqueIndex("uq_orders_reservation_id")
+      .on(table.reservation_id)
+      .where(sql`${table.reservation_id} IS NOT NULL`),
     index("idx_orders_checkout_attempt_id").on(table.checkout_attempt_id),
     index("idx_orders_reservation_id").on(table.reservation_id),
     index("idx_orders_payment_status").on(table.payment_status),

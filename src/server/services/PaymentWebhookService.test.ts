@@ -211,6 +211,90 @@ describe("PaymentWebhookService", () => {
     expect(repository.calls).toEqual(["claimEvent"]);
   });
 
+  it("retries duplicate paid event left in RECEIVED before side effects completed", async () => {
+    const rawBody = rawPaidEvent();
+    const repository = repositoryStub({
+      claimEvent: async () => {
+        repository.calls.push("claimEvent");
+        return {
+          decision: "duplicate" as const,
+          event: {
+            ...(await repositoryStub().claimEvent({} as never)).event,
+            processingStatus: "RECEIVED" as const,
+            relatedPaymentId: null,
+          },
+        };
+      },
+    });
+    const service = new PaymentWebhookService({ repository });
+
+    const result = await service.processPayMongoWebhook({
+      now,
+      nowMs,
+      rawBody,
+      requestId: "req_duplicate_received",
+      signatureHeader: await signature(rawBody),
+      webhookSecret,
+    });
+
+    expect(result.content?.event).toMatchObject({
+      idempotent: false,
+      status: "PROCESSED",
+    });
+    expect(result.content?.payment).toEqual({
+      paymentId: "payment_1",
+      status: "PAYMENT_PAID",
+    });
+    expect(repository.calls).toEqual([
+      "claimEvent",
+      "processPaidCheckoutSession",
+    ]);
+  });
+
+  it("returns duplicate failed event without reconciling a non-paid payment", async () => {
+    const rawBody = rawPaidEvent();
+    const repository = repositoryStub({
+      claimEvent: async () => {
+        repository.calls.push("claimEvent");
+        return {
+          decision: "duplicate" as const,
+          event: {
+            ...(await repositoryStub().claimEvent({} as never)).event,
+            processingStatus: "FAILED" as const,
+            relatedPaymentId: "payment_failed",
+          },
+        };
+      },
+    });
+    const reconciliationCalls: unknown[] = [];
+    const service = new PaymentWebhookService({
+      reconciliationService: {
+        confirmPaidPayment: async (input) => {
+          reconciliationCalls.push(input);
+          throw new Error("duplicate failed webhook must not reconcile");
+        },
+      },
+      repository,
+    });
+
+    const result = await service.processPayMongoWebhook({
+      now,
+      nowMs,
+      rawBody,
+      requestId: "req_duplicate_failed",
+      signatureHeader: await signature(rawBody),
+      webhookSecret,
+    });
+
+    expect(result.content?.event).toMatchObject({
+      idempotent: true,
+      status: "FAILED",
+    });
+    expect(result.content?.payment).toBeUndefined();
+    expect(reconciliationCalls).toEqual([]);
+    expect(repository.calls).toEqual(["claimEvent"]);
+  });
+
   it("blocks conflicting duplicate payloads", async () => {
     const rawBody = rawPaidEvent();
     const repository = repositoryStub({

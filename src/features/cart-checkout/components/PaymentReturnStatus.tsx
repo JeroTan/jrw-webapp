@@ -217,12 +217,18 @@ export function PaymentReturnStatus(props: PaymentReturnStatusProps) {
     reason: "Checking server payment status.",
   });
   const [refreshing, setRefreshing] = React.useState(false);
+  const requestSequence = React.useRef(0);
 
   const loadStatus = React.useCallback(async () => {
+    const sequence = requestSequence.current + 1;
+    requestSequence.current = sequence;
     setRefreshing(true);
     const next = await fetchPaymentReturnStatus(props);
-    setResult(next);
-    setRefreshing(false);
+
+    if (sequence === requestSequence.current) {
+      setResult(next);
+      setRefreshing(false);
+    }
   }, [props.attemptId, props.paymentId, props.providerCheckoutSessionId]);
 
   React.useEffect(() => {

@@ -6,9 +6,12 @@ export type OrderConfirmationEmailItem = {
 
 export type OrderConfirmationEmailInput = {
   currency: "PHP";
+  fulfillmentStatusLabel: string;
   items: readonly OrderConfirmationEmailItem[];
   orderNumber: string;
+  paymentStatusLabel: string;
   requestId: string;
+  statusUrl: string;
   toEmail: string;
   totalCentavos: number;
 };

@@ -179,13 +179,37 @@ export class PaymentWebhookService {
     }
 
     if (claim.decision === "duplicate") {
-      const reconciliation = claim.event.relatedPaymentId
-        ? await this.confirmPaidPayment({
-            now,
-            paymentId: claim.event.relatedPaymentId,
-            requestId: input.requestId,
-          })
-        : null;
+      if (
+        claim.event.processingStatus === "RECEIVED" &&
+        eventDecision.status === "supported" &&
+        claim.event.providerCheckoutSessionId
+      ) {
+        const processed = await this.repository.processPaidCheckoutSession({
+          eventId: claim.event.id,
+          now,
+          providerCheckoutSessionId: claim.event.providerCheckoutSessionId,
+          requestId: input.requestId,
+        });
+
+        return this.resultForProcessedEvent({
+          eventType: claim.event.eventType,
+          processed,
+          providerCheckoutSessionId: claim.event.providerCheckoutSessionId,
+          providerEventId: claim.event.providerEventId,
+          providerPaymentId: claim.event.providerPaymentId,
+          requestId: input.requestId,
+        });
+      }
+
+      const reconciliation =
+        claim.event.processingStatus === "PROCESSED" &&
+        claim.event.relatedPaymentId
+          ? await this.confirmPaidPayment({
+              now,
+              paymentId: claim.event.relatedPaymentId,
+              requestId: input.requestId,
+            })
+          : null;
 
       if (reconciliation?.error) {
         return Result.error(reconciliation.error);
@@ -208,7 +232,8 @@ export class PaymentWebhookService {
           providerEventId: claim.event.providerEventId,
           status: claim.event.processingStatus,
         },
-        ...(claim.event.relatedPaymentId
+        ...(claim.event.processingStatus === "PROCESSED" &&
+        claim.event.relatedPaymentId
           ? {
               payment: {
                 paymentId: claim.event.relatedPaymentId,
