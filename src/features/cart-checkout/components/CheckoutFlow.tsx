@@ -294,18 +294,27 @@ export function CheckoutFlowShell({
   titleId,
 }: CheckoutFlowShellProps) {
   const backTarget = backTargetForStep(currentStep);
+  const isReceiptStep = currentStep === "receipt";
 
   return (
     <section
       aria-labelledby={titleId}
-      className="grid min-h-[620px] border border-brand-border-strong bg-brand-surface lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]"
+      className={mergeClassNames(
+        "grid border border-brand-border-strong bg-brand-surface lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]",
+        isReceiptStep ? "min-h-[420px]" : "min-h-[620px]"
+      )}
     >
       <h1 className="sr-only" id={titleId}>
         {title}
       </h1>
       <div className="grid min-w-0 content-start">
         <CheckoutStepper currentStep={currentStep} />
-        <div className="grid gap-grid-sm p-grid-sm md:p-grid-md">
+        <div
+          className={mergeClassNames(
+            "grid gap-grid-sm p-grid-sm",
+            !isReceiptStep && "md:p-grid-md"
+          )}
+        >
           {backTarget ? (
             <div>
               <ButtonLink

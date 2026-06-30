@@ -86,7 +86,7 @@ export function PaymentReturnStatusView({
   return (
     <section
       aria-labelledby="payment-return-title"
-      className="mx-auto grid max-w-3xl gap-grid-sm border border-brand-border-strong p-grid-md"
+      className="grid max-w-2xl content-start gap-grid-sm"
     >
       <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
         Checkout
@@ -102,7 +102,7 @@ export function PaymentReturnStatusView({
       </p>
 
       {loaded?.order ? (
-        <dl className="grid gap-grid-xs border-t border-brand-border pt-grid-sm font-system text-sm">
+        <dl className="grid max-w-lg gap-grid-xs pt-grid-xs font-system text-sm">
           <div className="flex flex-wrap justify-between gap-grid-xs">
             <dt className="text-brand-muted">Order</dt>
             <dd className="m-0 font-bold">{loaded.order.orderNumber}</dd>
