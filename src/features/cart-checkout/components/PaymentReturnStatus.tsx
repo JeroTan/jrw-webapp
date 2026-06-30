@@ -70,6 +70,12 @@ export function PaymentReturnStatusView({
   result: PaymentReturnStatusClientResult;
 }) {
   const loaded = result.kind === "loaded" ? result.status : null;
+  const showRefreshAction = Boolean(
+    loaded?.next.refreshAllowed || result.kind !== "loaded"
+  );
+  const showRetryAction = Boolean(
+    loaded?.next.retryCheckoutAllowed || result.kind === "missing"
+  );
   const copy = loaded
     ? statusCopy(loaded.status)
     : {
@@ -86,7 +92,7 @@ export function PaymentReturnStatusView({
   return (
     <section
       aria-labelledby="payment-return-title"
-      className="grid max-w-2xl content-start gap-grid-sm"
+      className="mx-auto grid w-full max-w-xl content-start gap-grid-sm"
     >
       <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
         Checkout
@@ -116,32 +122,33 @@ export function PaymentReturnStatusView({
         </dl>
       ) : null}
 
-      <div className="flex flex-wrap gap-grid-xs">
-        {loaded?.next.refreshAllowed || result.kind !== "loaded" ? (
-          <Button
-            loading={refreshing}
-            loadingLabel="Checking"
-            onClick={onRefresh}
-            textSize="xs"
-            variant="primary"
-          >
-            Check status
-          </Button>
-        ) : null}
-        {loaded?.next.retryCheckoutAllowed || result.kind === "missing" ? (
-          <ButtonLink href="/checkout" textSize="xs" variant="secondary">
-            Return to checkout
-          </ButtonLink>
-        ) : null}
-        <ButtonLink href="/products" textSize="xs" variant="ghost">
-          Continue shopping
-        </ButtonLink>
-      </div>
+      {showRefreshAction || showRetryAction ? (
+        <div className="flex flex-wrap gap-grid-xs">
+          {showRefreshAction ? (
+            <Button
+              loading={refreshing}
+              loadingLabel="Checking"
+              onClick={onRefresh}
+              textSize="xs"
+              variant="primary"
+            >
+              Check status
+            </Button>
+          ) : null}
+          {showRetryAction ? (
+            <ButtonLink href="/checkout" textSize="xs" variant="secondary">
+              Return to checkout
+            </ButtonLink>
+          ) : null}
+        </div>
+      ) : null}
     </section>
   );
 }
 
-function receiptSummaryMessage(result: PaymentReturnStatusClientResult): string {
+function receiptSummaryMessage(
+  result: PaymentReturnStatusClientResult
+): string {
   if (result.kind !== "loaded") {
     return result.kind === "missing"
       ? "Checkout status unavailable."

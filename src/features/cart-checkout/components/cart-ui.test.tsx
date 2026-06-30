@@ -1101,6 +1101,8 @@ describe("cart checkout UI", () => {
 
     expect(markup).toContain("Order confirmed");
     expect(markup).toContain("JRW-2026-ORDER1");
+    expect(markup).toContain("mx-auto grid w-full max-w-xl");
+    expect(markup).not.toContain("Continue shopping");
     expect(markup).not.toMatch(
       /checkout\.paymongo|cs_test|nina@example|Sampaguita|attemptToken|card/i
     );
