@@ -6,7 +6,7 @@
 
 ## Deferred from: code review of 5-3-paymongo-payment-creation-and-handoff (2026-06-20)
 
-- Existing expired-reservation cleanup reads candidates, restores stock, then updates reservation/attempt state without one atomic claim. Serialize cleanup before Story 5.6 reconciliation expands concurrent release paths [src/server/repositories/CheckoutRepository.ts:638].
+- Story 5.6 post-payment terminal/stale release now uses `checkout_reservation_releases` per-item idempotency plus guarded stock/release batch updates. Legacy pre-payment expired-reservation cleanup remains separate; refactor it to the same ledger if its scope expands beyond the existing pre-payment sweep [src/server/repositories/CheckoutRepository.ts:638].
 
 ## Deferred from: code review of 5-5-payment-reconciliation-and-order-confirmation (2026-06-30)
 

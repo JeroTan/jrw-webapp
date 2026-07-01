@@ -271,6 +271,61 @@ export const checkout_payment_items = sqliteTable(
   ]
 );
 
+export const checkout_reservation_releases = sqliteTable(
+  "checkout_reservation_releases",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    reservation_id: text("reservation_id")
+      .notNull()
+      .references(() => checkout_reservations.id, { onDelete: "cascade" }),
+    reservation_item_id: text("reservation_item_id")
+      .notNull()
+      .references(() => checkout_reservation_items.id, {
+        onDelete: "cascade",
+      }),
+    checkout_attempt_id: text("checkout_attempt_id")
+      .notNull()
+      .references(() => checkout_attempts.id, { onDelete: "cascade" }),
+    payment_id: text("payment_id").references(() => checkout_payments.id, {
+      onDelete: "set null",
+    }),
+    product_id: text("product_id").references(() => products.id, {
+      onDelete: "set null",
+    }),
+    variant_id: text("variant_id").references(() => product_variants.id, {
+      onDelete: "set null",
+    }),
+    quantity: integer("quantity").notNull().default(0),
+    reservation_mode: text("reservation_mode").notNull().default("STOCK"),
+    release_reason: text("release_reason").notNull(),
+    status: text("status").notNull().default("REQUESTED"),
+    error_code: text("error_code"),
+    requested_at: text("requested_at").notNull(),
+    applied_at: text("applied_at"),
+    failed_at: text("failed_at"),
+    created_request_id: text("created_request_id").notNull(),
+    updated_request_id: text("updated_request_id"),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("uq_checkout_reservation_releases_item").on(
+      table.reservation_item_id
+    ),
+    index("idx_checkout_reservation_releases_reservation_id").on(
+      table.reservation_id
+    ),
+    index("idx_checkout_reservation_releases_payment_id").on(table.payment_id),
+    index("idx_checkout_reservation_releases_status").on(table.status),
+  ]
+);
+
 export const payment_webhook_events = sqliteTable(
   "payment_webhook_events",
   {
@@ -394,6 +449,7 @@ export const checkoutAttemptsRelations = relations(
     }),
     reservations: many(checkout_reservations),
     payments: many(checkout_payments),
+    releases: many(checkout_reservation_releases),
   })
 );
 
@@ -406,12 +462,13 @@ export const checkoutReservationsRelations = relations(
     }),
     items: many(checkout_reservation_items),
     payments: many(checkout_payments),
+    releases: many(checkout_reservation_releases),
   })
 );
 
 export const checkoutReservationItemsRelations = relations(
   checkout_reservation_items,
-  ({ one }) => ({
+  ({ one, many }) => ({
     reservation: one(checkout_reservations, {
       fields: [checkout_reservation_items.reservation_id],
       references: [checkout_reservations.id],
@@ -424,6 +481,7 @@ export const checkoutReservationItemsRelations = relations(
       fields: [checkout_reservation_items.variant_id],
       references: [product_variants.id],
     }),
+    releases: many(checkout_reservation_releases),
   })
 );
 
@@ -440,6 +498,7 @@ export const checkoutPaymentsRelations = relations(
     }),
     items: many(checkout_payment_items),
     webhookEvents: many(payment_webhook_events),
+    releases: many(checkout_reservation_releases),
   })
 );
 
@@ -456,6 +515,36 @@ export const checkoutPaymentItemsRelations = relations(
     }),
     variant: one(product_variants, {
       fields: [checkout_payment_items.variant_id],
+      references: [product_variants.id],
+    }),
+  })
+);
+
+export const checkoutReservationReleasesRelations = relations(
+  checkout_reservation_releases,
+  ({ one }) => ({
+    attempt: one(checkout_attempts, {
+      fields: [checkout_reservation_releases.checkout_attempt_id],
+      references: [checkout_attempts.id],
+    }),
+    reservation: one(checkout_reservations, {
+      fields: [checkout_reservation_releases.reservation_id],
+      references: [checkout_reservations.id],
+    }),
+    reservationItem: one(checkout_reservation_items, {
+      fields: [checkout_reservation_releases.reservation_item_id],
+      references: [checkout_reservation_items.id],
+    }),
+    payment: one(checkout_payments, {
+      fields: [checkout_reservation_releases.payment_id],
+      references: [checkout_payments.id],
+    }),
+    product: one(products, {
+      fields: [checkout_reservation_releases.product_id],
+      references: [products.id],
+    }),
+    variant: one(product_variants, {
+      fields: [checkout_reservation_releases.variant_id],
       references: [product_variants.id],
     }),
   })

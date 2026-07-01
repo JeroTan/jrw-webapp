@@ -148,6 +148,7 @@ export type CheckoutPaymentStatus =
   | "PAYMENT_PAID"
   | "PAYMENT_FAILED"
   | "PAYMENT_EXPIRED"
+  | "PAYMENT_CANCELLED"
   | "UNKNOWN";
 
 export type CheckoutPaymentRecord = {
@@ -303,6 +304,7 @@ function paymentStatus(value: string): CheckoutPaymentStatus {
     case "PAYMENT_PAID":
     case "PAYMENT_FAILED":
     case "PAYMENT_EXPIRED":
+    case "PAYMENT_CANCELLED":
       return value;
     default:
       return "UNKNOWN";
@@ -468,7 +470,10 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
         variantName: product_variants.name,
       })
       .from(checkout_reservation_items)
-      .leftJoin(products, eq(products.id, checkout_reservation_items.product_id))
+      .leftJoin(
+        products,
+        eq(products.id, checkout_reservation_items.product_id)
+      )
       .leftJoin(
         product_variants,
         eq(product_variants.id, checkout_reservation_items.variant_id)
@@ -652,7 +657,9 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
         variantId: checkout_reservation_items.variant_id,
       })
       .from(checkout_reservation_items)
-      .where(eq(checkout_reservation_items.reservation_id, input.reservationId));
+      .where(
+        eq(checkout_reservation_items.reservation_id, input.reservationId)
+      );
 
     for (const item of itemRows.reverse()) {
       if (

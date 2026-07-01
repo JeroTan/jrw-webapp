@@ -22,6 +22,12 @@ import type {
   PaymentReturnRecord,
   ProviderTerminalPaymentStatus,
 } from "@/server/repositories/OrderConfirmationRepository";
+import type {
+  InventoryReleaseRepositoryLike,
+  InventoryReleaseResult,
+  ReleaseStalePendingPaymentsInput,
+  ReleaseStalePendingPaymentsResult,
+} from "@/server/repositories/InventoryReleaseRepository";
 import { GeneralError } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
 
@@ -88,6 +94,7 @@ export type CheckoutSessionPaymentStatusProvider = {
 export type PaymentReconciliationServiceOptions = {
   auditPublisher?: AuditEventPublisher;
   emailNotifier?: OrderConfirmationEmailNotifier;
+  inventoryReleaseRepository?: InventoryReleaseRepositoryLike;
   operationalLogger?: OperationalLogger;
   paymentStatusProvider?: CheckoutSessionPaymentStatusProvider;
   repository: OrderConfirmationRepositoryLike;
@@ -129,6 +136,7 @@ function terminalPaymentStatusFromProviderStatus(
 export class PaymentReconciliationService {
   private readonly auditPublisher: AuditEventPublisher;
   private readonly emailNotifier: OrderConfirmationEmailNotifier;
+  private readonly inventoryReleaseRepository?: InventoryReleaseRepositoryLike;
   private readonly operationalLogger: OperationalLogger;
   private readonly paymentStatusProvider?: CheckoutSessionPaymentStatusProvider;
   private readonly repository: OrderConfirmationRepositoryLike;
@@ -138,6 +146,7 @@ export class PaymentReconciliationService {
       options.auditPublisher ?? new NoopAuditEventPublisher();
     this.emailNotifier =
       options.emailNotifier ?? new FailingOrderConfirmationEmailNotifier();
+    this.inventoryReleaseRepository = options.inventoryReleaseRepository;
     this.operationalLogger = options.operationalLogger ?? noopOperationalLogger;
     this.paymentStatusProvider = options.paymentStatusProvider;
     this.repository = options.repository;
@@ -258,6 +267,16 @@ export class PaymentReconciliationService {
         return Result.okay(fallback);
       }
 
+      const timeoutRelease = await this.releaseStalePendingReturnInventory({
+        now: input.now,
+        record,
+        requestId: input.requestId,
+      });
+
+      if (timeoutRelease) {
+        return Result.okay(timeoutRelease);
+      }
+
       return Result.okay({
         canRetry: record.canRetry,
         next: {
@@ -279,6 +298,35 @@ export class PaymentReconciliationService {
         },
         status: record.status,
       });
+    } catch (error) {
+      if (error instanceof GeneralError) {
+        return Result.error(error);
+      }
+
+      if (providerFailure(error)) {
+        return Result.error(new GeneralError({}, "PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(new GeneralError({}, "INTERNAL_ERROR"));
+    }
+  }
+
+  async releaseStalePendingPayments(
+    input: ReleaseStalePendingPaymentsInput
+  ): Promise<AppResult<ReleaseStalePendingPaymentsResult>> {
+    if (!this.inventoryReleaseRepository?.releaseStalePendingPayments) {
+      return Result.error(
+        new GeneralError(
+          { reason: "inventory_release_repository_missing" },
+          "PROVIDER_UNAVAILABLE"
+        )
+      );
+    }
+
+    try {
+      return Result.okay(
+        await this.inventoryReleaseRepository.releaseStalePendingPayments(input)
+      );
     } catch (error) {
       if (error instanceof GeneralError) {
         return Result.error(error);
@@ -369,6 +417,12 @@ export class PaymentReconciliationService {
         paymentStatus: marked.paymentStatus,
       });
 
+      await this.releaseTerminalPaymentInventory({
+        now: input.now,
+        paymentId: marked.paymentId,
+        requestId: input.requestId,
+      });
+
       return {
         canRetry: true,
         next: {
@@ -432,6 +486,122 @@ export class PaymentReconciliationService {
       },
       status: "confirmed",
     };
+  }
+
+  private async releaseStalePendingReturnInventory(input: {
+    now?: string;
+    record: PaymentReturnRecord;
+    requestId: string;
+  }): Promise<PaymentReturnStatusResult | null> {
+    if (
+      !this.inventoryReleaseRepository ||
+      input.record.paymentStatus !== "PAYMENT_PENDING" ||
+      input.record.status !== "pending"
+    ) {
+      return null;
+    }
+
+    try {
+      const release =
+        await this.inventoryReleaseRepository.releaseInventoryForPayment({
+          allowPendingTimeout: true,
+          now: input.now,
+          paymentId: input.record.paymentId,
+          releaseReason: "PENDING_TIMEOUT",
+          requestId: input.requestId,
+        });
+
+      if (release.decision === "failed") {
+        this.recordInventoryReleaseFailure({
+          paymentId: release.paymentId,
+          reason: release.errorCode,
+          requestId: input.requestId,
+        });
+
+        return null;
+      }
+
+      if (release.decision === "released") {
+        await this.publishInventoryReleasedAudit({
+          release,
+          requestId: input.requestId,
+        });
+      }
+
+      const status = paymentReturnStatusFromPayment({
+        paymentStatus: release.paymentStatus,
+      });
+
+      if (
+        (release.decision === "released" ||
+          release.decision === "already-released") &&
+        status !== "pending"
+      ) {
+        return {
+          canRetry: true,
+          next: {
+            refreshAllowed: false,
+            retryCheckoutAllowed: true,
+          },
+          payment: {
+            paymentId: release.paymentId,
+            status: release.paymentStatus,
+          },
+          status,
+        };
+      }
+
+      return null;
+    } catch (error) {
+      this.recordInventoryReleaseFailure({
+        paymentId: input.record.paymentId,
+        reason: error instanceof GeneralError ? error.code : "release_error",
+        requestId: input.requestId,
+      });
+
+      return null;
+    }
+  }
+
+  private async releaseTerminalPaymentInventory(input: {
+    now?: string;
+    paymentId: string;
+    requestId: string;
+  }): Promise<void> {
+    if (!this.inventoryReleaseRepository) {
+      return;
+    }
+
+    try {
+      const release =
+        await this.inventoryReleaseRepository.releaseInventoryForPayment({
+          now: input.now,
+          paymentId: input.paymentId,
+          requestId: input.requestId,
+        });
+
+      if (release.decision === "failed") {
+        this.recordInventoryReleaseFailure({
+          paymentId: release.paymentId,
+          reason: release.errorCode,
+          requestId: input.requestId,
+        });
+        return;
+      }
+
+      if (release.decision === "released") {
+        await this.publishInventoryReleasedAudit({
+          release,
+          requestId: input.requestId,
+        });
+      }
+    } catch (error) {
+      this.recordInventoryReleaseFailure({
+        paymentId: input.paymentId,
+        reason: error instanceof GeneralError ? error.code : "release_error",
+        requestId: input.requestId,
+      });
+    }
   }
 
   private async markProviderCheckoutSessionPaid(
@@ -566,6 +736,29 @@ export class PaymentReconciliationService {
     }
   }
 
+  private recordInventoryReleaseFailure(input: {
+    paymentId: string;
+    reason: string;
+    requestId: string;
+  }) {
+    try {
+      this.operationalLogger.record(
+        createOperationalLogEvent({
+          requestId: input.requestId,
+          errorCode: "INTERNAL_ERROR",
+          targetResourceId: input.paymentId,
+          details: {
+            action: "inventory.release_failed",
+            paymentId: input.paymentId,
+            reason: input.reason,
+          },
+        })
+      );
+    } catch {
+      // Logging must never mask payment reconciliation.
+    }
+  }
+
   private async publishOrderCreatedAudit(input: {
     orderId: string;
     paymentId: string;
@@ -590,6 +783,39 @@ export class PaymentReconciliationService {
       );
     } catch {
       // Audit must never mask order confirmation.
+    }
+  }
+
+  private async publishInventoryReleasedAudit(input: {
+    release: InventoryReleaseResult;
+    requestId: string;
+  }) {
+    if (input.release.decision !== "released" || !input.release.reservationId) {
+      return;
+    }
+
+    try {
+      await this.auditPublisher.publish(
+        createAuditEvent({
+          requestId: input.requestId,
+          action: "inventory.released",
+          actor: safeSystemActor(),
+          target: {
+            entity: "inventory",
+            entityId: input.release.reservationId,
+          },
+          safeDetails: {
+            itemCount: input.release.itemCount,
+            paymentId: input.release.paymentId,
+            releaseReason: input.release.releaseReason,
+            reservationId: input.release.reservationId,
+            restoredQuantity: input.release.restoredQuantity,
+            source: "payment_reconciliation",
+          },
+        })
+      );
+    } catch {
+      // Audit must never mask inventory release.
     }
   }
 }

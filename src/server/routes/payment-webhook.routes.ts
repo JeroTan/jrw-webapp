@@ -6,6 +6,7 @@ import { openApiErrorResponses, tboxApiSuccess } from "@/lib/typebox/api";
 import { PaymentWebhookController } from "@/server/controllers/PaymentWebhookController";
 import type { RequestContextDecorations } from "@/server/context/request-context";
 import { routeDetail } from "@/server/openapi/route-metadata";
+import { DrizzleInventoryReleaseRepository } from "@/server/repositories/InventoryReleaseRepository";
 import { DrizzleOrderConfirmationRepository } from "@/server/repositories/OrderConfirmationRepository";
 import { DrizzlePaymentWebhookRepository } from "@/server/repositories/PaymentWebhookRepository";
 import { PaymentReconciliationService } from "@/server/services/PaymentReconciliationService";
@@ -95,6 +96,9 @@ function createRuntimeController(
   const reconciliationRepository = new DrizzleOrderConfirmationRepository(
     appDb
   );
+  const inventoryReleaseRepository = new DrizzleInventoryReleaseRepository(
+    appDb
+  );
   const reconciliationService = new PaymentReconciliationService({
     emailNotifier: createOrderConfirmationEmailNotifier(
       input.runtimeEnv ?? {},
@@ -102,6 +106,7 @@ function createRuntimeController(
         requestUrl: input.request.url,
       }
     ),
+    inventoryReleaseRepository,
     operationalLogger: options.operationalLogger,
     repository: reconciliationRepository,
   });

@@ -7,6 +7,7 @@ import { PayMongoClient } from "@/lib/paymongo/PayMongoClient";
 import { PaymentReconciliationController } from "@/server/controllers/PaymentReconciliationController";
 import type { RequestContextDecorations } from "@/server/context/request-context";
 import { routeDetail } from "@/server/openapi/route-metadata";
+import { DrizzleInventoryReleaseRepository } from "@/server/repositories/InventoryReleaseRepository";
 import { DrizzleOrderConfirmationRepository } from "@/server/repositories/OrderConfirmationRepository";
 import { PaymentReconciliationService } from "@/server/services/PaymentReconciliationService";
 import { GeneralError } from "@/utils/general/error";
@@ -94,8 +95,10 @@ function createRuntimeController(
     );
   }
 
-  const repository = new DrizzleOrderConfirmationRepository(
-    createDb(db as D1Database)
+  const appDb = createDb(db as D1Database);
+  const repository = new DrizzleOrderConfirmationRepository(appDb);
+  const inventoryReleaseRepository = new DrizzleInventoryReleaseRepository(
+    appDb
   );
   const payMongoSecretKey = stringEnv(input.runtimeEnv, "PAYMONGO_SECRET_KEY");
   const service = new PaymentReconciliationService({
@@ -105,6 +108,7 @@ function createRuntimeController(
         requestUrl: input.request.url,
       }
     ),
+    inventoryReleaseRepository,
     operationalLogger: options.operationalLogger,
     paymentStatusProvider: payMongoSecretKey
       ? new PayMongoClient({
@@ -161,7 +165,7 @@ export function paymentReturnRoutes(
       detail: routeDetail({
         summary: "Read checkout payment return status",
         description:
-          "Reads payment/order status after PayMongo Hosted Checkout return using server-owned checkout references only. Redirect query values never finalize payment or create paid state; paid order confirmation can only be created from existing JRW PAYMENT_PAID state or backend PayMongo session reconciliation using JRW secrets. Brand membership is not required because this endpoint returns a limited customer-safe status for high-entropy checkout references and no provider payload, card data, token, email lookup, phone, or address.",
+          "Reads payment/order status after PayMongo Hosted Checkout return using server-owned checkout references only. Redirect query values never finalize payment or create paid state; paid order confirmation can only be created from existing JRW PAYMENT_PAID state or backend PayMongo session reconciliation using JRW secrets. Terminal or timed-out pending payment state may release reserved inventory through server state only. Brand membership is not required because this endpoint returns a limited customer-safe status for high-entropy checkout references and no provider payload, card data, token, email lookup, phone, or address.",
         tags: ["Checkout", "Payments"],
         auth: { mode: "public" },
         rateLimitClass: "checkout-payment",

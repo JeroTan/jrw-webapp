@@ -1,6 +1,6 @@
 # Story 5.6: Release Reserved Inventory After Failed or Cancelled Payment
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -22,73 +22,73 @@ so that stock does not remain stuck and future customers can buy available produ
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock scope and preserve Epic 5 boundaries. (AC: 1-7)
-  - [ ] Implement post-payment failed/cancelled/expired/stale reservation release only.
-  - [ ] Do not change paid payment order confirmation semantics from Story 5.5.
-  - [ ] Do not build rich receipt/payment status UI or payment success/failure emails; Story 5.7 owns that.
-  - [ ] Do not implement admin order list/detail, fulfillment transitions, manual return recording, or manual refund recording; Epic 6 owns those.
-  - [ ] Do not trust browser redirect params as terminal payment proof. Terminal release must come from verified webhook state, backend PayMongo lookup, or documented stale reconciliation policy.
-  - [ ] Keep guest checkout supported. Guest release must not require account auth or raw email lookup.
+- [x] Task 1: Lock scope and preserve Epic 5 boundaries. (AC: 1-7)
+  - [x] Implement post-payment failed/cancelled/expired/stale reservation release only.
+  - [x] Do not change paid payment order confirmation semantics from Story 5.5.
+  - [x] Do not build rich receipt/payment status UI or payment success/failure emails; Story 5.7 owns that.
+  - [x] Do not implement admin order list/detail, fulfillment transitions, manual return recording, or manual refund recording; Epic 6 owns those.
+  - [x] Do not trust browser redirect params as terminal payment proof. Terminal release must come from verified webhook state, backend PayMongo lookup, or documented stale reconciliation policy.
+  - [x] Keep guest checkout supported. Guest release must not require account auth or raw email lookup.
 
-- [ ] Task 2: Add pure release decision rules. (AC: 1-5)
-  - [ ] Add focused domain helper under `src/domain/checkout/**` or `src/domain/payments/**`, recommended `inventory-release.ts`, for release eligibility decisions.
-  - [ ] Treat `PAYMENT_FAILED`, `PAYMENT_EXPIRED`, and `PAYMENT_CANCELLED` as releasable terminal payment statuses.
-  - [ ] Treat `PAYMENT_PAID` and `PAYMENT_REFUNDED` as not releasable in this story. Paid inventory has become order inventory; refunds are manual/provider future scope.
-  - [ ] Treat `PAYMENT_PENDING` as releasable only when older than the documented cutoff, reservation is still active, no paid/order state exists, and process reason is `PENDING_TIMEOUT` or equivalent explicit reconciliation reason.
-  - [ ] Return explicit decisions such as `release`, `already-released`, `skip-paid`, `skip-order-exists`, `skip-active-pending`, `skip-mismatch`, and `conflict`.
-  - [ ] Unit test every decision. Do not bury this logic in repository SQL or route handlers.
+- [x] Task 2: Add pure release decision rules. (AC: 1-5)
+  - [x] Add focused domain helper under `src/domain/checkout/**` or `src/domain/payments/**`, recommended `inventory-release.ts`, for release eligibility decisions.
+  - [x] Treat `PAYMENT_FAILED`, `PAYMENT_EXPIRED`, and `PAYMENT_CANCELLED` as releasable terminal payment statuses.
+  - [x] Treat `PAYMENT_PAID` and `PAYMENT_REFUNDED` as not releasable in this story. Paid inventory has become order inventory; refunds are manual/provider future scope.
+  - [x] Treat `PAYMENT_PENDING` as releasable only when older than the documented cutoff, reservation is still active, no paid/order state exists, and process reason is `PENDING_TIMEOUT` or equivalent explicit reconciliation reason.
+  - [x] Return explicit decisions such as `release`, `already-released`, `skip-paid`, `skip-order-exists`, `skip-active-pending`, `skip-mismatch`, and `conflict`.
+  - [x] Unit test every decision. Do not bury this logic in repository SQL or route handlers.
 
-- [ ] Task 3: Add durable, idempotent reservation release persistence. (AC: 1, 3-6)
-  - [ ] Read `src/domain/schema/transactions.ts` and all existing migrations before editing.
-  - [ ] Add next migration after `0030_order_confirmation_attempt_reservation_unique.sql`; do not edit old migrations.
-  - [ ] Add release metadata if needed so retries are observable and safe: recommended fields or table data include release reason, release status, released/requested timestamps, release request ID, release error code, release attempt count, and source payment ID.
-  - [ ] Strongly prefer a per-reservation or per-reservation-item release ledger/movement record with unique key(s) so each stock-backed reservation item is restored once. `releaseStockLine` increments stock and is not idempotent by itself.
-  - [ ] If using D1/Drizzle batch or transaction, prove with tests that stock restore plus release marker cannot double-apply on retry. If transaction support falls back, keep the fallback equally safe.
-  - [ ] Never mark release complete before all stock-backed items are durably restored or otherwise resumable. A crash after claim and before stock restore must be retryable.
-  - [ ] Release only `checkout_reservation_items.reservation_mode = 'STOCK'` with non-null product and variant IDs. `PREORDER` items should mark released without changing stock.
-  - [ ] Preserve `checkout_payments`, `orders`, and `order_snapshots` raw-payload protections. Do not add provider payload, checkout URL, card data, token, signature, secret, email, phone, or address to release/audit metadata.
+- [x] Task 3: Add durable, idempotent reservation release persistence. (AC: 1, 3-6)
+  - [x] Read `src/domain/schema/transactions.ts` and all existing migrations before editing.
+  - [x] Add next migration after `0030_order_confirmation_attempt_reservation_unique.sql`; do not edit old migrations.
+  - [x] Add release metadata if needed so retries are observable and safe: recommended fields or table data include release reason, release status, released/requested timestamps, release request ID, release error code, release attempt count, and source payment ID.
+  - [x] Strongly prefer a per-reservation or per-reservation-item release ledger/movement record with unique key(s) so each stock-backed reservation item is restored once. `releaseStockLine` increments stock and is not idempotent by itself.
+  - [x] If using D1/Drizzle batch or transaction, prove with tests that stock restore plus release marker cannot double-apply on retry. If transaction support falls back, keep the fallback equally safe.
+  - [x] Never mark release complete before all stock-backed items are durably restored or otherwise resumable. A crash after claim and before stock restore must be retryable.
+  - [x] Release only `checkout_reservation_items.reservation_mode = 'STOCK'` with non-null product and variant IDs. `PREORDER` items should mark released without changing stock.
+  - [x] Preserve `checkout_payments`, `orders`, and `order_snapshots` raw-payload protections. Do not add provider payload, checkout URL, card data, token, signature, secret, email, phone, or address to release/audit metadata.
 
-- [ ] Task 4: Implement repository APIs for terminal and stale release. (AC: 1-6)
-  - [ ] Add focused repository methods, recommended under `src/server/repositories/CheckoutRepository.ts` or a new `InventoryReleaseRepository.ts` if separation keeps it clearer.
-  - [ ] Repository method should load payment, attempt, reservation, reservation items, and any existing order in one server-owned path.
-  - [ ] Release for terminal payment must verify:
+- [x] Task 4: Implement repository APIs for terminal and stale release. (AC: 1-6)
+  - [x] Add focused repository methods, recommended under `src/server/repositories/CheckoutRepository.ts` or a new `InventoryReleaseRepository.ts` if separation keeps it clearer.
+  - [x] Repository method should load payment, attempt, reservation, reservation items, and any existing order in one server-owned path.
+  - [x] Release for terminal payment must verify:
     - payment provider is `PAYMONGO`;
     - payment status is `PAYMENT_FAILED`, `PAYMENT_EXPIRED`, or `PAYMENT_CANCELLED`;
     - payment reservation ID equals reservation ID;
     - reservation is active or already released by this logic;
     - no order exists for payment/attempt/reservation;
     - stock items have not already been restored.
-  - [ ] Stale pending release must verify `PAYMENT_PENDING`, age/cutoff, active reservation, no paid/order state, and no newer pending payment that still owns the same attempt/reservation.
-  - [ ] Add `PAYMENT_CANCELLED` to any local payment status union that currently omits it, including `CheckoutPaymentStatus` in `CheckoutRepository.ts`.
-  - [ ] Return structured result: released/already released/skipped/failed, payment ID, reservation ID, attempt ID, reason, item count, restored quantity, and safe code.
-  - [ ] Existing `releaseCheckoutReservationForPaymentFailure` is provider-creation rollback. Do not reuse it blindly for post-payment terminal release because it intentionally skips when pending payment exists and sets `PAYMENT_CREATION_FAILED`.
-  - [ ] Existing `releaseExpiredCheckoutReservations` handles pre-payment stale reservations and currently excludes `PAYMENT_CREATED`; extend or add separate stale-payment release path rather than breaking pre-payment cleanup.
+  - [x] Stale pending release must verify `PAYMENT_PENDING`, age/cutoff, active reservation, no paid/order state, and no newer pending payment that still owns the same attempt/reservation.
+  - [x] Add `PAYMENT_CANCELLED` to any local payment status union that currently omits it, including `CheckoutPaymentStatus` in `CheckoutRepository.ts`.
+  - [x] Return structured result: released/already released/skipped/failed, payment ID, reservation ID, attempt ID, reason, item count, restored quantity, and safe code.
+  - [x] Existing `releaseCheckoutReservationForPaymentFailure` is provider-creation rollback. Do not reuse it blindly for post-payment terminal release because it intentionally skips when pending payment exists and sets `PAYMENT_CREATION_FAILED`.
+  - [x] Existing `releaseExpiredCheckoutReservations` handles pre-payment stale reservations and currently excludes `PAYMENT_CREATED`; extend or add separate stale-payment release path rather than breaking pre-payment cleanup.
 
-- [ ] Task 5: Compose release with payment reconciliation. (AC: 1-6)
-  - [ ] Update `PaymentReconciliationService` so `markProviderCheckoutSessionTerminal(...)` success or already-terminal result triggers idempotent reservation release.
-  - [ ] Ensure provider fallback status `failed`, `expired`, `cancelled`, and spelling variants (`canceled`) map to terminal internal statuses only through backend PayMongo lookup or equivalent server-owned reconciliation.
-  - [ ] Return public payment-return status with retry/return-to-cart allowed after terminal release, but do not expose release internals to customer response.
-  - [ ] Add service method for stale pending reconciliation, for example `releaseStalePendingPayments({ now, limit, requestId })`, and wire it to documented call site: checkout validation sweep, scheduled Worker/Cron, admin/manual script, or explicit internal service method with runbook note.
-  - [ ] If release fails after terminal payment status is set, public status may still be retryable, but operations must see release failure and can retry without duplicate stock movement.
-  - [ ] Do not downgrade terminal or paid payment states during stale cleanup.
+- [x] Task 5: Compose release with payment reconciliation. (AC: 1-6)
+  - [x] Update `PaymentReconciliationService` so `markProviderCheckoutSessionTerminal(...)` success or already-terminal result triggers idempotent reservation release.
+  - [x] Ensure provider fallback status `failed`, `expired`, `cancelled`, and spelling variants (`canceled`) map to terminal internal statuses only through backend PayMongo lookup or equivalent server-owned reconciliation.
+  - [x] Return public payment-return status with retry/return-to-cart allowed after terminal release, but do not expose release internals to customer response.
+  - [x] Add service method for stale pending reconciliation, for example `releaseStalePendingPayments({ now, limit, requestId })`, and wire it to documented call site: checkout validation sweep, scheduled Worker/Cron, admin/manual script, or explicit internal service method with runbook note.
+  - [x] If release fails after terminal payment status is set, public status may still be retryable, but operations must see release failure and can retry without duplicate stock movement.
+  - [x] Do not downgrade terminal or paid payment states during stale cleanup.
 
-- [ ] Task 6: Keep webhook and PayMongo semantics accurate. (AC: 1, 2, 4-6)
-  - [ ] `src/domain/payments/paymongo-webhook.ts` currently supports only `checkout_session.payment.paid`. Do not invent failed/cancelled webhook event handling unless current PayMongo docs and test fixtures prove the exact event shape.
-  - [ ] `PaymentWebhookService` paid flow must continue to create/return idempotent order confirmation and must never release stock for paid payment.
-  - [ ] If this story adds terminal webhook support later, signature verification and idempotency claim must still happen before release side effects.
-  - [ ] PayMongo Hosted Checkout failed attempts can be retried in the same Checkout Session while it remains active. Do not release reservation from one non-paid payment attempt unless the session/payment is terminal or the configured stale policy says it is abandoned.
-  - [ ] PayMongo Client calls remain backend-only with Basic auth. Frontend must not call PayMongo APIs or receive provider payload.
+- [x] Task 6: Keep webhook and PayMongo semantics accurate. (AC: 1, 2, 4-6)
+  - [x] `src/domain/payments/paymongo-webhook.ts` currently supports only `checkout_session.payment.paid`. Do not invent failed/cancelled webhook event handling unless current PayMongo docs and test fixtures prove the exact event shape.
+  - [x] `PaymentWebhookService` paid flow must continue to create/return idempotent order confirmation and must never release stock for paid payment.
+  - [x] If this story adds terminal webhook support later, signature verification and idempotency claim must still happen before release side effects.
+  - [x] PayMongo Hosted Checkout failed attempts can be retried in the same Checkout Session while it remains active. Do not release reservation from one non-paid payment attempt unless the session/payment is terminal or the configured stale policy says it is abandoned.
+  - [x] PayMongo Client calls remain backend-only with Basic auth. Frontend must not call PayMongo APIs or receive provider payload.
 
-- [ ] Task 7: Update customer-safe status and operational visibility. (AC: 2, 3, 6)
-  - [ ] Update `PaymentReturnStatus` service tests and route metadata if terminal release now runs during `/api/checkout/payment-return` status refresh.
-  - [ ] Customer-visible response stays limited to payment status, safe retry flags, and existing order summary when confirmed. Do not include reservation IDs, release counts, stock quantities restored, provider status details, or raw errors.
-  - [ ] Operations visibility can be audit/log only for MVP, but stale pending release must be observable by request ID, payment ID, reservation ID, reason, release status, and safe code.
-  - [ ] Publish `inventory.released` audit event for successful release with system actor and safe details. Use `payment.reconciled` or operational log where payment terminal state changes.
-  - [ ] On release failure, log `PROVIDER_UNAVAILABLE` or `INTERNAL_ERROR` as appropriate through `createOperationalLogEvent`; keep scrubbed details.
+- [x] Task 7: Update customer-safe status and operational visibility. (AC: 2, 3, 6)
+  - [x] Update `PaymentReturnStatus` service tests and route metadata if terminal release now runs during `/api/checkout/payment-return` status refresh.
+  - [x] Customer-visible response stays limited to payment status, safe retry flags, and existing order summary when confirmed. Do not include reservation IDs, release counts, stock quantities restored, provider status details, or raw errors.
+  - [x] Operations visibility can be audit/log only for MVP, but stale pending release must be observable by request ID, payment ID, reservation ID, reason, release status, and safe code.
+  - [x] Publish `inventory.released` audit event for successful release with system actor and safe details. Use `payment.reconciled` or operational log where payment terminal state changes.
+  - [x] On release failure, log `PROVIDER_UNAVAILABLE` or `INTERNAL_ERROR` as appropriate through `createOperationalLogEvent`; keep scrubbed details.
 
-- [ ] Task 8: Add tests and validation gates. (AC: 1-7)
-  - [ ] Domain tests for release decisions: failed, expired, cancelled, stale pending, paid skip, order skip, active pending skip, already released, mismatched payment/reservation.
-  - [ ] D1/Miniflare repository tests for:
+- [x] Task 8: Add tests and validation gates. (AC: 1-7)
+  - [x] Domain tests for release decisions: failed, expired, cancelled, stale pending, paid skip, order skip, active pending skip, already released, mismatched payment/reservation.
+  - [x] D1/Miniflare repository tests for:
     - failed payment releases active stock reservation and clears blocking attempt state;
     - cancelled payment releases active stock reservation;
     - expired payment releases active stock reservation;
@@ -98,20 +98,20 @@ so that stock does not remain stuck and future customers can buy available produ
     - preorder release changes release state but not stock;
     - paid/order-linked payment never releases reservation;
     - simulated storage failure is retryable without duplicate stock movement.
-  - [ ] Service tests for provider fallback terminal statuses triggering release and release failure logging without leaking provider/PII details.
-  - [ ] Route tests for `/api/checkout/payment-return` if status refresh can trigger terminal release; response must keep standard envelope, request ID, safe labels, and no release internals.
-  - [ ] If adding a job/script/internal route, test auth mode or document why it is not public HTTP. Protected internal/admin endpoints need auth metadata, rate-limit class, and denial tests.
-  - [ ] Minimum commands:
+  - [x] Service tests for provider fallback terminal statuses triggering release and release failure logging without leaking provider/PII details.
+  - [x] Route tests for `/api/checkout/payment-return` if status refresh can trigger terminal release; response must keep standard envelope, request ID, safe labels, and no release internals.
+  - [x] If adding a job/script/internal route, test auth mode or document why it is not public HTTP. Protected internal/admin endpoints need auth metadata, rate-limit class, and denial tests.
+  - [x] Minimum commands:
     - `npx vitest run src/domain/checkout/inventory-release.test.ts src/domain/payments/payment-reconciliation.test.ts`
     - `npx vitest run src/server/repositories/CheckoutRepository.test.ts src/server/repositories/OrderConfirmationRepository.test.ts`
     - `npx vitest run src/server/services/PaymentReconciliationService.test.ts src/server/services/PaymentWebhookService.test.ts src/server/routes/payment-return.routes.test.ts`
     - `npm run check`
-  - [ ] Run `npm run build-development` if repository/service/route changes touch Worker runtime wiring. Document exact blocker if full validation cannot pass.
+  - [x] Run `npm run build-development` if repository/service/route changes touch Worker runtime wiring. Document exact blocker if full validation cannot pass.
 
-- [ ] Task 9: Update docs and deferred work. (AC: 3, 6, 7)
-  - [ ] Update route descriptions, endpoint catalog notes, or implementation artifact notes to say failed/cancelled/stale payment release exists.
-  - [ ] Resolve or update `_bmad-output/implementation-artifacts/deferred-work.md` item about expired-reservation cleanup once release is proven atomic/resumable.
-  - [ ] Add implementation notes for any chosen stale pending cutoff, job/manual process, and operational retry process.
+- [x] Task 9: Update docs and deferred work. (AC: 3, 6, 7)
+  - [x] Update route descriptions, endpoint catalog notes, or implementation artifact notes to say failed/cancelled/stale payment release exists.
+  - [x] Resolve or update `_bmad-output/implementation-artifacts/deferred-work.md` item about expired-reservation cleanup once release is proven atomic/resumable.
+  - [x] Add implementation notes for any chosen stale pending cutoff, job/manual process, and operational retry process.
 
 ## Endpoint Guard Checklist
 
@@ -327,14 +327,51 @@ For this story:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
+- `npx vitest run src/domain/checkout/inventory-release.test.ts src/domain/schema-invariants.test.ts` - passed, 17 tests.
+- `npx vitest run src/server/repositories/InventoryReleaseRepository.test.ts src/domain/checkout/inventory-release.test.ts src/domain/schema-invariants.test.ts` - passed, 25 tests.
+- `npx vitest run src/server/repositories/InventoryReleaseRepository.test.ts` - passed after provider/superseded-pending guard additions, 8 tests.
+- `npx vitest run src/server/services/PaymentReconciliationService.test.ts src/server/routes/payment-return.routes.test.ts src/server/routes/payment-webhook.routes.test.ts` - passed, 16 tests.
+- `npx vitest run src/domain/payments/payment-reconciliation.test.ts` - passed, 2 tests.
+- `npx vitest run src/server/repositories/OrderConfirmationRepository.test.ts` - passed, 8 tests.
+- `npx vitest run src/server/services/PaymentWebhookService.test.ts` - passed, 8 tests.
+- `npx vitest run src/server/repositories/CheckoutRepository.test.ts` - passed, 15 tests.
+- `npm run check` - passed; existing hints remain in unrelated UI files.
+- `npm run build-development` - passed; existing hints remain in unrelated UI files.
+- Full `npx vitest run` was attempted before targeted validation; default/dot output exited without useful failure detail and JSON capture timed out after 304s with no report file.
+
 ### Completion Notes List
 
+- Added pure checkout inventory-release decision helper for terminal, stale pending, paid/order skip, active pending skip, mismatch, and already-released cases.
+- Added `checkout_reservation_releases` per-item ledger and migration `0031_checkout_reservation_releases.sql` for retry-safe stock restoration.
+- Added `DrizzleInventoryReleaseRepository` with terminal/stale release APIs, guarded D1 batch stock restore plus release marker update, preorder no-stock release, duplicate/concurrent idempotency, and retry after failed restore.
+- Enforced PayMongo-only release ownership and stale-pending skip when a newer pending payment owns the same attempt/reservation.
+- Composed inventory release into `PaymentReconciliationService` terminal PayMongo fallback and stale pending return-status path; added service wrapper for batch stale pending reconciliation.
+- Kept paid webhook/order confirmation semantics unchanged; webhook route injects release repository only as reconciliation dependency and paid flow does not release inventory.
+- Updated payment-return route metadata and deferred-work note to document server-owned failed/cancelled/stale release behavior.
+
 ### File List
+
+- `migrations/0031_checkout_reservation_releases.sql`
+- `src/domain/checkout/inventory-release.ts`
+- `src/domain/checkout/inventory-release.test.ts`
+- `src/domain/schema/transactions.ts`
+- `src/domain/schema-invariants.test.ts`
+- `src/server/repositories/InventoryReleaseRepository.ts`
+- `src/server/repositories/InventoryReleaseRepository.test.ts`
+- `src/server/repositories/CheckoutRepository.ts`
+- `src/server/services/PaymentReconciliationService.ts`
+- `src/server/services/PaymentReconciliationService.test.ts`
+- `src/server/routes/payment-return.routes.ts`
+- `src/server/routes/payment-webhook.routes.ts`
+- `_bmad-output/implementation-artifacts/deferred-work.md`
+- `_bmad-output/implementation-artifacts/5-6-release-reserved-inventory-after-failed-or-cancelled-payment.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Change Log
 
 - 2026-07-01: Story created with failed/cancelled/expired/stale payment inventory release scope and ready-for-dev status.
+- 2026-07-01: Implemented idempotent post-payment inventory release ledger, repository/service composition, route metadata update, deferred-work note, and validation coverage; moved story to review.

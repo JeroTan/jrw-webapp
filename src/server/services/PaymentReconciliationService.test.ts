@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { Result } from "@/utils/general/result";
 import { GeneralError } from "@/utils/general/error";
+import type {
+  InventoryReleaseRepositoryLike,
+  InventoryReleaseResult,
+} from "@/server/repositories/InventoryReleaseRepository";
 import type { OrderConfirmationRepositoryLike } from "@/server/repositories/OrderConfirmationRepository";
 import { PaymentReconciliationService } from "./PaymentReconciliationService";
 
@@ -100,6 +104,36 @@ function pendingPaymentRecord() {
     providerCheckoutSessionId: "cs_1",
     status: "pending" as const,
     totalCentavos: null,
+  };
+}
+
+function releasedInventoryResult(
+  overrides: Partial<InventoryReleaseResult> = {}
+): InventoryReleaseResult {
+  return {
+    attemptId: "attempt_1",
+    decision: "released",
+    itemCount: 1,
+    paymentId: "payment_1",
+    paymentStatus: "PAYMENT_EXPIRED",
+    releaseReason: "PAYMENT_EXPIRED",
+    reservationId: "reservation_1",
+    restoredQuantity: 2,
+    ...overrides,
+  } as InventoryReleaseResult;
+}
+
+function inventoryReleaseRepositoryStub(
+  result: InventoryReleaseResult
+): InventoryReleaseRepositoryLike & { calls: unknown[] } {
+  const calls: unknown[] = [];
+
+  return {
+    calls,
+    releaseInventoryForPayment: async (input) => {
+      calls.push(input);
+      return result;
+    },
   };
 }
 
@@ -296,6 +330,140 @@ describe("PaymentReconciliationService", () => {
       next: { refreshAllowed: false, retryCheckoutAllowed: true },
       payment: { paymentId: "payment_1", status: "PAYMENT_EXPIRED" },
     });
+  });
+
+  it("releases inventory after terminal PayMongo fallback state", async () => {
+    const repository = repositoryStub({
+      findPaymentReturnRecord: async () => pendingPaymentRecord(),
+    });
+    const inventoryReleaseRepository = inventoryReleaseRepositoryStub(
+      releasedInventoryResult()
+    );
+    const auditEvents: unknown[] = [];
+    const service = new PaymentReconciliationService({
+      auditPublisher: {
+        publish: async (event) => {
+          auditEvents.push(event);
+        },
+      },
+      inventoryReleaseRepository,
+      paymentStatusProvider: {
+        getCheckoutSessionPaymentStatus: async (providerCheckoutSessionId) =>
+          Result.okay({
+            paid: false,
+            providerCheckoutSessionId,
+            status: "expired",
+          }),
+      },
+      repository,
+    });
+
+    const result = await service.getPaymentReturnStatus({
+      attemptId: "attempt_1",
+      now,
+      requestId: "req_terminal_release",
+    });
+
+    expect(inventoryReleaseRepository.calls).toEqual([
+      {
+        now,
+        paymentId: "payment_1",
+        requestId: "req_terminal_release",
+      },
+    ]);
+    expect(auditEvents).toEqual([
+      expect.objectContaining({
+        action: "inventory.released",
+        entity: "inventory",
+        entityId: "reservation_1",
+      }),
+    ]);
+    expect(result.content).toMatchObject({
+      status: "expired",
+      payment: { paymentId: "payment_1", status: "PAYMENT_EXPIRED" },
+    });
+  });
+
+  it("expires and releases stale pending payment return inventory", async () => {
+    const repository = repositoryStub({
+      findPaymentReturnRecord: async () => pendingPaymentRecord(),
+    });
+    const inventoryReleaseRepository = inventoryReleaseRepositoryStub(
+      releasedInventoryResult({
+        paymentStatus: "PAYMENT_EXPIRED",
+        releaseReason: "PENDING_TIMEOUT",
+      })
+    );
+    const service = new PaymentReconciliationService({
+      inventoryReleaseRepository,
+      repository,
+    });
+
+    const result = await service.getPaymentReturnStatus({
+      attemptId: "attempt_1",
+      now,
+      requestId: "req_stale_release",
+    });
+
+    expect(inventoryReleaseRepository.calls).toEqual([
+      {
+        allowPendingTimeout: true,
+        now,
+        paymentId: "payment_1",
+        releaseReason: "PENDING_TIMEOUT",
+        requestId: "req_stale_release",
+      },
+    ]);
+    expect(result.content).toMatchObject({
+      status: "expired",
+      next: { refreshAllowed: false, retryCheckoutAllowed: true },
+      payment: { paymentId: "payment_1", status: "PAYMENT_EXPIRED" },
+    });
+  });
+
+  it("keeps terminal response and logs safely when inventory release fails", async () => {
+    const repository = repositoryStub({
+      findPaymentReturnRecord: async () => pendingPaymentRecord(),
+    });
+    const inventoryReleaseRepository = inventoryReleaseRepositoryStub(
+      releasedInventoryResult({
+        decision: "failed",
+        errorCode: "INVENTORY_RELEASE_FAILED",
+        restoredQuantity: 0,
+      } as Partial<InventoryReleaseResult>)
+    );
+    const logs: unknown[] = [];
+    const service = new PaymentReconciliationService({
+      inventoryReleaseRepository,
+      operationalLogger: {
+        record: (event) => {
+          logs.push(event);
+        },
+      },
+      paymentStatusProvider: {
+        getCheckoutSessionPaymentStatus: async (providerCheckoutSessionId) =>
+          Result.okay({
+            paid: false,
+            providerCheckoutSessionId,
+            status: "expired",
+          }),
+      },
+      repository,
+    });
+
+    const result = await service.getPaymentReturnStatus({
+      attemptId: "attempt_1",
+      requestId: "req_release_failed",
+    });
+
+    expect(result.content).toMatchObject({
+      status: "expired",
+      payment: { paymentId: "payment_1", status: "PAYMENT_EXPIRED" },
+    });
+    expect(JSON.stringify(logs)).toContain("inventory.release_failed");
+    expect(JSON.stringify(logs)).not.toMatch(
+      /nina@example|0917|Sampaguita|checkout\.paymongo|secret|card/i
+    );
   });
 
   it("keeps pending return when PayMongo fallback returns a different session id", async () => {

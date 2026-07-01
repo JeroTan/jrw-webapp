@@ -16,6 +16,7 @@ import {
   checkout_payment_items,
   checkout_payments,
   checkout_reservation_items,
+  checkout_reservation_releases,
   checkout_reservations,
   orders,
   payment_webhook_events,
@@ -625,6 +626,65 @@ describe("checkout schema invariants", () => {
         "idx_checkout_payment_items_variant_id",
       ])
     );
+  });
+
+  it("stores reservation release idempotency without provider payloads or customer data", () => {
+    const config = getTableConfig(checkout_reservation_releases);
+    const columns = config.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const indexes = config.indexes.map((index) => index.config.name);
+    const releaseItemIndex = config.indexes.find(
+      (index) => index.config.name === "uq_checkout_reservation_releases_item"
+    );
+
+    expect(columns).toEqual(
+      expect.arrayContaining([
+        "reservation_id",
+        "reservation_item_id",
+        "checkout_attempt_id",
+        "payment_id",
+        "product_id",
+        "variant_id",
+        "quantity",
+        "reservation_mode",
+        "release_reason",
+        "status",
+        "error_code",
+        "requested_at",
+        "applied_at",
+        "failed_at",
+        "created_request_id",
+        "updated_request_id",
+      ])
+    );
+    expect(columns).not.toEqual(
+      expect.arrayContaining([
+        "raw_payload",
+        "provider_payload",
+        "raw_signature",
+        "signature",
+        "headers",
+        "authorization",
+        "checkout_url",
+        "card_data",
+        "card_number",
+        "checkout_email",
+        "phone",
+        "street_address",
+        "attempt_token",
+        "provider_secret",
+      ])
+    );
+    expect(indexes).toEqual(
+      expect.arrayContaining([
+        "uq_checkout_reservation_releases_item",
+        "idx_checkout_reservation_releases_reservation_id",
+        "idx_checkout_reservation_releases_payment_id",
+        "idx_checkout_reservation_releases_status",
+      ])
+    );
+    expect(releaseItemIndex?.config.unique).toBe(true);
   });
 
   it("stores webhook idempotency without payload, signature, or customer data", () => {
