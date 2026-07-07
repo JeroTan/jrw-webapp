@@ -6,6 +6,9 @@ import {
 import { isReleasableTerminalPaymentStatus } from "@/domain/checkout/inventory-release";
 import type { OrderConfirmationEmailNotifier } from "@/domain/notifications/order-confirmation-email";
 import { FailingOrderConfirmationEmailNotifier } from "@/domain/notifications/order-confirmation-email";
+import type { PaymentStatusEmailNotifier } from "@/domain/notifications/payment-status-email";
+import { FailingPaymentStatusEmailNotifier } from "@/domain/notifications/payment-status-email";
+import type { PublicPaymentReceipt } from "@/domain/payments/payment-receipt";
 import { paymentReturnStatusFromPayment } from "@/domain/payments/payment-reconciliation";
 import {
   createOperationalLogEvent,
@@ -55,6 +58,9 @@ export type PaymentReturnStatusInput = PaymentReturnLookupInput & {
 
 export type PaymentReturnStatusResult = {
   canRetry: boolean;
+  email?: {
+    status: "FAILED" | "PENDING" | "SENT" | "SENDING";
+  };
   next: {
     refreshAllowed: boolean;
     retryCheckoutAllowed: boolean;
@@ -68,6 +74,7 @@ export type PaymentReturnStatusResult = {
     paymentId: string;
     status: string;
   };
+  receipt?: PublicPaymentReceipt;
   status:
     | "cancelled"
     | "confirmed"
@@ -97,6 +104,7 @@ export type PaymentReconciliationServiceOptions = {
   emailNotifier?: OrderConfirmationEmailNotifier;
   inventoryReleaseRepository?: InventoryReleaseRepositoryLike;
   operationalLogger?: OperationalLogger;
+  paymentStatusEmailNotifier?: PaymentStatusEmailNotifier;
   paymentStatusProvider?: CheckoutSessionPaymentStatusProvider;
   repository: OrderConfirmationRepositoryLike;
 };
@@ -139,6 +147,7 @@ export class PaymentReconciliationService {
   private readonly emailNotifier: OrderConfirmationEmailNotifier;
   private readonly inventoryReleaseRepository?: InventoryReleaseRepositoryLike;
   private readonly operationalLogger: OperationalLogger;
+  private readonly paymentStatusEmailNotifier: PaymentStatusEmailNotifier;
   private readonly paymentStatusProvider?: CheckoutSessionPaymentStatusProvider;
   private readonly repository: OrderConfirmationRepositoryLike;
 
@@ -149,6 +158,9 @@ export class PaymentReconciliationService {
       options.emailNotifier ?? new FailingOrderConfirmationEmailNotifier();
     this.inventoryReleaseRepository = options.inventoryReleaseRepository;
     this.operationalLogger = options.operationalLogger ?? noopOperationalLogger;
+    this.paymentStatusEmailNotifier =
+      options.paymentStatusEmailNotifier ??
+      new FailingPaymentStatusEmailNotifier();
     this.paymentStatusProvider = options.paymentStatusProvider;
     this.repository = options.repository;
   }
@@ -239,7 +251,7 @@ export class PaymentReconciliationService {
           return Result.error(confirmation.error);
         }
 
-        return Result.okay({
+        const fallbackResult = {
           canRetry: false,
           next: {
             refreshAllowed: false,
@@ -255,7 +267,16 @@ export class PaymentReconciliationService {
             status: "PAYMENT_PAID",
           },
           status: "confirmed",
-        });
+        } satisfies PaymentReturnStatusResult;
+
+        return Result.okay(
+          await this.latestReturnStatusForPayment({
+            fallback: fallbackResult,
+            now: input.now,
+            paymentId: record.paymentId,
+            requestId: input.requestId,
+          })
+        );
       }
 
       const fallback = await this.reconcilePendingPaymentFromProvider({
@@ -286,27 +307,13 @@ export class PaymentReconciliationService {
         });
       }
 
-      return Result.okay({
-        canRetry: record.canRetry,
-        next: {
-          refreshAllowed: record.status === "pending",
-          retryCheckoutAllowed: record.canRetry,
-        },
-        ...(record.orderId && record.orderNumber
-          ? {
-              order: {
-                orderId: record.orderId,
-                orderNumber: record.orderNumber,
-                totalCentavos: record.totalCentavos ?? 0,
-              },
-            }
-          : {}),
-        payment: {
-          paymentId: record.paymentId,
-          status: record.paymentStatus,
-        },
-        status: record.status,
-      });
+      return Result.okay(
+        await this.returnStatusFromRecord({
+          now: input.now,
+          record,
+          requestId: input.requestId,
+        })
+      );
     } catch (error) {
       if (error instanceof GeneralError) {
         return Result.error(error);
@@ -450,18 +457,23 @@ export class PaymentReconciliationService {
         requestId: input.requestId,
       });
 
-      return {
-        canRetry: true,
-        next: {
-          refreshAllowed: false,
-          retryCheckoutAllowed: true,
+      return this.latestReturnStatusForPayment({
+        fallback: {
+          canRetry: true,
+          next: {
+            refreshAllowed: false,
+            retryCheckoutAllowed: true,
+          },
+          payment: {
+            paymentId: marked.paymentId,
+            status: marked.paymentStatus,
+          },
+          status,
         },
-        payment: {
-          paymentId: marked.paymentId,
-          status: marked.paymentStatus,
-        },
-        status,
-      };
+        now: input.now,
+        paymentId: marked.paymentId,
+        requestId: input.requestId,
+      });
     }
 
     const marked = await this.markProviderCheckoutSessionPaid({
@@ -496,23 +508,28 @@ export class PaymentReconciliationService {
       );
     }
 
-    return {
-      canRetry: false,
-      next: {
-        refreshAllowed: false,
-        retryCheckoutAllowed: false,
+    return this.latestReturnStatusForPayment({
+      fallback: {
+        canRetry: false,
+        next: {
+          refreshAllowed: false,
+          retryCheckoutAllowed: false,
+        },
+        order: {
+          orderId: confirmation.content.order.orderId,
+          orderNumber: confirmation.content.order.orderNumber,
+          totalCentavos: confirmation.content.order.totalCentavos,
+        },
+        payment: {
+          paymentId: marked.paymentId,
+          status: "PAYMENT_PAID",
+        },
+        status: "confirmed",
       },
-      order: {
-        orderId: confirmation.content.order.orderId,
-        orderNumber: confirmation.content.order.orderNumber,
-        totalCentavos: confirmation.content.order.totalCentavos,
-      },
-      payment: {
-        paymentId: marked.paymentId,
-        status: "PAYMENT_PAID",
-      },
-      status: "confirmed",
-    };
+      now: input.now,
+      paymentId: marked.paymentId,
+      requestId: input.requestId,
+    });
   }
 
   private async releaseStalePendingReturnInventory(input: {
@@ -566,18 +583,23 @@ export class PaymentReconciliationService {
           release.decision === "already-released") &&
         status !== "pending"
       ) {
-        return {
-          canRetry: true,
-          next: {
-            refreshAllowed: false,
-            retryCheckoutAllowed: true,
+        return this.latestReturnStatusForPayment({
+          fallback: {
+            canRetry: true,
+            next: {
+              refreshAllowed: false,
+              retryCheckoutAllowed: true,
+            },
+            payment: {
+              paymentId: release.paymentId,
+              status: release.paymentStatus,
+            },
+            status,
           },
-          payment: {
-            paymentId: release.paymentId,
-            status: release.paymentStatus,
-          },
-          status,
-        };
+          now: input.now,
+          paymentId: release.paymentId,
+          requestId: input.requestId,
+        });
       }
 
       return null;
@@ -723,6 +745,148 @@ export class PaymentReconciliationService {
     return "FAILED";
   }
 
+  private async latestReturnStatusForPayment(input: {
+    fallback: PaymentReturnStatusResult;
+    now?: string;
+    paymentId: string;
+    requestId: string;
+  }): Promise<PaymentReturnStatusResult> {
+    const record = await this.repository.findPaymentReturnRecord({
+      paymentId: input.paymentId,
+    });
+
+    if (!record) {
+      return input.fallback;
+    }
+
+    if (
+      record.paymentStatus !== input.fallback.payment.status ||
+      (input.fallback.status === "confirmed" && record.status !== "confirmed")
+    ) {
+      return input.fallback;
+    }
+
+    return this.returnStatusFromRecord({
+      now: input.now,
+      record,
+      requestId: input.requestId,
+    });
+  }
+
+  private async returnStatusFromRecord(input: {
+    now?: string;
+    record: PaymentReturnRecord;
+    requestId: string;
+  }): Promise<PaymentReturnStatusResult> {
+    const emailStatus = await this.sendTerminalPaymentStatusEmailIfNeeded({
+      currentStatus: input.record.email.status,
+      now: input.now,
+      paymentId: input.record.paymentId,
+      paymentStatus: input.record.paymentStatus,
+      requestId: input.requestId,
+    });
+
+    return {
+      canRetry: input.record.canRetry,
+      email: { status: emailStatus },
+      next: {
+        refreshAllowed: input.record.status === "pending",
+        retryCheckoutAllowed: input.record.canRetry,
+      },
+      ...(input.record.orderId && input.record.orderNumber
+        ? {
+            order: {
+              orderId: input.record.orderId,
+              orderNumber: input.record.orderNumber,
+              totalCentavos: input.record.totalCentavos ?? 0,
+            },
+          }
+        : {}),
+      payment: {
+        paymentId: input.record.paymentId,
+        status: input.record.paymentStatus,
+      },
+      receipt: input.record.receipt,
+      status: input.record.status,
+    };
+  }
+
+  private async sendTerminalPaymentStatusEmailIfNeeded(input: {
+    currentStatus: "FAILED" | "PENDING" | "SENT" | "SENDING";
+    now?: string;
+    paymentId: string;
+    paymentStatus: string;
+    requestId: string;
+  }): Promise<"FAILED" | "PENDING" | "SENT" | "SENDING"> {
+    if (
+      input.paymentStatus !== "PAYMENT_FAILED" &&
+      input.paymentStatus !== "PAYMENT_EXPIRED" &&
+      input.paymentStatus !== "PAYMENT_CANCELLED"
+    ) {
+      return input.currentStatus;
+    }
+
+    if (input.currentStatus === "SENT") {
+      return input.currentStatus;
+    }
+
+    const claimed = await this.repository.claimPaymentStatusEmail({
+      now: input.now,
+      paymentId: input.paymentId,
+      requestId: input.requestId,
+    });
+
+    if (!claimed) {
+      return "SENDING";
+    }
+
+    const email = await this.repository.getPaymentStatusEmail(input.paymentId);
+
+    if (!email) {
+      await this.repository.markPaymentStatusEmailFailed({
+        now: input.now,
+        paymentId: input.paymentId,
+        requestId: input.requestId,
+      });
+      this.recordPaymentStatusEmailFailure({
+        paymentId: input.paymentId,
+        reason: "missing_email_payload",
+        requestId: input.requestId,
+      });
+
+      return "FAILED";
+    }
+
+    const sent = await this.paymentStatusEmailNotifier.sendPaymentStatusEmail({
+      ...email,
+      requestId: input.requestId,
+    });
+
+    if (sent.ok) {
+      await this.repository.markPaymentStatusEmailSent({
+        messageId: sent.messageId,
+        now: input.now,
+        paymentId: input.paymentId,
+        requestId: input.requestId,
+      });
+
+      return "SENT";
+    }
+
+    await this.repository.markPaymentStatusEmailFailed({
+      now: input.now,
+      paymentId: input.paymentId,
+      requestId: input.requestId,
+    });
+    this.recordPaymentStatusEmailFailure({
+      paymentId: input.paymentId,
+      reason: "provider_send_failed",
+      requestId: input.requestId,
+    });
+
+    return "FAILED";
+  }
+
   private recordEmailFailure(input: {
     orderId: string;
     paymentId: string;
@@ -745,6 +909,29 @@ export class PaymentReconciliationService {
       );
     } catch {
       // Logging must never mask order confirmation.
+    }
+  }
+
+  private recordPaymentStatusEmailFailure(input: {
+    paymentId: string;
+    reason: string;
+    requestId: string;
+  }) {
+    try {
+      this.operationalLogger.record(
+        createOperationalLogEvent({
+          requestId: input.requestId,
+          errorCode: "PROVIDER_UNAVAILABLE",
+          targetResourceId: input.paymentId,
+          details: {
+            action: "payment.status_email_failed",
+            paymentId: input.paymentId,
+            reason: input.reason,
+          },
+        })
+      );
+    } catch {
+      // Logging must never mask payment status response.
     }
   }
 

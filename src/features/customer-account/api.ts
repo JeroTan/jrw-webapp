@@ -48,6 +48,10 @@ export type CustomerRegistrationInput = {
   emailMarketingOptIn?: boolean;
 };
 
+export type CustomerRegistrationPrefill = {
+  email: string;
+};
+
 export type CustomerProfilePatch = Partial<
   Pick<
     CustomerProfile,
@@ -177,6 +181,26 @@ export async function registerCustomer(
     customer: CustomerProfile;
     verificationEmail: { sent: boolean };
   }>(response, "We could not create your account.");
+}
+
+export async function getCustomerRegistrationPrefill(
+  receiptContext: string,
+  fetcher: typeof fetch = fetch
+) {
+  const response = await fetcher(
+    `/api/customers/registration-prefill?receiptContext=${encodeURIComponent(
+      receiptContext
+    )}`,
+    {
+      credentials: "same-origin",
+      headers: { accept: "application/json" },
+    }
+  );
+
+  return parseApiResponse<CustomerRegistrationPrefill>(
+    response,
+    "We could not load your checkout email."
+  );
 }
 
 export async function getCustomerProfile(fetcher: typeof fetch = fetch) {

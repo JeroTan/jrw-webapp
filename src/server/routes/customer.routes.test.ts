@@ -114,6 +114,7 @@ describe("customer account routes", () => {
 
     const register = body.paths?.["/api/customers"]?.post;
     const verify = body.paths?.["/api/email-verifications"]?.post;
+    const prefill = body.paths?.["/api/customers/registration-prefill"]?.get;
     const getProfile = body.paths?.["/api/customers/me"]?.get;
     const updateProfile = body.paths?.["/api/customers/me"]?.patch;
 
@@ -133,6 +134,9 @@ describe("customer account routes", () => {
       expect.arrayContaining(["VALIDATION_FAILED", "PROVIDER_UNAVAILABLE"])
     );
     expect(verify?.["x-rate-limit-class"]).toBe("email-token");
+    expect(prefill?.summary).toBe("Resolve receipt registration prefill");
+    expect(prefill?.description).toContain("never raw email");
+    expect(prefill?.["x-rate-limit-class"]).toBe("email-token");
     expect(getProfile?.["x-auth"]).toEqual({
       mode: "required",
       roles: ["CUSTOMER"],
@@ -203,6 +207,37 @@ describe("customer account routes", () => {
     });
     expect(JSON.stringify(body)).not.toContain("token");
     expect(JSON.stringify(body)).not.toContain("password");
+  });
+
+  it("resolves receipt registration prefill through safe route boundary", async () => {
+    let receivedContext = "";
+    const app = createApp({
+      routes: {
+        customers: {
+          registrationPrefillResolver: async (input) => {
+            receivedContext = input.receiptContext;
+            return { email: "buyer@example.test" };
+          },
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request(
+        "https://jrw.test/api/customers/registration-prefill?receiptContext=signed.receipt.context",
+        {
+          headers: { "x-request-id": "req_prefill" },
+        }
+      )
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(receivedContext).toBe("signed.receipt.context");
+    expect(body).toMatchObject({
+      data: { email: "buyer@example.test" },
+      meta: { requestId: "req_prefill" },
+    });
   });
 
   it("reads and updates authenticated customer profile", async () => {

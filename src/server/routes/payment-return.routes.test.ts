@@ -48,6 +48,40 @@ describe("payment return routes", () => {
                     paymentId: "payment_1",
                     status: "PAYMENT_PAID",
                   },
+                  receipt: {
+                    fulfillmentStatus: {
+                      label: "Order placed",
+                      value: "ORDER_PLACED",
+                    },
+                    guestAccountCta: {
+                      eligible: true,
+                      href: "/account/register?returnTo=%2Faccount%2Forders",
+                      label: "Create account",
+                    },
+                    inboxReminder:
+                      "Order and delivery updates were sent to your checkout email inbox.",
+                    items: [
+                      {
+                        lineTotalCentavos: 3998,
+                        name: "Linen Shirt",
+                        productId: "prod_linen",
+                        quantity: 2,
+                        unitAmountCentavos: 1999,
+                        variantId: "variant_linen_small",
+                        variantLabel: "Size: Small",
+                      },
+                    ],
+                    paymentStatus: {
+                      label: "Payment paid",
+                      value: "confirmed",
+                    },
+                    source: "order",
+                    totals: {
+                      currency: "PHP",
+                      subtotalCentavos: 3998,
+                      totalCentavos: 3998,
+                    },
+                  },
                   status: "confirmed" as const,
                 });
               },
@@ -76,6 +110,11 @@ describe("payment return routes", () => {
       data: {
         order: { orderNumber: "JRW-2026-ORDER1" },
         payment: { status: "PAYMENT_PAID" },
+        receipt: {
+          guestAccountCta: { eligible: true },
+          items: [{ name: "Linen Shirt" }],
+          paymentStatus: { label: "Payment paid" },
+        },
         status: "confirmed",
       },
       meta: {

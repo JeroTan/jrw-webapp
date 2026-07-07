@@ -1,11 +1,18 @@
-import type {
-  OrderConfirmationEmailInput,
-  OrderConfirmationEmailNotifier,
-  OrderConfirmationEmailResult,
-} from "@/domain/notifications/order-confirmation-email";
+import {
+  FailingPaymentStatusEmailNotifier,
+  paymentStatusEmailSubject,
+  type PaymentStatusEmailInput,
+  type PaymentStatusEmailNotifier,
+  type PaymentStatusEmailResult,
+} from "@/domain/notifications/payment-status-email";
 import { formatCatalogPrice } from "@/domain/products/price-format";
-import { FailingOrderConfirmationEmailNotifier } from "@/domain/notifications/order-confirmation-email";
-import { emailBody, emailFrame, emailMeta, emailTitle } from "./email-template";
+import {
+  emailActionLink,
+  emailBody,
+  emailFrame,
+  emailMeta,
+  emailTitle,
+} from "./email-template";
 import {
   resolveResendVerificationEmailConfig,
   type ResendEmailClient,
@@ -13,7 +20,7 @@ import {
   type ResendVerificationEmailConfigOptions,
 } from "./CustomerVerificationEmailNotifier";
 
-type ResendOrderConfirmationEmailNotifierOptions = {
+type ResendPaymentStatusEmailNotifierOptions = {
   appBaseUrl: string;
   client: ResendEmailClient;
   fromEmail: string;
@@ -49,74 +56,55 @@ function resendProviderError(response: unknown): unknown | undefined {
   return isRecord(response) && response.error ? response.error : undefined;
 }
 
-function itemSummary(input: OrderConfirmationEmailInput): string {
-  return input.items
-    .slice(0, 6)
-    .map(
-      (item) =>
-        `${item.quantity} x ${item.name} @ ${formatCatalogPrice(
-          item.amountCentavos
-        )}`
-    )
-    .join("; ");
-}
-
-function absoluteStatusUrl(appBaseUrl: string, statusUrl: string): string {
+function absoluteActionUrl(appBaseUrl: string, nextActionUrl: string): string {
   try {
-    return new URL(statusUrl, appBaseUrl).toString();
+    return new URL(nextActionUrl, appBaseUrl).toString();
   } catch {
     return appBaseUrl;
   }
 }
 
-function orderConfirmationTemplate(input: OrderConfirmationEmailInput) {
+function paymentStatusTemplate(input: PaymentStatusEmailInput) {
   return emailFrame({
-    title: "JRW order confirmed",
+    title: "JRW payment update",
     blocks: [
-      emailTitle({ content: "JRW order confirmed" }),
+      emailTitle({ content: "JRW payment update" }),
       emailBody({
         content:
-          "Payment is confirmed. We will prepare your order and send updates to this inbox when fulfillment changes.",
+          "Payment did not complete. Your order is not confirmed. You can retry checkout when ready.",
       }),
-      emailMeta({ label: "Order", value: input.orderNumber }),
       emailMeta({ label: "Payment", value: input.paymentStatusLabel }),
-      emailMeta({ label: "Fulfillment", value: input.fulfillmentStatusLabel }),
-      emailMeta({
-        label: "Total",
-        value: formatCatalogPrice(input.totalCentavos),
-      }),
-      ...(input.items.length > 0
-        ? [emailMeta({ label: "Items", value: itemSummary(input) })]
-        : []),
-      emailMeta({ label: "Status", value: input.statusUrl }),
+      emailMeta({ label: "Reference", value: input.referenceLabel }),
+      emailMeta({ label: "Total", value: formatCatalogPrice(input.totalCentavos) }),
+      emailActionLink({ label: "Return to checkout", url: input.nextActionUrl }),
     ],
   });
 }
 
-export class ResendOrderConfirmationEmailNotifier implements OrderConfirmationEmailNotifier {
+export class ResendPaymentStatusEmailNotifier implements PaymentStatusEmailNotifier {
   private readonly appBaseUrl: string;
   private readonly client: ResendEmailClient;
   private readonly fromEmail: string;
 
-  constructor(options: ResendOrderConfirmationEmailNotifierOptions) {
+  constructor(options: ResendPaymentStatusEmailNotifierOptions) {
     this.appBaseUrl = options.appBaseUrl;
     this.client = options.client;
     this.fromEmail = options.fromEmail;
   }
 
-  async sendOrderConfirmationEmail(
-    input: OrderConfirmationEmailInput
-  ): Promise<OrderConfirmationEmailResult> {
-    const template = orderConfirmationTemplate({
+  async sendPaymentStatusEmail(
+    input: PaymentStatusEmailInput
+  ): Promise<PaymentStatusEmailResult> {
+    const template = paymentStatusTemplate({
       ...input,
-      statusUrl: absoluteStatusUrl(this.appBaseUrl, input.statusUrl),
+      nextActionUrl: absoluteActionUrl(this.appBaseUrl, input.nextActionUrl),
     });
 
     try {
       const response = await this.client.emails.send({
         from: this.fromEmail,
         to: input.toEmail,
-        subject: `JRW order ${input.orderNumber} confirmed`,
+        subject: paymentStatusEmailSubject(input),
         html: template.html,
         text: template.text,
       });
@@ -133,17 +121,17 @@ export class ResendOrderConfirmationEmailNotifier implements OrderConfirmationEm
   }
 }
 
-export function createOrderConfirmationEmailNotifier(
+export function createPaymentStatusEmailNotifier(
   runtimeEnv: Partial<Env> & Record<string, unknown>,
   options: ResendVerificationEmailConfigOptions = {}
-): OrderConfirmationEmailNotifier {
+): PaymentStatusEmailNotifier {
   const config = resolveResendVerificationEmailConfig(runtimeEnv, options);
 
   if (config.error) {
-    return new FailingOrderConfirmationEmailNotifier();
+    return new FailingPaymentStatusEmailNotifier();
   }
 
-  return new ResendOrderConfirmationEmailNotifier({
+  return new ResendPaymentStatusEmailNotifier({
     appBaseUrl: config.content.appBaseUrl,
     client: new LazyResendEmailClient(config.content.apiKey),
     fromEmail: config.content.fromEmail,

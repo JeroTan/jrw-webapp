@@ -1,5 +1,6 @@
 import * as React from "react";
 import { ArrowLeft, ChevronDown, ChevronUp } from "lucide-react";
+import { Skeleton } from "@/components/feedback";
 import { Button, ButtonLink } from "@/components/ui";
 import { mergeClassNames } from "@/components/utils";
 import type { CartState } from "@/domain/checkout/cart";
@@ -14,6 +15,7 @@ type CheckoutFlowShellProps = {
   currentStep: CheckoutStepId;
   state: CartState;
   summaryAction?: CheckoutSummaryAction;
+  summaryContentHidden?: boolean;
   summaryOverride?: CheckoutSummaryOverride;
   title: string;
   titleId: string;
@@ -26,6 +28,9 @@ type CheckoutSummaryAction = {
   loading?: boolean;
   loadingLabel?: string;
   onClick?: () => void;
+  secondaryHref?: string;
+  secondaryLabel?: string;
+  secondaryMessage?: string;
   statusMessage?: string | null;
 };
 
@@ -35,8 +40,10 @@ type CheckoutSummaryOverride = Pick<
   CheckoutSummarySnapshot,
   "hasBlockingIssues" | "lineItemCount" | "subtotalLabel" | "totalQuantity"
 > & {
-  description?: string;
-  title?: string;
+  amountLabel?: string;
+  description?: string | null;
+  statusRows?: Array<{ label: string; value: string }>;
+  title?: string | null;
 };
 
 const checkoutSteps: { id: CheckoutStepId; label: string; number: string }[] = [
@@ -175,18 +182,25 @@ function CheckoutFlowSummary({
   currentStep,
   state,
   summaryAction,
+  summaryContentHidden = false,
   summaryOverride,
 }: {
   currentStep: CheckoutStepId;
   state: CartState;
   summaryAction?: CheckoutSummaryAction;
+  summaryContentHidden?: boolean;
   summaryOverride?: CheckoutSummaryOverride;
 }) {
   const summary = summaryOverride ?? getCartSummary(state);
-  const summaryTitle = summaryOverride?.title ?? "Cart summary";
+  const summaryAmountLabel = summaryOverride?.amountLabel ?? "Subtotal";
+  const summaryTitle =
+    summaryOverride && "title" in summaryOverride
+      ? summaryOverride.title
+      : "Cart summary";
   const summaryDescription =
-    summaryOverride?.description ??
-    `${summary.totalQuantity} item quantity across ${summary.lineItemCount} line items.`;
+    summaryOverride && "description" in summaryOverride
+      ? summaryOverride.description
+      : `${summary.totalQuantity} item quantity across ${summary.lineItemCount} line items.`;
   const cta = checkoutCta[currentStep];
   const isBlocked = state.items.length === 0 || summary.hasBlockingIssues;
   const checkoutValidation = useCheckoutValidationAction({
@@ -195,23 +209,75 @@ function CheckoutFlowSummary({
   });
   const canNavigate = Boolean(cta.href) && !isBlocked;
 
+  const asideClassName =
+    "grid content-start gap-grid-sm border-t border-brand-border-strong bg-brand-surface p-grid-sm lg:border-t-0 lg:border-l";
+
+  if (summaryContentHidden) {
+    return (
+      <aside className={asideClassName}>
+        <div className="grid gap-1">
+          <Skeleton
+            className="w-24"
+            label="Loading receipt summary label"
+          />
+          <div className="flex items-end justify-between gap-grid-sm">
+            <Skeleton
+              className="w-16"
+              label="Loading receipt total label"
+            />
+            <Skeleton
+              className="w-32 [&>span]:min-h-8"
+              label="Loading receipt total"
+            />
+          </div>
+        </div>
+        <Skeleton
+          className="[&>span]:min-h-control-md"
+          label="Loading receipt action"
+        />
+        <Skeleton label="Loading receipt details" lines={2} />
+      </aside>
+    );
+  }
+
   return (
-    <aside className="grid content-start gap-grid-sm border-t border-brand-border-strong bg-brand-surface p-grid-sm lg:border-t-0 lg:border-l">
+    <aside className={asideClassName}>
       <div className="grid gap-1">
-        <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-          {summaryTitle}
-        </p>
+        {summaryTitle ? (
+          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+            {summaryTitle}
+          </p>
+        ) : null}
         <div className="flex items-end justify-between gap-grid-sm">
           <span className="font-system text-sm font-bold uppercase text-brand-muted">
-            Subtotal
+            {summaryAmountLabel}
           </span>
           <strong className="brand-title-big text-brand-accent">
             {summary.subtotalLabel}
           </strong>
         </div>
-        <p className="m-0 text-sm text-brand-muted">
-          {summaryDescription}
-        </p>
+        {summaryDescription ? (
+          <p className="m-0 text-sm text-brand-muted">
+            {summaryDescription}
+          </p>
+        ) : null}
+        {summaryOverride?.statusRows?.length ? (
+          <dl className="m-0 grid gap-1 border-t border-brand-border pt-grid-xs font-system text-xs">
+            {summaryOverride.statusRows.map((row) => (
+              <div
+                className="flex flex-wrap justify-between gap-grid-xs"
+                key={row.label}
+              >
+                <dt className="font-bold uppercase text-brand-muted">
+                  {row.label}
+                </dt>
+                <dd className="m-0 font-bold text-brand-content">
+                  {row.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : null}
       </div>
 
       {summary.hasBlockingIssues ? (
@@ -220,7 +286,7 @@ function CheckoutFlowSummary({
         </p>
       ) : null}
 
-      <div>
+      <div className="grid gap-grid-xs">
         {currentStep === "cart" ? (
           <Button
             disabled={state.items.length === 0}
@@ -267,6 +333,23 @@ function CheckoutFlowSummary({
             {cta.label}
           </Button>
         )}
+        {summaryAction?.secondaryHref && summaryAction.secondaryLabel ? (
+          <>
+            {summaryAction.secondaryMessage ? (
+              <p className="m-0 text-sm leading-relaxed text-brand-muted">
+                {summaryAction.secondaryMessage}
+              </p>
+            ) : null}
+            <ButtonLink
+              fullWidth
+              href={summaryAction.secondaryHref}
+              textSize="xs"
+              variant="secondary"
+            >
+              {summaryAction.secondaryLabel}
+            </ButtonLink>
+          </>
+        ) : null}
       </div>
 
       {summaryAction?.statusMessage ? (
@@ -289,6 +372,7 @@ export function CheckoutFlowShell({
   currentStep,
   state,
   summaryAction,
+  summaryContentHidden,
   summaryOverride,
   title,
   titleId,
@@ -342,6 +426,7 @@ export function CheckoutFlowShell({
         currentStep={currentStep}
         state={state}
         summaryAction={summaryAction}
+        summaryContentHidden={summaryContentHidden}
         summaryOverride={summaryOverride}
       />
     </section>

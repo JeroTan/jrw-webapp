@@ -31,12 +31,21 @@ import type {
 import { formatCatalogPrice } from "@/domain/products/price-format";
 
 export const CART_STORAGE_KEY = "jrw.cart.v1";
+export const CART_PURCHASE_REMOVAL_STORAGE_KEY =
+  "jrw.cart.purchase-removals.v1";
 
 type CartStorage = Pick<Storage, "getItem" | "removeItem" | "setItem">;
 type CartSubscriber = () => void;
 
+export type PurchasedCartItem = {
+  productId: string | null;
+  quantity: number;
+  variantId: string | null;
+};
+
 const serverCartSnapshot = createEmptyCartState("server");
 const subscribers = new Set<CartSubscriber>();
+const appliedPurchaseRemovalKeys = new Set<string>();
 
 let currentState: CartState = createEmptyCartState();
 let hydrated = false;
@@ -195,6 +204,63 @@ export function writeCartStateToStorage(
   }
 }
 
+function parsePurchaseRemovalKeys(value: string | null): string[] {
+  if (!value) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+
+    return Array.isArray(parsed)
+      ? parsed
+          .map((item) => safeString(item))
+          .filter((item): item is string => item !== null)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function readPurchaseRemovalKeys(
+  storage: CartStorage | null = getBrowserStorage()
+): Set<string> {
+  const keys = new Set(appliedPurchaseRemovalKeys);
+
+  try {
+    for (const key of parsePurchaseRemovalKeys(
+      storage?.getItem(CART_PURCHASE_REMOVAL_STORAGE_KEY) ?? null
+    )) {
+      keys.add(key);
+    }
+  } catch {
+    // Ignore persistence failures; in-memory guard still protects this tab.
+  }
+
+  return keys;
+}
+
+function writePurchaseRemovalKeys(
+  keys: Set<string>,
+  storage: CartStorage | null = getBrowserStorage()
+) {
+  try {
+    const keyList = Array.from(keys).slice(-50);
+
+    if (keyList.length === 0) {
+      storage?.removeItem(CART_PURCHASE_REMOVAL_STORAGE_KEY);
+      return;
+    }
+
+    storage?.setItem(
+      CART_PURCHASE_REMOVAL_STORAGE_KEY,
+      JSON.stringify(keyList)
+    );
+  } catch {
+    // Browser cart persistence is convenience state only.
+  }
+}
+
 function notifyCartSubscribers() {
   for (const subscriber of subscribers) {
     subscriber();
@@ -307,6 +373,84 @@ export function removeCartItemFromStore(productId: string, variantId: string) {
 export function clearCartStore() {
   ensureCartHydrated();
   commitCartState(clearCartState(currentState));
+}
+
+export function removePurchasedCartItemsFromStore(
+  items: PurchasedCartItem[]
+): boolean {
+  ensureCartHydrated();
+
+  const purchasedQuantities = new Map<string, number>();
+  for (const item of items) {
+    if (
+      !item.productId ||
+      !item.variantId ||
+      !Number.isSafeInteger(item.quantity) ||
+      item.quantity <= 0
+    ) {
+      continue;
+    }
+
+    const key = cartLineKey(item.productId, item.variantId);
+    purchasedQuantities.set(
+      key,
+      (purchasedQuantities.get(key) ?? 0) + item.quantity
+    );
+  }
+
+  if (purchasedQuantities.size === 0) {
+    return false;
+  }
+
+  const updatedAt = new Date().toISOString();
+  let changed = false;
+  const updatedItems = currentState.items.flatMap((item) => {
+    const purchasedQuantity = purchasedQuantities.get(cartItemKey(item)) ?? 0;
+
+    if (purchasedQuantity <= 0) {
+      return [item];
+    }
+
+    changed = true;
+    const quantity = item.quantity - purchasedQuantity;
+
+    return quantity > 0 ? [{ ...item, quantity, updatedAt }] : [];
+  });
+
+  if (!changed) {
+    return false;
+  }
+
+  commitCartState({
+    items: updatedItems,
+    updatedAt,
+  });
+
+  return true;
+}
+
+export function removePurchasedCartItemsFromStoreOnce(
+  removalKey: string,
+  items: PurchasedCartItem[]
+): boolean {
+  const key = safeString(removalKey);
+
+  if (!key) {
+    return false;
+  }
+
+  const appliedKeys = readPurchaseRemovalKeys();
+
+  if (appliedKeys.has(key)) {
+    return false;
+  }
+
+  const changed = removePurchasedCartItemsFromStore(items);
+  appliedKeys.add(key);
+  appliedPurchaseRemovalKeys.add(key);
+  writePurchaseRemovalKeys(appliedKeys);
+
+  return changed;
 }
 
 export function replaceCartItemInStore(
@@ -466,4 +610,5 @@ export function resetCartStoreForTest(state = createEmptyCartState("test")) {
   hydrated = false;
   storageListenerAttached = false;
   subscribers.clear();
+  appliedPurchaseRemovalKeys.clear();
 }

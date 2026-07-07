@@ -167,7 +167,7 @@ export function paymentWebhookRoutes(
       detail: routeDetail({
         summary: "Receive PayMongo payment webhooks",
         description:
-          "Receives PayMongo Hosted Checkout payment events. This endpoint is public because PayMongo-Signature verification with the configured webhook secret is the provider auth boundary; customer, admin, and brand sessions are not used. The route reads the raw request body before parsing. A verified paid event may create an idempotent JRW order confirmation and order confirmation email from server payment state, but it does not release inventory, create a rich receipt, send payment success/failure emails, or change fulfillment beyond initial order placement.",
+          "Receives PayMongo Hosted Checkout payment events. This endpoint is public because PayMongo-Signature verification with the configured webhook secret is the provider auth boundary; customer, admin, and brand sessions are not used. The route reads the raw request body before parsing. A verified paid event may create an idempotent JRW order confirmation and order confirmation email from server payment state, but it does not release inventory, create a rich receipt, send terminal payment failure emails, or change fulfillment beyond initial order placement.",
         tags: ["Payments", "Webhooks"],
         auth: { mode: "public" },
         rateLimitClass: "webhook",

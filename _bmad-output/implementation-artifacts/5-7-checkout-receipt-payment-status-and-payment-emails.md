@@ -1,6 +1,6 @@
 # Story 5.7: Checkout Receipt, Payment Status, and Payment Emails
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -25,112 +25,112 @@ so that I know what happened after payment without seeing provider internals.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock scope and preserve Epic 5 boundaries. (AC: 1-10)
-  - [ ] Re-read every UPDATE file listed in Current Code Intelligence before editing.
-  - [ ] Implement rich receipt/status presentation and payment status email behavior only.
-  - [ ] Preserve Story 5.5 payment reconciliation/order confirmation idempotency and Story 5.6 failed/cancelled/stale inventory release idempotency.
-  - [ ] Do not implement signed-in customer order history, broad guest order lookup, admin order list/detail, fulfillment transitions, manual return recording, manual refund recording, or order truth timeline beyond receipt labels; Epic 6 owns those.
-  - [ ] Do not trust browser redirect params, cart state, or query-string email for paid state, account CTA context, receipt items, totals, or email recipient.
-  - [ ] Keep PayMongo `send_email_receipt` disabled unless owner explicitly changes policy. JRW owns customer-facing order/payment email copy.
+- [x] Task 1: Lock scope and preserve Epic 5 boundaries. (AC: 1-10)
+  - [x] Re-read every UPDATE file listed in Current Code Intelligence before editing.
+  - [x] Implement rich receipt/status presentation and payment status email behavior only.
+  - [x] Preserve Story 5.5 payment reconciliation/order confirmation idempotency and Story 5.6 failed/cancelled/stale inventory release idempotency.
+  - [x] Do not implement signed-in customer order history, broad guest order lookup, admin order list/detail, fulfillment transitions, manual return recording, manual refund recording, or order truth timeline beyond receipt labels; Epic 6 owns those.
+  - [x] Do not trust browser redirect params, cart state, or query-string email for paid state, account CTA context, receipt items, totals, or email recipient.
+  - [x] Keep PayMongo `send_email_receipt` disabled unless owner explicitly changes policy. JRW owns customer-facing order/payment email copy.
 
-- [ ] Task 2: Extend receipt/status domain contracts. (AC: 1-6)
-  - [ ] Add pure helpers under `src/domain/payments/**` or `src/domain/checkout/**`, recommended `payment-receipt.ts`, for receipt status labels, next-action decisions, email trigger decisions, and public receipt DTO shaping.
-  - [ ] Keep public statuses limited to safe labels: `pending`, `confirmed`, `failed`, `expired`, `cancelled`, `refunded`, `unknown`.
-  - [ ] Keep payment status separate from fulfillment status. Do not combine into one generic `status`.
-  - [ ] Derive paid receipt from server order/payment state only. Browser query params may choose lookup reference only.
-  - [ ] Derive receipt items from `order_snapshots` when order exists; fallback to `checkout_payment_items` only if order snapshot completion is still retrying and copy clearly remains pending.
-  - [ ] For guest CTA eligibility, return a safe boolean/intent such as `guestAccountCtaEligible`; do not return raw checkout email unless a signed/masked server token mechanism is implemented and tested.
+- [x] Task 2: Extend receipt/status domain contracts. (AC: 1-6)
+  - [x] Add pure helpers under `src/domain/payments/**` or `src/domain/checkout/**`, recommended `payment-receipt.ts`, for receipt status labels, next-action decisions, email trigger decisions, and public receipt DTO shaping.
+  - [x] Keep public statuses limited to safe labels: `pending`, `confirmed`, `failed`, `expired`, `cancelled`, `refunded`, `unknown`.
+  - [x] Keep payment status separate from fulfillment status. Do not combine into one generic `status`.
+  - [x] Derive paid receipt from server order/payment state only. Browser query params may choose lookup reference only.
+  - [x] Derive receipt items from `order_snapshots` when order exists; fallback to `checkout_payment_items` only if order snapshot completion is still retrying and copy clearly remains pending.
+  - [x] For guest CTA eligibility, return a safe boolean/intent such as `guestAccountCtaEligible`; do not return raw checkout email unless a signed/masked server token mechanism is implemented and tested.
 
-- [ ] Task 3: Expand payment-return repository data without leaking PII. (AC: 1-6)
-  - [ ] Extend `DrizzleOrderConfirmationRepository` or add a focused receipt repository under `src/server/repositories/**`.
-  - [ ] Current `findPaymentReturnRecord` returns payment/order ID, order number, total, and safe status only. Add a public receipt read path for order number, item names/variant labels/quantities/prices, subtotal/total/currency, payment status label, fulfillment status label, and customer mode/guest CTA eligibility.
-  - [ ] Keep email/contact/delivery snapshot fields out of public receipt DTO unless masked or signed-token-scoped. `orders.checkout_email`, phone, street, barangay, city, and postal code must not be returned to the browser just to render receipt.
-  - [ ] Preserve lookup behavior fixed in Story 5.5: multiple supplied identifiers must match one payment row; confirmed/paid rows outrank later pending retry rows.
-  - [ ] Preserve order-confirmation idempotency: paid payment with no order may still trigger `confirmPaidPayment`, but receipt expansion must not create duplicate orders or snapshots.
-  - [ ] Add repository tests for confirmed order receipt, pending payment no-order receipt, terminal failed/cancelled receipt, and no raw PII/provider columns in public DTO.
+- [x] Task 3: Expand payment-return repository data without leaking PII. (AC: 1-6)
+  - [x] Extend `DrizzleOrderConfirmationRepository` or add a focused receipt repository under `src/server/repositories/**`.
+  - [x] Current `findPaymentReturnRecord` returns payment/order ID, order number, total, and safe status only. Add a public receipt read path for order number, item names/variant labels/quantities/prices, subtotal/total/currency, payment status label, fulfillment status label, and customer mode/guest CTA eligibility.
+  - [x] Keep email/contact/delivery snapshot fields out of public receipt DTO unless masked or signed-token-scoped. `orders.checkout_email`, phone, street, barangay, city, and postal code must not be returned to the browser just to render receipt.
+  - [x] Preserve lookup behavior fixed in Story 5.5: multiple supplied identifiers must match one payment row; confirmed/paid rows outrank later pending retry rows.
+  - [x] Preserve order-confirmation idempotency: paid payment with no order may still trigger `confirmPaidPayment`, but receipt expansion must not create duplicate orders or snapshots.
+  - [x] Add repository tests for confirmed order receipt, pending payment no-order receipt, terminal failed/cancelled receipt, and no raw PII/provider columns in public DTO.
 
-- [ ] Task 4: Add payment status email domain and persistence policy. (AC: 7-8)
-  - [ ] Decide explicit paid-success email policy before coding:
+- [x] Task 4: Add payment status email domain and persistence policy. (AC: 7-8)
+  - [x] Decide explicit paid-success email policy before coding:
     - Preferred: existing order confirmation email satisfies paid-success payment status email when copy includes payment status, fulfillment status, receipt/status URL, and inbox reassurance.
     - Add separate `PaymentStatusEmailNotifier` only for failed/expired/cancelled payment notifications or when product requires distinct paid payment email.
-  - [ ] For failed/expired/cancelled payment emails, add domain template under `src/domain/notifications/**`, recommended `payment-status-email.ts`, using safe fields only: payment status label, payment/reference/order number when available, total, safe next action URL, and no provider payload/contact/delivery details.
-  - [ ] Add durable send state so duplicate refreshes/retries do not duplicate emails. Options:
+  - [x] For failed/expired/cancelled payment emails, add domain template under `src/domain/notifications/**`, recommended `payment-status-email.ts`, using safe fields only: payment status label, payment/reference/order number when available, total, safe next action URL, and no provider payload/contact/delivery details.
+  - [x] Add durable send state so duplicate refreshes/retries do not duplicate emails. Options:
     - Add `payment_status_email_*` columns to `checkout_payments` through next migration after `0031_checkout_reservation_releases.sql`.
     - Or create a generic notification outbox table with unique key `(event_type, payment_id, status)` if broader reuse is justified and tests stay focused.
-  - [ ] Use D1 claim state as source of truth for email idempotency. Resend idempotency headers may be additive only; they expire after 24 hours.
-  - [ ] Email recipient must come from `checkout_attempts.checkout_email` or `orders.checkout_email` already persisted by JRW, never from browser body/query.
-  - [ ] Provider failure marks email state `FAILED` or equivalent retryable state without rolling back payment/order/inventory state.
+  - [x] Use D1 claim state as source of truth for email idempotency. Resend idempotency headers may be additive only; they expire after 24 hours.
+  - [x] Email recipient must come from `checkout_attempts.checkout_email` or `orders.checkout_email` already persisted by JRW, never from browser body/query.
+  - [x] Provider failure marks email state `FAILED` or equivalent retryable state without rolling back payment/order/inventory state.
 
-- [ ] Task 5: Extend Resend adapter safely. (AC: 7-8)
-  - [ ] Reuse `src/adapter/infrastructure/resend/email-template.ts` and config resolution from `CustomerVerificationEmailNotifier.ts`.
-  - [ ] Extend `OrderConfirmationEmailNotifier` copy if it is reused for paid-success payment status. Include order number, payment label, fulfillment label, total, item summary, status URL, and inbox/update reassurance.
-  - [ ] Add `PaymentStatusEmailNotifier` under `src/adapter/infrastructure/resend/**` if terminal payment emails are separate.
-  - [ ] Do not duplicate config parsing, lazy client code, or HTML escaping helpers if existing helpers fit.
-  - [ ] If adding Resend `Idempotency-Key`, keep key length <= 256 and derive from stable internal event key, not raw email or provider payload. If current SDK wrapper cannot pass headers cleanly, rely on D1 claim and document why.
-  - [ ] Add adapter tests for escaped content, safe text/html output, provider error result, no request ID/email/token/provider payload leakage, and optional idempotency key behavior if implemented.
+- [x] Task 5: Extend Resend adapter safely. (AC: 7-8)
+  - [x] Reuse `src/adapter/infrastructure/resend/email-template.ts` and config resolution from `CustomerVerificationEmailNotifier.ts`.
+  - [x] Extend `OrderConfirmationEmailNotifier` copy if it is reused for paid-success payment status. Include order number, payment label, fulfillment label, total, item summary, status URL, and inbox/update reassurance.
+  - [x] Add `PaymentStatusEmailNotifier` under `src/adapter/infrastructure/resend/**` if terminal payment emails are separate.
+  - [x] Do not duplicate config parsing, lazy client code, or HTML escaping helpers if existing helpers fit.
+  - [x] If adding Resend `Idempotency-Key`, keep key length <= 256 and derive from stable internal event key, not raw email or provider payload. If current SDK wrapper cannot pass headers cleanly, rely on D1 claim and document why.
+  - [x] Add adapter tests for escaped content, safe text/html output, provider error result, no request ID/email/token/provider payload leakage, and optional idempotency key behavior if implemented.
 
-- [ ] Task 6: Compose email sending with reconciliation/status paths. (AC: 7-8)
-  - [ ] Update `PaymentReconciliationService` so paid confirmation continues to send/queue order confirmation once and terminal failed/expired/cancelled states can send one safe payment status email when policy says email is required.
-  - [ ] Trigger terminal email from server-owned state transitions or first terminal status read, guarded by email claim. Repeated `getPaymentReturnStatus`, webhook retry, stale pending release retry, and duplicate provider lookup must not duplicate sends.
-  - [ ] Do not send payment failure email for a still-active PayMongo Checkout Session unless JRW has reconciled terminal failed/expired/cancelled state or stale timeout policy released the reservation.
-  - [ ] Preserve `releaseTerminalPaymentInventory` and `releaseStalePendingReturnInventory` behavior from Story 5.6. Email failure cannot block inventory release retry or status response.
-  - [ ] Safe logs should use `createOperationalLogEvent` and existing scrubbers. Add action names such as `payment.status_email_failed` or `order.confirmation_email_failed` consistently.
+- [x] Task 6: Compose email sending with reconciliation/status paths. (AC: 7-8)
+  - [x] Update `PaymentReconciliationService` so paid confirmation continues to send/queue order confirmation once and terminal failed/expired/cancelled states can send one safe payment status email when policy says email is required.
+  - [x] Trigger terminal email from server-owned state transitions or first terminal status read, guarded by email claim. Repeated `getPaymentReturnStatus`, webhook retry, stale pending release retry, and duplicate provider lookup must not duplicate sends.
+  - [x] Do not send payment failure email for a still-active PayMongo Checkout Session unless JRW has reconciled terminal failed/expired/cancelled state or stale timeout policy released the reservation.
+  - [x] Preserve `releaseTerminalPaymentInventory` and `releaseStalePendingReturnInventory` behavior from Story 5.6. Email failure cannot block inventory release retry or status response.
+  - [x] Safe logs should use `createOperationalLogEvent` and existing scrubbers. Add action names such as `payment.status_email_failed` or `order.confirmation_email_failed` consistently.
 
-- [ ] Task 7: Expand payment-return API contract. (AC: 1-8)
-  - [ ] Update `PaymentReturnStatusResult` in `src/server/services/PaymentReconciliationService.ts`, controller response, `payment-return.routes.ts` TypeBox schema, and `src/features/cart-checkout/api.ts` client validator.
-  - [ ] Preserve existing fields for compatibility where reasonable: `status`, `payment`, `order`, `next`, `canRetry`.
-  - [ ] Add safe receipt fields behind `receipt` or expanded `order`: items, totals, labels, inbox reminder, guest account CTA eligibility/action, and maybe `emailStatus` as `SENT`/`FAILED`/`PENDING` without exposing recipient.
-  - [ ] Route remains public customer/guest-facing. Route metadata must still explain high-entropy server references, no brand membership, no raw email lookup, no provider payload, no card/contact PII.
-  - [ ] Response must stay `{ data, meta }` or `{ error }` with request ID.
-  - [ ] Add route tests for public metadata, response schema, no raw provider/PII, paid receipt fields, pending safe fields, failed/cancelled safe fields, and email status if exposed.
+- [x] Task 7: Expand payment-return API contract. (AC: 1-8)
+  - [x] Update `PaymentReturnStatusResult` in `src/server/services/PaymentReconciliationService.ts`, controller response, `payment-return.routes.ts` TypeBox schema, and `src/features/cart-checkout/api.ts` client validator.
+  - [x] Preserve existing fields for compatibility where reasonable: `status`, `payment`, `order`, `next`, `canRetry`.
+  - [x] Add safe receipt fields behind `receipt` or expanded `order`: items, totals, labels, inbox reminder, guest account CTA eligibility/action, and maybe `emailStatus` as `SENT`/`FAILED`/`PENDING` without exposing recipient.
+  - [x] Route remains public customer/guest-facing. Route metadata must still explain high-entropy server references, no brand membership, no raw email lookup, no provider payload, no card/contact PII.
+  - [x] Response must stay `{ data, meta }` or `{ error }` with request ID.
+  - [x] Add route tests for public metadata, response schema, no raw provider/PII, paid receipt fields, pending safe fields, failed/cancelled safe fields, and email status if exposed.
 
-- [ ] Task 8: Upgrade receipt UI in `cart-checkout`. (AC: 1-6, 9)
-  - [ ] Update `src/features/cart-checkout/components/PaymentReturnStatus.tsx` to render receipt as Direction 04 checkout receipt/status, not a sparse payment status page.
-  - [ ] Keep `CheckoutFlowShell` receipt step and current step history non-clickable.
-  - [ ] Main receipt body may show order facts, item list, payment/fulfillment status rows, inbox reassurance, and optional guest account CTA after success.
-  - [ ] Keep summary rail as primary next-action owner unless product explicitly requires CTA in body. If body CTA is added for guest account creation, it must not duplicate summary rail payment/retry action.
-  - [ ] Preserve previous one-shot cleanup: no bordered inner receipt card, compact receipt height, centered readable status body, and no duplicated `Continue shopping` in confirmed main body.
-  - [ ] Use `ButtonLink` for account CTA and next links, `Button` for refresh action, shared tokens, no custom SVG, no `IconButton`.
-  - [ ] Status badges/labels must include text and not rely on color alone.
-  - [ ] Add tests in `cart-ui.test.tsx` for paid receipt items/status/totals, inbox reassurance, guest CTA placement, pending copy, failed/expired/cancelled copy, summary action ownership, no provider internals, no inline duplicate payment actions, and centered/Direction 04 class contract.
+- [x] Task 8: Upgrade receipt UI in `cart-checkout`. (AC: 1-6, 9)
+  - [x] Update `src/features/cart-checkout/components/PaymentReturnStatus.tsx` to render receipt as Direction 04 checkout receipt/status, not a sparse payment status page.
+  - [x] Keep `CheckoutFlowShell` receipt step and current step history non-clickable.
+  - [x] Main receipt body may show order facts, item list, payment/fulfillment status rows, inbox reassurance, and optional guest account CTA after success.
+  - [x] Keep summary rail as primary next-action owner unless product explicitly requires CTA in body. If body CTA is added for guest account creation, it must not duplicate summary rail payment/retry action.
+  - [x] Preserve previous one-shot cleanup: no bordered inner receipt card, compact receipt height, centered readable status body, and no duplicated `Continue shopping` in confirmed main body.
+  - [x] Use `ButtonLink` for account CTA and next links, `Button` for refresh action, shared tokens, no custom SVG, no `IconButton`.
+  - [x] Status badges/labels must include text and not rely on color alone.
+  - [x] Add tests in `cart-ui.test.tsx` for paid receipt items/status/totals, inbox reassurance, guest CTA placement, pending copy, failed/expired/cancelled copy, summary action ownership, no provider internals, no inline duplicate payment actions, and centered/Direction 04 class contract.
 
-- [ ] Task 9: Add or update account CTA behavior. (AC: 3-4)
-  - [ ] Existing customer registration page lives at `/account/register` and currently starts with empty email/password fields.
-  - [ ] Minimum acceptable CTA: show post-success copy that says order updates were sent to checkout email and link `Create account` to `/account/register?returnTo=/account/orders` or another sanitized customer route, without raw email in URL.
-  - [ ] If prefill is implemented, add a signed short-lived receipt/account token or server-masked email context. Do not use `?email=` raw query.
-  - [ ] Account creation remains optional and post-order. Do not add sign-in, Google OAuth, or account creation prompt back to checkout details step.
-  - [ ] Add customer-account UI/API tests if registration route gains returnTo, prefill, or context-token behavior.
+- [x] Task 9: Add or update account CTA behavior. (AC: 3-4)
+  - [x] Existing customer registration page lives at `/account/register` and currently starts with empty email/password fields.
+  - [x] Minimum acceptable CTA: show post-success copy that says order updates were sent to checkout email and link `Create account` to `/account/register?returnTo=/account/orders` or another sanitized customer route, without raw email in URL.
+  - [x] If prefill is implemented, add a signed short-lived receipt/account token or server-masked email context. Do not use `?email=` raw query.
+  - [x] Account creation remains optional and post-order. Do not add sign-in, Google OAuth, or account creation prompt back to checkout details step.
+  - [x] Add customer-account UI/API tests if registration route gains returnTo, prefill, or context-token behavior.
 
-- [ ] Task 10: Validation gates. (AC: 1-10)
-  - [ ] Domain tests:
+- [x] Task 10: Validation gates. (AC: 1-10)
+  - [x] Domain tests:
     - `npx vitest run src/domain/payments/payment-reconciliation.test.ts src/domain/payments/payment-receipt.test.ts`
     - `npx vitest run src/domain/notifications/order-confirmation-email.test.ts src/domain/notifications/payment-status-email.test.ts` if new files exist.
-  - [ ] Repository/service/route tests:
+  - [x] Repository/service/route tests:
     - `npx vitest run src/server/repositories/OrderConfirmationRepository.test.ts src/server/repositories/InventoryReleaseRepository.test.ts`
     - `npx vitest run src/server/services/PaymentReconciliationService.test.ts src/server/services/PaymentWebhookService.test.ts`
     - `npx vitest run src/server/routes/payment-return.routes.test.ts src/server/routes/payment-webhook.routes.test.ts`
-  - [ ] UI/email adapter tests:
+  - [x] UI/email adapter tests:
     - `npx vitest run src/features/cart-checkout/components/cart-ui.test.tsx src/features/customer-account/customer-account-ui.test.tsx`
     - `npx vitest run src/adapter/infrastructure/resend/CustomerVerificationEmailNotifier.test.ts src/adapter/infrastructure/resend/email-template.test.ts`
     - Add and run `src/adapter/infrastructure/resend/OrderConfirmationEmailNotifier.test.ts` or payment-status notifier test if created.
-  - [ ] Schema/safety tests:
+  - [x] Schema/safety tests:
     - `npx vitest run src/domain/schema-invariants.test.ts src/adapter/infrastructure/logging/operational-log.test.ts`
-  - [ ] Run `npm run check`.
-  - [ ] Run `npm run build-development` if route/schema/Worker wiring changes.
-  - [ ] For UI completion, document responsive/manual QA at 320, 375, 768, 1024, and 1440 widths, or document blocker.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run build-development` if route/schema/Worker wiring changes.
+  - [x] For UI completion, document responsive/manual QA at 320, 375, 768, 1024, and 1440 widths, or document blocker.
 
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint/job. Mark non-applicable items as `N/A` with reason.
 
-- [ ] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
-- [ ] Route-level RBAC guard runs before validation or side effects for protected endpoints.
-- [ ] Service/controller enforces actor state before mutation: authenticated, active, verified, approved.
-- [ ] Brand-scoped reads or writes enforce active brand membership or elevated permission server-side.
-- [ ] Public/customer endpoints explicitly document why brand membership is not required.
-- [ ] Denial tests cover unauthenticated actor, wrong role, invalid account state, missing brand membership, and elevated actor path where applicable.
-- [ ] Error response uses safe envelope codes and does not leak provider/internal authorization details.
-- [ ] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
+- [x] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
+- [x] Route-level RBAC guard runs before validation or side effects for protected endpoints.
+- [x] Service/controller enforces actor state before mutation: authenticated, active, verified, approved.
+- [x] Brand-scoped reads or writes enforce active brand membership or elevated permission server-side.
+- [x] Public/customer endpoints explicitly document why brand membership is not required.
+- [x] Denial tests cover unauthenticated actor, wrong role, invalid account state, missing brand membership, and elevated actor path where applicable.
+- [x] Error response uses safe envelope codes and does not leak provider/internal authorization details.
+- [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
 
 For this story:
 
@@ -389,14 +389,64 @@ For this story:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
+
+### Implementation Plan
+
+- Add pure receipt DTO and payment-status email domain helpers before wiring transport/UI.
+- Extend `checkout_payments` with durable terminal payment email state through migration `0032`.
+- Enrich payment-return repository/service/API response with safe receipt fields and terminal email idempotency.
+- Upgrade receipt UI to show items, totals, payment/fulfillment labels, inbox reassurance, and optional post-success account CTA without raw email.
+- Preserve paid-success email reuse through order confirmation email; send separate terminal payment email only for failed/expired/cancelled server-owned states.
 
 ### Debug Log References
 
+- Red test run: `npx vitest run src/domain/payments/payment-receipt.test.ts src/domain/notifications/payment-status-email.test.ts src/adapter/infrastructure/resend/PaymentStatusEmailNotifier.test.ts src/server/repositories/OrderConfirmationRepository.test.ts src/server/services/PaymentReconciliationService.test.ts src/features/cart-checkout/components/cart-ui.test.tsx src/server/routes/payment-return.routes.test.ts src/domain/schema-invariants.test.ts` failed as expected before implementation.
+- Targeted story tests passed: 16 files, 128 tests.
+- `npm run check` passed with existing hints only.
+- `npm run build-development` passed with existing hints only.
+- Full regression `npx vitest run` passed: 131 files, 869 tests.
+- UI token guard returned only existing brand slug/test guard matches.
+- `npm run db:migrate:remote` applied remote development migrations `0030`, `0031`, and `0032`; production untouched.
+
 ### Completion Notes List
 
+- Implemented safe public receipt DTO from server state only: order snapshots for confirmed orders and frozen payment items for pending/terminal payment states.
+- Added receipt API/UI fields for items, totals, payment label, fulfillment label, inbox reassurance, and guest post-success `Create account` CTA without raw email query params.
+- Added durable terminal payment-status email state on `checkout_payments`; paid success continues to reuse order confirmation email, while failed/expired/cancelled states send one safe terminal email through D1 claim state.
+- Preserved Story 5.5/5.6 idempotency: order confirmation, inventory release, webhook retry, return refresh, and stale pending release retry do not depend on email success.
+- Payment/order/inventory state does not roll back when email config/provider send fails; safe operational log uses request ID and payment ID only.
+- Remote development D1 now includes `0032_checkout_payment_status_email.sql`; Wrangler also applied previously pending development migrations `0030` and `0031`.
+- Responsive/manual viewport QA blocker: no seeded browser payment-return fixture exists for 320/375/768/1024/1440 live inspection. Component tests cover receipt markup/class contract and build/type gates passed.
+
 ### File List
+
+- `_bmad-output/implementation-artifacts/5-7-checkout-receipt-payment-status-and-payment-emails.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `migrations/0032_checkout_payment_status_email.sql`
+- `src/adapter/infrastructure/resend/OrderConfirmationEmailNotifier.ts`
+- `src/adapter/infrastructure/resend/PaymentStatusEmailNotifier.test.ts`
+- `src/adapter/infrastructure/resend/PaymentStatusEmailNotifier.ts`
+- `src/domain/notifications/payment-status-email.test.ts`
+- `src/domain/notifications/payment-status-email.ts`
+- `src/domain/payments/payment-receipt.test.ts`
+- `src/domain/payments/payment-receipt.ts`
+- `src/domain/schema-invariants.test.ts`
+- `src/domain/schema/transactions.ts`
+- `src/features/cart-checkout/api.ts`
+- `src/features/cart-checkout/components/CheckoutFlow.tsx`
+- `src/features/cart-checkout/components/PaymentReturnStatus.tsx`
+- `src/features/cart-checkout/components/cart-ui.test.tsx`
+- `src/server/repositories/CheckoutRepository.test.ts`
+- `src/server/repositories/OrderConfirmationRepository.test.ts`
+- `src/server/repositories/OrderConfirmationRepository.ts`
+- `src/server/routes/payment-return.routes.test.ts`
+- `src/server/routes/payment-return.routes.ts`
+- `src/server/routes/payment-webhook.routes.ts`
+- `src/server/services/PaymentReconciliationService.test.ts`
+- `src/server/services/PaymentReconciliationService.ts`
 
 ## Change Log
 
 - 2026-07-07: Story created with rich receipt/status UI and payment status email scope; status set to ready-for-dev.
+- 2026-07-07: Implemented rich receipt/status API, receipt UI, terminal payment-status email idempotency, migration, and tests; status set to review.

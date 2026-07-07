@@ -216,6 +216,14 @@ export const checkout_payments = sqliteTable(
     currency: text("currency").notNull().default("PHP"),
     checkout_url: text("checkout_url").notNull(),
     livemode: integer("livemode", { mode: "boolean" }).notNull().default(false),
+    payment_status_email_status: text("payment_status_email_status")
+      .notNull()
+      .default("PENDING"),
+    payment_status_email_sent_at: text("payment_status_email_sent_at"),
+    payment_status_email_last_attempt_at: text(
+      "payment_status_email_last_attempt_at"
+    ),
+    payment_status_email_message_id: text("payment_status_email_message_id"),
     created_request_id: text("created_request_id").notNull(),
     updated_request_id: text("updated_request_id"),
     created_at: text("created_at")

@@ -1,8 +1,12 @@
 import * as React from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button, ButtonLink, Checkbox } from "@/components/ui";
-import { registerCustomer, sanitizeCustomerReturnTo } from "./api";
+import {
+  getCustomerRegistrationPrefill,
+  registerCustomer,
+  sanitizeCustomerReturnTo,
+} from "./api";
 import { AccountFormField } from "./components/AccountFormField";
 import { AccountShell } from "./components/AccountShell";
 import { customerAccountErrorMessage } from "./errors";
@@ -29,7 +33,13 @@ export function CustomerRegistrationSuccess() {
   );
 }
 
-export function CustomerRegisterPanel({ returnTo }: { returnTo?: string }) {
+export function CustomerRegisterPanel({
+  receiptContext,
+  returnTo,
+}: {
+  receiptContext?: string;
+  returnTo?: string;
+}) {
   const safeReturnTo = useMemo(
     () => sanitizeCustomerReturnTo(returnTo),
     [returnTo]
@@ -44,6 +54,35 @@ export function CustomerRegisterPanel({ returnTo }: { returnTo?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const userEditedEmail = useRef(false);
+
+  useEffect(() => {
+    let active = true;
+
+    if (!receiptContext) {
+      return () => {
+        active = false;
+      };
+    }
+
+    void getCustomerRegistrationPrefill(receiptContext)
+      .then((prefill) => {
+        if (!active || userEditedEmail.current) {
+          return;
+        }
+
+        setEmail((currentEmail) =>
+          currentEmail.trim().length > 0 ? currentEmail : prefill.email
+        );
+      })
+      .catch(() => {
+        // Manual email entry remains available when receipt context is invalid.
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [receiptContext]);
 
   if (success) {
     return <CustomerRegistrationSuccess />;
@@ -103,7 +142,10 @@ export function CustomerRegisterPanel({ returnTo }: { returnTo?: string }) {
           id="customer-register-email"
           label="Email"
           name="email"
-          onChange={(event) => setEmail(event.currentTarget.value)}
+          onChange={(event) => {
+            userEditedEmail.current = true;
+            setEmail(event.currentTarget.value);
+          }}
           placeholder="you@example.com"
           required
           maxLength={254}

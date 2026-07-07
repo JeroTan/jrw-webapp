@@ -7,6 +7,8 @@ import {
   getCartSnapshot,
   parseCartState,
   readCartStateFromStorage,
+  removePurchasedCartItemsFromStore,
+  removePurchasedCartItemsFromStoreOnce,
   removeCartItemFromStore,
   resetCartStoreForTest,
   subscribeCartStore,
@@ -248,5 +250,75 @@ describe("cart store", () => {
       applyCheckoutValidationSummaryToStore(validationSummary, requestSnapshot)
     ).toBe(false);
     expect(getCartSnapshot().items).toHaveLength(0);
+  });
+
+  it("removes only bought cart quantities after payment confirmation", () => {
+    const windowDouble = createWindowDouble();
+    (globalThis as { window?: unknown }).window = windowDouble;
+
+    addCartItemToStore({ ...linenSmall, quantity: 2 });
+    addCartItemToStore({
+      ...linenSmall,
+      productId: "prod_cap",
+      productName: "Cap",
+      productSlug: "cap",
+      quantity: 1,
+      variantId: "variant_cap_default",
+      variantLabel: "Default",
+      variantOptions: [{ group: "Style", name: "Default" }],
+      variantProductId: "prod_cap",
+    });
+
+    expect(
+      removePurchasedCartItemsFromStore([
+        {
+          productId: "prod_linen",
+          quantity: 1,
+          variantId: "variant_linen_small",
+        },
+      ])
+    ).toBe(true);
+
+    expect(getCartSnapshot().items).toMatchObject([
+      { productId: "prod_linen", quantity: 1 },
+      { productId: "prod_cap", quantity: 1 },
+    ]);
+
+    expect(
+      removePurchasedCartItemsFromStore([
+        {
+          productId: "prod_missing",
+          quantity: 1,
+          variantId: "variant_missing",
+        },
+      ])
+    ).toBe(false);
+  });
+
+  it("removes bought quantities once per confirmed payment", () => {
+    const windowDouble = createWindowDouble();
+    (globalThis as { window?: unknown }).window = windowDouble;
+
+    addCartItemToStore({ ...linenSmall, quantity: 2 });
+
+    const boughtLine = {
+      productId: "prod_linen",
+      quantity: 1,
+      variantId: "variant_linen_small",
+    };
+
+    expect(
+      removePurchasedCartItemsFromStoreOnce("payment-return:payment_1", [
+        boughtLine,
+      ])
+    ).toBe(true);
+    expect(
+      removePurchasedCartItemsFromStoreOnce("payment-return:payment_1", [
+        boughtLine,
+      ])
+    ).toBe(false);
+    expect(getCartSnapshot().items).toMatchObject([
+      { productId: "prod_linen", quantity: 1 },
+    ]);
   });
 });

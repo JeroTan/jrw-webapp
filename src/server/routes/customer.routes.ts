@@ -1,6 +1,10 @@
 import { t } from "elysia";
+import { createDb } from "@/adapter/infrastructure/db/client";
 import type { OperationalLogger } from "@/adapter/infrastructure/logging/operational-log";
 import { createCustomerVerificationEmailNotifier } from "@/adapter/infrastructure/resend/CustomerVerificationEmailNotifier";
+import { parseReceiptAccountPrefillToken } from "@/domain/auth/receipt-account-prefill";
+import { publicErrorMessage } from "@/lib/api/errors";
+import { apiErrorWithRequestId, apiSuccessWithRequestId } from "@/lib/api/response";
 import { validatePasswordPepper } from "@/domain/auth/super-admin-seed";
 import { hashSessionToken } from "@/lib/crypto/session-token";
 import { tboxApiSuccess, openApiErrorResponses } from "@/lib/typebox/api";
@@ -14,6 +18,10 @@ import type {
 } from "@/server/context/request-context";
 import { rbacGuard } from "@/server/middleware/rbac";
 import { routeDetail } from "@/server/openapi/route-metadata";
+import {
+  DrizzleCustomerRegistrationPrefillRepository,
+  type CustomerRegistrationPrefill,
+} from "@/server/repositories/CustomerRegistrationPrefillRepository";
 import { createCustomerAccountRepositories } from "@/server/repositories/CustomerAccountRepository";
 import { CustomerAccountService } from "@/server/services/CustomerAccountService";
 import { GeneralError } from "@/utils/general/error";
@@ -73,6 +81,17 @@ const tboxEmailVerificationData = t.Object({
   verified: t.Boolean(),
 });
 
+const tboxCustomerRegistrationPrefillQuery = t.Object(
+  {
+    receiptContext: t.String({ minLength: 1, maxLength: 2048 }),
+  },
+  { additionalProperties: false }
+);
+
+const tboxCustomerRegistrationPrefillData = t.Object({
+  email: t.String({ format: "email" }),
+});
+
 const tboxCustomerProfilePatchBody = t.Object(
   {
     displayName: t.Optional(t.String({ minLength: 1, maxLength: 120 })),
@@ -99,7 +118,33 @@ export type CustomerRoutesOptions = {
     input: CustomerControllerFactoryInput
   ) => CustomerAccountController;
   operationalLogger?: OperationalLogger;
+  registrationPrefillResolver?: (
+    input: CustomerRegistrationPrefillResolverInput
+  ) => Promise<CustomerRegistrationPrefill | null>;
 };
+
+export type CustomerRegistrationPrefillResolverInput = {
+  receiptContext: string;
+  requestId: string;
+  runtimeEnv?: Partial<Env> & Record<string, unknown>;
+};
+
+function stringEnv(
+  runtimeEnv: (Partial<Env> & Record<string, unknown>) | undefined,
+  key: string
+): string | undefined {
+  const processValue =
+    typeof process !== "undefined" ? process.env?.[key] : undefined;
+  const value = runtimeEnv?.[key] ?? processValue;
+
+  if (typeof value !== "string") {
+    return undefined;
+  }
+
+  const trimmed = value.trim();
+
+  return trimmed.length > 0 ? trimmed : undefined;
+}
 
 function getRuntimePasswordPepper(
   runtimeEnv: (Partial<Env> & Record<string, unknown>) | undefined
@@ -108,6 +153,40 @@ function getRuntimePasswordPepper(
 
   if (typeof passwordPepper === "string") return passwordPepper;
   return undefined;
+}
+
+async function resolveRuntimeRegistrationPrefill(
+  input: CustomerRegistrationPrefillResolverInput
+): Promise<CustomerRegistrationPrefill | null> {
+  const db = input.runtimeEnv?.DB;
+  const secret = stringEnv(input.runtimeEnv, "JWT_SECRET");
+
+  if (!db || !secret) {
+    return null;
+  }
+
+  const payload = await parseReceiptAccountPrefillToken({
+    secretKey: secret,
+    token: input.receiptContext,
+  });
+
+  if (!payload) {
+    return null;
+  }
+
+  const repository = new DrizzleCustomerRegistrationPrefillRepository(
+    createDb(db as D1Database)
+  );
+
+  return repository.findConfirmedGuestReceiptPrefill(payload);
+}
+
+function prefillNotFound(requestId: string) {
+  return apiErrorWithRequestId(
+    "RESOURCE_NOT_FOUND",
+    publicErrorMessage("RESOURCE_NOT_FOUND"),
+    requestId
+  );
 }
 
 function createRuntimeController(
@@ -201,6 +280,55 @@ export function customerRoutes(
   options: CustomerRoutesOptions = {}
 ) {
   return app
+    .get(
+      "/customers/registration-prefill",
+      async (ctx) => {
+        const { query, runtimeEnv, set, requestId } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            query: { receiptContext: string };
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+          };
+        const resolver =
+          options.registrationPrefillResolver ??
+          resolveRuntimeRegistrationPrefill;
+        const prefill = await resolver({
+          receiptContext: query.receiptContext,
+          requestId,
+          runtimeEnv,
+        });
+
+        if (!prefill) {
+          set.status = 404;
+          return prefillNotFound(requestId) as never;
+        }
+
+        set.status = 200;
+        return apiSuccessWithRequestId(prefill, requestId, {
+          code: "SUCCESS",
+        }) as never;
+      },
+      {
+        detail: routeDetail({
+          summary: "Resolve receipt registration prefill",
+          description:
+            "Resolves a signed checkout receipt context into the guest checkout email for account registration. The browser URL carries only signed payment/attempt context, never raw email. Context resolves only for confirmed guest orders.",
+          tags: ["Customers"],
+          auth: { mode: "public", roles: ["PROSPECT"] },
+          rateLimitClass: "email-token",
+          errorCodes: [
+            "VALIDATION_FAILED",
+            "RESOURCE_NOT_FOUND",
+            "PROVIDER_UNAVAILABLE",
+            "INTERNAL_ERROR",
+          ],
+        }),
+        query: tboxCustomerRegistrationPrefillQuery,
+        response: {
+          200: tboxApiSuccess(tboxCustomerRegistrationPrefillData),
+          ...openApiErrorResponses([400, 404, 500, 503]),
+        },
+      }
+    )
     .post(
       "/customers",
       async (ctx) => {

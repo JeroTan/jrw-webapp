@@ -127,8 +127,20 @@ export type CheckoutPaymentClientResult =
   | { kind: "denied"; reason: string }
   | { kind: "failure"; networkFailure?: boolean; reason: string };
 
+export type PaymentReturnPublicStatus =
+  | "cancelled"
+  | "confirmed"
+  | "expired"
+  | "failed"
+  | "pending"
+  | "refunded"
+  | "unknown";
+
 export type PaymentReturnStatusResult = {
   canRetry: boolean;
+  email?: {
+    status: "FAILED" | "PENDING" | "SENT" | "SENDING";
+  };
   next: {
     refreshAllowed: boolean;
     retryCheckoutAllowed: boolean;
@@ -142,14 +154,46 @@ export type PaymentReturnStatusResult = {
     paymentId: string;
     status: string;
   };
-  status:
-    | "cancelled"
-    | "confirmed"
-    | "expired"
-    | "failed"
-    | "pending"
-    | "refunded"
-    | "unknown";
+  receipt?: {
+    fulfillmentStatus: {
+      label: string;
+      value:
+        | "CANCELLED"
+        | "DELIVERED"
+        | "ORDER_PLACED"
+        | "PROCESSING"
+        | "SHIPPED"
+        | null;
+    };
+    guestAccountCta: {
+      eligible: boolean;
+      href?: string;
+      label?: string;
+      message?: string;
+    };
+    inboxReminder?: string;
+    items: Array<{
+      lineTotalCentavos: number;
+      name: string;
+      productId: string | null;
+      quantity: number;
+      unitAmountCentavos: number;
+      variantId: string | null;
+      variantLabel: string | null;
+    }>;
+    orderNumber?: string;
+    paymentStatus: {
+      label: string;
+      value: PaymentReturnPublicStatus;
+    };
+    source: "order" | "payment";
+    totals: {
+      currency: "PHP";
+      subtotalCentavos: number;
+      totalCentavos: number;
+    };
+  };
+  status: PaymentReturnPublicStatus;
 };
 
 export type PaymentReturnStatusClientResult =
@@ -501,6 +545,46 @@ function isCheckoutPaymentResult(
   );
 }
 
+function isSafeReceipt(value: unknown): boolean {
+  if (!isRecord(value) || !isRecord(value.totals)) {
+    return false;
+  }
+
+  const candidate = value as PaymentReturnStatusResult["receipt"];
+
+  return Boolean(
+    candidate &&
+    Array.isArray(candidate.items) &&
+    candidate.items.every(
+      (item) =>
+        isRecord(item) &&
+        typeof item.name === "string" &&
+        (typeof item.productId === "string" || item.productId === null) &&
+        typeof item.quantity === "number" &&
+        Number.isSafeInteger(item.quantity) &&
+        typeof item.unitAmountCentavos === "number" &&
+        Number.isSafeInteger(item.unitAmountCentavos) &&
+        typeof item.lineTotalCentavos === "number" &&
+        Number.isSafeInteger(item.lineTotalCentavos) &&
+        (typeof item.variantId === "string" || item.variantId === null) &&
+        (typeof item.variantLabel === "string" || item.variantLabel === null)
+    ) &&
+    candidate.totals.currency === "PHP" &&
+    typeof candidate.totals.subtotalCentavos === "number" &&
+    Number.isSafeInteger(candidate.totals.subtotalCentavos) &&
+    typeof candidate.totals.totalCentavos === "number" &&
+    Number.isSafeInteger(candidate.totals.totalCentavos) &&
+    isRecord(candidate.paymentStatus) &&
+    typeof candidate.paymentStatus.label === "string" &&
+    typeof candidate.paymentStatus.value === "string" &&
+    isRecord(candidate.fulfillmentStatus) &&
+    typeof candidate.fulfillmentStatus.label === "string" &&
+    isRecord(candidate.guestAccountCta) &&
+    typeof candidate.guestAccountCta.eligible === "boolean" &&
+    (candidate.source === "order" || candidate.source === "payment")
+  );
+}
+
 function isPaymentReturnStatusResult(
   value: unknown
 ): value is PaymentReturnStatusResult {
@@ -513,6 +597,7 @@ function isPaymentReturnStatusResult(
     typeof value.payment.status === "string" &&
     typeof value.next.refreshAllowed === "boolean" &&
     typeof value.next.retryCheckoutAllowed === "boolean" &&
+    (!("receipt" in value) || isSafeReceipt(value.receipt)) &&
     (value.status === "cancelled" ||
       value.status === "confirmed" ||
       value.status === "expired" ||

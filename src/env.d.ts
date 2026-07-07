@@ -14,6 +14,7 @@ declare namespace App {
 }
 
 interface Env {
+  JWT_SECRET: string;
   PAYMONGO_PAYMENT_METHODS?: string;
   PAYMONGO_SECRET_KEY?: string;
   PAYMONGO_SEND_EMAIL_RECEIPT?: string;
@@ -22,6 +23,7 @@ interface Env {
 
 declare namespace NodeJS {
   interface ProcessEnv {
+    JWT_SECRET?: string;
     PAYMONGO_PAYMENT_METHODS?: string;
     PAYMONGO_SECRET_KEY?: string;
     PAYMONGO_SEND_EMAIL_RECEIPT?: string;

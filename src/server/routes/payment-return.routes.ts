@@ -1,6 +1,7 @@
 import { t } from "elysia";
 import { createDb } from "@/adapter/infrastructure/db/client";
 import { createOrderConfirmationEmailNotifier } from "@/adapter/infrastructure/resend/OrderConfirmationEmailNotifier";
+import { createPaymentStatusEmailNotifier } from "@/adapter/infrastructure/resend/PaymentStatusEmailNotifier";
 import type { OperationalLogger } from "@/adapter/infrastructure/logging/operational-log";
 import { openApiErrorResponses, tboxApiSuccess } from "@/lib/typebox/api";
 import { PayMongoClient } from "@/lib/paymongo/PayMongoClient";
@@ -37,8 +38,73 @@ const tboxPaymentReturnQuery = t.Object(
   { additionalProperties: true }
 );
 
+const tboxPaymentReturnEmailStatus = t.Union([
+  t.Literal("PENDING"),
+  t.Literal("SENDING"),
+  t.Literal("SENT"),
+  t.Literal("FAILED"),
+]);
+
+const tboxPaymentReturnPublicStatus = t.Union([
+  t.Literal("pending"),
+  t.Literal("confirmed"),
+  t.Literal("failed"),
+  t.Literal("expired"),
+  t.Literal("cancelled"),
+  t.Literal("refunded"),
+  t.Literal("unknown"),
+]);
+
+const tboxPaymentReceipt = t.Object({
+  fulfillmentStatus: t.Object({
+    label: t.String(),
+    value: t.Union([
+      t.Literal("ORDER_PLACED"),
+      t.Literal("PROCESSING"),
+      t.Literal("SHIPPED"),
+      t.Literal("DELIVERED"),
+      t.Literal("CANCELLED"),
+      t.Null(),
+    ]),
+  }),
+  guestAccountCta: t.Object({
+    eligible: t.Boolean(),
+    href: t.Optional(t.String()),
+    label: t.Optional(t.String()),
+    message: t.Optional(t.String()),
+  }),
+  inboxReminder: t.Optional(t.String()),
+  items: t.Array(
+    t.Object({
+      lineTotalCentavos: t.Integer({ minimum: 0 }),
+      name: t.String(),
+      productId: t.Union([t.String(), t.Null()]),
+      quantity: t.Integer({ minimum: 1 }),
+      unitAmountCentavos: t.Integer({ minimum: 0 }),
+      variantId: t.Union([t.String(), t.Null()]),
+      variantLabel: t.Union([t.String(), t.Null()]),
+    })
+  ),
+  orderNumber: t.Optional(t.String()),
+  paymentStatus: t.Object({
+    label: t.String(),
+    value: tboxPaymentReturnPublicStatus,
+  }),
+  source: t.Union([t.Literal("order"), t.Literal("payment")]),
+  totals: t.Object({
+    currency: t.Literal("PHP"),
+    subtotalCentavos: t.Integer({ minimum: 0 }),
+    totalCentavos: t.Integer({ minimum: 0 }),
+  }),
+});
+
 const tboxPaymentReturnStatusData = t.Object({
   canRetry: t.Boolean(),
+  email: t.Optional(
+    t.Object({
+      status: tboxPaymentReturnEmailStatus,
+    })
+  ),
   next: t.Object({
     refreshAllowed: t.Boolean(),
     retryCheckoutAllowed: t.Boolean(),
@@ -54,15 +120,8 @@ const tboxPaymentReturnStatusData = t.Object({
     paymentId: t.String(),
     status: t.String(),
   }),
-  status: t.Union([
-    t.Literal("pending"),
-    t.Literal("confirmed"),
-    t.Literal("failed"),
-    t.Literal("expired"),
-    t.Literal("cancelled"),
-    t.Literal("refunded"),
-    t.Literal("unknown"),
-  ]),
+  receipt: t.Optional(tboxPaymentReceipt),
+  status: tboxPaymentReturnPublicStatus,
 });
 
 function stringEnv(
@@ -96,7 +155,9 @@ function createRuntimeController(
   }
 
   const appDb = createDb(db as D1Database);
-  const repository = new DrizzleOrderConfirmationRepository(appDb);
+  const repository = new DrizzleOrderConfirmationRepository(appDb, {
+    accountPrefillSecret: stringEnv(input.runtimeEnv, "JWT_SECRET"),
+  });
   const inventoryReleaseRepository = new DrizzleInventoryReleaseRepository(
     appDb
   );
@@ -110,6 +171,12 @@ function createRuntimeController(
     ),
     inventoryReleaseRepository,
     operationalLogger: options.operationalLogger,
+    paymentStatusEmailNotifier: createPaymentStatusEmailNotifier(
+      input.runtimeEnv ?? {},
+      {
+        requestUrl: input.request.url,
+      }
+    ),
     paymentStatusProvider: payMongoSecretKey
       ? new PayMongoClient({
           secretKey: payMongoSecretKey,
@@ -165,7 +232,7 @@ export function paymentReturnRoutes(
       detail: routeDetail({
         summary: "Read checkout payment return status",
         description:
-          "Reads payment/order status after PayMongo Hosted Checkout return using server-owned checkout references only. Redirect query values never finalize payment or create paid state; paid order confirmation can only be created from existing JRW PAYMENT_PAID state or backend PayMongo session reconciliation using JRW secrets. Terminal or timed-out pending payment state may release reserved inventory through server state only. Brand membership is not required because this endpoint returns a limited customer-safe status for high-entropy checkout references and no provider payload, card data, token, email lookup, phone, or address.",
+          "Reads payment/order status after PayMongo Hosted Checkout return using server-owned checkout references only. Redirect query values never finalize payment or create paid state; paid order confirmation can only be created from existing JRW PAYMENT_PAID state or backend PayMongo session reconciliation using JRW secrets. Terminal or timed-out pending payment state may release reserved inventory and send one safe terminal payment-status email through server state only. Confirmed guest receipts may include a signed account-prefill context that carries checkout/payment IDs only; raw checkout email stays behind the customer registration prefill endpoint. Brand membership is not required because this endpoint returns a limited customer-safe status and no provider payload, card data, raw email, phone, or address.",
         tags: ["Checkout", "Payments"],
         auth: { mode: "public" },
         rateLimitClass: "checkout-payment",

@@ -1,6 +1,7 @@
 import { createId } from "@paralleldrive/cuid2";
 import { and, asc, desc, eq, or, sql, type SQL } from "drizzle-orm";
 import type { AppDb } from "@/adapter/infrastructure/db/client";
+import { createReceiptAccountPrefillToken } from "@/domain/auth/receipt-account-prefill";
 import {
   type OrderConfirmationEmailStatus,
   type OrderFulfillmentStatus,
@@ -8,6 +9,12 @@ import {
   paymentReturnStatusFromPayment,
   type PaymentReturnStatus,
 } from "@/domain/payments/payment-reconciliation";
+import {
+  buildPaymentReceipt,
+  paymentStatusLabel as publicPaymentStatusLabel,
+  type PublicPaymentReceipt,
+  type PublicPaymentReceiptItem,
+} from "@/domain/payments/payment-receipt";
 import { products, product_variants } from "@/domain/schema/catalog";
 import {
   checkout_attempts,
@@ -18,8 +25,14 @@ import {
   orders,
 } from "@/domain/schema/transactions";
 import type { OrderConfirmationEmailItem } from "@/domain/notifications/order-confirmation-email";
+import type { PaymentStatusEmailInput } from "@/domain/notifications/payment-status-email";
 
 type OrderRow = typeof orders.$inferSelect;
+
+export type OrderConfirmationRepositoryOptions = {
+  accountPrefillSecret?: string;
+  accountPrefillTtlSeconds?: number;
+};
 
 export type OrderConfirmationRecord = {
   checkoutAttemptId: string;
@@ -98,11 +111,15 @@ export type PaymentReturnLookupInput = {
 export type PaymentReturnRecord = {
   canRetry: boolean;
   checkoutAttemptId: string;
+  email: {
+    status: OrderConfirmationEmailStatus;
+  };
   orderId: string | null;
   orderNumber: string | null;
   paymentId: string;
   paymentStatus: string;
   providerCheckoutSessionId: string;
+  receipt: PublicPaymentReceipt;
   status: PaymentReturnStatus;
   totalCentavos: number | null;
 };
@@ -118,10 +135,20 @@ export type OrderConfirmationEmailRecord = {
   totalCentavos: number;
 };
 
+export type PaymentStatusEmailRecord = Omit<
+  PaymentStatusEmailInput,
+  "requestId"
+>;
+
 export type OrderConfirmationRepositoryLike = {
   claimOrderConfirmationEmail(input: {
     now?: string;
     orderId: string;
+    requestId: string;
+  }): Promise<boolean>;
+  claimPaymentStatusEmail(input: {
+    now?: string;
+    paymentId: string;
     requestId: string;
   }): Promise<boolean>;
   createOrderConfirmationForPaidPayment(
@@ -133,6 +160,9 @@ export type OrderConfirmationRepositoryLike = {
   getOrderConfirmationEmail(
     orderId: string
   ): Promise<OrderConfirmationEmailRecord | null>;
+  getPaymentStatusEmail(
+    paymentId: string
+  ): Promise<PaymentStatusEmailRecord | null>;
   markOrderConfirmationEmailFailed(input: {
     now?: string;
     orderId: string;
@@ -142,6 +172,17 @@ export type OrderConfirmationRepositoryLike = {
     messageId?: string;
     now?: string;
     orderId: string;
+    requestId: string;
+  }): Promise<void>;
+  markPaymentStatusEmailFailed(input: {
+    now?: string;
+    paymentId: string;
+    requestId: string;
+  }): Promise<void>;
+  markPaymentStatusEmailSent(input: {
+    messageId?: string;
+    now?: string;
+    paymentId: string;
     requestId: string;
   }): Promise<void>;
   markProviderCheckoutSessionPaid(
@@ -257,6 +298,17 @@ function paymentReturnStatusPath(paymentId: string): string {
   return `/checkout/payment-return?${params.toString()}`;
 }
 
+function paymentStatusNextActionUrl(status: string): string {
+  switch (status) {
+    case "PAYMENT_FAILED":
+    case "PAYMENT_EXPIRED":
+    case "PAYMENT_CANCELLED":
+      return "/checkout";
+    default:
+      return "/products";
+  }
+}
+
 function rowToOrderConfirmation(row: OrderRow): OrderConfirmationRecord {
   if (!row.payment_id || !row.checkout_attempt_id || !row.reservation_id) {
     throw new Error("ORDER_CONFIRMATION_ROW_INCOMPLETE");
@@ -363,7 +415,10 @@ function staleEmailClaimCutoff(now: string): string | null {
 }
 
 export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepositoryLike {
-  constructor(private readonly db: AppDb) {}
+  constructor(
+    private readonly db: AppDb,
+    private readonly options: OrderConfirmationRepositoryOptions = {}
+  ) {}
 
   async createOrderConfirmationForPaidPayment(
     input: ConfirmPaidPaymentInput
@@ -580,15 +635,32 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
     const rows = await this.db
       .select({
         checkoutAttemptId: checkout_payments.checkout_attempt_id,
+        checkoutEmail: checkout_attempts.checkout_email,
+        customerId: checkout_attempts.customer_id,
+        orderConfirmationEmailStatus: orders.order_confirmation_email_status,
+        orderFulfillmentStatus: orders.fulfillment_status,
         orderId: orders.id,
         orderNumber: orders.order_number,
+        orderSubtotalCentavos: orders.subtotal_centavos,
+        orderTotalCentavos: orders.total_centavos,
+        paymentAmountCentavos: checkout_payments.amount_centavos,
+        paymentStatusEmailStatus: checkout_payments.payment_status_email_status,
         paymentId: checkout_payments.id,
         paymentStatus: checkout_payments.status,
         providerCheckoutSessionId:
           checkout_payments.provider_checkout_session_id,
+        reservationSubtotalCentavos: checkout_reservations.subtotal_centavos,
         totalCentavos: orders.total_centavos,
       })
       .from(checkout_payments)
+      .innerJoin(
+        checkout_attempts,
+        eq(checkout_attempts.id, checkout_payments.checkout_attempt_id)
+      )
+      .leftJoin(
+        checkout_reservations,
+        eq(checkout_reservations.id, checkout_payments.reservation_id)
+      )
       .leftJoin(orders, eq(orders.payment_id, checkout_payments.id))
       .where(
         and(eq(checkout_payments.provider, "PAYMONGO"), ...lookupConditions)
@@ -609,21 +681,78 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
       orderId: row.orderId,
       paymentStatus: row.paymentStatus,
     });
+    const items = row.orderId
+      ? await this.orderReceiptItems(row.orderId)
+      : await this.paymentReceiptItems(row.paymentId);
+    const accountPrefillContext =
+      status === "confirmed" &&
+      !row.customerId &&
+      cleanString(row.checkoutEmail)
+        ? await this.createAccountPrefillContext({
+            attemptId: row.checkoutAttemptId,
+            paymentId: row.paymentId,
+          })
+        : null;
+    const receipt = buildPaymentReceipt({
+      accountPrefillContext,
+      customerId: row.customerId,
+      fulfillmentStatus: row.orderId
+        ? fulfillmentStatus(row.orderFulfillmentStatus ?? "")
+        : null,
+      items,
+      orderId: row.orderId,
+      orderNumber: row.orderNumber,
+      paymentStatus: row.paymentStatus,
+      source: row.orderId ? "order" : "payment",
+      subtotalCentavos: Number(
+        row.orderSubtotalCentavos ??
+          row.reservationSubtotalCentavos ??
+          row.paymentAmountCentavos ??
+          0
+      ),
+      totalCentavos: Number(
+        row.orderTotalCentavos ?? row.paymentAmountCentavos ?? 0
+      ),
+    });
 
     return {
       canRetry: canRetryPaymentStatus(status),
       checkoutAttemptId: row.checkoutAttemptId,
+      email: {
+        status: emailStatus(
+          row.orderId
+            ? (row.orderConfirmationEmailStatus ?? "PENDING")
+            : row.paymentStatusEmailStatus
+        ),
+      },
       orderId: row.orderId,
       orderNumber: row.orderNumber,
       paymentId: row.paymentId,
       paymentStatus: row.paymentStatus,
       providerCheckoutSessionId: row.providerCheckoutSessionId,
+      receipt,
       status,
       totalCentavos:
         typeof row.totalCentavos === "number"
           ? Number(row.totalCentavos)
           : null,
     };
+  }
+
+  private async createAccountPrefillContext(input: {
+    attemptId: string;
+    paymentId: string;
+  }): Promise<string | null> {
+    if (!this.options.accountPrefillSecret) {
+      return null;
+    }
+
+    return createReceiptAccountPrefillToken({
+      attemptId: input.attemptId,
+      paymentId: input.paymentId,
+      secretKey: this.options.accountPrefillSecret,
+      ttlSeconds: this.options.accountPrefillTtlSeconds,
+    });
   }
 
   async markProviderCheckoutSessionPaid(
@@ -883,6 +1012,74 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
       .where(eq(orders.id, input.orderId));
   }
 
+  async claimPaymentStatusEmail(input: {
+    now?: string;
+    paymentId: string;
+    requestId: string;
+  }): Promise<boolean> {
+    const now = input.now ?? new Date().toISOString();
+    const staleSendingBefore = staleEmailClaimCutoff(now);
+    const rows = await this.db
+      .update(checkout_payments)
+      .set({
+        payment_status_email_status: "SENDING",
+        payment_status_email_last_attempt_at: now,
+        updated_request_id: input.requestId,
+        updated_at: now,
+      })
+      .where(
+        and(
+          eq(checkout_payments.id, input.paymentId),
+          sql`${checkout_payments.status} IN ('PAYMENT_FAILED', 'PAYMENT_EXPIRED', 'PAYMENT_CANCELLED')`,
+          staleSendingBefore
+            ? sql`(${checkout_payments.payment_status_email_status} IN ('PENDING', 'FAILED') OR (${checkout_payments.payment_status_email_status} = 'SENDING' AND (${checkout_payments.payment_status_email_last_attempt_at} IS NULL OR ${checkout_payments.payment_status_email_last_attempt_at} <= ${staleSendingBefore})))`
+            : sql`${checkout_payments.payment_status_email_status} IN ('PENDING', 'FAILED')`
+        )
+      )
+      .returning({ id: checkout_payments.id });
+
+    return rows.length === 1;
+  }
+
+  async markPaymentStatusEmailSent(input: {
+    messageId?: string;
+    now?: string;
+    paymentId: string;
+    requestId: string;
+  }): Promise<void> {
+    const now = input.now ?? new Date().toISOString();
+
+    await this.db
+      .update(checkout_payments)
+      .set({
+        payment_status_email_status: "SENT",
+        payment_status_email_sent_at: now,
+        payment_status_email_last_attempt_at: now,
+        payment_status_email_message_id: input.messageId ?? null,
+        updated_request_id: input.requestId,
+        updated_at: now,
+      })
+      .where(eq(checkout_payments.id, input.paymentId));
+  }
+
+  async markPaymentStatusEmailFailed(input: {
+    now?: string;
+    paymentId: string;
+    requestId: string;
+  }): Promise<void> {
+    const now = input.now ?? new Date().toISOString();
+
+    await this.db
+      .update(checkout_payments)
+      .set({
+        payment_status_email_status: "FAILED",
+        payment_status_email_last_attempt_at: now,
+        updated_request_id: input.requestId,
+        updated_at: now,
+      })
+      .where(eq(checkout_payments.id, input.paymentId));
+  }
+
   async getOrderConfirmationEmail(
     orderId: string
   ): Promise<OrderConfirmationEmailRecord | null> {
@@ -932,6 +1129,40 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
       statusUrl: paymentReturnStatusPath(order.paymentId),
       toEmail: order.checkoutEmail,
       totalCentavos: Number(order.totalCentavos),
+    };
+  }
+
+  async getPaymentStatusEmail(
+    paymentId: string
+  ): Promise<PaymentStatusEmailRecord | null> {
+    const rows = await this.db
+      .select({
+        amountCentavos: checkout_payments.amount_centavos,
+        checkoutEmail: checkout_attempts.checkout_email,
+        currency: checkout_payments.currency,
+        paymentId: checkout_payments.id,
+        status: checkout_payments.status,
+      })
+      .from(checkout_payments)
+      .innerJoin(
+        checkout_attempts,
+        eq(checkout_attempts.id, checkout_payments.checkout_attempt_id)
+      )
+      .where(eq(checkout_payments.id, paymentId))
+      .limit(1);
+    const row = rows[0];
+
+    if (!row?.checkoutEmail) {
+      return null;
+    }
+
+    return {
+      currency: "PHP",
+      nextActionUrl: paymentStatusNextActionUrl(row.status),
+      paymentStatusLabel: publicPaymentStatusLabel(row.status),
+      referenceLabel: `Payment ${row.paymentId}`,
+      toEmail: row.checkoutEmail,
+      totalCentavos: Number(row.amountCentavos),
     };
   }
 
@@ -1078,5 +1309,64 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
       variantName: row.variantName,
       variantOptions: row.variantOptions,
     }));
+  }
+
+  private async orderReceiptItems(
+    orderId: string
+  ): Promise<PublicPaymentReceiptItem[]> {
+    const rows = await this.db
+      .select({
+        productId: order_snapshots.product_id,
+        productName: order_snapshots.product_name,
+        quantity: order_snapshots.quantity,
+        unitAmountCentavos: order_snapshots.price_centavos,
+        variantId: order_snapshots.variant_id,
+        variantName: order_snapshots.variant_name,
+      })
+      .from(order_snapshots)
+      .where(eq(order_snapshots.order_id, orderId))
+      .orderBy(
+        asc(order_snapshots.snapshot_timestamp),
+        asc(order_snapshots.id)
+      );
+
+    return rows.map((row) => {
+      const quantity = Number(row.quantity);
+      const unitAmountCentavos = Number(row.unitAmountCentavos);
+
+      return {
+        lineTotalCentavos: unitAmountCentavos * quantity,
+        name: row.productName,
+        productId: row.productId,
+        quantity,
+        unitAmountCentavos,
+        variantId: row.variantId,
+        variantLabel: cleanString(row.variantName),
+      };
+    });
+  }
+
+  private async paymentReceiptItems(
+    paymentId: string
+  ): Promise<PublicPaymentReceiptItem[]> {
+    const items = await this.paymentItemSnapshotSources(paymentId);
+
+    return items.map((item) => {
+      const fallbackNames = splitPaymentItemName(item.name);
+      const name =
+        cleanString(item.productName) ?? fallbackNames.productName ?? "Product";
+      const variantLabel =
+        cleanString(item.variantName) ?? fallbackNames.variantName ?? null;
+
+      return {
+        lineTotalCentavos: item.amountCentavos * item.quantity,
+        name,
+        productId: item.productId,
+        quantity: item.quantity,
+        unitAmountCentavos: item.amountCentavos,
+        variantId: item.variantId,
+        variantLabel,
+      };
+    });
   }
 }

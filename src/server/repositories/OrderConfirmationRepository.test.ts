@@ -94,6 +94,10 @@ async function createOrderConfirmationTestD1() {
       currency text DEFAULT 'PHP' NOT NULL,
       checkout_url text NOT NULL,
       livemode integer DEFAULT 0 NOT NULL,
+      payment_status_email_status text DEFAULT 'PENDING' NOT NULL,
+      payment_status_email_sent_at text,
+      payment_status_email_last_attempt_at text,
+      payment_status_email_message_id text,
       created_request_id text NOT NULL,
       updated_request_id text,
       created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
@@ -674,6 +678,171 @@ describe("DrizzleOrderConfirmationRepository", () => {
         paymentId: "payment_1",
         status: "confirmed",
       });
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("returns confirmed public receipt from order snapshots without PII", async () => {
+    const { mf, repository } = await createOrderConfirmationTestD1();
+
+    try {
+      const confirmation =
+        await repository.createOrderConfirmationForPaidPayment({
+          now,
+          paymentId: "payment_1",
+          requestId: "req_receipt",
+        });
+      const record = await repository.findPaymentReturnRecord({
+        paymentId: "payment_1",
+      });
+
+      expect(confirmation).toMatchObject({ decision: "confirmed" });
+      expect(record).toMatchObject({
+        orderNumber: expect.stringContaining("JRW-2026"),
+        paymentId: "payment_1",
+        receipt: {
+          guestAccountCta: {
+            eligible: true,
+            href: "/account/register?returnTo=%2Faccount%2Forders",
+            label: "Create account",
+          },
+          items: [
+            {
+              lineTotalCentavos: 3998,
+              name: "Linen Shirt",
+              productId: "prod_linen",
+              quantity: 2,
+              unitAmountCentavos: 1999,
+              variantId: "variant_linen_small",
+              variantLabel: "Size: Small",
+            },
+          ],
+          paymentStatus: { label: "Payment paid", value: "confirmed" },
+          source: "order",
+          totals: { subtotalCentavos: 3998, totalCentavos: 3998 },
+        },
+        status: "confirmed",
+      });
+      expect(JSON.stringify(record)).not.toMatch(
+        /nina@example|0917|Sampaguita|checkout\.paymongo|secret|card/i
+      );
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("adds signed account prefill context when configured", async () => {
+    const { d1, mf } = await createOrderConfirmationTestD1();
+    const repository = new DrizzleOrderConfirmationRepository(createDb(d1), {
+      accountPrefillSecret: "test-jwt-secret",
+    });
+
+    try {
+      await repository.createOrderConfirmationForPaidPayment({
+        now,
+        paymentId: "payment_1",
+        requestId: "req_receipt_context",
+      });
+      const record = await repository.findPaymentReturnRecord({
+        paymentId: "payment_1",
+      });
+
+      expect(record?.receipt.guestAccountCta.href).toContain("receiptContext=");
+      expect(record?.receipt.guestAccountCta.href).not.toContain(
+        "nina@example.com"
+      );
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("returns pending public receipt from frozen payment items without order confirmation", async () => {
+    const { d1, mf, repository } = await createOrderConfirmationTestD1();
+
+    try {
+      await d1
+        .prepare(`UPDATE checkout_payments SET status = ? WHERE id = ?`)
+        .bind("PAYMENT_PENDING", "payment_1")
+        .run();
+
+      const record = await repository.findPaymentReturnRecord({
+        paymentId: "payment_1",
+      });
+
+      expect(record).toMatchObject({
+        orderId: null,
+        receipt: {
+          guestAccountCta: { eligible: false },
+          items: [
+            {
+              lineTotalCentavos: 3998,
+              name: "Linen Shirt",
+              productId: "prod_linen",
+              quantity: 2,
+              unitAmountCentavos: 1999,
+              variantId: "variant_linen_small",
+              variantLabel: "Size: Small",
+            },
+          ],
+          paymentStatus: { label: "Payment pending", value: "pending" },
+          source: "payment",
+        },
+        status: "pending",
+      });
+      expect(JSON.stringify(record)).not.toMatch(
+        /nina@example|0917|Sampaguita|checkout\.paymongo|secret|card/i
+      );
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("claims terminal payment status email idempotently", async () => {
+    const { d1, mf, repository } = await createOrderConfirmationTestD1();
+
+    try {
+      await d1
+        .prepare(`UPDATE checkout_payments SET status = ? WHERE id = ?`)
+        .bind("PAYMENT_FAILED", "payment_1")
+        .run();
+
+      await expect(
+        repository.claimPaymentStatusEmail({
+          now,
+          paymentId: "payment_1",
+          requestId: "req_claim_payment_email_1",
+        })
+      ).resolves.toBe(true);
+      await expect(
+        repository.claimPaymentStatusEmail({
+          now: "2026-06-26T05:01:00.000Z",
+          paymentId: "payment_1",
+          requestId: "req_claim_payment_email_2",
+        })
+      ).resolves.toBe(false);
+
+      const payload = await repository.getPaymentStatusEmail("payment_1");
+      expect(payload).toMatchObject({
+        paymentStatusLabel: "Payment failed",
+        referenceLabel: "Payment payment_1",
+        toEmail: "nina@example.com",
+        totalCentavos: 3998,
+      });
+
+      await repository.markPaymentStatusEmailSent({
+        messageId: "email_1",
+        now,
+        paymentId: "payment_1",
+        requestId: "req_payment_email_sent",
+      });
+      await expect(
+        repository.claimPaymentStatusEmail({
+          now: "2026-06-26T05:16:00.000Z",
+          paymentId: "payment_1",
+          requestId: "req_claim_after_sent",
+        })
+      ).resolves.toBe(false);
     } finally {
       await mf.dispose();
     }

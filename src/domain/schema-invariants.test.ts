@@ -575,6 +575,10 @@ describe("checkout schema invariants", () => {
         "currency",
         "checkout_url",
         "livemode",
+        "payment_status_email_status",
+        "payment_status_email_sent_at",
+        "payment_status_email_last_attempt_at",
+        "payment_status_email_message_id",
         "created_request_id",
         "updated_request_id",
       ])

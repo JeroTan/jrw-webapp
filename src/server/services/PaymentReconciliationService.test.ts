@@ -21,6 +21,10 @@ function repositoryStub(
       calls.push("claimOrderConfirmationEmail");
       return true;
     },
+    claimPaymentStatusEmail: async () => {
+      calls.push("claimPaymentStatusEmail");
+      return true;
+    },
     createOrderConfirmationForPaidPayment: async () => {
       calls.push("createOrderConfirmationForPaidPayment");
       return {
@@ -46,11 +50,24 @@ function repositoryStub(
     findPaymentReturnRecord: async () => ({
       canRetry: false,
       checkoutAttemptId: "attempt_1",
+      email: { status: "PENDING" as const },
       orderId: null,
       orderNumber: null,
       paymentId: "payment_1",
       paymentStatus: "PAYMENT_PAID",
       providerCheckoutSessionId: "cs_1",
+      receipt: {
+        fulfillmentStatus: { label: "Not started", value: null },
+        guestAccountCta: { eligible: false },
+        items: [],
+        paymentStatus: { label: "Payment pending", value: "pending" as const },
+        source: "payment" as const,
+        totals: {
+          currency: "PHP" as const,
+          subtotalCentavos: 3998,
+          totalCentavos: 3998,
+        },
+      },
       status: "pending" as const,
       totalCentavos: null,
     }),
@@ -67,11 +84,28 @@ function repositoryStub(
         totalCentavos: 3998,
       };
     },
+    getPaymentStatusEmail: async () => {
+      calls.push("getPaymentStatusEmail");
+      return {
+        currency: "PHP" as const,
+        nextActionUrl: "/checkout",
+        paymentStatusLabel: "Payment expired",
+        referenceLabel: "Payment payment_1",
+        toEmail: "nina@example.com",
+        totalCentavos: 3998,
+      };
+    },
     markOrderConfirmationEmailFailed: async () => {
       calls.push("markOrderConfirmationEmailFailed");
     },
     markOrderConfirmationEmailSent: async () => {
       calls.push("markOrderConfirmationEmailSent");
+    },
+    markPaymentStatusEmailFailed: async () => {
+      calls.push("markPaymentStatusEmailFailed");
+    },
+    markPaymentStatusEmailSent: async () => {
+      calls.push("markPaymentStatusEmailSent");
     },
     markProviderCheckoutSessionPaid: async () => {
       calls.push("markProviderCheckoutSessionPaid");
@@ -97,11 +131,24 @@ function pendingPaymentRecord() {
   return {
     canRetry: false,
     checkoutAttemptId: "attempt_1",
+    email: { status: "PENDING" as const },
     orderId: null,
     orderNumber: null,
     paymentId: "payment_1",
     paymentStatus: "PAYMENT_PENDING",
     providerCheckoutSessionId: "cs_1",
+    receipt: {
+      fulfillmentStatus: { label: "Not started", value: null },
+      guestAccountCta: { eligible: false },
+      items: [],
+      paymentStatus: { label: "Payment pending", value: "pending" as const },
+      source: "payment" as const,
+      totals: {
+        currency: "PHP" as const,
+        subtotalCentavos: 3998,
+        totalCentavos: 3998,
+      },
+    },
     status: "pending" as const,
     totalCentavos: null,
   };
@@ -616,8 +663,13 @@ describe("PaymentReconciliationService", () => {
     });
 
     expect(providerLookups).toEqual([]);
-    expect(repository.calls).toEqual([]);
+    expect(repository.calls).toEqual([
+      "claimPaymentStatusEmail",
+      "getPaymentStatusEmail",
+      "markPaymentStatusEmailFailed",
+    ]);
     expect(result.content).toMatchObject({
+      email: { status: "FAILED" },
       status: "failed",
       next: { refreshAllowed: false, retryCheckoutAllowed: true },
     });
@@ -670,6 +722,110 @@ describe("PaymentReconciliationService", () => {
       status: "expired",
       next: { refreshAllowed: false, retryCheckoutAllowed: true },
     });
+  });
+
+  it("sends one terminal payment status email from server-owned terminal state", async () => {
+    const repository = repositoryStub({
+      findPaymentReturnRecord: async () => ({
+        ...pendingPaymentRecord(),
+        canRetry: true,
+        email: { status: "PENDING" as const },
+        paymentStatus: "PAYMENT_EXPIRED",
+        receipt: {
+          fulfillmentStatus: { label: "Not started", value: null },
+          guestAccountCta: { eligible: false },
+          items: [],
+          paymentStatus: { label: "Payment expired", value: "expired" },
+          source: "payment" as const,
+          totals: {
+            currency: "PHP" as const,
+            subtotalCentavos: 3998,
+            totalCentavos: 3998,
+          },
+        },
+        status: "expired" as const,
+      }),
+    });
+    const sentEmails: unknown[] = [];
+    const service = new PaymentReconciliationService({
+      paymentStatusEmailNotifier: {
+        sendPaymentStatusEmail: async (input) => {
+          sentEmails.push(input);
+          return { ok: true, messageId: "email_1" };
+        },
+      },
+      repository,
+    });
+
+    const result = await service.getPaymentReturnStatus({
+      attemptId: "attempt_1",
+      now,
+      requestId: "req_terminal_email",
+    });
+
+    expect(repository.calls).toEqual([
+      "claimPaymentStatusEmail",
+      "getPaymentStatusEmail",
+      "markPaymentStatusEmailSent",
+    ]);
+    expect(result.content).toMatchObject({
+      email: { status: "SENT" },
+      status: "expired",
+    });
+    expect(sentEmails).toHaveLength(1);
+    expect(JSON.stringify(sentEmails)).not.toMatch(
+      /checkout\.paymongo|Sampaguita|0917|token|secret|card/i
+    );
+  });
+
+  it("keeps terminal status when payment status email provider fails", async () => {
+    const repository = repositoryStub({
+      findPaymentReturnRecord: async () => ({
+        ...pendingPaymentRecord(),
+        canRetry: true,
+        email: { status: "PENDING" as const },
+        paymentStatus: "PAYMENT_FAILED",
+        status: "failed" as const,
+      }),
+    });
+    const logs: unknown[] = [];
+    const service = new PaymentReconciliationService({
+      operationalLogger: {
+        record: (event) => {
+          logs.push(event);
+        },
+      },
+      paymentStatusEmailNotifier: {
+        sendPaymentStatusEmail: async () => ({ ok: false }),
+      },
+      repository,
+    });
+
+    const result = await service.getPaymentReturnStatus({
+      attemptId: "attempt_1",
+      now,
+      requestId: "req_terminal_email_failed",
+    });
+
+    expect(result.content).toMatchObject({
+      email: { status: "FAILED" },
+      status: "failed",
+    });
+    expect(repository.calls).toEqual([
+      "claimPaymentStatusEmail",
+      "getPaymentStatusEmail",
+      "markPaymentStatusEmailFailed",
+    ]);
+    expect(logs).toEqual([
+      expect.objectContaining({
+        details: expect.objectContaining({
+          action: "payment.status_email_failed",
+          paymentId: "payment_1",
+          reason: "provider_send_failed",
+        }),
+        requestId: "req_terminal_email_failed",
+      }),
+    ]);
   });
 
   it("keeps pending return safe when PayMongo fallback is unavailable", async () => {

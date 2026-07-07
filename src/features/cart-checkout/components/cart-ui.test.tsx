@@ -10,6 +10,7 @@ import {
   CheckoutFlowShell,
   PaymentReturnCheckoutView,
   PaymentReturnStatusView,
+  purchasedCartItemsFromPaymentReturn,
   redirectToPayMongoCheckout,
 } from "@/features/cart-checkout";
 import {
@@ -1093,6 +1094,39 @@ describe("cart checkout UI", () => {
               paymentId: "payment_1",
               status: "PAYMENT_PAID",
             },
+            receipt: {
+              fulfillmentStatus: {
+                label: "Order placed",
+                value: "ORDER_PLACED",
+              },
+              guestAccountCta: {
+                eligible: true,
+                href: "/account/register?returnTo=%2Faccount%2Forders",
+                label: "Create account",
+                message:
+                  "Create an account with this email to track delivery faster next time.",
+              },
+              inboxReminder:
+                "Order and delivery updates were sent to your checkout email inbox.",
+              items: [
+                {
+                  lineTotalCentavos: 3998,
+                  name: "Linen Shirt",
+                  productId: "prod_linen",
+                  quantity: 2,
+                  unitAmountCentavos: 1999,
+                  variantId: "variant_linen_small",
+                  variantLabel: "Size: Small",
+                },
+              ],
+              paymentStatus: { label: "Payment paid", value: "confirmed" },
+              source: "order",
+              totals: {
+                currency: "PHP",
+                subtotalCentavos: 3998,
+                totalCentavos: 3998,
+              },
+            },
             status: "confirmed",
           },
         },
@@ -1101,8 +1135,18 @@ describe("cart checkout UI", () => {
 
     expect(markup).toContain("Order confirmed");
     expect(markup).toContain("JRW-2026-ORDER1");
+    expect(markup).toContain("Linen Shirt");
+    expect(markup).toContain("Size: Small");
+    expect(markup).toContain("Payment paid");
+    expect(markup).toContain("Order placed");
+    expect(markup).toContain("checkout email inbox");
+    expect(markup).not.toContain("Create account");
+    expect(markup).not.toContain(
+      "/account/register?returnTo=%2Faccount%2Forders"
+    );
     expect(markup).toContain("mx-auto grid w-full max-w-xl");
     expect(markup).not.toContain("Continue shopping");
+    expect(markup).not.toMatch(/email=/i);
     expect(markup).not.toMatch(
       /checkout\.paymongo|cs_test|nina@example|Sampaguita|attemptToken|card/i
     );
@@ -1165,6 +1209,31 @@ describe("cart checkout UI", () => {
     );
   });
 
+  it("renders payment return loading sidebar skeleton", () => {
+    const markup = renderToStaticMarkup(
+      createElement(PaymentReturnCheckoutView, {
+        refreshing: true,
+        result: {
+          kind: "failure",
+          reason: "Checking server payment status.",
+        },
+        state: activeCart,
+      })
+    );
+
+    expect(markup).toContain("Checking payment");
+    expect(markup).toContain("Checking server payment status.");
+    expect(markup).toContain("Loading receipt summary label");
+    expect(markup).toContain("Loading receipt action");
+    expect(markup).toContain("motion-safe:animate-pulse");
+    expect(markup).not.toContain("Cart summary");
+    expect(markup).not.toContain("Subtotal");
+    expect(markup).not.toContain("item quantity");
+    expect(markup).not.toContain(
+      "Payment status unavailable. Try again in a moment."
+    );
+  });
+
   it("uses server order total for confirmed receipt summary", () => {
     const markup = renderToStaticMarkup(
       createElement(PaymentReturnCheckoutView, {
@@ -1185,6 +1254,39 @@ describe("cart checkout UI", () => {
               paymentId: "payment_1",
               status: "PAYMENT_PAID",
             },
+            receipt: {
+              fulfillmentStatus: {
+                label: "Order placed",
+                value: "ORDER_PLACED",
+              },
+              guestAccountCta: {
+                eligible: true,
+                href: "/account/register?returnTo=%2Faccount%2Forders",
+                label: "Create account",
+                message:
+                  "Create an account with this email to track delivery faster next time.",
+              },
+              inboxReminder:
+                "Order and delivery updates were sent to your checkout email inbox.",
+              items: [
+                {
+                  lineTotalCentavos: 3998,
+                  name: "Linen Shirt",
+                  productId: "prod_linen",
+                  quantity: 2,
+                  unitAmountCentavos: 1999,
+                  variantId: "variant_linen_small",
+                  variantLabel: "Size: Small",
+                },
+              ],
+              paymentStatus: { label: "Payment paid", value: "confirmed" },
+              source: "order",
+              totals: {
+                currency: "PHP",
+                subtotalCentavos: 3998,
+                totalCentavos: 3998,
+              },
+            },
             status: "confirmed",
           },
         },
@@ -1192,9 +1294,78 @@ describe("cart checkout UI", () => {
       })
     );
 
-    expect(markup).toContain("Order summary");
+    expect(markup).not.toContain("Order summary");
+    expect(markup).toContain("Total");
+    expect(markup).toContain("Continue shopping");
+    expect(markup).toContain(
+      "Create an account with this email to track delivery faster next time."
+    );
+    expect(markup).toContain("Create account");
+    expect(markup).toContain("/account/register?returnTo=%2Faccount%2Forders");
     expect(markup).toContain("JRW-2026-ORDER1");
+    expect(markup).toContain("Payment");
+    expect(markup).toContain("Payment paid");
+    expect(markup).toContain("Fulfillment");
+    expect(markup).toContain("Order placed");
     expect(markup).toContain("PHP 39.98");
+    expect(markup).not.toContain("Subtotal");
+    expect(markup).not.toContain("Order JRW-2026-ORDER1 confirmed.");
     expect(markup).not.toContain("PHP 2,998.00");
+    expect(markup.indexOf("Create account")).toBeGreaterThan(
+      markup.indexOf("Continue shopping")
+    );
+  });
+
+  it("returns purchased receipt items only after confirmed payment return", () => {
+    expect(
+      purchasedCartItemsFromPaymentReturn({
+        kind: "loaded",
+        status: {
+          canRetry: false,
+          next: { refreshAllowed: false, retryCheckoutAllowed: false },
+          payment: { paymentId: "payment_1", status: "PAYMENT_PAID" },
+          receipt: {
+            fulfillmentStatus: { label: "Order placed", value: "ORDER_PLACED" },
+            guestAccountCta: { eligible: false },
+            items: [
+              {
+                lineTotalCentavos: 1999,
+                name: "Linen Shirt",
+                productId: "prod_linen",
+                quantity: 1,
+                unitAmountCentavos: 1999,
+                variantId: "variant_linen_small",
+                variantLabel: "Size: Small",
+              },
+            ],
+            paymentStatus: { label: "Payment paid", value: "confirmed" },
+            source: "order",
+            totals: {
+              currency: "PHP",
+              subtotalCentavos: 1999,
+              totalCentavos: 1999,
+            },
+          },
+          status: "confirmed",
+        },
+      })
+    ).toMatchObject([
+      {
+        productId: "prod_linen",
+        quantity: 1,
+        variantId: "variant_linen_small",
+      },
+    ]);
+    expect(
+      purchasedCartItemsFromPaymentReturn({
+        kind: "loaded",
+        status: {
+          canRetry: false,
+          next: { refreshAllowed: true, retryCheckoutAllowed: false },
+          payment: { paymentId: "payment_1", status: "PAYMENT_PENDING" },
+          status: "pending",
+        },
+      })
+    ).toEqual([]);
   });
 });

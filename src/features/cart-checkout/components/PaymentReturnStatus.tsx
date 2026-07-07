@@ -6,7 +6,7 @@ import {
   type PaymentReturnStatusClientResult,
   type PaymentReturnStatusResult,
 } from "../api";
-import { useCartStore } from "../store";
+import { removePurchasedCartItemsFromStoreOnce, useCartStore } from "../store";
 import { CheckoutFlowShell } from "./CheckoutFlow";
 
 export type PaymentReturnStatusProps = {
@@ -14,6 +14,30 @@ export type PaymentReturnStatusProps = {
   paymentId?: string | null;
   providerCheckoutSessionId?: string | null;
 };
+
+type PaymentReturnReceiptItem = NonNullable<
+  PaymentReturnStatusResult["receipt"]
+>["items"][number];
+
+export function purchasedCartItemsFromPaymentReturn(
+  result: PaymentReturnStatusClientResult
+): PaymentReturnReceiptItem[] {
+  if (result.kind !== "loaded" || result.status.status !== "confirmed") {
+    return [];
+  }
+
+  return result.status.receipt?.items ?? [];
+}
+
+function purchasedCartRemovalKeyFromPaymentReturn(
+  result: PaymentReturnStatusClientResult
+): string | null {
+  if (result.kind !== "loaded" || result.status.status !== "confirmed") {
+    return null;
+  }
+
+  return `payment-return:${result.status.payment.paymentId}`;
+}
 
 function statusCopy(status: PaymentReturnStatusResult["status"]): {
   body: string;
@@ -65,6 +89,7 @@ export function PaymentReturnStatusView({
   result: PaymentReturnStatusClientResult;
 }) {
   const loaded = result.kind === "loaded" ? result.status : null;
+  const receipt = loaded?.receipt;
   const copy = loaded
     ? statusCopy(loaded.status)
     : {
@@ -96,7 +121,72 @@ export function PaymentReturnStatusView({
         {copy.body}
       </p>
 
-      {loaded?.order ? (
+      {receipt ? (
+        <div className="grid gap-grid-sm">
+          <dl className="grid gap-grid-xs font-system text-sm">
+            {receipt.orderNumber || loaded?.order?.orderNumber ? (
+              <div className="flex flex-wrap justify-between gap-grid-xs">
+                <dt className="text-brand-muted">Order</dt>
+                <dd className="m-0 font-bold">
+                  {receipt.orderNumber ?? loaded?.order?.orderNumber}
+                </dd>
+              </div>
+            ) : null}
+            <div className="flex flex-wrap justify-between gap-grid-xs">
+              <dt className="text-brand-muted">Payment</dt>
+              <dd className="m-0 font-bold">{receipt.paymentStatus.label}</dd>
+            </div>
+            <div className="flex flex-wrap justify-between gap-grid-xs">
+              <dt className="text-brand-muted">Fulfillment</dt>
+              <dd className="m-0 font-bold">
+                {receipt.fulfillmentStatus.label}
+              </dd>
+            </div>
+            <div className="flex flex-wrap justify-between gap-grid-xs">
+              <dt className="text-brand-muted">Total</dt>
+              <dd className="m-0 font-bold">
+                {formatCatalogPrice(receipt.totals.totalCentavos)}
+              </dd>
+            </div>
+          </dl>
+
+          {receipt.items.length > 0 ? (
+            <div className="grid gap-grid-xs border-t border-brand-border pt-grid-sm">
+              <h2 className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+                Items
+              </h2>
+              <ul className="m-0 grid list-none gap-grid-xs p-0">
+                {receipt.items.map((item, index) => (
+                  <li
+                    className="grid gap-1 border-b border-brand-border pb-grid-xs last:border-b-0 last:pb-0"
+                    key={`${item.name}-${item.variantLabel ?? "item"}-${index}`}
+                  >
+                    <div className="flex flex-wrap justify-between gap-grid-xs">
+                      <span className="font-bold text-brand-content">
+                        {item.name}
+                      </span>
+                      <span className="font-system text-sm font-bold text-brand-content">
+                        {formatCatalogPrice(item.lineTotalCentavos)}
+                      </span>
+                    </div>
+                    <p className="m-0 font-system text-xs text-brand-muted">
+                      {item.quantity} x{" "}
+                      {formatCatalogPrice(item.unitAmountCentavos)}
+                      {item.variantLabel ? ` / ${item.variantLabel}` : ""}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {receipt.inboxReminder ? (
+            <p className="m-0 border-t border-brand-border pt-grid-sm text-sm leading-relaxed text-brand-muted">
+              {receipt.inboxReminder}
+            </p>
+          ) : null}
+        </div>
+      ) : loaded?.order ? (
         <dl className="grid max-w-lg gap-grid-xs pt-grid-xs font-system text-sm">
           <div className="flex flex-wrap justify-between gap-grid-xs">
             <dt className="text-brand-muted">Order</dt>
@@ -145,20 +235,40 @@ function receiptSummaryMessage(
 }
 
 function receiptSummaryOverride(result: PaymentReturnStatusClientResult) {
-  if (
-    result.kind !== "loaded" ||
-    result.status.status !== "confirmed" ||
-    !result.status.order
-  ) {
+  if (result.kind !== "loaded") {
+    return undefined;
+  }
+
+  const receipt = result.status.receipt;
+
+  if (receipt) {
+    const totalQuantity = receipt.items.reduce(
+      (sum, item) => sum + item.quantity,
+      0
+    );
+
+    return {
+      amountLabel: "Total",
+      description: null,
+      hasBlockingIssues: false,
+      lineItemCount: receipt.items.length,
+      subtotalLabel: formatCatalogPrice(receipt.totals.totalCentavos),
+      title: result.status.status === "confirmed" ? null : "Payment summary",
+      totalQuantity,
+    };
+  }
+
+  if (result.status.status !== "confirmed" || !result.status.order) {
     return undefined;
   }
 
   return {
-    description: `Order ${result.status.order.orderNumber}`,
+    amountLabel: "Total",
+    description: null,
     hasBlockingIssues: false,
     lineItemCount: 0,
     subtotalLabel: formatCatalogPrice(result.status.order.totalCentavos),
-    title: "Order summary",
+    title: null,
     totalQuantity: 0,
   };
 }
@@ -177,6 +287,9 @@ export function PaymentReturnCheckoutView({
   const isConfirmed =
     result.kind === "loaded" && result.status.status === "confirmed";
   const loaded = result.kind === "loaded" ? result.status : null;
+  const isCheckingPayment =
+    result.kind === "failure" &&
+    result.reason === "Checking server payment status.";
   const canRefresh = !loaded || loaded.next.refreshAllowed;
   const retryCheckoutAllowed = Boolean(loaded?.next.retryCheckoutAllowed);
   const summaryAction = isConfirmed
@@ -192,6 +305,18 @@ export function PaymentReturnCheckoutView({
       : retryCheckoutAllowed
         ? { href: "/checkout", label: "Return to checkout" }
         : { href: "/products", label: "Continue shopping" };
+  const guestAccountCta = loaded?.receipt?.guestAccountCta;
+  const secondarySummaryAction =
+    isConfirmed &&
+    guestAccountCta?.eligible &&
+    guestAccountCta.href &&
+    guestAccountCta.label
+      ? {
+          secondaryHref: guestAccountCta.href,
+          secondaryLabel: guestAccountCta.label,
+          secondaryMessage: guestAccountCta.message,
+        }
+      : {};
 
   return (
     <CheckoutFlowShell
@@ -199,8 +324,10 @@ export function PaymentReturnCheckoutView({
       state={state}
       summaryAction={{
         ...summaryAction,
-        statusMessage: receiptSummaryMessage(result),
+        ...secondarySummaryAction,
+        statusMessage: isConfirmed ? null : receiptSummaryMessage(result),
       }}
+      summaryContentHidden={isCheckingPayment || (refreshing && !loaded)}
       summaryOverride={receiptSummaryOverride(result)}
       title="Checkout receipt"
       titleId="checkout-receipt-return-title"
@@ -226,6 +353,15 @@ export function PaymentReturnStatus(props: PaymentReturnStatusProps) {
     const next = await fetchPaymentReturnStatus(props);
 
     if (sequence === requestSequence.current) {
+      const removalKey = purchasedCartRemovalKeyFromPaymentReturn(next);
+
+      if (removalKey) {
+        removePurchasedCartItemsFromStoreOnce(
+          removalKey,
+          purchasedCartItemsFromPaymentReturn(next)
+        );
+      }
+
       setResult(next);
       setRefreshing(false);
     }

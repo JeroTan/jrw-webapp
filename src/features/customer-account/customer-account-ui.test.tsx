@@ -19,6 +19,7 @@ import {
 import { CustomerSignInPanel } from "./CustomerSignInPanel";
 import {
   CustomerAccountApiError,
+  getCustomerRegistrationPrefill,
   getCustomerProfile,
   getGoogleOAuthStartHref,
   registerCustomer,
@@ -197,6 +198,25 @@ describe("customer account UI", () => {
     expect(customerAccountErrorMessage("register", rawFailure)).not.toContain(
       "raw-session-token"
     );
+  });
+
+  it("loads receipt registration prefill without raw email in URL", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ data: { email: "nina@example.com" } }));
+
+    await expect(
+      getCustomerRegistrationPrefill(
+        "signed.receipt.context",
+        fetcher as typeof fetch
+      )
+    ).resolves.toEqual({ email: "nina@example.com" });
+
+    expect(fetcher).toHaveBeenCalledWith(
+      "/api/customers/registration-prefill?receiptContext=signed.receipt.context",
+      expect.objectContaining({ credentials: "same-origin" })
+    );
+    expect(fetcher.mock.calls[0]?.[0]).not.toContain("nina@example.com");
   });
 
   it("loads and updates only allowed Customer profile fields", async () => {
