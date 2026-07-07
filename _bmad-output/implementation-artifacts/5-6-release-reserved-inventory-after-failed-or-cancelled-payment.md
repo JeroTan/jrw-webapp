@@ -1,6 +1,6 @@
 # Story 5.6: Release Reserved Inventory After Failed or Cancelled Payment
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -112,6 +112,12 @@ so that stock does not remain stuck and future customers can buy available produ
   - [x] Update route descriptions, endpoint catalog notes, or implementation artifact notes to say failed/cancelled/stale payment release exists.
   - [x] Resolve or update `_bmad-output/implementation-artifacts/deferred-work.md` item about expired-reservation cleanup once release is proven atomic/resumable.
   - [x] Add implementation notes for any chosen stale pending cutoff, job/manual process, and operational retry process.
+
+### Review Findings
+
+- [x] [Review][Patch] Terminal return refresh did not retry inventory release [src/server/services/PaymentReconciliationService.ts:281]
+- [x] [Review][Patch] Batch stale release omitted per-payment audit/log visibility [src/server/services/PaymentReconciliationService.ts:337]
+- [x] [Review][Patch] Inventory release failure log omitted reservation/reason details [src/server/services/PaymentReconciliationService.ts:774]
 
 ## Endpoint Guard Checklist
 
@@ -339,8 +345,14 @@ GPT-5 Codex
 - `npx vitest run src/server/repositories/OrderConfirmationRepository.test.ts` - passed, 8 tests.
 - `npx vitest run src/server/services/PaymentWebhookService.test.ts` - passed, 8 tests.
 - `npx vitest run src/server/repositories/CheckoutRepository.test.ts` - passed, 15 tests.
+- `npx vitest run src/server/services/PaymentReconciliationService.test.ts` - passed after review fixes, 14 tests.
+- `npx vitest run src/domain/checkout/inventory-release.test.ts src/domain/payments/payment-reconciliation.test.ts src/server/repositories/CheckoutRepository.test.ts src/server/repositories/OrderConfirmationRepository.test.ts src/server/repositories/InventoryReleaseRepository.test.ts src/server/services/PaymentReconciliationService.test.ts src/server/services/PaymentWebhookService.test.ts src/server/routes/payment-return.routes.test.ts` - passed after review fixes, 60 tests.
+- `npx vitest run src/domain/schema-invariants.test.ts` - passed after review fixes, 14 tests.
+- `npx vitest run src/server/routes/payment-webhook.routes.test.ts` - passed after review fixes, 2 tests.
 - `npm run check` - passed; existing hints remain in unrelated UI files.
 - `npm run build-development` - passed; existing hints remain in unrelated UI files.
+- `npm run check` - passed after review fixes; existing hints remain in unrelated UI files.
+- `npm run build-development` - passed after review fixes; existing hints remain in unrelated UI files.
 - Full `npx vitest run` was attempted before targeted validation; default/dot output exited without useful failure detail and JSON capture timed out after 304s with no report file.
 
 ### Completion Notes List
@@ -350,6 +362,7 @@ GPT-5 Codex
 - Added `DrizzleInventoryReleaseRepository` with terminal/stale release APIs, guarded D1 batch stock restore plus release marker update, preorder no-stock release, duplicate/concurrent idempotency, and retry after failed restore.
 - Enforced PayMongo-only release ownership and stale-pending skip when a newer pending payment owns the same attempt/reservation.
 - Composed inventory release into `PaymentReconciliationService` terminal PayMongo fallback and stale pending return-status path; added service wrapper for batch stale pending reconciliation.
+- Fixed review findings so terminal return refresh retries idempotent release, batch stale reconciliation emits per-payment audit/log visibility, and release failure logs include safe reservation/reason details.
 - Kept paid webhook/order confirmation semantics unchanged; webhook route injects release repository only as reconciliation dependency and paid flow does not release inventory.
 - Updated payment-return route metadata and deferred-work note to document server-owned failed/cancelled/stale release behavior.
 
@@ -375,3 +388,4 @@ GPT-5 Codex
 
 - 2026-07-01: Story created with failed/cancelled/expired/stale payment inventory release scope and ready-for-dev status.
 - 2026-07-01: Implemented idempotent post-payment inventory release ledger, repository/service composition, route metadata update, deferred-work note, and validation coverage; moved story to review.
+- 2026-07-07: Code review completed; fixed terminal refresh release retry, batch stale release audit/log visibility, and safe failure log details; moved story to done.

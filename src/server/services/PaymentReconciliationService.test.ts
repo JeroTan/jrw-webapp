@@ -421,6 +421,82 @@ describe("PaymentReconciliationService", () => {
     });
   });
 
+  it("publishes audit and logs failures for batch stale pending release", async () => {
+    const auditEvents: unknown[] = [];
+    const logs: unknown[] = [];
+    const batchResults: InventoryReleaseResult[] = [
+      releasedInventoryResult({
+        paymentStatus: "PAYMENT_EXPIRED",
+        releaseReason: "PENDING_TIMEOUT",
+      }),
+      releasedInventoryResult({
+        decision: "failed",
+        errorCode: "INVENTORY_RELEASE_FAILED",
+        paymentId: "payment_2",
+        releaseReason: "PENDING_TIMEOUT",
+        reservationId: "reservation_2",
+        restoredQuantity: 0,
+      } as Partial<InventoryReleaseResult>),
+    ];
+    const service = new PaymentReconciliationService({
+      auditPublisher: {
+        publish: async (event) => {
+          auditEvents.push(event);
+        },
+      },
+      inventoryReleaseRepository: {
+        releaseInventoryForPayment: async () => batchResults[0],
+        releaseStalePendingPayments: async () => ({
+          failedCount: 1,
+          processedCount: 2,
+          releasedCount: 1,
+          results: batchResults,
+          skippedCount: 0,
+        }),
+      },
+      operationalLogger: {
+        record: (event) => {
+          logs.push(event);
+        },
+      },
+      repository: repositoryStub(),
+    });
+
+    const result = await service.releaseStalePendingPayments({
+      limit: 10,
+      now,
+      requestId: "req_stale_batch",
+    });
+
+    expect(result.content).toMatchObject({
+      failedCount: 1,
+      processedCount: 2,
+      releasedCount: 1,
+      skippedCount: 0,
+    });
+    expect(auditEvents).toEqual([
+      expect.objectContaining({
+        action: "inventory.released",
+        entityId: "reservation_1",
+      }),
+    ]);
+    expect(logs).toEqual([
+      expect.objectContaining({
+        details: expect.objectContaining({
+          action: "inventory.release_failed",
+          errorCode: "INVENTORY_RELEASE_FAILED",
+          paymentId: "payment_2",
+          releaseReason: "PENDING_TIMEOUT",
+          reservationId: "reservation_2",
+        }),
+        requestId: "req_stale_batch",
+      }),
+    ]);
+    expect(JSON.stringify({ auditEvents, logs })).not.toMatch(
+      /nina@example|0917|Sampaguita|checkout\.paymongo|secret|card/i
+    );
+  });
+
   it("keeps terminal response and logs safely when inventory release fails", async () => {
     const repository = repositoryStub({
       findPaymentReturnRecord: async () => pendingPaymentRecord(),
@@ -461,6 +537,20 @@ describe("PaymentReconciliationService", () => {
       payment: { paymentId: "payment_1", status: "PAYMENT_EXPIRED" },
     });
     expect(JSON.stringify(logs)).toContain("inventory.release_failed");
+    expect(logs).toEqual([
+      expect.objectContaining({
+        details: expect.objectContaining({
+          action: "inventory.release_failed",
+          errorCode: "INVENTORY_RELEASE_FAILED",
+          paymentId: "payment_1",
+          releaseReason: "PAYMENT_EXPIRED",
+          reservationId: "reservation_1",
+        }),
+        errorCode: "INTERNAL_ERROR",
+        requestId: "req_release_failed",
+        targetResourceId: "payment_1",
+      }),
+    ]);
     expect(JSON.stringify(logs)).not.toMatch(
       /nina@example|0917|Sampaguita|checkout\.paymongo|secret|card/i
     );
@@ -529,6 +619,55 @@ describe("PaymentReconciliationService", () => {
     expect(repository.calls).toEqual([]);
     expect(result.content).toMatchObject({
       status: "failed",
+      next: { refreshAllowed: false, retryCheckoutAllowed: true },
+    });
+  });
+
+  it("retries idempotent inventory release for already terminal return state", async () => {
+    const repository = repositoryStub({
+      findPaymentReturnRecord: async () => ({
+        ...pendingPaymentRecord(),
+        canRetry: true,
+        paymentStatus: "PAYMENT_EXPIRED",
+        status: "expired" as const,
+      }),
+    });
+    const inventoryReleaseRepository = inventoryReleaseRepositoryStub(
+      releasedInventoryResult()
+    );
+    const providerLookups: string[] = [];
+    const service = new PaymentReconciliationService({
+      inventoryReleaseRepository,
+      paymentStatusProvider: {
+        getCheckoutSessionPaymentStatus: async (providerCheckoutSessionId) => {
+          providerLookups.push(providerCheckoutSessionId);
+
+          return Result.okay({
+            paid: true,
+            providerCheckoutSessionId,
+            status: "active",
+          });
+        },
+      },
+      repository,
+    });
+
+    const result = await service.getPaymentReturnStatus({
+      attemptId: "attempt_1",
+      now,
+      requestId: "req_terminal_retry",
+    });
+
+    expect(providerLookups).toEqual([]);
+    expect(inventoryReleaseRepository.calls).toEqual([
+      {
+        now,
+        paymentId: "payment_1",
+        requestId: "req_terminal_retry",
+      },
+    ]);
+    expect(result.content).toMatchObject({
+      status: "expired",
       next: { refreshAllowed: false, retryCheckoutAllowed: true },
     });
   });

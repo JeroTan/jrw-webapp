@@ -3,6 +3,7 @@ import {
   NoopAuditEventPublisher,
   type AuditEventPublisher,
 } from "@/domain/audit/events";
+import { isReleasableTerminalPaymentStatus } from "@/domain/checkout/inventory-release";
 import type { OrderConfirmationEmailNotifier } from "@/domain/notifications/order-confirmation-email";
 import { FailingOrderConfirmationEmailNotifier } from "@/domain/notifications/order-confirmation-email";
 import { paymentReturnStatusFromPayment } from "@/domain/payments/payment-reconciliation";
@@ -277,6 +278,14 @@ export class PaymentReconciliationService {
         return Result.okay(timeoutRelease);
       }
 
+      if (isReleasableTerminalPaymentStatus(record.paymentStatus)) {
+        await this.releaseTerminalPaymentInventory({
+          now: input.now,
+          paymentId: record.paymentId,
+          requestId: input.requestId,
+        });
+      }
+
       return Result.okay({
         canRetry: record.canRetry,
         next: {
@@ -324,9 +333,27 @@ export class PaymentReconciliationService {
     }
 
     try {
-      return Result.okay(
-        await this.inventoryReleaseRepository.releaseStalePendingPayments(input)
-      );
+      const result =
+        await this.inventoryReleaseRepository.releaseStalePendingPayments(input);
+
+      for (const release of result.results) {
+        if (release.decision === "released") {
+          await this.publishInventoryReleasedAudit({
+            release,
+            requestId: input.requestId,
+          });
+        } else if (release.decision === "failed") {
+          this.recordInventoryReleaseFailure({
+            paymentId: release.paymentId,
+            releaseReason: release.releaseReason,
+            reservationId: release.reservationId,
+            reason: release.errorCode,
+            requestId: input.requestId,
+          });
+        }
+      }
+
+      return Result.okay(result);
     } catch (error) {
       if (error instanceof GeneralError) {
         return Result.error(error);
@@ -514,6 +541,8 @@ export class PaymentReconciliationService {
       if (release.decision === "failed") {
         this.recordInventoryReleaseFailure({
           paymentId: release.paymentId,
+          releaseReason: release.releaseReason,
+          reservationId: release.reservationId,
           reason: release.errorCode,
           requestId: input.requestId,
         });
@@ -555,6 +584,8 @@ export class PaymentReconciliationService {
     } catch (error) {
       this.recordInventoryReleaseFailure({
         paymentId: input.record.paymentId,
+        releaseReason: null,
+        reservationId: null,
         reason: error instanceof GeneralError ? error.code : "release_error",
         requestId: input.requestId,
       });
@@ -583,6 +614,8 @@ export class PaymentReconciliationService {
       if (release.decision === "failed") {
         this.recordInventoryReleaseFailure({
           paymentId: release.paymentId,
+          releaseReason: release.releaseReason,
+          reservationId: release.reservationId,
           reason: release.errorCode,
           requestId: input.requestId,
         });
@@ -598,6 +631,8 @@ export class PaymentReconciliationService {
     } catch (error) {
       this.recordInventoryReleaseFailure({
         paymentId: input.paymentId,
+        releaseReason: null,
+        reservationId: null,
         reason: error instanceof GeneralError ? error.code : "release_error",
         requestId: input.requestId,
       });
@@ -738,6 +773,8 @@ export class PaymentReconciliationService {
 
   private recordInventoryReleaseFailure(input: {
     paymentId: string;
+    releaseReason: string | null;
+    reservationId: string | null;
     reason: string;
     requestId: string;
   }) {
@@ -749,7 +786,10 @@ export class PaymentReconciliationService {
           targetResourceId: input.paymentId,
           details: {
             action: "inventory.release_failed",
+            errorCode: input.reason,
             paymentId: input.paymentId,
+            releaseReason: input.releaseReason,
+            reservationId: input.reservationId,
             reason: input.reason,
           },
         })

@@ -64,6 +64,7 @@ export type ReleaseStalePendingPaymentsResult = {
   failedCount: number;
   processedCount: number;
   releasedCount: number;
+  results: InventoryReleaseResult[];
   skippedCount: number;
 };
 
@@ -384,6 +385,7 @@ export class DrizzleInventoryReleaseRepository implements InventoryReleaseReposi
       .limit(limit);
     let failedCount = 0;
     let releasedCount = 0;
+    const results: InventoryReleaseResult[] = [];
     let skippedCount = 0;
 
     for (const row of rows) {
@@ -394,6 +396,7 @@ export class DrizzleInventoryReleaseRepository implements InventoryReleaseReposi
         releaseReason: "PENDING_TIMEOUT",
         requestId: input.requestId,
       });
+      results.push(result);
 
       if (
         result.decision === "released" ||
@@ -411,6 +414,7 @@ export class DrizzleInventoryReleaseRepository implements InventoryReleaseReposi
       failedCount,
       processedCount: rows.length,
       releasedCount,
+      results,
       skippedCount,
     };
   }
