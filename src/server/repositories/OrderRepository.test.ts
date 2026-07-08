@@ -324,4 +324,119 @@ describe("order repository", () => {
       await mf.dispose();
     }
   }, 20_000);
+
+  it("lists Admin orders with safe summaries, filters, max page size, and stable newest-first sorting", async () => {
+    const { mf, repository } = await createOrderRepositoryTestD1();
+
+    try {
+      const result = await repository.listAdminOrders({
+        page: 1,
+        pageSize: 500,
+      });
+      const searchResult = await repository.listAdminOrders({
+        search: "ORDER1",
+      });
+      const paymentResult = await repository.listAdminOrders({
+        paymentStatus: "PAYMENT_PENDING",
+      });
+      const fulfillmentResult = await repository.listAdminOrders({
+        fulfillmentStatus: "SHIPPED",
+      });
+      const dateResult = await repository.listAdminOrders({
+        createdFrom: "2026-07-08T01:00:00.000Z",
+        createdTo: "2026-07-08T01:00:00.000Z",
+      });
+
+      expect(result.pagination).toEqual({
+        page: 1,
+        pageSize: 100,
+        totalItems: 2,
+        totalPages: 1,
+      });
+      expect(result.items.map((order) => order.orderId)).toEqual([
+        "order_2",
+        "order_1",
+      ]);
+      expect(result.items[1]).toMatchObject({
+        checkoutEmailMasked: "n***@example.test",
+        customerKind: "CUSTOMER",
+        customerLabel: "Nina R.",
+        itemCount: 1,
+        orderId: "order_1",
+        totalQuantity: 2,
+      });
+      expect(searchResult.items.map((order) => order.orderId)).toEqual([
+        "order_1",
+      ]);
+      expect(paymentResult.items.map((order) => order.orderId)).toEqual([
+        "order_2",
+      ]);
+      expect(fulfillmentResult.items.map((order) => order.orderId)).toEqual([
+        "order_1",
+      ]);
+      expect(dateResult.pagination.totalItems).toBe(2);
+      expect(JSON.stringify(result)).not.toMatch(
+        /0917|Sampaguita|Secret Street|payment_1|payment_2|checkout_attempt|reservation|req_order|message_id|provider|token|secret|card/i
+      );
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("gets Admin detail by id or order number with fulfillment contact allowlist and snapshot items", async () => {
+    const { d1, mf, repository } = await createOrderRepositoryTestD1();
+
+    try {
+      await d1
+        .prepare(`UPDATE products SET name = ? WHERE id = ?`)
+        .bind("Current Catalog Name", "prod_linen")
+        .run();
+
+      const byId = await repository.getAdminOrderDetail({
+        orderIdOrNumber: "order_1",
+      });
+      const byNumber = await repository.getAdminOrderDetail({
+        orderIdOrNumber: "JRW-2026-ORDER1",
+      });
+      const missing = await repository.getAdminOrderDetail({
+        orderIdOrNumber: "missing",
+      });
+
+      expect(byId).toMatchObject({
+        contact: {
+          checkoutEmail: "nina@example.test",
+          fullName: "Nina Reyes",
+          phone: "09171234567",
+        },
+        customerLabel: "Nina R.",
+        items: [
+          {
+            imageR2Key: null,
+            lineTotalCentavos: 3998,
+            productName: "Frozen Linen Shirt",
+            productSlug: "frozen-linen-shirt",
+            quantity: 2,
+            unitPriceCentavos: 1999,
+            variantLabel: "Size: Small",
+          },
+        ],
+        orderId: "order_1",
+        shippingAddress: {
+          barangay: "Poblacion",
+          cityProvince: "Makati",
+          postalCode: "1200",
+          shippingType: "STANDARD",
+          streetAddress: "12 Sampaguita Street",
+        },
+      });
+      expect(byNumber).toEqual(byId);
+      expect(missing).toBeNull();
+      expect(JSON.stringify(byId)).not.toContain("Current Catalog Name");
+      expect(JSON.stringify(byId)).not.toMatch(
+        /payment_1|checkout_attempt|reservation_id|created_request_id|updated_request_id|message_id|checkout_url|provider|token|secret|signature|card/i
+      );
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
 });

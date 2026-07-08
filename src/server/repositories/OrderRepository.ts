@@ -1,4 +1,16 @@
-import { and, asc, desc, eq, inArray, or, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gte,
+  inArray,
+  like,
+  lte,
+  or,
+  sql,
+  type SQL,
+} from "drizzle-orm";
 import type { AppDb } from "@/adapter/infrastructure/db/client";
 import {
   buildCustomerOrderStatusLanes,
@@ -42,8 +54,42 @@ export type CustomerOrderDetailReadModel = CustomerOrderReadModel & {
   items: CustomerOrderSnapshotItem[];
 };
 
+export type AdminOrderCustomerKind = "CUSTOMER" | "GUEST";
+
+export type AdminOrderReadModel = CustomerOrderReadModel & {
+  checkoutEmailMasked: string | null;
+  customerKind: AdminOrderCustomerKind;
+  customerLabel: string;
+};
+
+export type AdminOrderDetailReadModel = AdminOrderReadModel & {
+  contact: {
+    checkoutEmail: string | null;
+    fullName: string | null;
+    phone: string | null;
+  };
+  items: CustomerOrderSnapshotItem[];
+  shippingAddress: {
+    barangay: string | null;
+    cityProvince: string | null;
+    postalCode: string | null;
+    shippingType: string;
+    streetAddress: string | null;
+  };
+};
+
 export type CustomerOrderListResult = {
   items: CustomerOrderReadModel[];
+  pagination: {
+    page: number;
+    pageSize: number;
+    totalItems: number;
+    totalPages: number;
+  };
+};
+
+export type AdminOrderListResult = {
+  items: AdminOrderReadModel[];
   pagination: {
     page: number;
     pageSize: number;
@@ -63,8 +109,23 @@ export type GetCustomerOrderDetailInput = {
   orderIdOrNumber: string;
 };
 
+export type ListAdminOrdersInput = {
+  createdFrom?: string;
+  createdTo?: string;
+  fulfillmentStatus?: string;
+  page?: number;
+  pageSize?: number;
+  paymentStatus?: string;
+  search?: string;
+};
+
+export type GetAdminOrderDetailInput = {
+  orderIdOrNumber: string;
+};
+
 const DEFAULT_PAGE_SIZE = 20;
-const MAX_PAGE_SIZE = 50;
+const CUSTOMER_MAX_PAGE_SIZE = 50;
+const ADMIN_MAX_PAGE_SIZE = 100;
 
 function normalizePositiveInteger(value: number | undefined, fallback: number) {
   if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) {
@@ -74,10 +135,10 @@ function normalizePositiveInteger(value: number | undefined, fallback: number) {
   return value;
 }
 
-function normalizePageSize(value: number | undefined) {
+function normalizePageSize(value: number | undefined, maxPageSize: number) {
   return Math.min(
     normalizePositiveInteger(value, DEFAULT_PAGE_SIZE),
-    MAX_PAGE_SIZE
+    maxPageSize
   );
 }
 
@@ -119,6 +180,40 @@ function parseVariantOptions(value: unknown): CustomerOrderSnapshotOption[] {
       name: safeString(option.name) ?? "",
     }))
     .filter((option) => option.group.length > 0 && option.name.length > 0);
+}
+
+function maskEmail(value: unknown): string | null {
+  const email = safeString(value);
+  if (!email || !email.includes("@")) {
+    return null;
+  }
+
+  const [localPart, domain] = email.split("@");
+  if (!localPart || !domain) {
+    return null;
+  }
+
+  return `${localPart.slice(0, 1)}***@${domain}`;
+}
+
+function customerLabel(row: {
+  customerId: string | null;
+  fullName: string | null;
+}): string {
+  const fullName = safeString(row.fullName);
+  if (!fullName) {
+    return row.customerId ? "Customer" : "Guest checkout";
+  }
+
+  const parts = fullName.split(/\s+/).filter(Boolean);
+  if (parts.length === 1) {
+    return parts[0] ?? "Customer";
+  }
+
+  const first = parts[0] ?? "Customer";
+  const lastInitial = parts.at(-1)?.slice(0, 1).toUpperCase();
+
+  return lastInitial ? `${first} ${lastInitial}.` : first;
 }
 
 function toSnapshotItem(row: {
@@ -182,6 +277,71 @@ function buildOrderReadModel(
   };
 }
 
+function buildAdminOrderReadModel(
+  row: {
+    checkoutEmail: string | null;
+    createdAt: string;
+    currency: string;
+    customerId: string | null;
+    fulfillmentStatus: string;
+    fullName: string | null;
+    orderId: string;
+    orderNumber: string | null;
+    paymentStatus: string;
+    subtotalCentavos: number;
+    totalCentavos: number;
+    updatedAt: string;
+  },
+  items: CustomerOrderSnapshotItem[] = []
+): AdminOrderReadModel {
+  return {
+    ...buildOrderReadModel(row, items),
+    checkoutEmailMasked: maskEmail(row.checkoutEmail),
+    customerKind: row.customerId ? "CUSTOMER" : "GUEST",
+    customerLabel: customerLabel(row),
+  };
+}
+
+function adminOrderFilters(input: ListAdminOrdersInput): SQL | undefined {
+  const filters: SQL[] = [];
+  const search = safeString(input.search);
+  const paymentStatus = safeString(input.paymentStatus)?.toUpperCase();
+  const fulfillmentStatus = safeString(input.fulfillmentStatus)?.toUpperCase();
+  const createdFrom = safeString(input.createdFrom);
+  const createdTo = safeString(input.createdTo);
+
+  if (search) {
+    const pattern = `%${search}%`;
+    const searchFilter = or(
+      like(orders.id, pattern),
+      like(orders.order_number, pattern),
+      like(orders.checkout_email, pattern),
+      like(orders.full_name, pattern)
+    );
+    if (searchFilter) {
+      filters.push(searchFilter);
+    }
+  }
+
+  if (paymentStatus) {
+    filters.push(eq(orders.payment_status, paymentStatus));
+  }
+
+  if (fulfillmentStatus) {
+    filters.push(eq(orders.fulfillment_status, fulfillmentStatus));
+  }
+
+  if (createdFrom) {
+    filters.push(gte(orders.created_at, createdFrom));
+  }
+
+  if (createdTo) {
+    filters.push(lte(orders.created_at, createdTo));
+  }
+
+  return filters.length > 0 ? and(...filters) : undefined;
+}
+
 export class DrizzleOrderRepository {
   constructor(private readonly db: AppDb) {}
 
@@ -189,7 +349,7 @@ export class DrizzleOrderRepository {
     input: ListCustomerOrdersInput
   ): Promise<CustomerOrderListResult> {
     const page = normalizePositiveInteger(input.page, 1);
-    const pageSize = normalizePageSize(input.pageSize);
+    const pageSize = normalizePageSize(input.pageSize, CUSTOMER_MAX_PAGE_SIZE);
     const offset = (page - 1) * pageSize;
     const countRows = await this.db
       .select({
@@ -269,6 +429,115 @@ export class DrizzleOrderRepository {
     return {
       ...buildOrderReadModel(row, items),
       items,
+    };
+  }
+
+  async listAdminOrders(
+    input: ListAdminOrdersInput = {}
+  ): Promise<AdminOrderListResult> {
+    const page = normalizePositiveInteger(input.page, 1);
+    const pageSize = normalizePageSize(input.pageSize, ADMIN_MAX_PAGE_SIZE);
+    const offset = (page - 1) * pageSize;
+    const whereClause = adminOrderFilters(input);
+    const countRows = await this.db
+      .select({
+        count: sql<number>`cast(count(${orders.id}) as integer)`,
+      })
+      .from(orders)
+      .where(whereClause);
+    const totalItems = Number(countRows[0]?.count ?? 0);
+    const orderRows = await this.db
+      .select({
+        checkoutEmail: orders.checkout_email,
+        createdAt: orders.created_at,
+        currency: orders.currency,
+        customerId: orders.customer_id,
+        fulfillmentStatus: orders.fulfillment_status,
+        fullName: orders.full_name,
+        orderId: orders.id,
+        orderNumber: orders.order_number,
+        paymentStatus: orders.payment_status,
+        subtotalCentavos: orders.subtotal_centavos,
+        totalCentavos: orders.total_centavos,
+        updatedAt: orders.updated_at,
+      })
+      .from(orders)
+      .where(whereClause)
+      .orderBy(desc(orders.created_at), desc(orders.id))
+      .limit(pageSize)
+      .offset(offset);
+    const snapshotsByOrderId = await this.snapshotsByOrderId(
+      orderRows.map((row) => row.orderId)
+    );
+
+    return {
+      items: orderRows.map((row) =>
+        buildAdminOrderReadModel(row, snapshotsByOrderId.get(row.orderId) ?? [])
+      ),
+      pagination: {
+        page,
+        pageSize,
+        totalItems,
+        totalPages: totalItems > 0 ? Math.ceil(totalItems / pageSize) : 0,
+      },
+    };
+  }
+
+  async getAdminOrderDetail(
+    input: GetAdminOrderDetailInput
+  ): Promise<AdminOrderDetailReadModel | null> {
+    const rows = await this.db
+      .select({
+        barangay: orders.barangay,
+        checkoutEmail: orders.checkout_email,
+        cityProvince: orders.city_province,
+        createdAt: orders.created_at,
+        currency: orders.currency,
+        customerId: orders.customer_id,
+        fulfillmentStatus: orders.fulfillment_status,
+        fullName: orders.full_name,
+        orderId: orders.id,
+        orderNumber: orders.order_number,
+        paymentStatus: orders.payment_status,
+        phone: orders.phone,
+        postalCode: orders.postal_code,
+        shippingType: orders.shipping_type,
+        streetAddress: orders.street_address,
+        subtotalCentavos: orders.subtotal_centavos,
+        totalCentavos: orders.total_centavos,
+        updatedAt: orders.updated_at,
+      })
+      .from(orders)
+      .where(
+        or(
+          eq(orders.id, input.orderIdOrNumber),
+          eq(orders.order_number, input.orderIdOrNumber)
+        )
+      )
+      .limit(1);
+    const row = rows[0];
+
+    if (!row) {
+      return null;
+    }
+
+    const items = await this.orderSnapshotItems(row.orderId);
+
+    return {
+      ...buildAdminOrderReadModel(row, items),
+      contact: {
+        checkoutEmail: safeString(row.checkoutEmail),
+        fullName: safeString(row.fullName),
+        phone: safeString(row.phone),
+      },
+      items,
+      shippingAddress: {
+        barangay: safeString(row.barangay),
+        cityProvince: safeString(row.cityProvince),
+        postalCode: safeString(row.postalCode),
+        shippingType: safeString(row.shippingType) ?? "STANDARD",
+        streetAddress: safeString(row.streetAddress),
+      },
     };
   }
 

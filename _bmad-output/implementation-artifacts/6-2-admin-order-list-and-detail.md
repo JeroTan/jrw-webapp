@@ -1,6 +1,6 @@
 # Story 6.2: Admin Order List and Detail
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -25,70 +25,70 @@ so that JRW can operate fulfillment, returns, refunds, and customer support.
 
 ## Tasks / Subtasks
 
-- [ ] Extend order read models for Admin list/detail without breaking Customer order contracts. (AC: 1, 2, 3, 9)
-  - [ ] Preserve existing `CustomerOrderReadModel`, `CustomerOrderDetailReadModel`, and customer page-size max `50`.
-  - [ ] Add Admin-specific types rather than widening Customer shapes with PII.
-  - [ ] Add list-safe customer/contact summary. Recommended fields: `customerLabel`, `checkoutEmailMasked`, `customerKind`, and no phone/address on list.
-  - [ ] Add detail-only fulfillment contact: `fullName`, `checkoutEmail`, `phone`, `shippingAddress`, `shippingType`.
+- [x] Extend order read models for Admin list/detail without breaking Customer order contracts. (AC: 1, 2, 3, 9)
+  - [x] Preserve existing `CustomerOrderReadModel`, `CustomerOrderDetailReadModel`, and customer page-size max `50`.
+  - [x] Add Admin-specific types rather than widening Customer shapes with PII.
+  - [x] Add list-safe customer/contact summary. Recommended fields: `customerLabel`, `checkoutEmailMasked`, `customerKind`, and no phone/address on list.
+  - [x] Add detail-only fulfillment contact: `fullName`, `checkoutEmail`, `phone`, `shippingAddress`, `shippingType`.
 
-- [ ] Add Admin repository reads in `src/server/repositories/OrderRepository.ts`. (AC: 2, 3, 4, 9)
-  - [ ] Add `listAdminOrders(input)` with normalized `page`, `pageSize` max `100`, filters, count query, stable `orderBy(desc(orders.created_at), desc(orders.id))`, and snapshot summary aggregation.
-  - [ ] Add `getAdminOrderDetail(input)` by `orders.id` or `orders.order_number`.
-  - [ ] Reuse snapshot helpers and `buildCustomerOrderStatusLanes(...)` where useful; do not join mutable product/variant tables for item truth.
-  - [ ] Keep filters parameterized with Drizzle `eq`, `and`, `or`, `like`/SQL bindings; no string-concatenated SQL.
-  - [ ] Return `PROVIDER_UNAVAILABLE` for D1/provider-like failures where surrounding services use that pattern.
+- [x] Add Admin repository reads in `src/server/repositories/OrderRepository.ts`. (AC: 2, 3, 4, 9)
+  - [x] Add `listAdminOrders(input)` with normalized `page`, `pageSize` max `100`, filters, count query, stable `orderBy(desc(orders.created_at), desc(orders.id))`, and snapshot summary aggregation.
+  - [x] Add `getAdminOrderDetail(input)` by `orders.id` or `orders.order_number`.
+  - [x] Reuse snapshot helpers and `buildCustomerOrderStatusLanes(...)` where useful; do not join mutable product/variant tables for item truth.
+  - [x] Keep filters parameterized with Drizzle `eq`, `and`, `or`, `like`/SQL bindings; no string-concatenated SQL.
+  - [x] Return `PROVIDER_UNAVAILABLE` for D1/provider-like failures where surrounding services use that pattern.
 
-- [ ] Extend `OrderService` with Admin use cases. (AC: 2, 3, 7)
-  - [ ] Use `evaluateRouteAccess` with `auth: { mode: "required", roles: ["ADMIN"] }`, mirroring product/snapshot services.
-  - [ ] Deny missing actor/id, Customer/Prospect, Super Admin, suspended/inactive/unverified/unapproved Admin before repository calls.
-  - [ ] Trim and validate `orderIdOrNumber`; empty detail lookup returns `VALIDATION_FAILED`.
-  - [ ] Unknown order returns `RESOURCE_NOT_FOUND`.
+- [x] Extend `OrderService` with Admin use cases. (AC: 2, 3, 7)
+  - [x] Use `evaluateRouteAccess` with `auth: { mode: "required", roles: ["ADMIN"] }`, mirroring product/snapshot services.
+  - [x] Deny missing actor/id, Customer/Prospect, Super Admin, suspended/inactive/unverified/unapproved Admin before repository calls.
+  - [x] Trim and validate `orderIdOrNumber`; empty detail lookup returns `VALIDATION_FAILED`.
+  - [x] Unknown order returns `RESOURCE_NOT_FOUND`.
 
-- [ ] Extend `OrderController` and `orders.routes.ts` for Admin list/detail. (AC: 2, 3, 7, 8)
-  - [ ] Add `GET /api/admin/orders`.
-  - [ ] Add `GET /api/admin/orders/:orderId`.
-  - [ ] Add TypeBox params/query/response schemas with `additionalProperties: false`.
-  - [ ] Add `routeDetail(...)` metadata: tags `["Orders"]`, `x-auth` required Admin, `x-rate-limit-class: "admin-read"`, and error codes `AUTH_REQUIRED`, `AUTH_FORBIDDEN`, `ACCOUNT_SUSPENDED`, `EMAIL_NOT_VERIFIED`, `ADMIN_APPROVAL_REQUIRED`, `VALIDATION_FAILED`, `RESOURCE_NOT_FOUND`, `PROVIDER_UNAVAILABLE`, `INTERNAL_ERROR`.
-  - [ ] Keep route-level `rbacGuard(adminOrderAuth)` before controller construction. Route tests must prove `controllerFactory` is not called on denial.
+- [x] Extend `OrderController` and `orders.routes.ts` for Admin list/detail. (AC: 2, 3, 7, 8)
+  - [x] Add `GET /api/admin/orders`.
+  - [x] Add `GET /api/admin/orders/:orderId`.
+  - [x] Add TypeBox params/query/response schemas with `additionalProperties: false`.
+  - [x] Add `routeDetail(...)` metadata: tags `["Orders"]`, `x-auth` required Admin, `x-rate-limit-class: "admin-read"`, and error codes `AUTH_REQUIRED`, `AUTH_FORBIDDEN`, `ACCOUNT_SUSPENDED`, `EMAIL_NOT_VERIFIED`, `ADMIN_APPROVAL_REQUIRED`, `VALIDATION_FAILED`, `RESOURCE_NOT_FOUND`, `PROVIDER_UNAVAILABLE`, `INTERNAL_ERROR`.
+  - [x] Keep route-level `rbacGuard(adminOrderAuth)` before controller construction. Route tests prove `controllerFactory` is not called on denial.
 
-- [ ] Build Admin order UI under `src/features/admin-orders/**` and pages under `src/pages/admin/orders/**`. (AC: 1, 3, 5)
-  - [ ] Add `src/pages/admin/orders/index.astro` using `AdminLayout activeHref="/admin/orders"`.
-  - [ ] Add `src/pages/admin/orders/[id].astro` using same layout and `Astro.params.id`.
-  - [ ] Create API client in `src/features/admin-orders/api.ts`; do not import `admin-products` feature-owned fetch helper. A tiny local fetch wrapper is acceptable, or promote a shared helper only if done cleanly.
-  - [ ] Use `DataTable`, `Pagination`, `ButtonLink`, `Input`/`SearchInput`, `Select`, `StatusBadge`, `Skeleton`, `EmptyState`, and `Toast`/alert patterns already present.
-  - [ ] Detail view may reuse `buildCustomerOrderTimeline(...)` for safe projection, but must make clear this is read-only order truth, not mutation control.
-  - [ ] Show payment, fulfillment, return, refund as separate lanes; idle return/refund can appear as lane summary but not as timeline steps or transitions.
-  - [ ] Use Direction 05 for shell/table density and Direction 06 for order truth timeline/detail composition. Do not add rounded cards, shadows, blur, gradient/orb decoration, or custom `jrw-*` CSS.
+- [x] Build Admin order UI under `src/features/admin-orders/**` and pages under `src/pages/admin/orders/**`. (AC: 1, 3, 5)
+  - [x] Add `src/pages/admin/orders/index.astro` using `AdminLayout activeHref="/admin/orders"`.
+  - [x] Add `src/pages/admin/orders/[id].astro` using same layout and `Astro.params.id`.
+  - [x] Create API client in `src/features/admin-orders/api.ts`; do not import `admin-products` feature-owned fetch helper. A tiny local fetch wrapper is acceptable, or promote a shared helper only if done cleanly.
+  - [x] Use `DataTable`, `Pagination`, `ButtonLink`, `Input`/`SearchInput`, `Select`, `StatusBadge`, `Skeleton`, `EmptyState`, and `Toast`/alert patterns already present.
+  - [x] Detail view may reuse `buildCustomerOrderTimeline(...)` for safe projection, but must make clear this is read-only order truth, not mutation control.
+  - [x] Show payment, fulfillment, return, refund as separate lanes; idle return/refund can appear as lane summary but not as timeline steps or transitions.
+  - [x] Use Direction 05 for shell/table density and Direction 06 for order truth timeline/detail composition. Do not add rounded cards, shadows, blur, gradient/orb decoration, or custom `jrw-*` CSS.
 
-- [ ] Preserve current page guard behavior. (AC: 1, 7)
-  - [ ] `src/middleware/auth/admin-page-guard.ts` already treats `/admin/orders` as daily Admin area and requires `ADMIN`.
-  - [ ] Do not silently widen `/admin/orders` to Super Admin. If Product wants Super Admin to view orders, update page guard, API auth metadata, service guard, tests, and UX intentionally in this story implementation.
+- [x] Preserve current page guard behavior. (AC: 1, 7)
+  - [x] `src/middleware/auth/admin-page-guard.ts` already treats `/admin/orders` as daily Admin area and requires `ADMIN`.
+  - [x] Do not silently widen `/admin/orders` to Super Admin. If Product wants Super Admin to view orders, update page guard, API auth metadata, service guard, tests, and UX intentionally in this story implementation.
 
-- [ ] Add focused tests. (AC: 2, 3, 4, 7, 8, 9, 10)
-  - [ ] Extend `OrderRepository.test.ts` with Admin list pagination max `100`, search/status/date filters, stable sorting, snapshot aggregation, list PII redaction, and detail contact allowlist.
-  - [ ] Keep Miniflare/D1 repository test timeout at `20_000` to match 6.1 test fix.
-  - [ ] Extend `OrderService.test.ts` for Admin allow/deny paths and not-found/validation errors.
-  - [ ] Extend `orders.routes.test.ts` for OpenAPI metadata, route-level denial before controller, success envelopes, invalid query rejection, and no provider/internal leakage.
-  - [ ] Add `src/features/admin-orders/admin-orders-ui.test.tsx` or equivalent for filters, pagination, table links, detail lanes, empty/loading/error states, and no disabled mutation controls pretending to work.
+- [x] Add focused tests. (AC: 2, 3, 4, 7, 8, 9, 10)
+  - [x] Extend `OrderRepository.test.ts` with Admin list pagination max `100`, search/status/date filters, stable sorting, snapshot aggregation, list PII redaction, and detail contact allowlist.
+  - [x] Keep Miniflare/D1 repository test timeout at `20_000` to match 6.1 test fix.
+  - [x] Extend `OrderService.test.ts` for Admin allow/deny paths and not-found/validation errors.
+  - [x] Extend `orders.routes.test.ts` for OpenAPI metadata, route-level denial before controller, success envelopes, invalid query rejection, and no provider/internal leakage.
+  - [x] Add `src/features/admin-orders/admin-orders-ui.test.tsx` or equivalent for filters, pagination, table links, detail lanes, empty/loading/error states, and no disabled mutation controls pretending to work.
 
-- [ ] Run validation gates. (AC: 10)
-  - [ ] `npx vitest run src/server/repositories/OrderRepository.test.ts src/server/services/OrderService.test.ts src/server/routes/orders.routes.test.ts src/features/admin-orders/admin-orders-ui.test.tsx`
-  - [ ] `npm run check`
-  - [ ] `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`
-  - [ ] Manual/admin viewport QA if an authenticated Admin fixture is available; otherwise document blocker with exact missing fixture.
+- [x] Run validation gates. (AC: 10)
+  - [x] `npx vitest run src/server/repositories/OrderRepository.test.ts src/server/services/OrderService.test.ts src/server/routes/orders.routes.test.ts src/features/admin-orders/admin-orders-ui.test.tsx`
+  - [x] `npm run check`
+  - [x] `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`
+  - [x] Manual/admin viewport QA if an authenticated Admin fixture is available; otherwise document blocker with exact missing fixture.
 
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint. Mark non-applicable items as `N/A` with reason.
 
-- [ ] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
-- [ ] Route-level RBAC guard runs before validation or side effects for protected endpoints.
-- [ ] Service/controller enforces actor state before reads: authenticated, active, verified, approved.
-- [ ] Brand-scoped reads or writes: N/A for 6.2 because order list/detail is JRW single-store Admin operations, not brand-scoped catalog editing.
-- [ ] Public/customer endpoints: N/A for new 6.2 work; existing Customer order endpoints must remain unchanged.
-- [ ] Denial tests cover unauthenticated actor, Customer/Prospect wrong role, Super Admin current-policy denial, and invalid Admin account state. Missing brand membership is N/A.
-- [ ] Error response uses safe envelope codes and does not leak provider/internal authorization details.
-- [ ] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
+- [x] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
+- [x] Route-level RBAC guard runs before validation or side effects for protected endpoints.
+- [x] Service/controller enforces actor state before reads: authenticated, active, verified, approved.
+- [x] Brand-scoped reads or writes: N/A for 6.2 because order list/detail is JRW single-store Admin operations, not brand-scoped catalog editing.
+- [x] Public/customer endpoints: N/A for new 6.2 work; existing Customer order endpoints must remain unchanged.
+- [x] Denial tests cover unauthenticated actor, Customer/Prospect wrong role, Super Admin current-policy denial, and invalid Admin account state. Missing brand membership is N/A.
+- [x] Error response uses safe envelope codes and does not leak provider/internal authorization details.
+- [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
 
 ## Dev Notes
 
@@ -281,14 +281,44 @@ Do not expose these fields in Admin API responses: `payment_id`, `checkout_attem
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
+- Targeted tests: `npx vitest run src/server/repositories/OrderRepository.test.ts src/server/services/OrderService.test.ts src/server/routes/orders.routes.test.ts src/features/admin-orders/admin-orders-ui.test.tsx` - 32 passed.
+- Full tests: `npx vitest run` - 137 files, 924 tests passed.
+- Type/build: `npm run check` - passed with existing hints only; `npm run build-development` - passed.
+- UI token scan: `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` - matches are existing brand slugs/tests and negative assertions, no new admin-orders matches.
+
 ### Completion Notes List
 
+- Added Admin-only read models, repository methods, service use cases, controller methods, and Elysia routes for list/detail.
+- Admin list uses masked checkout email, redacted customer label, snapshot aggregation, status filters, date filters, search, and max page size 100; Customer order contracts remain unchanged with max page size 50.
+- Admin detail exposes fulfillment-needed contact/shipping fields and snapshot items only; provider/internal ids, request ids, checkout URLs, tokens, secrets, and raw provider/card fields are not selected or returned.
+- Added `/admin/orders` and `/admin/orders/[id]` screens under existing `AdminLayout`, using shared `DataTable`, `Pagination`, `ButtonLink`, `Input`/`SearchInput`, `Select`, `StatusBadge`, `Skeleton`, and `EmptyState`.
+- Story remains read-only: no fulfillment, return, refund, cancellation, email, provider refund, or audit mutation controls were added.
+- Manual/admin viewport QA not run because no authenticated Admin browser fixture/session was supplied in this Codex turn.
+
 ### File List
+
+- `_bmad-output/implementation-artifacts/6-2-admin-order-list-and-detail.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
+- `src/features/admin-orders/admin-orders-ui.test.tsx`
+- `src/features/admin-orders/api.ts`
+- `src/features/admin-orders/components/AdminOrderDetailDashboard.tsx`
+- `src/features/admin-orders/components/AdminOrderListDashboard.tsx`
+- `src/features/admin-orders/types.ts`
+- `src/pages/admin/orders/[id].astro`
+- `src/pages/admin/orders/index.astro`
+- `src/server/controllers/OrderController.ts`
+- `src/server/repositories/OrderRepository.test.ts`
+- `src/server/repositories/OrderRepository.ts`
+- `src/server/routes/orders.routes.test.ts`
+- `src/server/routes/orders.routes.ts`
+- `src/server/services/OrderService.test.ts`
+- `src/server/services/OrderService.ts`
 
 ## Change Log
 
 - 2026-07-08: Created ready-for-dev story with Admin order read-model/API/UI guardrails and sprint tracker context.
+- 2026-07-08: Implemented Admin order list/detail API, UI, tests, validation gates, and moved story to review.

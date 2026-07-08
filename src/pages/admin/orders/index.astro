@@ -1,0 +1,12 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { AdminOrderListDashboard } from "@/features/admin-orders/components/AdminOrderListDashboard";
+---
+
+<AdminLayout
+  activeHref="/admin/orders"
+  title="Orders | JRW Admin"
+  description="Order list, payment lanes, fulfillment lanes, and support status."
+>
+  <AdminOrderListDashboard client:load />
+</AdminLayout>

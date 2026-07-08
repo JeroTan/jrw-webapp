@@ -1,11 +1,21 @@
+import { evaluateRouteAccess, type RbacActorContext } from "@/domain/auth/rbac";
 import type {
+  AdminOrderDetailReadModel,
+  AdminOrderListResult,
   CustomerOrderDetailReadModel,
   CustomerOrderListResult,
+  GetAdminOrderDetailInput,
   GetCustomerOrderDetailInput,
+  ListAdminOrdersInput,
   ListCustomerOrdersInput,
 } from "@/server/repositories/OrderRepository";
 import { GeneralError, type ErrorCodeType } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
+
+const adminOrderAuth = {
+  mode: "required",
+  roles: ["ADMIN"],
+} as const;
 
 export type CustomerOrderRepositoryLike = {
   getCustomerOrderDetail(
@@ -16,21 +26,34 @@ export type CustomerOrderRepositoryLike = {
   ): Promise<CustomerOrderListResult>;
 };
 
-export type CustomerOrderActorInput = {
-  authenticated: boolean;
-  role: string;
-  actorId?: string;
+export type AdminOrderRepositoryLike = {
+  getAdminOrderDetail(
+    input: GetAdminOrderDetailInput
+  ): Promise<AdminOrderDetailReadModel | null>;
+  listAdminOrders(input: ListAdminOrdersInput): Promise<AdminOrderListResult>;
+};
+
+export type OrderRepositoryLike = CustomerOrderRepositoryLike &
+  AdminOrderRepositoryLike;
+
+export type OrderActorInput = {
   accountStatus?: {
-    status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
-    emailVerified: boolean;
     approved: boolean;
+    emailVerified: boolean;
+    status: "ACTIVE" | "INACTIVE" | "SUSPENDED";
   };
+  actorId?: string;
+  authenticated: boolean;
   eligibility?: {
     active: boolean;
-    emailVerified: boolean;
     approved: boolean;
+    emailVerified: boolean;
   };
+  role: string;
+  safeActorId?: string;
 };
+
+export type CustomerOrderActorInput = OrderActorInput;
 
 export type ListCustomerOrdersServiceInput = {
   actor: CustomerOrderActorInput | undefined;
@@ -45,14 +68,35 @@ export type GetCustomerOrderDetailServiceInput = {
   requestId: string;
 };
 
+export type ListAdminOrdersServiceInput = ListAdminOrdersInput & {
+  actor: OrderActorInput | undefined;
+  requestId: string;
+};
+
+export type GetAdminOrderDetailServiceInput = {
+  actor: OrderActorInput | undefined;
+  orderIdOrNumber: string;
+  requestId: string;
+};
+
 export type OrderServiceOptions = {
-  repository: CustomerOrderRepositoryLike;
+  repository: OrderRepositoryLike;
 };
 
 function serviceError(
-  code: ErrorCodeType
+  code: ErrorCodeType,
+  data: Record<string, unknown> = {}
 ): GeneralError<Record<string, never>> {
-  return new GeneralError({}, code);
+  return new GeneralError(data as Record<string, never>, code);
+}
+
+function providerFailure(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    /D1_|SQLITE_|database|query|constraint|prepare|execute|transaction/i.test(
+      error.message
+    )
+  );
 }
 
 function requireCustomerActor(
@@ -91,8 +135,36 @@ function requireCustomerActor(
   return Result.okay({ customerId: actor.actorId });
 }
 
+function requireAdminActor(
+  actor: OrderActorInput | undefined
+): AppResult<{ adminId: string }> {
+  const decision = evaluateRouteAccess({
+    auth: adminOrderAuth,
+    actor: actor
+      ? {
+          ...actor,
+          role: actor.role as RbacActorContext["role"],
+        }
+      : undefined,
+  });
+
+  if (!decision.allowed) {
+    return Result.error(serviceError(decision.code));
+  }
+
+  if (!actor?.actorId) {
+    return Result.error(serviceError("AUTH_REQUIRED"));
+  }
+
+  if (decision.actorRole !== "ADMIN") {
+    return Result.error(serviceError("AUTH_FORBIDDEN"));
+  }
+
+  return Result.okay({ adminId: actor.actorId });
+}
+
 export class OrderService {
-  private readonly repository: CustomerOrderRepositoryLike;
+  private readonly repository: OrderRepositoryLike;
 
   constructor(options: OrderServiceOptions) {
     this.repository = options.repository;
@@ -139,5 +211,67 @@ export class OrderService {
     }
 
     return Result.okay(order);
+  }
+
+  async listAdminOrders(
+    input: ListAdminOrdersServiceInput
+  ): Promise<AppResult<AdminOrderListResult>> {
+    const actor = requireAdminActor(input.actor);
+
+    if (actor.error) {
+      return actor;
+    }
+
+    try {
+      return Result.okay(
+        await this.repository.listAdminOrders({
+          createdFrom: input.createdFrom,
+          createdTo: input.createdTo,
+          fulfillmentStatus: input.fulfillmentStatus,
+          page: input.page,
+          pageSize: input.pageSize,
+          paymentStatus: input.paymentStatus,
+          search: input.search,
+        })
+      );
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
+  }
+
+  async getAdminOrderDetail(
+    input: GetAdminOrderDetailServiceInput
+  ): Promise<AppResult<AdminOrderDetailReadModel>> {
+    const actor = requireAdminActor(input.actor);
+
+    if (actor.error) {
+      return actor;
+    }
+
+    if (input.orderIdOrNumber.trim().length === 0) {
+      return Result.error(serviceError("VALIDATION_FAILED"));
+    }
+
+    try {
+      const order = await this.repository.getAdminOrderDetail({
+        orderIdOrNumber: input.orderIdOrNumber.trim(),
+      });
+
+      if (!order) {
+        return Result.error(serviceError("RESOURCE_NOT_FOUND"));
+      }
+
+      return Result.okay(order);
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+    }
   }
 }

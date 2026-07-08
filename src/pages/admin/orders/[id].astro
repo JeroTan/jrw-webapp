@@ -1,0 +1,14 @@
+---
+import AdminLayout from "@/layouts/AdminLayout.astro";
+import { AdminOrderDetailDashboard } from "@/features/admin-orders/components/AdminOrderDetailDashboard";
+
+const orderId = Astro.params.id ?? "";
+---
+
+<AdminLayout
+  activeHref="/admin/orders"
+  title="Order Detail | JRW Admin"
+  description="Order snapshot detail, lanes, fulfillment contact, and shipping data."
+>
+  <AdminOrderDetailDashboard client:load orderId={orderId} />
+</AdminLayout>
