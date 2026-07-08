@@ -1,9 +1,37 @@
 import { describe, expect, it } from "vitest";
 import { createApp } from "@/server/app";
 import { PaymentReconciliationController } from "@/server/controllers/PaymentReconciliationController";
+import { GeneralError } from "@/utils/general/error";
 import { Result } from "@/utils/general/result";
 
 describe("payment return routes", () => {
+  const statusLanes = {
+    fulfillment: {
+      kind: "fulfillment" as const,
+      label: "Order placed",
+      updatedAt: "2026-07-08T01:00:00.000Z",
+      value: "ORDER_PLACED",
+    },
+    payment: {
+      kind: "payment" as const,
+      label: "Payment paid",
+      updatedAt: "2026-07-08T01:00:00.000Z",
+      value: "PAYMENT_PAID",
+    },
+    refund: {
+      kind: "refund" as const,
+      label: "No refund requested",
+      updatedAt: null,
+      value: "REFUND_NOT_REQUESTED",
+    },
+    return: {
+      kind: "return" as const,
+      label: "No return requested",
+      updatedAt: null,
+      value: "RETURN_NOT_REQUESTED",
+    },
+  };
+
   it("documents public server-state payment return endpoint", async () => {
     const app = createApp();
     const response = await app.handle(
@@ -76,6 +104,7 @@ describe("payment return routes", () => {
                       value: "confirmed",
                     },
                     source: "order",
+                    statusLanes,
                     totals: {
                       currency: "PHP",
                       subtotalCentavos: 3998,
@@ -125,5 +154,42 @@ describe("payment return routes", () => {
     expect(JSON.stringify(body)).not.toMatch(
       /nina@example|0917|Sampaguita|checkout\.paymongo|secret|card/i
     );
+  });
+
+  it("does not use raw email as guest receipt lookup input", async () => {
+    let receivedLookup: unknown;
+    const app = createApp({
+      routes: {
+        paymentReturns: {
+          controllerFactory: () =>
+            new PaymentReconciliationController({
+              getPaymentReturnStatus: async (input) => {
+                receivedLookup = input;
+                return Result.error(new GeneralError({}, "RESOURCE_NOT_FOUND"));
+              },
+            }),
+        },
+      },
+    });
+
+    const response = await app.handle(
+      new Request(
+        "https://jrw.test/api/checkout/payment-return?email=buyer@example.test",
+        {
+          headers: { "x-request-id": "req_return_email_lookup" },
+        }
+      )
+    );
+    const body = await response.json();
+
+    expect(response.status).toBe(404);
+    expect(receivedLookup).toMatchObject({
+      attemptId: undefined,
+      paymentId: undefined,
+      providerCheckoutSessionId: undefined,
+      requestId: "req_return_email_lookup",
+    });
+    expect(JSON.stringify(receivedLookup)).not.toContain("buyer@example.test");
+    expect(JSON.stringify(body)).not.toContain("buyer@example.test");
   });
 });

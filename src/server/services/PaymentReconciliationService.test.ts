@@ -9,6 +9,32 @@ import type { OrderConfirmationRepositoryLike } from "@/server/repositories/Orde
 import { PaymentReconciliationService } from "./PaymentReconciliationService";
 
 const now = "2026-06-26T05:30:00.000Z";
+const receiptStatusLanes = {
+  fulfillment: {
+    kind: "fulfillment" as const,
+    label: "Not started",
+    updatedAt: "2026-06-26T05:30:00.000Z",
+    value: "FULFILLMENT_STATUS_UNAVAILABLE",
+  },
+  payment: {
+    kind: "payment" as const,
+    label: "Payment pending",
+    updatedAt: "2026-06-26T05:30:00.000Z",
+    value: "PAYMENT_PENDING",
+  },
+  refund: {
+    kind: "refund" as const,
+    label: "No refund requested",
+    updatedAt: null,
+    value: "REFUND_NOT_REQUESTED",
+  },
+  return: {
+    kind: "return" as const,
+    label: "No return requested",
+    updatedAt: null,
+    value: "RETURN_NOT_REQUESTED",
+  },
+};
 
 function repositoryStub(
   overrides: Partial<OrderConfirmationRepositoryLike> = {}
@@ -62,6 +88,7 @@ function repositoryStub(
         items: [],
         paymentStatus: { label: "Payment pending", value: "pending" as const },
         source: "payment" as const,
+        statusLanes: receiptStatusLanes,
         totals: {
           currency: "PHP" as const,
           subtotalCentavos: 3998,
@@ -143,6 +170,7 @@ function pendingPaymentRecord() {
       items: [],
       paymentStatus: { label: "Payment pending", value: "pending" as const },
       source: "payment" as const,
+      statusLanes: receiptStatusLanes,
       totals: {
         currency: "PHP" as const,
         subtotalCentavos: 3998,
@@ -737,6 +765,14 @@ describe("PaymentReconciliationService", () => {
           items: [],
           paymentStatus: { label: "Payment expired", value: "expired" },
           source: "payment" as const,
+          statusLanes: {
+            ...receiptStatusLanes,
+            payment: {
+              ...receiptStatusLanes.payment,
+              label: "Payment expired",
+              value: "PAYMENT_EXPIRED",
+            },
+          },
           totals: {
             currency: "PHP" as const,
             subtotalCentavos: 3998,

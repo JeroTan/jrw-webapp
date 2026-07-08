@@ -55,6 +55,18 @@ const tboxPaymentReturnPublicStatus = t.Union([
   t.Literal("unknown"),
 ]);
 
+const tboxPaymentReceiptLane = t.Object({
+  kind: t.Union([
+    t.Literal("payment"),
+    t.Literal("fulfillment"),
+    t.Literal("return"),
+    t.Literal("refund"),
+  ]),
+  label: t.String(),
+  updatedAt: t.Union([t.String(), t.Null()]),
+  value: t.String(),
+});
+
 const tboxPaymentReceipt = t.Object({
   fulfillmentStatus: t.Object({
     label: t.String(),
@@ -91,6 +103,12 @@ const tboxPaymentReceipt = t.Object({
     value: tboxPaymentReturnPublicStatus,
   }),
   source: t.Union([t.Literal("order"), t.Literal("payment")]),
+  statusLanes: t.Object({
+    fulfillment: tboxPaymentReceiptLane,
+    payment: tboxPaymentReceiptLane,
+    refund: tboxPaymentReceiptLane,
+    return: tboxPaymentReceiptLane,
+  }),
   totals: t.Object({
     currency: t.Literal("PHP"),
     subtotalCentavos: t.Integer({ minimum: 0 }),

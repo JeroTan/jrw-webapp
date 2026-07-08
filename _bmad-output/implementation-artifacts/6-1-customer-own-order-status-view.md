@@ -1,6 +1,6 @@
 # Story 6.1: Shopper Own-Order Status View
 
-Status: ready-for-dev
+Status: review
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -25,92 +25,92 @@ so that I can track payment, fulfillment, return, and refund state safely.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Lock scope and domain shape. (AC: 1-10)
-  - [ ] Implement read-only Shopper order status only.
-  - [ ] Do not implement Admin order list/detail, fulfillment transitions, return/refund mutation, refund payment execution, customer self-service returns, broad guest order search, or audit history UI.
-  - [ ] Use canonical fields: `orders.payment_status`, `orders.fulfillment_status`, `orders.subtotal_centavos`, `orders.total_centavos`, `orders.currency`, `orders.created_at`, `orders.updated_at`, and `order_snapshots`.
-  - [ ] Ignore legacy `orders.status`, `orders.status_description`, and `orders.total_amount real` for new customer order APIs except if a compatibility test needs to prove they are not used.
-  - [ ] Keep return/refund lanes read-only. Until Story 6.4/6.5 adds records, return status is `RETURN_NOT_REQUESTED` and refund status is `REFUND_NOT_REQUESTED`.
+- [x] Task 1: Lock scope and domain shape. (AC: 1-10)
+  - [x] Implement read-only Shopper order status only.
+  - [x] Do not implement Admin order list/detail, fulfillment transitions, return/refund mutation, refund payment execution, customer self-service returns, broad guest order search, or audit history UI.
+  - [x] Use canonical fields: `orders.payment_status`, `orders.fulfillment_status`, `orders.subtotal_centavos`, `orders.total_centavos`, `orders.currency`, `orders.created_at`, `orders.updated_at`, and `order_snapshots`.
+  - [x] Ignore legacy `orders.status`, `orders.status_description`, and `orders.total_amount real` for new customer order APIs except if a compatibility test needs to prove they are not used.
+  - [x] Keep return/refund lanes read-only. Until Story 6.4/6.5 adds records, return status is `RETURN_NOT_REQUESTED` and refund status is `REFUND_NOT_REQUESTED`.
 
-- [ ] Task 2: Add pure order status/read-model helpers. (AC: 2, 5-7)
-  - [ ] Add `src/domain/orders/**`, recommended `customer-order-status.ts` or `order-status.ts`.
-  - [ ] Define public lane values and labels for payment, fulfillment, return, and refund.
-  - [ ] Map current fulfillment values from code (`ORDER_PLACED`, `PROCESSING`, `SHIPPED`, `DELIVERED`, `CANCELLED`) and tolerate PRD/future values safely.
-  - [ ] Format status lanes as data, not JSX: `{ kind, value, label, updatedAt }`.
-  - [ ] Add pure tests for known labels, unknown fallback, separate status lanes, default return/refund lanes, and no provider/internal labels.
+- [x] Task 2: Add pure order status/read-model helpers. (AC: 2, 5-7)
+  - [x] Add `src/domain/orders/**`, recommended `customer-order-status.ts` or `order-status.ts`.
+  - [x] Define public lane values and labels for payment, fulfillment, return, and refund.
+  - [x] Map current fulfillment values from code (`ORDER_PLACED`, `PROCESSING`, `SHIPPED`, `DELIVERED`, `CANCELLED`) and tolerate PRD/future values safely.
+  - [x] Format status lanes as data, not JSX: `{ kind, value, label, updatedAt }`.
+  - [x] Add pure tests for known labels, unknown fallback, separate status lanes, default return/refund lanes, and no provider/internal labels.
 
-- [ ] Task 3: Add customer order repository. (AC: 1-7)
-  - [ ] Add `src/server/repositories/OrderRepository.ts` and `OrderRepository.test.ts`.
-  - [ ] Implement `listCustomerOrders({ customerId, page, pageSize })` with default page size 20 and max page size 50 unless existing route pattern requires a different cap.
-  - [ ] Implement `getCustomerOrderDetail({ customerId, orderIdOrNumber })` using `and(eq(orders.customer_id, customerId), ...)`; never fetch by order ID first and check ownership later in service/UI.
-  - [ ] Read snapshots from `order_snapshots`; sort deterministically by `snapshot_timestamp`, then `id`.
-  - [ ] Return safe DTO fields only. Do not return checkout email, phone, street address, barangay, city/province, postal code, provider checkout session ID, provider reference, checkout URL, request IDs, or email send message IDs.
-  - [ ] For guest receipt/status detail, either extend the existing `findPaymentReturnRecord` path or add a focused guest-read repository method using payment/attempt IDs from signed context. Do not add raw email lookup.
+- [x] Task 3: Add customer order repository. (AC: 1-7)
+  - [x] Add `src/server/repositories/OrderRepository.ts` and `OrderRepository.test.ts`.
+  - [x] Implement `listCustomerOrders({ customerId, page, pageSize })` with default page size 20 and max page size 50 unless existing route pattern requires a different cap.
+  - [x] Implement `getCustomerOrderDetail({ customerId, orderIdOrNumber })` using `and(eq(orders.customer_id, customerId), ...)`; never fetch by order ID first and check ownership later in service/UI.
+  - [x] Read snapshots from `order_snapshots`; sort deterministically by `snapshot_timestamp`, then `id`.
+  - [x] Return safe DTO fields only. Do not return checkout email, phone, street address, barangay, city/province, postal code, provider checkout session ID, provider reference, checkout URL, request IDs, or email send message IDs.
+  - [x] For guest receipt/status detail, either extend the existing `findPaymentReturnRecord` path or add a focused guest-read repository method using payment/attempt IDs from signed context. Do not add raw email lookup.
 
-- [ ] Task 4: Add order service and controller. (AC: 1-4, 7, 9)
-  - [ ] Add `src/server/services/OrderService.ts` and `OrderService.test.ts`.
-  - [ ] Require actor `{ authenticated: true, role: "CUSTOMER", actorId }` for signed-in list/detail.
-  - [ ] Return `AUTH_REQUIRED` for anonymous signed-in endpoints and `AUTH_FORBIDDEN` for wrong realm if route guard does not already block it.
-  - [ ] For cross-customer detail, prefer `RESOURCE_NOT_FOUND` to prevent order enumeration unless current endpoint contract explicitly chooses `AUTH_FORBIDDEN`; document whichever is chosen.
-  - [ ] Add `src/server/controllers/OrderController.ts` as transport adapter only. Keep ownership and read-model decisions in service/repository/domain helpers.
-  - [ ] Preserve standard `AppResult` and `apiSuccessWithRequestId` / `apiErrorWithRequestId` response patterns.
+- [x] Task 4: Add order service and controller. (AC: 1-4, 7, 9)
+  - [x] Add `src/server/services/OrderService.ts` and `OrderService.test.ts`.
+  - [x] Require actor `{ authenticated: true, role: "CUSTOMER", actorId }` for signed-in list/detail.
+  - [x] Return `AUTH_REQUIRED` for anonymous signed-in endpoints and `AUTH_FORBIDDEN` for wrong realm if route guard does not already block it.
+  - [x] For cross-customer detail, prefer `RESOURCE_NOT_FOUND` to prevent order enumeration unless current endpoint contract explicitly chooses `AUTH_FORBIDDEN`; document whichever is chosen.
+  - [x] Add `src/server/controllers/OrderController.ts` as transport adapter only. Keep ownership and read-model decisions in service/repository/domain helpers.
+  - [x] Preserve standard `AppResult` and `apiSuccessWithRequestId` / `apiErrorWithRequestId` response patterns.
 
-- [ ] Task 5: Add customer order API routes. (AC: 1-4, 9)
-  - [ ] Add `src/server/routes/orders.routes.ts` and `orders.routes.test.ts`.
-  - [ ] Recommended paths: `GET /api/customer/orders` and `GET /api/customer/orders/:orderId`.
-  - [ ] Use `/api/customer/orders*` unless there is a deliberate reason to use `/api/orders*`; `request-context.ts` already treats `/api/customer/` as Customer realm. If `/api/orders*` is chosen, update `sessionRealmForPath` and add regression tests so Customer cookie is used, not Admin cookie.
-  - [ ] Register route in `src/server/routes/index.ts` and `CreateAppOptions.routes` in `src/server/app.ts`.
-  - [ ] `serverRouteGroups` already lists `orders`; keep it aligned.
-  - [ ] Route metadata: auth required `CUSTOMER`, rate-limit class `public-read` or stricter customer read class if existing taxonomy supports it, tags `Orders`, documented errors `AUTH_REQUIRED`, `AUTH_FORBIDDEN`, `RESOURCE_NOT_FOUND`, `VALIDATION_FAILED`, `INTERNAL_ERROR`.
-  - [ ] Schemas must validate pagination and response DTOs. No additional query properties that look like raw email lookup.
-  - [ ] OpenAPI test must assert metadata and path docs.
+- [x] Task 5: Add customer order API routes. (AC: 1-4, 9)
+  - [x] Add `src/server/routes/orders.routes.ts` and `orders.routes.test.ts`.
+  - [x] Recommended paths: `GET /api/customer/orders` and `GET /api/customer/orders/:orderId`.
+  - [x] Use `/api/customer/orders*` unless there is a deliberate reason to use `/api/orders*`; `request-context.ts` already treats `/api/customer/` as Customer realm. If `/api/orders*` is chosen, update `sessionRealmForPath` and add regression tests so Customer cookie is used, not Admin cookie.
+  - [x] Register route in `src/server/routes/index.ts` and `CreateAppOptions.routes` in `src/server/app.ts`.
+  - [x] `serverRouteGroups` already lists `orders`; keep it aligned.
+  - [x] Route metadata: auth required `CUSTOMER`, rate-limit class `public-read` or stricter customer read class if existing taxonomy supports it, tags `Orders`, documented errors `AUTH_REQUIRED`, `AUTH_FORBIDDEN`, `RESOURCE_NOT_FOUND`, `VALIDATION_FAILED`, `INTERNAL_ERROR`.
+  - [x] Schemas must validate pagination and response DTOs. No additional query properties that look like raw email lookup.
+  - [x] OpenAPI test must assert metadata and path docs.
 
-- [ ] Task 6: Preserve and extend guest receipt/status access. (AC: 4, 7-8)
-  - [ ] Existing public `GET /api/checkout/payment-return` is valid guest receipt/status access through server-owned checkout references.
-  - [ ] Extend existing receipt/status DTO only as needed to include return/refund lanes/timestamps for confirmed orders.
-  - [ ] If a separate guest order endpoint is introduced, use a signed token carrying internal attempt/payment/order IDs only; do not encode raw email, phone, address, provider session, or checkout URL.
-  - [ ] Do not reuse `receiptAccountPrefill` token for broad order access unless purpose/name/tests make the scope clear. A new token purpose such as `guest-order-access` is safer if detail page access needs a token.
-  - [ ] Tests must deny `?email=buyer@example.test`, open order number lookup, mismatched attempt/payment IDs, expired/invalid signed context, and provider-looking IDs.
+- [x] Task 6: Preserve and extend guest receipt/status access. (AC: 4, 7-8)
+  - [x] Existing public `GET /api/checkout/payment-return` is valid guest receipt/status access through server-owned checkout references.
+  - [x] Extend existing receipt/status DTO only as needed to include return/refund lanes/timestamps for confirmed orders.
+  - [x] If a separate guest order endpoint is introduced, use a signed token carrying internal attempt/payment/order IDs only; do not encode raw email, phone, address, provider session, or checkout URL.
+  - [x] Do not reuse `receiptAccountPrefill` token for broad order access unless purpose/name/tests make the scope clear. A new token purpose such as `guest-order-access` is safer if detail page access needs a token.
+  - [x] Tests must deny `?email=buyer@example.test`, open order number lookup, mismatched attempt/payment IDs, expired/invalid signed context, and provider-looking IDs.
 
-- [ ] Task 7: Build customer account order UI. (AC: 1-8, 10)
-  - [ ] Replace placeholder in `src/pages/account/orders/index.astro`.
-  - [ ] Add `src/pages/account/orders/[orderId].astro`.
-  - [ ] Add React panels under `src/features/customer-account/**`, recommended `CustomerOrdersPanel.tsx` and `CustomerOrderDetailPanel.tsx`, or a focused `orders/` subfolder inside the feature.
-  - [ ] Extend `src/features/customer-account/api.ts` with typed fetchers and validators for order list/detail.
-  - [ ] Keep `AccountDashboardShell` navigation and protected page middleware behavior unchanged.
-  - [ ] List view should show order number, date, item count, total, payment label, fulfillment label, and detail action.
-  - [ ] Detail view should show snapshot items, totals, and four status lanes. It may omit delivery/contact PII for this story.
-  - [ ] Loading, empty, forbidden/session-expired, not-found, and provider/unavailable states must use safe copy and no technical internals.
-  - [ ] Use shared `Button`/`ButtonLink`; no custom SVG, no resurrected `IconButton`, no one-off `jrw-*` CSS classes.
+- [x] Task 7: Build customer account order UI. (AC: 1-8, 10)
+  - [x] Replace placeholder in `src/pages/account/orders/index.astro`.
+  - [x] Add `src/pages/account/orders/[orderId].astro`.
+  - [x] Add React panels under `src/features/customer-account/**`, recommended `CustomerOrdersPanel.tsx` and `CustomerOrderDetailPanel.tsx`, or a focused `orders/` subfolder inside the feature.
+  - [x] Extend `src/features/customer-account/api.ts` with typed fetchers and validators for order list/detail.
+  - [x] Keep `AccountDashboardShell` navigation and protected page middleware behavior unchanged.
+  - [x] List view should show order number, date, item count, total, payment label, fulfillment label, and detail action.
+  - [x] Detail view should show snapshot items, totals, and four status lanes. It may omit delivery/contact PII for this story.
+  - [x] Loading, empty, forbidden/session-expired, not-found, and provider/unavailable states must use safe copy and no technical internals.
+  - [x] Use shared `Button`/`ButtonLink`; no custom SVG, no resurrected `IconButton`, no one-off `jrw-*` CSS classes.
 
-- [ ] Task 8: Snapshot image strategy. (AC: 5-6)
-  - [ ] Minimum accepted: display snapshot item text and a deliberate no-image fallback when `image_r2_key` is null.
-  - [ ] Do not use current product primary images as historical snapshot images.
-  - [ ] If adding frozen image reference is chosen in this story, update payment item/order snapshot creation path and create next migration after `0032_checkout_payment_status_email.sql`; apply development D1 only after review.
-  - [ ] Add tests proving catalog product name/image changes do not alter returned order snapshot DTO.
+- [x] Task 8: Snapshot image strategy. (AC: 5-6)
+  - [x] Minimum accepted: display snapshot item text and a deliberate no-image fallback when `image_r2_key` is null.
+  - [x] Do not use current product primary images as historical snapshot images.
+  - [x] If adding frozen image reference is chosen in this story, update payment item/order snapshot creation path and create next migration after `0032_checkout_payment_status_email.sql`; apply development D1 only after review.
+  - [x] Add tests proving catalog product name/image changes do not alter returned order snapshot DTO.
 
-- [ ] Task 9: Validation gates. (AC: 1-10)
-  - [ ] Domain tests: `npx vitest run src/domain/orders/customer-order-status.test.ts`.
-  - [ ] Repository/service/route tests: `npx vitest run src/server/repositories/OrderRepository.test.ts src/server/services/OrderService.test.ts src/server/routes/orders.routes.test.ts`.
-  - [ ] Existing route/context regressions: `npx vitest run src/server/routes/customer.routes.test.ts src/server/routes/payment-return.routes.test.ts src/server/context/request-context.test.ts` if a context test exists, otherwise add coverage in route tests.
-  - [ ] UI/client tests: `npx vitest run src/features/customer-account/customer-account-ui.test.tsx`.
-  - [ ] Payment return UI regression if guest DTO changes: `npx vitest run src/features/cart-checkout/components/cart-ui.test.tsx`.
-  - [ ] Run `npm run check`.
-  - [ ] Run `npm run build-development` after route/schema/Worker wiring changes.
-  - [ ] Document responsive/manual QA at 320, 375, 768, 1024, and 1440 widths, or document blocker. Seeded fixture gap from Epic 5 may be blocker.
+- [x] Task 9: Validation gates. (AC: 1-10)
+  - [x] Domain tests: `npx vitest run src/domain/orders/customer-order-status.test.ts`.
+  - [x] Repository/service/route tests: `npx vitest run src/server/repositories/OrderRepository.test.ts src/server/services/OrderService.test.ts src/server/routes/orders.routes.test.ts`.
+  - [x] Existing route/context regressions: `npx vitest run src/server/routes/customer.routes.test.ts src/server/routes/payment-return.routes.test.ts src/server/context/request-context.test.ts` if a context test exists, otherwise add coverage in route tests.
+  - [x] UI/client tests: `npx vitest run src/features/customer-account/customer-account-ui.test.tsx`.
+  - [x] Payment return UI regression if guest DTO changes: `npx vitest run src/features/cart-checkout/components/cart-ui.test.tsx`.
+  - [x] Run `npm run check`.
+  - [x] Run `npm run build-development` after route/schema/Worker wiring changes.
+  - [x] Document responsive/manual QA at 320, 375, 768, 1024, and 1440 widths, or document blocker. Seeded fixture gap from Epic 5 may be blocker.
 
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint/job. Mark non-applicable items as `N/A` with reason.
 
-- [ ] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
-- [ ] Route-level RBAC guard runs before validation or side effects for protected endpoints.
-- [ ] Service/controller enforces actor state before mutation: authenticated, active, verified, approved.
-- [ ] Brand-scoped reads or writes enforce active brand membership or elevated permission server-side.
-- [ ] Public/customer endpoints explicitly document why brand membership is not required.
-- [ ] Denial tests cover unauthenticated actor, wrong role, invalid account state, missing brand membership, and elevated actor path where applicable.
-- [ ] Error response uses safe envelope codes and does not leak provider/internal authorization details.
-- [ ] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
+- [x] Route auth metadata declares public/optional/required auth, roles, and rate-limit class.
+- [x] Route-level RBAC guard runs before validation or side effects for protected endpoints.
+- [x] Service/controller enforces actor state before mutation: authenticated, active, verified, approved.
+- [x] Brand-scoped reads or writes enforce active brand membership or elevated permission server-side. N/A - own-order Customer reads are not brand-scoped Admin operations.
+- [x] Public/customer endpoints explicitly document why brand membership is not required.
+- [x] Denial tests cover unauthenticated actor, wrong role, invalid account state, missing brand membership, and elevated actor path where applicable. N/A for brand membership.
+- [x] Error response uses safe envelope codes and does not leak provider/internal authorization details.
+- [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
 
 For this story:
 
@@ -344,14 +344,64 @@ For this story:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
+- 2026-07-08: Started implementation. Scope locked to read-only Shopper order status.
+- 2026-07-08: Red/green completed for domain lanes, repository ownership, service/controller routes, guest receipt lane extension, account UI, and regression tests.
+- 2026-07-08: Manual responsive browser QA blocked by missing seeded authenticated Customer order/session fixture for deterministic `/account/orders` rendering. Component-level mobile/desktop class coverage and build checks passed.
+
+### Implementation Plan
+
+- Add pure customer-safe order status lane helpers.
+- Add owned-order repository/service/controller/routes with Customer-only guards.
+- Add account order list/detail UI and client fetchers.
+- Preserve public checkout payment-return guest receipt access and add return/refund lanes.
+- Validate with targeted domain/server/UI tests, `npm run check`, and development build.
+
 ### Completion Notes List
 
+- Implemented read-only Customer own-order API at `GET /api/customer/orders` and `GET /api/customer/orders/:orderId` with Customer-only RBAC metadata/guards, `{ data, meta }` envelopes, pagination bounds, OpenAPI metadata, and safe `RESOURCE_NOT_FOUND` detail behavior.
+- Added Drizzle order repository using SQL ownership predicates (`orders.customer_id`) and snapshot-only item read models from `order_snapshots`; mutable catalog rows, legacy order status/amount fields, provider IDs, checkout PII, and message IDs are not exposed.
+- Added pure customer-safe status lane helpers for payment, fulfillment, return, and refund, plus default read-only return/refund lanes.
+- Extended existing checkout payment-return receipt DTO/UI with four status lanes while preserving server-owned guest lookup only; raw email query is ignored and tested as non-lookup.
+- Replaced account orders placeholder with list/detail pages and React panels using shared `ButtonLink`/`StatusBadge`, snapshot no-image fallback, four-lane timeline, and safe loading/not-found/error states.
+- Manual viewport QA at 320, 375, 768, 1024, and 1440 remains blocked until seeded authenticated order fixtures exist; component markup assertions cover responsive classes and visual contract.
+
 ### File List
+
+- \_bmad-output/implementation-artifacts/6-1-customer-own-order-status-view.md
+- \_bmad-output/implementation-artifacts/sprint-status.yaml
+- src/domain/orders/customer-order-status.ts
+- src/domain/orders/customer-order-status.test.ts
+- src/domain/payments/payment-receipt.ts
+- src/features/cart-checkout/api.ts
+- src/features/cart-checkout/components/PaymentReturnStatus.tsx
+- src/features/cart-checkout/components/cart-ui.test.tsx
+- src/features/customer-account/CustomerOrderDetailPanel.tsx
+- src/features/customer-account/CustomerOrdersPanel.tsx
+- src/features/customer-account/api.ts
+- src/features/customer-account/customer-account-ui.test.tsx
+- src/features/customer-account/index.ts
+- src/pages/account/orders/[orderId].astro
+- src/pages/account/orders/index.astro
+- src/server/app.ts
+- src/server/controllers/OrderController.ts
+- src/server/repositories/OrderConfirmationRepository.ts
+- src/server/repositories/OrderRepository.test.ts
+- src/server/repositories/OrderRepository.ts
+- src/server/routes/index.ts
+- src/server/routes/orders.routes.test.ts
+- src/server/routes/orders.routes.ts
+- src/server/routes/payment-return.routes.test.ts
+- src/server/routes/payment-return.routes.ts
+- src/server/services/OrderService.test.ts
+- src/server/services/OrderService.ts
+- src/server/services/PaymentReconciliationService.test.ts
 
 ## Change Log
 
 - 2026-07-08: Story created for Shopper own-order status view; status set to ready-for-dev.
+- 2026-07-08: Development started; status set to in-progress.
+- 2026-07-08: Implemented Shopper own-order status view/API and moved story to review.

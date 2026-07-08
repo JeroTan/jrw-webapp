@@ -1,0 +1,15 @@
+---
+import { CustomerOrderDetailPanel } from "@/features/customer-account";
+import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
+
+const orderId = Astro.params.orderId ?? "";
+---
+
+<StorefrontLayout
+  title="Order detail | JRW"
+  description="View your JRW order status."
+  mainAriaLabel="Customer order detail"
+  class="!w-full !max-w-none !p-0 !px-0 !py-0"
+>
+  <CustomerOrderDetailPanel client:load orderId={orderId} />
+</StorefrontLayout>

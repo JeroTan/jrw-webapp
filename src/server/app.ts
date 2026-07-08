@@ -154,6 +154,9 @@ export function createApp(options: CreateAppOptions = {}) {
     ownerGovernance: {
       ...options.routes?.ownerGovernance,
     },
+    orders: {
+      ...options.routes?.orders,
+    },
     brands: {
       ...options.routes?.brands,
     },

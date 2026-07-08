@@ -125,6 +125,33 @@ const activeCart = addCartItem(
   "t1"
 ).state;
 
+const receiptStatusLanes = {
+  fulfillment: {
+    kind: "fulfillment" as const,
+    label: "Order placed",
+    updatedAt: "2026-07-08T01:00:00.000Z",
+    value: "ORDER_PLACED",
+  },
+  payment: {
+    kind: "payment" as const,
+    label: "Payment paid",
+    updatedAt: "2026-07-08T01:00:00.000Z",
+    value: "PAYMENT_PAID",
+  },
+  refund: {
+    kind: "refund" as const,
+    label: "No refund requested",
+    updatedAt: null,
+    value: "REFUND_NOT_REQUESTED",
+  },
+  return: {
+    kind: "return" as const,
+    label: "No return requested",
+    updatedAt: null,
+    value: "RETURN_NOT_REQUESTED",
+  },
+};
+
 describe("cart checkout UI", () => {
   const originalWindow = (globalThis as { window?: unknown }).window;
 
@@ -1121,6 +1148,7 @@ describe("cart checkout UI", () => {
               ],
               paymentStatus: { label: "Payment paid", value: "confirmed" },
               source: "order",
+              statusLanes: receiptStatusLanes,
               totals: {
                 currency: "PHP",
                 subtotalCentavos: 3998,
@@ -1281,6 +1309,7 @@ describe("cart checkout UI", () => {
               ],
               paymentStatus: { label: "Payment paid", value: "confirmed" },
               source: "order",
+              statusLanes: receiptStatusLanes,
               totals: {
                 currency: "PHP",
                 subtotalCentavos: 3998,
@@ -1340,6 +1369,7 @@ describe("cart checkout UI", () => {
             ],
             paymentStatus: { label: "Payment paid", value: "confirmed" },
             source: "order",
+            statusLanes: receiptStatusLanes,
             totals: {
               currency: "PHP",
               subtotalCentavos: 1999,

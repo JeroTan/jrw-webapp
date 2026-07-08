@@ -16,9 +16,13 @@ import {
   CustomerRegisterPanel,
   CustomerRegistrationSuccess,
 } from "./CustomerRegisterPanel";
+import { CustomerOrderDetailView } from "./CustomerOrderDetailPanel";
+import { CustomerOrdersView } from "./CustomerOrdersPanel";
 import { CustomerSignInPanel } from "./CustomerSignInPanel";
 import {
   CustomerAccountApiError,
+  getCustomerOrder,
+  getCustomerOrders,
   getCustomerRegistrationPrefill,
   getCustomerProfile,
   getGoogleOAuthStartHref,
@@ -53,6 +57,64 @@ function customerProfile() {
     postalCode: "1200",
     role: "CUSTOMER" as const,
     streetAddress: "1 Test Street",
+  };
+}
+
+function customerOrderSummary() {
+  const updatedAt = "2026-07-08T01:00:00.000Z";
+
+  return {
+    createdAt: updatedAt,
+    currency: "PHP" as const,
+    fulfillment: {
+      kind: "fulfillment" as const,
+      label: "Shipped",
+      updatedAt,
+      value: "SHIPPED",
+    },
+    itemCount: 1,
+    orderId: "order_1",
+    orderNumber: "JRW-2026-ORDER1",
+    payment: {
+      kind: "payment" as const,
+      label: "Payment paid",
+      updatedAt,
+      value: "PAYMENT_PAID",
+    },
+    refund: {
+      kind: "refund" as const,
+      label: "No refund requested",
+      updatedAt: null,
+      value: "REFUND_NOT_REQUESTED",
+    },
+    return: {
+      kind: "return" as const,
+      label: "No return requested",
+      updatedAt: null,
+      value: "RETURN_NOT_REQUESTED",
+    },
+    subtotalCentavos: 3998,
+    totalCentavos: 3998,
+    totalQuantity: 2,
+    updatedAt,
+  };
+}
+
+function customerOrderDetail() {
+  return {
+    ...customerOrderSummary(),
+    items: [
+      {
+        imageR2Key: null,
+        lineTotalCentavos: 3998,
+        productName: "Frozen Linen Shirt",
+        productSlug: "frozen-linen-shirt",
+        quantity: 2,
+        unitPriceCentavos: 1999,
+        variantLabel: "Size: Small",
+        variantOptions: [{ group: "Size", name: "Small" }],
+      },
+    ],
   };
 }
 
@@ -111,9 +173,7 @@ describe("customer account UI", () => {
     );
 
     expect(markup).toContain("Verify your email");
-    expect(markup).toContain(
-      "/account/sign-in?returnTo=%2Faccount%2Forders"
-    );
+    expect(markup).toContain("/account/sign-in?returnTo=%2Faccount%2Forders");
   });
 
   it("renders registration privacy copy and a response-independent verification state", () => {
@@ -263,6 +323,82 @@ describe("customer account UI", () => {
         method: "PATCH",
       }),
     ]);
+  });
+
+  it("loads customer orders without raw email lookup", async () => {
+    const fetcher = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            items: [customerOrderSummary()],
+            pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+          },
+        })
+      )
+      .mockResolvedValueOnce(jsonResponse({ data: customerOrderDetail() }));
+
+    await expect(
+      getCustomerOrders({ page: 1, pageSize: 20 }, fetcher)
+    ).resolves.toMatchObject({ items: [{ orderNumber: "JRW-2026-ORDER1" }] });
+    await expect(
+      getCustomerOrder("JRW-2026-ORDER1", fetcher)
+    ).resolves.toMatchObject({
+      items: [{ productName: "Frozen Linen Shirt" }],
+    });
+
+    expect(fetcher.mock.calls[0]?.[0]).toBe(
+      "/api/customer/orders?page=1&pageSize=20"
+    );
+    expect(fetcher.mock.calls[1]?.[0]).toBe(
+      "/api/customer/orders/JRW-2026-ORDER1"
+    );
+    expect(
+      fetcher.mock.calls.map((call) => String(call[0])).join(" ")
+    ).not.toMatch(/email=|nina@example|phone|address/i);
+  });
+
+  it("renders customer order list with safe lane labels and touch targets", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CustomerOrdersView, {
+        orders: [customerOrderSummary()],
+        pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+      })
+    );
+
+    expect(markup).toContain("JRW-2026-ORDER1");
+    expect(markup).toContain("Payment paid");
+    expect(markup).toContain("Shipped");
+    expect(markup).toContain("No return requested");
+    expect(markup).toContain("No refund requested");
+    expect(markup).toContain("PHP 39.98");
+    expect(markup).toContain('href="/account/orders/order_1"');
+    expect(markup).toContain("min-h-control-md");
+    expect(markup).toContain("rounded-none");
+    expect(markup).not.toMatch(
+      /checkout_url|providerCheckoutSession|PayMongo payload|nina@example|0917|Sampaguita|token|secret|signature|card/i
+    );
+  });
+
+  it("renders customer order detail from snapshot items with no-image fallback", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CustomerOrderDetailView, { order: customerOrderDetail() })
+    );
+
+    expect(markup).toContain("Order truth timeline");
+    expect(markup).toContain("Frozen Linen Shirt");
+    expect(markup).toContain("Size: Small");
+    expect(markup).toContain("No image");
+    expect(markup).toContain("Payment paid");
+    expect(markup).toContain("Shipped");
+    expect(markup).toContain("No return requested");
+    expect(markup).toContain("No refund requested");
+    expect(markup).toContain("grid-cols-1");
+    expect(markup).toContain("md:grid-cols-4");
+    expect(markup).not.toContain("Mutable Catalog Shirt");
+    expect(markup).not.toMatch(
+      /checkout_url|providerCheckoutSession|PayMongo payload|nina@example|0917|Sampaguita|token|secret|signature|card/i
+    );
   });
 
   it("shows accessible field errors and validates profile values before save", () => {

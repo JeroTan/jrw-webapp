@@ -1,6 +1,5 @@
 ---
-import { AccountDashboardShell } from "@/features/customer-account";
-import { StorefrontPlaceholder } from "@/features/storefront-shell";
+import { CustomerOrdersPanel } from "@/features/customer-account";
 import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
 ---
 
@@ -10,16 +9,5 @@ import StorefrontLayout from "@/layouts/StorefrontLayout.astro";
   mainAriaLabel="Customer orders"
   class="!w-full !max-w-none !p-0 !px-0 !py-0"
 >
-  <AccountDashboardShell currentSection="orders">
-    <StorefrontPlaceholder
-      copy="Order history will connect here after the account order-status story. For now, manage your profile or continue browsing."
-      kicker="Account"
-      links={[
-        { href: "/account/profile", label: "Back to profile" },
-        { href: "/products", label: "Browse products" },
-      ]}
-      title="Orders connect here next"
-      titleId="account-orders-placeholder-title"
-    />
-  </AccountDashboardShell>
+  <CustomerOrdersPanel client:load />
 </StorefrontLayout>

@@ -134,12 +134,26 @@ export function PaymentReturnStatusView({
             ) : null}
             <div className="flex flex-wrap justify-between gap-grid-xs">
               <dt className="text-brand-muted">Payment</dt>
-              <dd className="m-0 font-bold">{receipt.paymentStatus.label}</dd>
+              <dd className="m-0 font-bold">
+                {receipt.statusLanes.payment.label}
+              </dd>
             </div>
             <div className="flex flex-wrap justify-between gap-grid-xs">
               <dt className="text-brand-muted">Fulfillment</dt>
               <dd className="m-0 font-bold">
-                {receipt.fulfillmentStatus.label}
+                {receipt.statusLanes.fulfillment.label}
+              </dd>
+            </div>
+            <div className="flex flex-wrap justify-between gap-grid-xs">
+              <dt className="text-brand-muted">Return</dt>
+              <dd className="m-0 font-bold">
+                {receipt.statusLanes.return.label}
+              </dd>
+            </div>
+            <div className="flex flex-wrap justify-between gap-grid-xs">
+              <dt className="text-brand-muted">Refund</dt>
+              <dd className="m-0 font-bold">
+                {receipt.statusLanes.refund.label}
               </dd>
             </div>
             <div className="flex flex-wrap justify-between gap-grid-xs">

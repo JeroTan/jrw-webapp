@@ -3,6 +3,10 @@ import {
   type OrderFulfillmentStatus,
   type PaymentReturnStatus,
 } from "./payment-reconciliation";
+import {
+  buildCustomerOrderStatusLanes,
+  type CustomerOrderStatusLanes,
+} from "@/domain/orders/customer-order-status";
 
 export type PublicPaymentReceiptItem = {
   lineTotalCentavos: number;
@@ -33,6 +37,7 @@ export type PublicPaymentReceipt = {
     value: PaymentReturnStatus;
   };
   source: "order" | "payment";
+  statusLanes: CustomerOrderStatusLanes;
   totals: {
     currency: "PHP";
     subtotalCentavos: number;
@@ -49,6 +54,7 @@ export type BuildPaymentReceiptInput = {
   orderNumber?: string | null;
   paymentStatus: string;
   source: "order" | "payment";
+  statusUpdatedAt?: string | null;
   subtotalCentavos: number;
   totalCentavos: number;
 };
@@ -146,6 +152,11 @@ export function buildPaymentReceipt(
       value: publicStatus,
     },
     source: input.source,
+    statusLanes: buildCustomerOrderStatusLanes({
+      fulfillmentStatus: input.fulfillmentStatus ?? null,
+      paymentStatus: input.paymentStatus,
+      updatedAt: input.statusUpdatedAt ?? null,
+    }),
     totals: {
       currency: "PHP",
       subtotalCentavos: input.subtotalCentavos,

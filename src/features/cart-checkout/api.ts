@@ -136,6 +136,13 @@ export type PaymentReturnPublicStatus =
   | "refunded"
   | "unknown";
 
+export type PaymentReturnReceiptLane = {
+  kind: "fulfillment" | "payment" | "refund" | "return";
+  label: string;
+  updatedAt: string | null;
+  value: string;
+};
+
 export type PaymentReturnStatusResult = {
   canRetry: boolean;
   email?: {
@@ -187,6 +194,12 @@ export type PaymentReturnStatusResult = {
       value: PaymentReturnPublicStatus;
     };
     source: "order" | "payment";
+    statusLanes: {
+      fulfillment: PaymentReturnReceiptLane;
+      payment: PaymentReturnReceiptLane;
+      refund: PaymentReturnReceiptLane;
+      return: PaymentReturnReceiptLane;
+    };
     totals: {
       currency: "PHP";
       subtotalCentavos: number;
@@ -551,6 +564,14 @@ function isSafeReceipt(value: unknown): boolean {
   }
 
   const candidate = value as PaymentReturnStatusResult["receipt"];
+  const laneKinds = new Set(["payment", "fulfillment", "return", "refund"]);
+  const isLane = (lane: unknown) =>
+    isRecord(lane) &&
+    typeof lane.label === "string" &&
+    typeof lane.value === "string" &&
+    typeof lane.kind === "string" &&
+    laneKinds.has(lane.kind) &&
+    (typeof lane.updatedAt === "string" || lane.updatedAt === null);
 
   return Boolean(
     candidate &&
@@ -579,6 +600,11 @@ function isSafeReceipt(value: unknown): boolean {
     typeof candidate.paymentStatus.value === "string" &&
     isRecord(candidate.fulfillmentStatus) &&
     typeof candidate.fulfillmentStatus.label === "string" &&
+    isRecord(candidate.statusLanes) &&
+    isLane(candidate.statusLanes.payment) &&
+    isLane(candidate.statusLanes.fulfillment) &&
+    isLane(candidate.statusLanes.return) &&
+    isLane(candidate.statusLanes.refund) &&
     isRecord(candidate.guestAccountCta) &&
     typeof candidate.guestAccountCta.eligible === "boolean" &&
     (candidate.source === "order" || candidate.source === "payment")

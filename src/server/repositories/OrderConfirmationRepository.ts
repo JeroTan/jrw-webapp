@@ -643,8 +643,10 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
         orderNumber: orders.order_number,
         orderSubtotalCentavos: orders.subtotal_centavos,
         orderTotalCentavos: orders.total_centavos,
+        orderUpdatedAt: orders.updated_at,
         paymentAmountCentavos: checkout_payments.amount_centavos,
         paymentStatusEmailStatus: checkout_payments.payment_status_email_status,
+        paymentUpdatedAt: checkout_payments.updated_at,
         paymentId: checkout_payments.id,
         paymentStatus: checkout_payments.status,
         providerCheckoutSessionId:
@@ -704,6 +706,7 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
       orderNumber: row.orderNumber,
       paymentStatus: row.paymentStatus,
       source: row.orderId ? "order" : "payment",
+      statusUpdatedAt: row.orderUpdatedAt ?? row.paymentUpdatedAt,
       subtotalCentavos: Number(
         row.orderSubtotalCentavos ??
           row.reservationSubtotalCentavos ??

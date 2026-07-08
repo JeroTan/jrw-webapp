@@ -1,4 +1,6 @@
 export * from "./AccountLanding";
+export * from "./CustomerOrderDetailPanel";
+export * from "./CustomerOrdersPanel";
 export * from "./CustomerProfilePanel";
 export * from "./CustomerRegisterPanel";
 export * from "./CustomerSignInPanel";
