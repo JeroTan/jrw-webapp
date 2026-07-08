@@ -646,6 +646,66 @@ describe("CheckoutService", () => {
     });
   });
 
+  it("backfills signed-in customer profile from validated checkout details", async () => {
+    const repository = new CheckoutRepositoryStub();
+    const backfills: unknown[] = [];
+    const service = new CheckoutService({
+      repository,
+      customerProfileBackfill: async (input) => {
+        backfills.push(input);
+      },
+    });
+
+    const result = await service.saveDetails({
+      actor: {
+        authenticated: true,
+        actorId: "customer_server",
+        role: "CUSTOMER",
+      },
+      body: checkoutDetailsBody,
+      now: "2026-07-08T09:00:00.000Z",
+      requestId: "req_checkout_details_profile_backfill",
+    });
+
+    expect(result.error).toBeNull();
+    expect(backfills).toMatchObject([
+      {
+        customerId: "customer_server",
+        details: {
+          barangay: "Barangay 456",
+          cityProvince: "Quezon City",
+          firstName: "Nina",
+          lastName: "Reyes",
+          phone: "+63 917 555 1212",
+          postalCode: "1100",
+          streetAddress: "12 Sampaguita Street",
+        },
+        requestId: "req_checkout_details_profile_backfill",
+        updatedAt: "2026-07-08T09:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("does not backfill guest checkout details into a profile", async () => {
+    const repository = new CheckoutRepositoryStub();
+    const backfills: unknown[] = [];
+    const service = new CheckoutService({
+      repository,
+      customerProfileBackfill: async (input) => {
+        backfills.push(input);
+      },
+    });
+
+    const result = await service.saveDetails({
+      actor: { authenticated: false, role: "PROSPECT" },
+      body: checkoutDetailsBody,
+      requestId: "req_checkout_details_guest",
+    });
+
+    expect(result.error).toBeNull();
+    expect(backfills).toEqual([]);
+  });
+
   it("rejects checkout details with unknown customer identity fields", async () => {
     const repository = new CheckoutRepositoryStub();
     const service = new CheckoutService({ repository });

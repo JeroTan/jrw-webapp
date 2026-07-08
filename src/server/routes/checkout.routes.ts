@@ -9,6 +9,7 @@ import { CheckoutController } from "@/server/controllers/CheckoutController";
 import type { RequestContextDecorations } from "@/server/context/request-context";
 import { routeDetail } from "@/server/openapi/route-metadata";
 import { createCheckoutRepositories } from "@/server/repositories/CheckoutRepository";
+import { createCustomerAccountRepositories } from "@/server/repositories/CustomerAccountRepository";
 import {
   CheckoutService,
   type CheckoutPaymentExecutor,
@@ -16,6 +17,7 @@ import {
   type CheckoutPaymentServiceInput,
   type CheckoutReservationServiceInput,
 } from "@/server/services/CheckoutService";
+import { backfillCustomerProfileFromCheckoutDetails } from "@/server/services/CustomerAccountService";
 import type { OperationalLogger } from "@/adapter/infrastructure/logging/operational-log";
 import { isTrustedPayMongoCheckoutUrl } from "@/domain/payments/paymongo-checkout";
 import { PayMongoClient } from "@/lib/paymongo/PayMongoClient";
@@ -310,7 +312,9 @@ function isCheckoutReservationResponse(
   );
 }
 
-function isCheckoutPaymentResult(value: unknown): value is CheckoutPaymentResult {
+function isCheckoutPaymentResult(
+  value: unknown
+): value is CheckoutPaymentResult {
   if (!isRecord(value)) return false;
 
   const attempt = value.attempt;
@@ -532,6 +536,9 @@ function createRuntimeController(
   }
 
   const repositories = createCheckoutRepositories(db as D1Database);
+  const customerRepositories = createCustomerAccountRepositories(
+    db as D1Database
+  );
   const runtimePaymentConfig = createCheckoutPaymentRuntimeConfig(input);
   const reservationExecutor = shouldUseInventoryDurableObject()
     ? createInventoryReservationExecutor(
@@ -550,6 +557,13 @@ function createRuntimeController(
     : undefined;
   const service = new CheckoutService({
     ...repositories,
+    customerProfileBackfill: async (backfillInput) =>
+      backfillCustomerProfileFromCheckoutDetails({
+        customerId: backfillInput.customerId,
+        details: backfillInput.details,
+        repository: customerRepositories.repository,
+        updatedAt: backfillInput.updatedAt,
+      }),
     operationalLogger: options.operationalLogger,
     paymentExecutor,
     payMongoClient: runtimePaymentConfig.secretKey
@@ -573,7 +587,8 @@ function getController(
   options: CheckoutRoutesOptions
 ): CheckoutController {
   return (
-    options.controllerFactory?.(input) ?? createRuntimeController(input, options)
+    options.controllerFactory?.(input) ??
+    createRuntimeController(input, options)
   );
 }
 
@@ -683,7 +698,7 @@ export function checkoutRoutes(
         detail: routeDetail({
           summary: "Validate checkout details",
           description:
-            "Validates required checkout email/contact/delivery details for guest or signed-in shopper checkout. Customer auth is optional: a valid Customer session can attach the server-side customer reference, while guests keep a nullable customer reference. The browser cannot submit customer ID, role, email verification state, payment state, order state, provider fields, or raw PII beyond required fulfillment/contact fields. This endpoint creates no payment, order, reservation, webhook, email, or inventory lock.",
+            "Validates required checkout email/contact/delivery details for guest or signed-in shopper checkout. Customer auth is optional: a valid Customer session can attach the server-side customer reference and backfill missing profile contact/delivery fields from validated checkout details, while guests keep a nullable customer reference. The browser cannot submit customer ID, role, email verification state, payment state, order state, provider fields, or raw PII beyond required fulfillment/contact fields. This endpoint creates no payment, order, reservation, webhook, email, or inventory lock.",
           tags: ["Checkout"],
           auth: checkoutAuth,
           rateLimitClass: "checkout-payment",

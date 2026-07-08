@@ -4,6 +4,7 @@ import { hashEmailVerificationToken } from "@/domain/auth/email-verification-tok
 import { verifyPassword } from "@/lib/crypto/password";
 import type { AuthRateLimiter, AuthRateLimitInput } from "./AuthService";
 import {
+  backfillCustomerProfileFromCheckoutDetails,
   CustomerAccountService,
   type CustomerAccountRecord,
   type CustomerAccountRepository,
@@ -18,13 +19,16 @@ class FakeCustomerRepository implements CustomerAccountRepository {
 
   async findCustomerByEmail(email: string) {
     return (
-      this.customers.find((customer) => customer.email.toLowerCase() === email) ??
-      null
+      this.customers.find(
+        (customer) => customer.email.toLowerCase() === email
+      ) ?? null
     );
   }
 
   async findCustomerById(customerId: string) {
-    return this.customers.find((customer) => customer.id === customerId) ?? null;
+    return (
+      this.customers.find((customer) => customer.id === customerId) ?? null
+    );
   }
 
   async createCustomer(
@@ -53,7 +57,9 @@ class FakeCustomerRepository implements CustomerAccountRepository {
   }
 
   async createEmailVerificationToken(
-    input: Parameters<CustomerAccountRepository["createEmailVerificationToken"]>[0]
+    input: Parameters<
+      CustomerAccountRepository["createEmailVerificationToken"]
+    >[0]
   ) {
     const token: EmailVerificationTokenRecord = {
       id: `evt_${this.tokens.length + 1}`,
@@ -72,7 +78,9 @@ class FakeCustomerRepository implements CustomerAccountRepository {
   }
 
   async markEmailVerifiedAndTokenUsed(
-    input: Parameters<CustomerAccountRepository["markEmailVerifiedAndTokenUsed"]>[0]
+    input: Parameters<
+      CustomerAccountRepository["markEmailVerifiedAndTokenUsed"]
+    >[0]
   ) {
     const token = this.tokens.find(
       (entry) =>
@@ -94,7 +102,9 @@ class FakeCustomerRepository implements CustomerAccountRepository {
   async updateCustomerProfile(
     input: Parameters<CustomerAccountRepository["updateCustomerProfile"]>[0]
   ) {
-    const customer = this.customers.find((entry) => entry.id === input.customerId);
+    const customer = this.customers.find(
+      (entry) => entry.id === input.customerId
+    );
     if (!customer) return null;
 
     Object.assign(customer, input.profile);
@@ -122,10 +132,14 @@ class FakeRateLimiter implements AuthRateLimiter {
   }
 }
 
-function createNotifier(options: {
-  fail?: boolean;
-  sent?: Parameters<CustomerVerificationEmailNotifier["sendVerificationEmail"]>[0][];
-} = {}): CustomerVerificationEmailNotifier {
+function createNotifier(
+  options: {
+    fail?: boolean;
+    sent?: Parameters<
+      CustomerVerificationEmailNotifier["sendVerificationEmail"]
+    >[0][];
+  } = {}
+): CustomerVerificationEmailNotifier {
   return {
     sendVerificationEmail: async (input) => {
       options.sent?.push(input);
@@ -139,12 +153,14 @@ function createNotifier(options: {
   };
 }
 
-function createService(input: {
-  repository?: FakeCustomerRepository;
-  notifier?: CustomerVerificationEmailNotifier;
-  rateLimiter?: AuthRateLimiter;
-  logs?: OperationalLogEvent[];
-} = {}) {
+function createService(
+  input: {
+    repository?: FakeCustomerRepository;
+    notifier?: CustomerVerificationEmailNotifier;
+    rateLimiter?: AuthRateLimiter;
+    logs?: OperationalLogEvent[];
+  } = {}
+) {
   return new CustomerAccountService({
     repository: input.repository ?? new FakeCustomerRepository(),
     verificationEmails: input.notifier ?? createNotifier(),
@@ -211,9 +227,13 @@ describe("CustomerAccountService", () => {
       windowSeconds: 60 * 60,
       maxAttempts: 3,
     });
-    expect(rateLimiter.lastInput?.scopeHash).not.toContain("buyer@example.test");
+    expect(rateLimiter.lastInput?.scopeHash).not.toContain(
+      "buyer@example.test"
+    );
     expect(rateLimiter.lastInput?.scopeHash).not.toContain("source_hash");
-    expect(JSON.stringify(result.content)).not.toContain("raw-verification-token");
+    expect(JSON.stringify(result.content)).not.toContain(
+      "raw-verification-token"
+    );
     expect(JSON.stringify(result.content)).not.toContain(
       repository.customers[0]?.passwordHash ?? ""
     );
@@ -398,5 +418,56 @@ describe("CustomerAccountService", () => {
     expect(update.error).toBeNull();
     expect(update.content?.displayName).toBe("New Buyer");
     expect(update.content?.role).toBe("CUSTOMER");
+  });
+
+  it("backfills blank profile fields from checkout details without overwriting saved values", async () => {
+    const repository = new FakeCustomerRepository();
+    repository.customers.push({
+      id: "customer_1",
+      email: "buyer@example.test",
+      passwordHash: "hash",
+      passwordSalt: "salt",
+      status: "ACTIVE",
+      emailVerifiedAt: "2026-05-13T00:00:00.000Z",
+      displayName: "Saved Buyer",
+      firstName: null,
+      lastName: null,
+      phone: "0999 000 0000",
+      streetAddress: null,
+      barangay: null,
+      cityProvince: null,
+      postalCode: null,
+      avatarUrl: null,
+      emailMarketingOptIn: false,
+    });
+
+    const updated = await backfillCustomerProfileFromCheckoutDetails({
+      customerId: "customer_1",
+      details: {
+        barangay: "Barangay 456",
+        cityProvince: "Quezon City",
+        email: "buyer@example.test",
+        firstName: "Nina",
+        fullName: "Nina Reyes",
+        lastName: "Reyes",
+        phone: "+63 917 555 1212",
+        postalCode: "1100",
+        privacyAcknowledged: true,
+        streetAddress: "12 Sampaguita Street",
+      },
+      repository,
+      updatedAt: "2026-07-08T09:00:00.000Z",
+    });
+
+    expect(updated).toMatchObject({
+      displayName: "Saved Buyer",
+      firstName: "Nina",
+      lastName: "Reyes",
+      phone: "0999 000 0000",
+      streetAddress: "12 Sampaguita Street",
+      barangay: "Barangay 456",
+      cityProvince: "Quezon City",
+      postalCode: "1100",
+    });
   });
 });

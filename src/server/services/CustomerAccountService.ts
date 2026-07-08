@@ -16,6 +16,7 @@ import {
   validateCustomerProfileUpdate,
   validateCustomerRegistration,
 } from "@/domain/customers/customer-account";
+import type { CheckoutContactSnapshot } from "@/domain/checkout/contact-delivery";
 import type {
   CustomerVerificationEmailInput,
   CustomerVerificationEmailNotifier,
@@ -84,17 +85,28 @@ export type UpdateCustomerProfileInput = {
   updatedAt: string;
 };
 
+export type BackfillCustomerProfileFromCheckoutDetailsInput = {
+  customerId: string;
+  details: CheckoutContactSnapshot;
+  repository: CustomerAccountRepository;
+  updatedAt: string;
+};
+
 export type CustomerAccountRepository = {
   findCustomerByEmail(email: string): Promise<CustomerAccountRecord | null>;
   findCustomerById(customerId: string): Promise<CustomerAccountRecord | null>;
-  createCustomer(input: CreateCustomerRecordInput): Promise<CustomerAccountRecord>;
+  createCustomer(
+    input: CreateCustomerRecordInput
+  ): Promise<CustomerAccountRecord>;
   createEmailVerificationToken(
     input: CreateEmailVerificationTokenInput
   ): Promise<EmailVerificationTokenRecord>;
   findVerificationTokenByHash(
     tokenHash: string
   ): Promise<EmailVerificationTokenRecord | null>;
-  markEmailVerifiedAndTokenUsed(input: MarkEmailVerifiedInput): Promise<boolean>;
+  markEmailVerifiedAndTokenUsed(
+    input: MarkEmailVerifiedInput
+  ): Promise<boolean>;
   updateCustomerProfile(
     input: UpdateCustomerProfileInput
   ): Promise<CustomerAccountRecord | null>;
@@ -181,11 +193,15 @@ const noopRateLimiter: AuthRateLimiter = {
   reset: async () => undefined,
 };
 
-function serviceError(code: ErrorCodeType): GeneralError<Record<string, never>> {
+function serviceError(
+  code: ErrorCodeType
+): GeneralError<Record<string, never>> {
   return new GeneralError({}, code);
 }
 
-function toCustomerProfileDto(record: CustomerAccountRecord): CustomerProfileDto {
+function toCustomerProfileDto(
+  record: CustomerAccountRecord
+): CustomerProfileDto {
   return {
     id: record.id,
     email: record.email,
@@ -220,6 +236,87 @@ function requireCustomerActor(
   }
 
   return Result.okay({ customerId: actor.actorId });
+}
+
+function isBlankProfileText(value: string | null): boolean {
+  return value === null || value.trim().length === 0;
+}
+
+function assignIfBlank(
+  profile: CustomerProfilePatch,
+  field: Exclude<keyof CustomerProfilePatch, "emailMarketingOptIn">,
+  current: string | null,
+  next: string | null,
+  maxLength?: number
+) {
+  if (!isBlankProfileText(current) || !next) {
+    return;
+  }
+
+  const value = next.trim();
+
+  if (!value || (maxLength !== undefined && value.length > maxLength)) {
+    return;
+  }
+
+  profile[field] = value;
+}
+
+export async function backfillCustomerProfileFromCheckoutDetails(
+  input: BackfillCustomerProfileFromCheckoutDetailsInput
+): Promise<CustomerAccountRecord | null> {
+  const customer = await input.repository.findCustomerById(input.customerId);
+
+  if (!customer) {
+    return null;
+  }
+
+  const profile: CustomerProfilePatch = {};
+
+  assignIfBlank(
+    profile,
+    "displayName",
+    customer.displayName,
+    input.details.fullName,
+    120
+  );
+  assignIfBlank(
+    profile,
+    "firstName",
+    customer.firstName,
+    input.details.firstName
+  );
+  assignIfBlank(profile, "lastName", customer.lastName, input.details.lastName);
+  assignIfBlank(profile, "phone", customer.phone, input.details.phone);
+  assignIfBlank(
+    profile,
+    "streetAddress",
+    customer.streetAddress,
+    input.details.streetAddress
+  );
+  assignIfBlank(profile, "barangay", customer.barangay, input.details.barangay);
+  assignIfBlank(
+    profile,
+    "cityProvince",
+    customer.cityProvince,
+    input.details.cityProvince
+  );
+  assignIfBlank(
+    profile,
+    "postalCode",
+    customer.postalCode,
+    input.details.postalCode
+  );
+
+  if (Object.keys(profile).length === 0) {
+    return customer;
+  }
+
+  return input.repository.updateCustomerProfile({
+    customerId: input.customerId,
+    profile,
+    updatedAt: input.updatedAt,
+  });
 }
 
 export class CustomerAccountService {
@@ -385,7 +482,9 @@ export class CustomerAccountService {
       return Result.error(serviceError(decision.code));
     }
 
-    const customer = await this.repository.findCustomerById(decision.customerId);
+    const customer = await this.repository.findCustomerById(
+      decision.customerId
+    );
 
     if (!customer) {
       return Result.error(serviceError("RESOURCE_NOT_FOUND"));

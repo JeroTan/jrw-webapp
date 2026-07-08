@@ -67,6 +67,7 @@ export type CheckoutDetailsActorInput = {
 export type CheckoutDetailsServiceInput = {
   actor?: CheckoutDetailsActorInput;
   body: unknown;
+  now?: string;
   requestId: string;
 };
 
@@ -134,6 +135,7 @@ export type CheckoutPaymentResult = {
 
 export type CheckoutServiceOptions = {
   auditPublisher?: AuditEventPublisher;
+  customerProfileBackfill?: CheckoutCustomerProfileBackfill;
   operationalLogger?: OperationalLogger;
   paymentConfig?: CheckoutPaymentConfig;
   payMongoClient?: PayMongoClientLike;
@@ -155,6 +157,13 @@ export type CheckoutPaymentConfig = {
   paymentMethods?: readonly string[] | string | null;
   sendEmailReceipt?: boolean;
 };
+
+export type CheckoutCustomerProfileBackfill = (input: {
+  customerId: string;
+  details: CheckoutContactSnapshot;
+  requestId: string;
+  updatedAt: string;
+}) => Promise<unknown>;
 
 export type PayMongoClientLike = Pick<PayMongoClient, "createCheckoutSession">;
 
@@ -447,6 +456,7 @@ function toCheckoutPaymentResult(
 
 export class CheckoutService {
   private readonly auditPublisher: AuditEventPublisher;
+  private readonly customerProfileBackfill?: CheckoutCustomerProfileBackfill;
   private readonly operationalLogger: OperationalLogger;
   private readonly paymentConfig: CheckoutPaymentConfig;
   private readonly paymentExecutor?: CheckoutPaymentExecutor;
@@ -457,6 +467,7 @@ export class CheckoutService {
   constructor(options: CheckoutServiceOptions) {
     this.auditPublisher =
       options.auditPublisher ?? new NoopAuditEventPublisher();
+    this.customerProfileBackfill = options.customerProfileBackfill;
     this.operationalLogger = options.operationalLogger ?? noopOperationalLogger;
     this.paymentConfig = options.paymentConfig ?? {};
     this.paymentExecutor = options.paymentExecutor;
@@ -537,13 +548,24 @@ export class CheckoutService {
         : null;
 
     try {
+      const now = input.now ?? new Date().toISOString();
       const attemptToken = generateOpaqueToken();
       const attempt = await this.repository.createCheckoutAttempt({
         attemptTokenHash: await hashOpaqueToken(attemptToken),
         customerId,
         details: validation.value,
+        now,
         requestId: input.requestId,
       });
+
+      if (customerId && this.customerProfileBackfill) {
+        await this.customerProfileBackfill({
+          customerId,
+          details: validation.value,
+          requestId: input.requestId,
+          updatedAt: now,
+        });
+      }
 
       return Result.okay({
         attempt: {
