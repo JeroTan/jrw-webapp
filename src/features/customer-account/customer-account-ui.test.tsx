@@ -103,6 +103,19 @@ describe("customer account UI", () => {
     );
   });
 
+  it("preserves receipt account return target after registration success", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CustomerRegistrationSuccess, {
+        signInHref: "/account/sign-in?returnTo=%2Faccount%2Forders",
+      })
+    );
+
+    expect(markup).toContain("Verify your email");
+    expect(markup).toContain(
+      "/account/sign-in?returnTo=%2Faccount%2Forders"
+    );
+  });
+
   it("renders registration privacy copy and a response-independent verification state", () => {
     const formMarkup = renderToStaticMarkup(
       createElement(CustomerRegisterPanel)

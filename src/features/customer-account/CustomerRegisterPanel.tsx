@@ -11,7 +11,11 @@ import { AccountFormField } from "./components/AccountFormField";
 import { AccountShell } from "./components/AccountShell";
 import { customerAccountErrorMessage } from "./errors";
 
-export function CustomerRegistrationSuccess() {
+export function CustomerRegistrationSuccess({
+  signInHref = "/account/sign-in",
+}: {
+  signInHref?: string;
+}) {
   return (
     <AccountShell
       description="Check your inbox for a verification email before signing in."
@@ -23,7 +27,7 @@ export function CustomerRegistrationSuccess() {
           sent to continue.
         </p>
         <div className="flex flex-wrap gap-grid-xs">
-          <ButtonLink href="/account/sign-in">Go to sign in</ButtonLink>
+          <ButtonLink href={signInHref}>Go to sign in</ButtonLink>
           <ButtonLink href="/products" variant="ghost">
             Browse products
           </ButtonLink>
@@ -85,7 +89,7 @@ export function CustomerRegisterPanel({
   }, [receiptContext]);
 
   if (success) {
-    return <CustomerRegistrationSuccess />;
+    return <CustomerRegistrationSuccess signInHref={signInHref} />;
   }
 
   return (

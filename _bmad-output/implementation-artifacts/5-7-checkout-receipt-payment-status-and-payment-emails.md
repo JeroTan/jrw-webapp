@@ -1,6 +1,6 @@
 # Story 5.7: Checkout Receipt, Payment Status, and Payment Emails
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -118,6 +118,10 @@ so that I know what happened after payment without seeing provider internals.
   - [x] Run `npm run check`.
   - [x] Run `npm run build-development` if route/schema/Worker wiring changes.
   - [x] For UI completion, document responsive/manual QA at 320, 375, 768, 1024, and 1440 widths, or document blocker.
+
+### Review Findings
+
+- [x] [Review][Patch] Preserve receipt account return target after registration success [src/features/customer-account/CustomerRegisterPanel.tsx:14] - account creation success linked to plain `/account/sign-in`, so shoppers entering from the receipt CTA lost the intended `/account/orders` return flow after verification/sign-in. Fixed by carrying the sanitized sign-in href into `CustomerRegistrationSuccess` and adding UI coverage.
 
 ## Endpoint Guard Checklist
 
@@ -377,6 +381,7 @@ For this story:
 - `src/features/cart-checkout/components/CheckoutFlow.tsx`
 - `src/pages/checkout/payment-return.astro`
 - `src/features/customer-account/CustomerRegisterPanel.tsx`
+- `src/features/customer-account/customer-account-ui.test.tsx`
 - `src/features/customer-account/api.ts`
 - `src/adapter/infrastructure/logging/operational-log.ts`
 - `src/domain/audit/events.ts`
@@ -450,3 +455,4 @@ GPT-5 Codex
 
 - 2026-07-07: Story created with rich receipt/status UI and payment status email scope; status set to ready-for-dev.
 - 2026-07-07: Implemented rich receipt/status API, receipt UI, terminal payment-status email idempotency, migration, and tests; status set to review.
+- 2026-07-08: Code review fixed receipt account registration return target; status set to done.
