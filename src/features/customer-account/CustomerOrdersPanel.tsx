@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/feedback";
-import { ButtonLink } from "@/components/ui";
+import { Button, ButtonLink } from "@/components/ui";
 import { formatCatalogPrice } from "@/domain/products/price-format";
 import { AccountDashboardShell } from "./components/AccountDashboardShell";
 import {
@@ -63,9 +63,11 @@ function OrdersEmptyState() {
 }
 
 export function CustomerOrdersView({
+  onPageChange,
   orders,
   pagination,
 }: {
+  onPageChange?: (page: number) => void;
   orders: CustomerOrderSummary[];
   pagination: CustomerOrderPagination;
 }) {
@@ -138,6 +140,31 @@ export function CustomerOrdersView({
           </article>
         ))}
       </div>
+
+      {onPageChange && pagination.totalPages > 1 ? (
+        <nav
+          aria-label="Order pagination"
+          className="flex flex-wrap items-center justify-between gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-xs"
+        >
+          <Button
+            disabled={pagination.page <= 1}
+            onClick={() => onPageChange(pagination.page - 1)}
+            textSize="xs"
+          >
+            Previous
+          </Button>
+          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+            Page {pagination.page} of {pagination.totalPages}
+          </p>
+          <Button
+            disabled={pagination.page >= pagination.totalPages}
+            onClick={() => onPageChange(pagination.page + 1)}
+            textSize="xs"
+          >
+            Next
+          </Button>
+        </nav>
+      ) : null}
     </section>
   );
 }
@@ -157,11 +184,14 @@ export function CustomerOrdersPanel() {
   const [data, setData] = useState<CustomerOrderList | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     let mounted = true;
 
-    getCustomerOrders()
+    setError(null);
+    setLoading(true);
+    getCustomerOrders({ page })
       .then((orders) => {
         if (!mounted) return;
         setData(orders);
@@ -184,7 +214,7 @@ export function CustomerOrdersPanel() {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [page]);
 
   return (
     <AccountDashboardShell
@@ -199,7 +229,11 @@ export function CustomerOrdersPanel() {
       ) : error || !data ? (
         <CustomerOrdersUnavailable message={error ?? "Orders unavailable."} />
       ) : (
-        <CustomerOrdersView orders={data.items} pagination={data.pagination} />
+        <CustomerOrdersView
+          onPageChange={setPage}
+          orders={data.items}
+          pagination={data.pagination}
+        />
       )}
     </AccountDashboardShell>
   );

@@ -18,6 +18,16 @@ export type CustomerOrderStatusLanes = {
   return: CustomerOrderStatusLane;
 };
 
+export type CustomerOrderTimelineEvent = {
+  description: string;
+  id: string;
+  label: string;
+  lane: CustomerOrderStatusLaneKind;
+  title: string;
+  tone: "info" | "success" | "warning";
+  updatedAt: string | null;
+};
+
 const paymentLabels: Record<string, string> = {
   PAYMENT_PENDING: "Payment pending",
   PAYMENT_PAID: "Payment paid",
@@ -130,4 +140,255 @@ export function buildCustomerOrderStatusLanes(input: {
       value: cleanStatus(input.returnStatus) ?? "RETURN_NOT_REQUESTED",
     }),
   };
+}
+
+function paymentTimelineEvent(
+  lane: CustomerOrderStatusLane,
+  createdAt?: string | null
+): CustomerOrderTimelineEvent {
+  switch (cleanStatus(lane.value)) {
+    case "PAYMENT_PAID":
+      return {
+        description: "Your payment was received by JRW.",
+        id: "payment-paid",
+        label: "Paid",
+        lane: "payment",
+        title: "Payment confirmed",
+        tone: "success",
+        updatedAt: createdAt ?? lane.updatedAt,
+      };
+    case "PAYMENT_FAILED":
+      return {
+        description: "Payment did not complete. No order will be prepared.",
+        id: "payment-failed",
+        label: "Payment failed",
+        lane: "payment",
+        title: "Payment failed",
+        tone: "warning",
+        updatedAt: lane.updatedAt ?? createdAt ?? null,
+      };
+    case "PAYMENT_EXPIRED":
+      return {
+        description: "The payment session expired before confirmation.",
+        id: "payment-expired",
+        label: "Expired",
+        lane: "payment",
+        title: "Payment expired",
+        tone: "warning",
+        updatedAt: lane.updatedAt ?? createdAt ?? null,
+      };
+    case "PAYMENT_CANCELLED":
+      return {
+        description: "Payment was cancelled before JRW confirmed the order.",
+        id: "payment-cancelled",
+        label: "Cancelled",
+        lane: "payment",
+        title: "Payment cancelled",
+        tone: "warning",
+        updatedAt: lane.updatedAt ?? createdAt ?? null,
+      };
+    case "PAYMENT_REFUNDED":
+      return {
+        description: "Payment was marked as refunded.",
+        id: "payment-refunded",
+        label: "Refunded",
+        lane: "payment",
+        title: "Payment refunded",
+        tone: "success",
+        updatedAt: lane.updatedAt ?? createdAt ?? null,
+      };
+    case "PAYMENT_PENDING":
+    default:
+      return {
+        description: "JRW is waiting for payment confirmation.",
+        id: "payment-pending",
+        label: "Payment pending",
+        lane: "payment",
+        title: "Payment pending",
+        tone: "info",
+        updatedAt: lane.updatedAt ?? createdAt ?? null,
+      };
+  }
+}
+
+function fulfillmentTimelineEvents(input: {
+  createdAt?: string | null;
+  lane: CustomerOrderStatusLane;
+  updatedAt?: string | null;
+}): CustomerOrderTimelineEvent[] {
+  const createdAt = input.createdAt ?? input.lane.updatedAt;
+  const updatedAt = input.updatedAt ?? input.lane.updatedAt;
+
+  switch (cleanStatus(input.lane.value)) {
+    case "DELIVERED":
+      return [
+        {
+          description: "Your parcel was delivered.",
+          id: "fulfillment-delivered",
+          label: "Delivered",
+          lane: "fulfillment",
+          title: "Delivered",
+          tone: "success",
+          updatedAt,
+        },
+        {
+          description: "Your parcel was handed to logistics.",
+          id: "fulfillment-shipped",
+          label: "In transit",
+          lane: "fulfillment",
+          title: "Parcel picked up",
+          tone: "info",
+          updatedAt: createdAt,
+        },
+        {
+          description: "JRW packed and checked your item.",
+          id: "fulfillment-processing",
+          label: "Packed",
+          lane: "fulfillment",
+          title: "Packed by JRW",
+          tone: "info",
+          updatedAt: createdAt,
+        },
+        {
+          description: "JRW received your order.",
+          id: "fulfillment-placed",
+          label: "Placed",
+          lane: "fulfillment",
+          title: "Order placed",
+          tone: "info",
+          updatedAt: createdAt,
+        },
+      ];
+    case "SHIPPED":
+      return [
+        {
+          description: "Your parcel was handed to logistics.",
+          id: "fulfillment-shipped",
+          label: "In transit",
+          lane: "fulfillment",
+          title: "Parcel picked up",
+          tone: "info",
+          updatedAt,
+        },
+        {
+          description: "JRW packed and checked your item.",
+          id: "fulfillment-processing",
+          label: "Packed",
+          lane: "fulfillment",
+          title: "Packed by JRW",
+          tone: "info",
+          updatedAt: createdAt,
+        },
+        {
+          description: "JRW received your order.",
+          id: "fulfillment-placed",
+          label: "Placed",
+          lane: "fulfillment",
+          title: "Order placed",
+          tone: "info",
+          updatedAt: createdAt,
+        },
+      ];
+    case "PROCESSING":
+      return [
+        {
+          description: "JRW is packing and checking your item.",
+          id: "fulfillment-processing",
+          label: "Preparing",
+          lane: "fulfillment",
+          title: "Packed by JRW",
+          tone: "info",
+          updatedAt,
+        },
+        {
+          description: "JRW received your order.",
+          id: "fulfillment-placed",
+          label: "Placed",
+          lane: "fulfillment",
+          title: "Order placed",
+          tone: "info",
+          updatedAt: createdAt,
+        },
+      ];
+    case "CANCELLED":
+      return [
+        {
+          description: "This order was cancelled before delivery.",
+          id: "fulfillment-cancelled",
+          label: "Cancelled",
+          lane: "fulfillment",
+          title: "Order cancelled",
+          tone: "warning",
+          updatedAt,
+        },
+      ];
+    case "ORDER_PLACED":
+    default:
+      return [
+        {
+          description: "JRW received your order and will prepare it next.",
+          id: "fulfillment-placed",
+          label: "Placed",
+          lane: "fulfillment",
+          title: "Order placed",
+          tone: "info",
+          updatedAt: createdAt,
+        },
+      ];
+  }
+}
+
+function activeSupportTimelineEvents(input: {
+  lane: CustomerOrderStatusLane;
+  updatedAt?: string | null;
+}): CustomerOrderTimelineEvent[] {
+  const status = cleanStatus(input.lane.value);
+
+  if (
+    !status ||
+    status === "RETURN_NOT_REQUESTED" ||
+    status === "REFUND_NOT_REQUESTED"
+  ) {
+    return [];
+  }
+
+  return [
+    {
+      description:
+        input.lane.kind === "return"
+          ? "JRW is tracking this return request."
+          : "JRW is tracking this refund request.",
+      id: `${input.lane.kind}-${status.toLowerCase().replaceAll("_", "-")}`,
+      label: input.lane.label,
+      lane: input.lane.kind,
+      title: input.lane.label,
+      tone: /REJECTED|DECLINED|FAILED|CANCELLED/.test(status)
+        ? "warning"
+        : "info",
+      updatedAt: input.updatedAt ?? input.lane.updatedAt,
+    },
+  ];
+}
+
+export function buildCustomerOrderTimeline(input: {
+  createdAt?: string | null;
+  lanes: CustomerOrderStatusLanes;
+  updatedAt?: string | null;
+}): CustomerOrderTimelineEvent[] {
+  return [
+    ...activeSupportTimelineEvents({
+      lane: input.lanes.refund,
+      updatedAt: input.updatedAt,
+    }),
+    ...activeSupportTimelineEvents({
+      lane: input.lanes.return,
+      updatedAt: input.updatedAt,
+    }),
+    ...fulfillmentTimelineEvents({
+      createdAt: input.createdAt,
+      lane: input.lanes.fulfillment,
+      updatedAt: input.updatedAt,
+    }),
+    paymentTimelineEvent(input.lanes.payment, input.createdAt),
+  ];
 }

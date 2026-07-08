@@ -60,7 +60,7 @@ export function AccountDashboardShell({
       >
         Skip to account content
       </a>
-      <div className="grid min-h-screen lg:grid-cols-[240px_minmax(0,1fr)]">
+      <div className="grid lg:min-h-screen lg:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="grid content-start border-b border-brand-border bg-brand-surface lg:border-b-0 lg:border-r">
           <div className="grid gap-grid-xs border-b border-brand-border p-grid-sm lg:px-grid-sm lg:py-grid-xs">
             <p className="m-0 font-system text-[0.65rem] font-bold uppercase text-brand-muted">

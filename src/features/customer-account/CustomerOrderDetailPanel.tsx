@@ -2,50 +2,14 @@ import * as React from "react";
 import { useEffect, useState } from "react";
 import { StatusBadge } from "@/components/feedback";
 import { ButtonLink } from "@/components/ui";
+import { buildCustomerOrderTimeline } from "@/domain/orders/customer-order-status";
 import { formatCatalogPrice } from "@/domain/products/price-format";
 import { AccountDashboardShell } from "./components/AccountDashboardShell";
 import {
   CustomerAccountApiError,
   getCustomerOrder,
   type CustomerOrderDetail,
-  type CustomerOrderStatusLane,
 } from "./api";
-
-function statusTone(value: string) {
-  if (/PAID|DELIVERED|SHIPPED|COMPLETED|SENT/.test(value)) {
-    return "success" as const;
-  }
-
-  if (/PENDING|PROCESSING|PLACED|REQUESTED/.test(value)) {
-    return "info" as const;
-  }
-
-  if (/FAILED|CANCELLED|EXPIRED|REJECTED|DECLINED/.test(value)) {
-    return "warning" as const;
-  }
-
-  return "info" as const;
-}
-
-function TimelineLane({
-  lane,
-  title,
-}: {
-  lane: CustomerOrderStatusLane;
-  title: string;
-}) {
-  return (
-    <article className="grid gap-grid-xs rounded-none border border-brand-border-strong bg-brand-surface p-grid-sm">
-      <StatusBadge label={lane.label} tone={statusTone(lane.value)} />
-      <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
-        {title}
-      </h2>
-      <p className="m-0 font-system text-xs uppercase text-brand-muted">
-        {lane.value}
-      </p>
-    </article>
-  );
-}
 
 function optionLabel(
   options: CustomerOrderDetail["items"][number]["variantOptions"]
@@ -53,11 +17,40 @@ function optionLabel(
   return options.map((option) => `${option.group}: ${option.name}`).join(" / ");
 }
 
+function timelineDateLabel(value: string | null) {
+  if (!value) {
+    return "Update time unavailable";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.valueOf())) {
+    return "Update time unavailable";
+  }
+
+  return new Intl.DateTimeFormat("en-PH", {
+    dateStyle: "medium",
+    timeStyle: "short",
+    timeZone: "Asia/Manila",
+  }).format(date);
+}
+
 export function CustomerOrderDetailView({
   order,
 }: {
   order: CustomerOrderDetail;
 }) {
+  const timeline = buildCustomerOrderTimeline({
+    createdAt: order.createdAt,
+    lanes: {
+      fulfillment: order.fulfillment,
+      payment: order.payment,
+      refund: order.refund,
+      return: order.return,
+    },
+    updatedAt: order.updatedAt,
+  });
+
   return (
     <section className="grid gap-grid-sm" aria-label="Customer order detail">
       <div className="grid gap-grid-xs border-b border-brand-border pb-grid-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
@@ -74,12 +67,48 @@ export function CustomerOrderDetailView({
         </ButtonLink>
       </div>
 
-      <div className="grid grid-cols-1 gap-grid-sm md:grid-cols-4">
-        <TimelineLane lane={order.payment} title="Payment" />
-        <TimelineLane lane={order.fulfillment} title="Fulfillment" />
-        <TimelineLane lane={order.return} title="Return" />
-        <TimelineLane lane={order.refund} title="Refund" />
-      </div>
+      <section
+        aria-label="Order status timeline"
+        className="grid gap-grid-sm rounded-none border border-brand-border-strong bg-brand-surface p-grid-sm"
+      >
+        <div className="grid gap-1">
+          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+            Latest update first
+          </p>
+          <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
+            Order status
+          </h2>
+        </div>
+        <ol className="relative m-0 grid list-none gap-0 p-0 before:absolute before:bottom-0 before:left-0 before:top-grid-sm before:border-l before:border-brand-border-strong before:content-['']">
+          {timeline.map((event, index) => (
+            <li
+              className="relative grid gap-1 border-b border-brand-border py-grid-sm pl-grid-md last:border-b-0"
+              key={event.id}
+            >
+              <span
+                aria-hidden="true"
+                className={`absolute -left-[5px] top-grid-sm size-2 border border-current ${
+                  index === 0
+                    ? "bg-brand-accent text-brand-accent"
+                    : "bg-brand-border-strong text-brand-border-strong"
+                }`}
+              />
+              <div className="flex flex-wrap items-center gap-grid-xs">
+                <StatusBadge label={event.label} tone={event.tone} />
+                <span className="font-system text-xs uppercase text-brand-muted">
+                  {timelineDateLabel(event.updatedAt)}
+                </span>
+              </div>
+              <h3 className="m-0 font-heading text-lg font-bold text-brand-content">
+                {event.title}
+              </h3>
+              <p className="m-0 max-w-[64ch] text-sm leading-relaxed text-brand-muted">
+                {event.description}
+              </p>
+            </li>
+          ))}
+        </ol>
+      </section>
 
       <section className="grid gap-grid-xs rounded-none border border-brand-border-strong bg-brand-surface p-grid-sm">
         <h2 className="m-0 font-heading text-xl font-bold text-brand-content">

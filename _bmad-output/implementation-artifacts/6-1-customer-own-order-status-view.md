@@ -1,6 +1,6 @@
 # Story 6.1: Shopper Own-Order Status View
 
-Status: review
+Status: done
 
 <!-- Ultimate context engine analysis completed - comprehensive developer guide created. -->
 
@@ -98,6 +98,11 @@ so that I can track payment, fulfillment, return, and refund state safely.
   - [x] Run `npm run check`.
   - [x] Run `npm run build-development` after route/schema/Worker wiring changes.
   - [x] Document responsive/manual QA at 320, 375, 768, 1024, and 1440 widths, or document blocker. Seeded fixture gap from Epic 5 may be blocker.
+
+### Review Findings
+
+- [x] [Review][Patch] Extend D1 repository test timeout [src/server/repositories/OrderRepository.test.ts:238] - Miniflare/D1 setup exceeded Vitest default 5s timeout, so the targeted 6-1 validation suite failed before assertions. Fixed by matching existing D1 repository test timeout policy.
+- [x] [Review][Patch] Add customer order pagination controls [src/features/customer-account/CustomerOrdersPanel.tsx:67] - list API supports paged order history, but the account UI always fetched page 1 and gave shoppers no way to reach older orders. Fixed with previous/next controls and UI coverage.
 
 ## Endpoint Guard Checklist
 
@@ -367,6 +372,7 @@ GPT-5 Codex
 - Added pure customer-safe status lane helpers for payment, fulfillment, return, and refund, plus default read-only return/refund lanes.
 - Extended existing checkout payment-return receipt DTO/UI with four status lanes while preserving server-owned guest lookup only; raw email query is ignored and tested as non-lookup.
 - Replaced account orders placeholder with list/detail pages and React panels using shared `ButtonLink`/`StatusBadge`, snapshot no-image fallback, four-lane timeline, and safe loading/not-found/error states.
+- Code review added account order pagination controls and stabilized D1 repository test timeout.
 - Manual viewport QA at 320, 375, 768, 1024, and 1440 remains blocked until seeded authenticated order fixtures exist; component markup assertions cover responsive classes and visual contract.
 
 ### File List
@@ -405,3 +411,4 @@ GPT-5 Codex
 - 2026-07-08: Story created for Shopper own-order status view; status set to ready-for-dev.
 - 2026-07-08: Development started; status set to in-progress.
 - 2026-07-08: Implemented Shopper own-order status view/API and moved story to review.
+- 2026-07-08: Code review fixed pagination reachability and repository test timeout; status set to done.

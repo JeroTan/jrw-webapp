@@ -2,7 +2,7 @@
 project_name: "jrw-webapp"
 user_name: "MR. JRW"
 date: "2026-05-11"
-lastUpdated: "2026-05-26"
+lastUpdated: "2026-07-08"
 sections_completed:
   - technology_stack
   - language_rules
@@ -12,7 +12,7 @@ sections_completed:
   - workflow_rules
   - anti_patterns
 status: "complete"
-rule_count: 104
+rule_count: 108
 optimized_for_llm: true
 existing_patterns_found: 18
 ---
@@ -27,6 +27,7 @@ _Critical rules and patterns AI agents must follow when implementing code in thi
 
 - Current product truth lives in `_bmad-output/planning-artifacts/prd.md`.
 - UX truth lives in `_bmad-output/planning-artifacts/ux-design-specification.md` and `docs/design-by-google-stitch.md`.
+- Order status flow truth lives in `docs/order-status-flow.md`; implementation, UI labels, customer timelines, backoffice transitions, and future story specs must follow it unless the flow doc is intentionally updated first.
 - Raw intent lives in `raw-prd.txt` and `raw-query.txt`.
 - Legacy docs in `docs/jrw-simple-ecommerce-site.md` and `tangram/**` are reference only.
 - Do not add obsolete roles, routes, order states, or tenancy rules unless current PRD explicitly requires them.
@@ -202,6 +203,9 @@ Tooling:
 - Product status should use `DRAFT`, `PUBLISHED`, `ARCHIVED`.
 - Inventory state should use `IN_STOCK`, `LOW_STOCK`, `OUT_OF_STOCK`, `PREORDER`.
 - Payment statuses and order fulfillment statuses must remain separate.
+- Order payment, fulfillment, return, and refund transitions must follow `docs/order-status-flow.md`; do not invent new order states, shortcuts, or merged "overall status" behavior in code or UI.
+- `RETURN_NOT_REQUESTED` and `REFUND_NOT_REQUESTED` are idle lane values, not process steps. Do not render them in customer timelines and do not draw or implement transitions from those values to requested states.
+- Paid order cancellation before shipping must stop fulfillment and open the refund path. Payment failed, expired, or cancelled before payment settles means no order is prepared and no refund is needed.
 - Invalid state transitions return conflict-style errors, not silent success.
 - Checkout must block unavailable variants before PayMongo handoff.
 - Failed/cancelled payments must release reserved stock through immediate logic or documented reconciliation.

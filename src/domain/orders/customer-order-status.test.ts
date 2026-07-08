@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildCustomerOrderTimeline,
   buildCustomerOrderStatusLanes,
   customerOrderStatusLaneLabel,
 } from "./customer-order-status";
@@ -65,6 +66,33 @@ describe("customer order status lanes", () => {
 
     expect(labels.join(" ")).not.toMatch(
       /paymongo|provider|payload|signature|token|secret|card/i
+    );
+  });
+
+  it("builds a newest-first customer timeline without raw status codes", () => {
+    const timeline = buildCustomerOrderTimeline({
+      createdAt: "2026-07-08T01:00:00.000Z",
+      lanes: buildCustomerOrderStatusLanes({
+        fulfillmentStatus: "SHIPPED",
+        paymentStatus: "PAYMENT_PAID",
+        updatedAt: "2026-07-08T03:00:00.000Z",
+      }),
+      updatedAt: "2026-07-08T03:00:00.000Z",
+    });
+
+    expect(timeline.map((event) => event.title)).toEqual([
+      "Parcel picked up",
+      "Packed by JRW",
+      "Order placed",
+      "Payment confirmed",
+    ]);
+    expect(timeline[0]).toMatchObject({
+      label: "In transit",
+      tone: "info",
+      updatedAt: "2026-07-08T03:00:00.000Z",
+    });
+    expect(JSON.stringify(timeline)).not.toMatch(
+      /PAYMENT_PAID|ORDER_PLACED|RETURN_NOT_REQUESTED|REFUND_NOT_REQUESTED/
     );
   });
 });

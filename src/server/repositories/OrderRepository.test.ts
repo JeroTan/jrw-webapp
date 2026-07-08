@@ -274,7 +274,7 @@ describe("order repository", () => {
     } finally {
       await mf.dispose();
     }
-  });
+  }, 20_000);
 
   it("gets owned detail by id or order number and never joins mutable catalog truth", async () => {
     const { d1, mf, repository } = await createOrderRepositoryTestD1();
@@ -323,5 +323,5 @@ describe("order repository", () => {
     } finally {
       await mf.dispose();
     }
-  });
+  }, 20_000);
 });

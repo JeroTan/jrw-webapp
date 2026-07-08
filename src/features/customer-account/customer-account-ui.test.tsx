@@ -137,6 +137,8 @@ describe("customer account UI", () => {
     expect(markup).toContain("Account space");
     expect(markup).toContain("<summary");
     expect(markup).toContain(">Orders</span>");
+    expect(markup).toContain("grid lg:min-h-screen");
+    expect(markup).not.toContain("grid min-h-screen lg:grid-cols");
     expect(markup).toContain('href="/account/profile"');
     expect(markup).toContain(">Profile</a>");
     expect(markup).toContain('href="/account/orders"');
@@ -380,22 +382,40 @@ describe("customer account UI", () => {
     );
   });
 
+  it("renders customer order pagination controls for older orders", () => {
+    const markup = renderToStaticMarkup(
+      createElement(CustomerOrdersView, {
+        onPageChange: () => undefined,
+        orders: [customerOrderSummary()],
+        pagination: { page: 2, pageSize: 20, totalItems: 41, totalPages: 3 },
+      })
+    );
+
+    expect(markup).toContain("Order pagination");
+    expect(markup).toContain("Previous");
+    expect(markup).toContain("Next");
+    expect(markup).toContain("Page 2 of 3");
+    expect(markup).toContain("min-h-control-md");
+  });
+
   it("renders customer order detail from snapshot items with no-image fallback", () => {
     const markup = renderToStaticMarkup(
       createElement(CustomerOrderDetailView, { order: customerOrderDetail() })
     );
 
     expect(markup).toContain("Order truth timeline");
+    expect(markup).toContain("Latest update first");
+    expect(markup).toContain("Order status");
+    expect(markup).toContain("Order placed");
+    expect(markup).toContain("Payment confirmed");
+    expect(markup).toContain("Your payment was received by JRW.");
     expect(markup).toContain("Frozen Linen Shirt");
     expect(markup).toContain("Size: Small");
     expect(markup).toContain("No image");
-    expect(markup).toContain("Payment paid");
-    expect(markup).toContain("Shipped");
-    expect(markup).toContain("No return requested");
-    expect(markup).toContain("No refund requested");
-    expect(markup).toContain("grid-cols-1");
-    expect(markup).toContain("md:grid-cols-4");
     expect(markup).not.toContain("Mutable Catalog Shirt");
+    expect(markup).not.toMatch(
+      /PAYMENT_PAID|ORDER_PLACED|RETURN_NOT_REQUESTED|REFUND_NOT_REQUESTED/
+    );
     expect(markup).not.toMatch(
       /checkout_url|providerCheckoutSession|PayMongo payload|nina@example|0917|Sampaguita|token|secret|signature|card/i
     );
