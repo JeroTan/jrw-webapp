@@ -1,5 +1,5 @@
 # generated: 2026-05-12T08:38:32+08:00
-# last_updated: 2026-07-08T08:15:55+08:00
+# last_updated: 2026-07-08T09:06:34+08:00
 # project: jrw-webapp
 # project_key: NOKEY
 # tracking_system: file-system
@@ -35,7 +35,7 @@
 # - Dev moves story to 'review', then runs code-review (fresh context, different LLM recommended)
 
 generated: "2026-05-12T08:38:32+08:00"
-last_updated: "2026-07-08T08:15:55+08:00"
+last_updated: "2026-07-08T09:06:34+08:00"
 project: jrw-webapp
 project_key: NOKEY
 tracking_system: file-system
@@ -104,7 +104,7 @@ development_status:
   5-5-payment-reconciliation-and-order-confirmation: done
   5-6-release-reserved-inventory-after-failed-or-cancelled-payment: done
   5-7-checkout-receipt-payment-status-and-payment-emails: done
-  epic-5-retrospective: optional
+  epic-5-retrospective: done
   epic-6: backlog
   6-1-customer-own-order-status-view: backlog
   6-2-admin-order-list-and-detail: backlog
