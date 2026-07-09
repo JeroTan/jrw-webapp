@@ -16,7 +16,6 @@ import {
   buildCustomerOrderStatusLanes,
   type CustomerOrderStatusLane,
 } from "@/domain/orders/customer-order-status";
-import { product_photos, product_variants } from "@/domain/schema/catalog";
 import { order_snapshots, orders } from "@/domain/schema/transactions";
 
 export type CustomerOrderSnapshotOption = {
@@ -154,6 +153,10 @@ function safeCentavos(value: unknown): number {
   return typeof value === "number" && Number.isSafeInteger(value) && value >= 0
     ? value
     : 0;
+}
+
+function inclusiveCreatedTo(value: string): string {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T23:59:59.999Z` : value;
 }
 
 function parseVariantOptions(value: unknown): CustomerOrderSnapshotOption[] {
@@ -339,7 +342,7 @@ function adminOrderFilters(input: ListAdminOrdersInput): SQL | undefined {
   }
 
   if (createdTo) {
-    filters.push(lte(orders.created_at, createdTo));
+    filters.push(lte(orders.created_at, inclusiveCreatedTo(createdTo)));
   }
 
   return filters.length > 0 ? and(...filters) : undefined;
@@ -555,27 +558,7 @@ export class DrizzleOrderRepository {
 
     const rows = await this.db
       .select({
-        imageR2Key: sql<string | null>`coalesce(
-          ${order_snapshots.image_r2_key},
-          (
-            select ${product_photos.r2_key}
-            from ${product_photos}
-            where ${product_photos.id} = (
-              select ${product_variants.image_reference_id}
-              from ${product_variants}
-              where ${product_variants.id} = ${order_snapshots.variant_id}
-              limit 1
-            )
-            limit 1
-          ),
-          (
-            select ${product_photos.r2_key}
-            from ${product_photos}
-            where ${product_photos.product_id} = ${order_snapshots.product_id}
-            order by ${product_photos.is_primary} desc, ${product_photos.sort_order} asc, ${product_photos.id} asc
-            limit 1
-          )
-        )`,
+        imageR2Key: order_snapshots.image_r2_key,
         orderId: order_snapshots.order_id,
         priceCentavos: order_snapshots.price_centavos,
         productName: order_snapshots.product_name,

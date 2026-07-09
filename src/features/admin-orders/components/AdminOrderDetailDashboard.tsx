@@ -55,6 +55,19 @@ function displayValue(value: string | null | undefined): string {
   return value && value.trim().length > 0 ? value : "Not provided";
 }
 
+function productImageSrc(r2Key: string | null) {
+  const cleanKey = r2Key?.trim().replace(/^products\//, "");
+
+  if (!cleanKey) {
+    return null;
+  }
+
+  return `/assets/products/${cleanKey
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/")}`;
+}
+
 function addressLines(order: AdminOrderDetail): string[] {
   return [
     order.shippingAddress.streetAddress,
@@ -233,34 +246,49 @@ export function AdminOrderDetailView({ order }: { order: AdminOrderDetail }) {
             Snapshot items
           </h2>
           <ul className="m-0 grid list-none gap-0 border-t border-l border-brand-border p-0">
-            {order.items.map((item, index) => (
-              <li
-                className="grid gap-grid-sm border-r border-b border-brand-border p-grid-sm md:grid-cols-[72px_minmax(0,1fr)_auto]"
-                key={`${item.productName}-${item.variantLabel}-${index}`}
-              >
-                <div className="grid min-h-[72px] place-items-center border border-brand-border bg-brand-background font-system text-[0.65rem] font-bold uppercase text-brand-muted">
-                  {item.imageR2Key ? "Snapshot" : "No image"}
-                </div>
-                <div className="grid min-w-0 gap-1">
-                  <p className="m-0 break-words font-heading text-lg font-bold text-brand-content">
-                    {item.productName}
+            {order.items.map((item, index) => {
+              const imageSrc = productImageSrc(item.imageR2Key);
+
+              return (
+                <li
+                  className="grid gap-grid-sm border-r border-b border-brand-border p-grid-sm md:grid-cols-[72px_minmax(0,1fr)_auto]"
+                  key={`${item.productName}-${item.variantLabel}-${index}`}
+                >
+                  {imageSrc ? (
+                    <img
+                      alt={item.productName}
+                      className="size-[72px] border border-brand-border bg-brand-background object-cover"
+                      height="72"
+                      src={imageSrc}
+                      title={item.imageR2Key ?? undefined}
+                      width="72"
+                    />
+                  ) : (
+                    <div className="grid min-h-[72px] place-items-center border border-brand-border bg-brand-background font-system text-[0.65rem] font-bold uppercase text-brand-muted">
+                      No image
+                    </div>
+                  )}
+                  <div className="grid min-w-0 gap-1">
+                    <p className="m-0 break-words font-heading text-lg font-bold text-brand-content">
+                      {item.productName}
+                    </p>
+                    <p className="m-0 text-sm text-brand-muted">
+                      {item.variantLabel}
+                      {item.variantOptions.length > 0
+                        ? ` / ${optionLabel(item.variantOptions)}`
+                        : ""}
+                    </p>
+                    <p className="m-0 font-system text-xs text-brand-muted">
+                      {item.quantity} x{" "}
+                      {formatCatalogPrice(item.unitPriceCentavos)}
+                    </p>
+                  </div>
+                  <p className="m-0 font-system text-sm font-bold text-brand-content md:text-right">
+                    {formatCatalogPrice(item.lineTotalCentavos)}
                   </p>
-                  <p className="m-0 text-sm text-brand-muted">
-                    {item.variantLabel}
-                    {item.variantOptions.length > 0
-                      ? ` / ${optionLabel(item.variantOptions)}`
-                      : ""}
-                  </p>
-                  <p className="m-0 font-system text-xs text-brand-muted">
-                    {item.quantity} x{" "}
-                    {formatCatalogPrice(item.unitPriceCentavos)}
-                  </p>
-                </div>
-                <p className="m-0 font-system text-sm font-bold text-brand-content md:text-right">
-                  {formatCatalogPrice(item.lineTotalCentavos)}
-                </p>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         </section>
 

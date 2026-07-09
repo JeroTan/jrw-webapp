@@ -1,6 +1,6 @@
 # Story 6.2: Admin Order List and Detail
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -89,6 +89,12 @@ Complete for every new or changed endpoint. Mark non-applicable items as `N/A` w
 - [x] Denial tests cover unauthenticated actor, Customer/Prospect wrong role, Super Admin current-policy denial, and invalid Admin account state. Missing brand membership is N/A.
 - [x] Error response uses safe envelope codes and does not leak provider/internal authorization details.
 - [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, and denial codes.
+
+### Review Findings
+
+- [x] [Review][P1] Snapshot image truth used mutable catalog fallback. `OrderRepository.snapshotsByOrderId(...)` now reads `order_snapshots.image_r2_key` only; tests mutate current `product_photos.r2_key` and assert historical snapshot keys/nulls remain unchanged.
+- [x] [Review][P2] Admin `createdTo` date-only filters excluded selected-day orders. `createdTo` values in `YYYY-MM-DD` format now normalize to end-of-day UTC before the `lte(orders.created_at, ...)` filter; repository tests cover date-only filtering.
+- [x] [Review][P3] Admin detail rendered `Snapshot` placeholder text instead of the snapshot image reference. `AdminOrderDetailDashboard` now renders the image through the existing `/assets/products/...` route when `imageR2Key` exists, and keeps `No image` fallback when null.
 
 ## Dev Notes
 
@@ -289,6 +295,9 @@ GPT-5 Codex
 - Full tests: `npx vitest run` - 137 files, 924 tests passed.
 - Type/build: `npm run check` - passed with existing hints only; `npm run build-development` - passed.
 - UI token scan: `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` - matches are existing brand slugs/tests and negative assertions, no new admin-orders matches.
+- 2026-07-09 review patch: `npx vitest run src/server/repositories/OrderRepository.test.ts src/server/services/OrderService.test.ts src/server/routes/orders.routes.test.ts src/features/admin-orders/admin-orders-ui.test.tsx` - 32 passed.
+- 2026-07-09 review patch: `npm run check` - passed with 0 errors and existing 11 hints.
+- 2026-07-09 review patch: `git diff --check` - passed; CRLF warnings only.
 
 ### Completion Notes List
 
@@ -297,6 +306,7 @@ GPT-5 Codex
 - Admin detail exposes fulfillment-needed contact/shipping fields and snapshot items only; provider/internal ids, request ids, checkout URLs, tokens, secrets, and raw provider/card fields are not selected or returned.
 - Added `/admin/orders` and `/admin/orders/[id]` screens under existing `AdminLayout`, using shared `DataTable`, `Pagination`, `ButtonLink`, `Input`/`SearchInput`, `Select`, `StatusBadge`, `Skeleton`, and `EmptyState`.
 - Story remains read-only: no fulfillment, return, refund, cancellation, email, provider refund, or audit mutation controls were added.
+- Code review fixed snapshot-image source of truth, inclusive date-only Admin filters, and Admin detail image rendering.
 - Manual/admin viewport QA not run because no authenticated Admin browser fixture/session was supplied in this Codex turn.
 
 ### File List
@@ -322,3 +332,4 @@ GPT-5 Codex
 
 - 2026-07-08: Created ready-for-dev story with Admin order read-model/API/UI guardrails and sprint tracker context.
 - 2026-07-08: Implemented Admin order list/detail API, UI, tests, validation gates, and moved story to review.
+- 2026-07-09: Code review fixed snapshot image truth, date-only filters, and Admin detail image rendering; validation passed and story moved to done.

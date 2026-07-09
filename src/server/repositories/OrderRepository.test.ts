@@ -241,7 +241,7 @@ async function createOrderRepositoryTestD1() {
       1999,
       1999,
       2,
-      null,
+      "products/frozen-linen-shirt/front.webp",
       "2026-07-08T01:01:00.000Z",
       "sig_1",
       "snapshot_2",
@@ -255,7 +255,7 @@ async function createOrderRepositoryTestD1() {
       1999,
       1999,
       1,
-      "orders/order_2/image.webp",
+      null,
       "2026-07-08T01:02:00.000Z",
       "sig_2"
     )
@@ -316,6 +316,10 @@ describe("order repository", () => {
         .prepare(`UPDATE products SET name = ? WHERE id = ?`)
         .bind("Current Catalog Name", "prod_linen")
         .run();
+      await d1
+        .prepare(`UPDATE product_photos SET r2_key = ? WHERE id = ?`)
+        .bind("products/prod_linen/mutated.webp", "photo_linen_primary")
+        .run();
 
       const byId = await repository.getCustomerOrderDetail({
         customerId: "customer_1",
@@ -333,7 +337,7 @@ describe("order repository", () => {
       expect(byId).toMatchObject({
         items: [
           {
-            imageR2Key: "products/prod_linen/primary.webp",
+            imageR2Key: "products/frozen-linen-shirt/front.webp",
             lineTotalCentavos: 3998,
             productName: "Frozen Linen Shirt",
             productSlug: "frozen-linen-shirt",
@@ -378,6 +382,10 @@ describe("order repository", () => {
         createdFrom: "2026-07-08T01:00:00.000Z",
         createdTo: "2026-07-08T01:00:00.000Z",
       });
+      const dateOnlyResult = await repository.listAdminOrders({
+        createdFrom: "2026-07-08",
+        createdTo: "2026-07-08",
+      });
 
       expect(result.pagination).toEqual({
         page: 1,
@@ -397,6 +405,7 @@ describe("order repository", () => {
         orderId: "order_1",
         totalQuantity: 2,
       });
+      expect(result.items[0]?.items[0]?.imageR2Key).toBeNull();
       expect(searchResult.items.map((order) => order.orderId)).toEqual([
         "order_1",
       ]);
@@ -407,6 +416,7 @@ describe("order repository", () => {
         "order_1",
       ]);
       expect(dateResult.pagination.totalItems).toBe(2);
+      expect(dateOnlyResult.pagination.totalItems).toBe(2);
       expect(JSON.stringify(result)).not.toMatch(
         /0917|Sampaguita|Secret Street|payment_1|payment_2|checkout_attempt|reservation|req_order|message_id|provider|token|secret|card/i
       );
@@ -422,6 +432,10 @@ describe("order repository", () => {
       await d1
         .prepare(`UPDATE products SET name = ? WHERE id = ?`)
         .bind("Current Catalog Name", "prod_linen")
+        .run();
+      await d1
+        .prepare(`UPDATE product_photos SET r2_key = ? WHERE id = ?`)
+        .bind("products/prod_linen/mutated.webp", "photo_linen_primary")
         .run();
 
       const byId = await repository.getAdminOrderDetail({
@@ -443,7 +457,7 @@ describe("order repository", () => {
         customerLabel: "Nina R.",
         items: [
           {
-            imageR2Key: "products/prod_linen/primary.webp",
+            imageR2Key: "products/frozen-linen-shirt/front.webp",
             lineTotalCentavos: 3998,
             productName: "Frozen Linen Shirt",
             productSlug: "frozen-linen-shirt",

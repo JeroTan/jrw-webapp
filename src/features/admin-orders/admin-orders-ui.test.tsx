@@ -47,7 +47,7 @@ const order: AdminOrderDetail = {
   itemCount: 1,
   items: [
     {
-      imageR2Key: null,
+      imageR2Key: "products/frozen-linen-shirt/front.webp",
       lineTotalCentavos: 3998,
       productName: "Frozen Linen Shirt",
       productSlug: "frozen-linen-shirt",
@@ -155,6 +155,9 @@ describe("admin orders UI", () => {
     expect(markup).toContain("Payment confirmed");
     expect(markup).toContain("Order placed");
     expect(markup).toContain("Frozen Linen Shirt");
+    expect(markup).toContain(
+      'src="/assets/products/frozen-linen-shirt/front.webp"'
+    );
     expect(markup).toContain("Size: Small");
     expect(markup).toContain("Nina Reyes");
     expect(markup).toContain("nina@example.test");
@@ -164,6 +167,7 @@ describe("admin orders UI", () => {
     expect(markup).not.toContain("Cancel order");
     expect(markup).not.toContain("Approve refund");
     expect(markup).not.toContain("Return requested");
+    expect(markup).not.toContain(">Snapshot<");
   });
 
   it("renders detail loading and not-found states", () => {
