@@ -1,5 +1,6 @@
 export * from "./Button";
 export * from "./ButtonLink";
+export * from "./CentavosAmountInput";
 export * from "./Checkbox";
 export * from "./CheckboxGroup";
 export * from "./ConfirmDialog";

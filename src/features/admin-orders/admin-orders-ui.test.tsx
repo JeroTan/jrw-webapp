@@ -166,7 +166,9 @@ describe("admin orders UI", () => {
     expect(markup).toContain("Return history");
     expect(markup).toContain("No return history yet.");
     expect(markup).toContain("Refund actions");
-    expect(markup).toContain("Refund amount (centavos)");
+    expect(markup).toContain("Refund amount");
+    expect(markup).toContain("Pesos");
+    expect(markup).toContain("Centavos");
     expect(markup).toContain("Record refund");
     expect(markup).toContain("Refund history");
     expect(markup).toContain("No refund history yet.");
@@ -297,8 +299,9 @@ describe("admin orders UI", () => {
     expect(markup).toContain("Entire order");
     expect(markup).toContain("Purchased item");
     expect(markup).toContain("Item");
-    expect(markup).toContain("Refund amount (centavos)");
-    expect(markup).toContain('value="3998"');
+    expect(markup).toContain("Refund amount");
+    expect(markup).toContain('value="39"');
+    expect(markup).toContain('value="98"');
     expect(markup).toContain("Reason");
     expect(markup).toContain("Notes");
     expect(markup).toContain("Reference ID");

@@ -515,7 +515,7 @@ describe("VariantService", () => {
     });
   });
 
-  it("rejects invalid centavos price", async () => {
+  it("rejects invalid stored price", async () => {
     const service = new VariantService({
       variantRepository: new VariantRepositoryStub(),
       productRepository: new ProductScopeRepositoryStub(),

@@ -196,7 +196,9 @@ describe("variants UI surfaces", () => {
 
     expect(createMarkup).toContain("Create variant");
     expect(createMarkup).toContain("Variant name");
-    expect(createMarkup).toContain("Price (centavos)");
+    expect(createMarkup).toContain("Price");
+    expect(createMarkup).toContain("Pesos");
+    expect(createMarkup).toContain("Centavos");
     expect(createMarkup).toContain("Preorder");
     expect(createMarkup).toContain("Variation options");
     expect(createMarkup).toContain("Category");

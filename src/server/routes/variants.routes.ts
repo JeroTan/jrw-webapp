@@ -291,7 +291,7 @@ export function variantsRoutes(
         detail: routeDetail({
           summary: "Update product variant",
           description:
-            "Updates variant option metadata, SKU, and centavos price under product scope.",
+            "Updates variant option metadata, SKU, and price under product scope.",
           tags: ["Products"],
           auth: variantAuth,
           rateLimitClass: "admin-write",

@@ -2,7 +2,14 @@ import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { EmptyState, Skeleton, StatusBadge } from "@/components/feedback";
-import { Button, ButtonLink, Input, Select, Textarea } from "@/components/ui";
+import {
+  Button,
+  ButtonLink,
+  CentavosAmountInput,
+  Input,
+  Select,
+  Textarea,
+} from "@/components/ui";
 import { buildCustomerOrderTimeline } from "@/domain/orders/customer-order-status";
 import {
   allowedNextFulfillmentStatuses,
@@ -761,13 +768,15 @@ function RefundActionsPanel({
   const [notes, setNotes] = useState("");
   const [referenceId, setReferenceId] = useState("");
   const effectiveTargetType = hasExistingItemRefund ? "item" : targetType;
-  const selectedItem = availableItems.find((item) => item.snapshotId === itemId);
+  const selectedItem = availableItems.find(
+    (item) => item.snapshotId === itemId
+  );
   const defaultAmount =
     effectiveTargetType === "item"
       ? (selectedItem?.lineTotalCentavos ?? 0)
       : order.totalCentavos;
-  const [amount, setAmount] = useState(
-    defaultAmount > 0 ? String(defaultAmount) : ""
+  const [amount, setAmount] = useState<number | null>(
+    defaultAmount > 0 ? defaultAmount : null
   );
   const [localMessage, setLocalMessage] = useState<RefundActionMessage | null>(
     null
@@ -787,16 +796,20 @@ function RefundActionsPanel({
   ]);
 
   useEffect(() => {
-    setAmount(defaultAmount > 0 ? String(defaultAmount) : "");
+    setAmount(defaultAmount > 0 ? defaultAmount : null);
   }, [defaultAmount]);
 
   async function submitRefund(event: { preventDefault(): void }) {
     event.preventDefault();
 
     const trimmedReason = reason.trim();
-    const amountCentavos = Number(amount.trim());
+    const amountCentavos = amount;
 
-    if (!Number.isSafeInteger(amountCentavos) || amountCentavos <= 0) {
+    if (
+      amountCentavos === null ||
+      !Number.isSafeInteger(amountCentavos) ||
+      amountCentavos <= 0
+    ) {
       setLocalMessage({
         text: "Refund amount is required.",
         tone: "warning",
@@ -920,17 +933,13 @@ function RefundActionsPanel({
             ))}
           </Select>
 
-          <label className="grid gap-grid-xs font-system text-[0.8125rem] font-bold text-brand-content">
-            <span>Refund amount (centavos)</span>
-            <Input
-              min={1}
-              onChange={(event) => setAmount(event.currentTarget.value)}
-              required
-              textSize="sm"
-              type="number"
-              value={amount}
-            />
-          </label>
+          <CentavosAmountInput
+            description={`Maximum ${formatCatalogPrice(defaultAmount)}.`}
+            label="Refund amount"
+            onChangeCentavos={setAmount}
+            required
+            valueCentavos={amount}
+          />
 
           <Textarea
             label="Reason"

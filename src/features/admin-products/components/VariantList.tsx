@@ -507,7 +507,7 @@ export function VariantList({
             </p>
             <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">Variants</h1>
             <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
-              You can manage variant options, SKU, and centavos pricing here.
+              You can manage variant options, SKU, and pricing here.
             </p>
           </div>
           <dl
@@ -529,7 +529,7 @@ export function VariantList({
           <div>
             <p className="m-0 text-sm font-bold">Variant matrix</p>
             <p className="font-system text-xs text-brand-muted">
-              SKU, options, centavos price, and stock states per variant.
+              SKU, options, price, and stock states per variant.
             </p>
           </div>
           <dl className="m-0 grid grid-cols-2 border border-brand-border-strong bg-brand-surface max-md:grid-cols-1 [&>div]:grid [&>div]:gap-grid-xs [&>div]:border-r [&>div]:border-brand-border [&>div]:p-grid-sm [&>div:last-child]:border-r-0 max-md:[&>div]:border-r-0 max-md:[&>div]:border-b max-md:[&>div:last-child]:border-b-0 [&_dt]:text-xs [&_dt]:font-bold [&_dt]:uppercase [&_dt]:text-brand-muted [&_dd]:m-0 [&_dd]:font-heading [&_dd]:text-xl [&_dd]:font-bold min-w-[220px] max-md:min-w-0">

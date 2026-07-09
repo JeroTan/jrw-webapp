@@ -1,6 +1,12 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
-import { Button, Modal, Select, Toggle } from "@/components/ui";
+import {
+  Button,
+  CentavosAmountInput,
+  Modal,
+  Select,
+  Toggle,
+} from "@/components/ui";
 import { deriveInventoryStateFromQuantity } from "../deriveInventoryStateFromQuantity";
 import { hasDuplicateVariationOptionGroup } from "../hasDuplicateVariationOptionGroup";
 import { inventoryStateConsistent } from "../inventoryStateConsistent";
@@ -133,6 +139,15 @@ function issueToField(path: string): keyof VariantEditorFormState | undefined {
 export function formatPriceCentavos(value: number): string {
   const amount = Number.isFinite(value) ? Math.max(0, value) : 0;
   return `PHP ${(amount / 100).toFixed(2)}`;
+}
+
+function priceFieldToCentavos(value: string) {
+  const trimmed = value.trim();
+  const parsed = Number(trimmed);
+
+  return trimmed.length > 0 && Number.isSafeInteger(parsed) && parsed >= 0
+    ? parsed
+    : null;
 }
 
 function actionErrorMessage(error: unknown): string {
@@ -404,15 +419,15 @@ export function VariantEditor({
     }
   }
 
+  const priceAmount = priceFieldToCentavos(form.priceCentavos);
   const priceHint =
-    form.priceCentavos.trim().length === 0 ||
-    Number.isNaN(Number(form.priceCentavos))
-      ? "Enter integer centavos. Example: 1999 for PHP 19.99."
-      : `Display price: ${formatPriceCentavos(Number(form.priceCentavos))}`;
+    priceAmount === null
+      ? undefined
+      : `Display price: ${formatPriceCentavos(priceAmount)}`;
 
   return (
     <Modal
-      description="You can create or edit product variants with SKU, centavos price, and option combinations."
+      description="You can create or edit product variants with SKU, price, and option combinations."
       onClose={handleClose}
       open={open}
       title={mode === "create" ? "Create variant" : "Edit variant"}
@@ -468,19 +483,15 @@ export function VariantEditor({
           value={form.sku}
         />
 
-        <InputBox
+        <CentavosAmountInput
           description={priceHint}
           error={validation.fields.priceCentavos}
-          inputMode="numeric"
-          label="Price (centavos)"
-          min={0}
-          onChange={(event) =>
-            updateField("priceCentavos", event.currentTarget.value)
+          label="Price"
+          onChangeCentavos={(value) =>
+            updateField("priceCentavos", value === null ? "" : String(value))
           }
           required
-          step={1}
-          type="number"
-          value={form.priceCentavos}
+          valueCentavos={priceAmount}
         />
 
         <InventoryAdjuster
