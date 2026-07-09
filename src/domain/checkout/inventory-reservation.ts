@@ -14,6 +14,7 @@ export type CheckoutAttemptReservationStatus =
 export type CheckoutReservationMode = "STOCK" | "PREORDER";
 
 export type CheckoutReservationPlanLine = {
+  imageSrc?: string;
   mode: CheckoutReservationMode;
   priceCentavos: number;
   productId: string;
@@ -95,6 +96,7 @@ export function planCheckoutReservation(
     .filter((item) => item.quantity > 0)
     .map(
       (item): CheckoutReservationPlanLine => ({
+        ...(item.imageSrc ? { imageSrc: item.imageSrc } : {}),
         mode: item.availabilityLabel === "Preorder" ? "PREORDER" : "STOCK",
         priceCentavos: item.priceCentavos,
         productId: item.productId,

@@ -32,6 +32,19 @@ const lanes = {
   },
 };
 
+const snapshotItems = [
+  {
+    imageR2Key: null,
+    lineTotalCentavos: 1999,
+    productName: "Frozen Linen Shirt",
+    productSlug: "frozen-linen-shirt",
+    quantity: 1,
+    unitPriceCentavos: 1999,
+    variantLabel: "Size: Small",
+    variantOptions: [{ group: "Size", name: "Small" }],
+  },
+];
+
 const listResult: CustomerOrderListResult = {
   items: [
     {
@@ -39,6 +52,7 @@ const listResult: CustomerOrderListResult = {
       currency: "PHP",
       ...lanes,
       itemCount: 1,
+      items: snapshotItems,
       orderId: "order_1",
       orderNumber: "JRW-2026-ORDER1",
       subtotalCentavos: 1999,

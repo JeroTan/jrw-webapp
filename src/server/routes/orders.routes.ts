@@ -67,22 +67,6 @@ const tboxLane = t.Object({
   value: t.String(),
 });
 
-const tboxCustomerOrderSummary = t.Object({
-  createdAt: t.String(),
-  currency: t.Literal("PHP"),
-  fulfillment: tboxLane,
-  itemCount: t.Integer({ minimum: 0 }),
-  orderId: t.String(),
-  orderNumber: t.String(),
-  payment: tboxLane,
-  refund: tboxLane,
-  return: tboxLane,
-  subtotalCentavos: t.Integer({ minimum: 0 }),
-  totalCentavos: t.Integer({ minimum: 0 }),
-  totalQuantity: t.Integer({ minimum: 0 }),
-  updatedAt: t.String(),
-});
-
 const tboxCustomerOrderItem = t.Object({
   imageR2Key: t.Union([t.String(), t.Null()]),
   lineTotalCentavos: t.Integer({ minimum: 0 }),
@@ -97,6 +81,23 @@ const tboxCustomerOrderItem = t.Object({
       name: t.String(),
     })
   ),
+});
+
+const tboxCustomerOrderSummary = t.Object({
+  createdAt: t.String(),
+  currency: t.Literal("PHP"),
+  fulfillment: tboxLane,
+  itemCount: t.Integer({ minimum: 0 }),
+  items: t.Array(tboxCustomerOrderItem),
+  orderId: t.String(),
+  orderNumber: t.String(),
+  payment: tboxLane,
+  refund: tboxLane,
+  return: tboxLane,
+  subtotalCentavos: t.Integer({ minimum: 0 }),
+  totalCentavos: t.Integer({ minimum: 0 }),
+  totalQuantity: t.Integer({ minimum: 0 }),
+  updatedAt: t.String(),
 });
 
 const tboxCustomerOrderListData = t.Object({
@@ -128,12 +129,7 @@ const tboxAdminOrderListData = t.Object({
   }),
 });
 
-const tboxCustomerOrderDetailData = t.Intersect([
-  tboxCustomerOrderSummary,
-  t.Object({
-    items: t.Array(tboxCustomerOrderItem),
-  }),
-]);
+const tboxCustomerOrderDetailData = tboxCustomerOrderSummary;
 
 const tboxAdminOrderDetailData = t.Intersect([
   tboxAdminOrderSummary,
@@ -143,7 +139,6 @@ const tboxAdminOrderDetailData = t.Intersect([
       fullName: t.Union([t.String(), t.Null()]),
       phone: t.Union([t.String(), t.Null()]),
     }),
-    items: t.Array(tboxCustomerOrderItem),
     shippingAddress: t.Object({
       barangay: t.Union([t.String(), t.Null()]),
       cityProvince: t.Union([t.String(), t.Null()]),

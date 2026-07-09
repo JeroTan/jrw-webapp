@@ -16,7 +16,11 @@ import type {
   ProductVariantOption,
   ProductVariantStatus,
 } from "@/domain/products/types";
-import { product_variants, products } from "@/domain/schema/catalog";
+import {
+  product_photos,
+  product_variants,
+  products,
+} from "@/domain/schema/catalog";
 import {
   checkout_attempts,
   checkout_payment_items,
@@ -135,6 +139,7 @@ export type CheckoutReservationRecord = {
 };
 
 export type CheckoutReservationItemRecord = {
+  imageSrc?: string;
   name?: string;
   priceCentavos?: number;
   productId: string | null;
@@ -358,6 +363,21 @@ function checkoutItemName(
   return productName ?? variantName ?? undefined;
 }
 
+function publicProductAssetUrl(key: string): string {
+  const cleanKey = key.trim().replace(/^products\//, "");
+
+  return `/assets/products/${cleanKey
+    .split("/")
+    .map((segment) => encodeURIComponent(segment))
+    .join("/")}`;
+}
+
+function productImageSrc(r2Key: string | null): string | undefined {
+  const cleanKey = r2Key?.trim();
+
+  return cleanKey ? publicProductAssetUrl(cleanKey) : undefined;
+}
+
 function rowToCheckoutPayment(row: CheckoutPaymentRow): CheckoutPaymentRecord {
   return {
     amountCentavos: Number(row.amount_centavos),
@@ -463,6 +483,21 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
       .select({
         priceCentavos: checkout_reservation_items.price_centavos,
         productId: checkout_reservation_items.product_id,
+        imageR2Key: sql<string | null>`coalesce(
+          (
+            select ${product_photos.r2_key}
+            from ${product_photos}
+            where ${product_photos.id} = ${product_variants.image_reference_id}
+            limit 1
+          ),
+          (
+            select ${product_photos.r2_key}
+            from ${product_photos}
+            where ${product_photos.product_id} = ${checkout_reservation_items.product_id}
+            order by ${product_photos.is_primary} desc, ${product_photos.sort_order} asc, ${product_photos.id} asc
+            limit 1
+          )
+        )`,
         productName: products.name,
         quantity: checkout_reservation_items.quantity,
         reservationMode: checkout_reservation_items.reservation_mode,
@@ -482,15 +517,20 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
 
     return rowToReservation(
       rows[0],
-      itemRows.map((item) => ({
-        name: checkoutItemName(item.productName, item.variantName),
-        priceCentavos: Number(item.priceCentavos),
-        productId: item.productId,
-        quantity: Number(item.quantity),
-        reservationMode:
-          item.reservationMode === "PREORDER" ? "PREORDER" : "STOCK",
-        variantId: item.variantId,
-      }))
+      itemRows.map((item) => {
+        const imageSrc = productImageSrc(item.imageR2Key);
+
+        return {
+          ...(imageSrc ? { imageSrc } : {}),
+          name: checkoutItemName(item.productName, item.variantName),
+          priceCentavos: Number(item.priceCentavos),
+          productId: item.productId,
+          quantity: Number(item.quantity),
+          reservationMode:
+            item.reservationMode === "PREORDER" ? "PREORDER" : "STOCK",
+          variantId: item.variantId,
+        };
+      })
     );
   }
 
@@ -1044,6 +1084,7 @@ export class DrizzleCheckoutRepository implements CheckoutRepository {
       return rowToReservation(
         reservation,
         input.lines.map((line) => ({
+          ...(line.imageSrc ? { imageSrc: line.imageSrc } : {}),
           name: undefined,
           priceCentavos: line.priceCentavos,
           productId: line.productId,

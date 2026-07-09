@@ -15,7 +15,11 @@ import {
   type PublicPaymentReceipt,
   type PublicPaymentReceiptItem,
 } from "@/domain/payments/payment-receipt";
-import { products, product_variants } from "@/domain/schema/catalog";
+import {
+  product_photos,
+  products,
+  product_variants,
+} from "@/domain/schema/catalog";
 import {
   checkout_attempts,
   checkout_payment_items,
@@ -200,6 +204,7 @@ type PaymentItemSnapshotSource = {
   productId: string | null;
   productName: string | null;
   productSlug: string | null;
+  imageR2Key: string | null;
   quantity: number;
   variantId: string | null;
   variantName: string | null;
@@ -1260,7 +1265,7 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
           price_at_purchase: item.amountCentavos,
           price_centavos: item.amountCentavos,
           quantity: item.quantity,
-          image_r2_key: null,
+          image_r2_key: item.imageR2Key,
           snapshot_timestamp: input.now,
           snapshot_signature: signature,
         });
@@ -1281,6 +1286,21 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
         id: checkout_payment_items.id,
         name: checkout_payment_items.name,
         productId: checkout_payment_items.product_id,
+        imageR2Key: sql<string | null>`coalesce(
+          (
+            select ${product_photos.r2_key}
+            from ${product_photos}
+            where ${product_photos.id} = ${product_variants.image_reference_id}
+            limit 1
+          ),
+          (
+            select ${product_photos.r2_key}
+            from ${product_photos}
+            where ${product_photos.product_id} = ${checkout_payment_items.product_id}
+            order by ${product_photos.is_primary} desc, ${product_photos.sort_order} asc, ${product_photos.id} asc
+            limit 1
+          )
+        )`,
         productName: products.name,
         productSlug: products.slug,
         quantity: checkout_payment_items.quantity,
@@ -1305,6 +1325,7 @@ export class DrizzleOrderConfirmationRepository implements OrderConfirmationRepo
       id: row.id,
       name: row.name,
       productId: row.productId,
+      imageR2Key: row.imageR2Key,
       productName: row.productName,
       productSlug: row.productSlug,
       quantity: Number(row.quantity),

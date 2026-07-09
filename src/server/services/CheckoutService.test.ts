@@ -45,6 +45,7 @@ const checkoutDetailsBody = {
 
 const serverLine: CheckoutCartServerLine = {
   availabilityLabel: "Available",
+  imageSrc: "/assets/products/linen-shirt/front.jpg",
   inventoryState: "IN_STOCK",
   priceCentavos: 1999,
   productId: "prod_linen",
@@ -173,6 +174,7 @@ class CheckoutRepositoryStub {
       expiresAt: input.expiresAt,
       id,
       items: input.lines.map((line) => ({
+        ...(line.imageSrc ? { imageSrc: line.imageSrc } : {}),
         name: "Linen Shirt - Size: Small",
         priceCentavos: line.priceCentavos,
         productId: line.productId,
@@ -1088,6 +1090,9 @@ describe("CheckoutService", () => {
               {
                 amount: 1999,
                 currency: "PHP",
+                images: [
+                  "https://jrw.test/assets/products/linen-shirt/front.jpg",
+                ],
                 name: "Linen Shirt - Size: Small",
                 quantity: 2,
               },

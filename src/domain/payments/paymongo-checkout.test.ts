@@ -12,6 +12,7 @@ const reservation = {
   id: "reservation_123",
   items: [
     {
+      imageSrc: "/assets/products/linen-shirt/front.jpg",
       name: "Linen Shirt - Size: Small",
       priceCentavos: 1999,
       productId: "prod_linen",
@@ -50,6 +51,9 @@ describe("PayMongo checkout domain", () => {
             {
               amount: 1999,
               currency: "PHP",
+              images: [
+                "https://jrw.test/assets/products/linen-shirt/front.jpg",
+              ],
               name: "Linen Shirt - Size: Small",
               quantity: 2,
             },

@@ -32,6 +32,7 @@ export type CheckoutPaymentCreationDecision =
   | { code: ErrorCodeType; decision: "reject" };
 
 export type CheckoutPaymentReservationItem = {
+  imageSrc?: string;
   name?: string | null;
   priceCentavos: number;
   productId: string | null;
@@ -56,6 +57,7 @@ export type PayMongoCheckoutSessionPayload = {
       line_items: ReadonlyArray<{
         amount: number;
         currency: "PHP";
+        images?: string[];
         name: string;
         quantity: number;
       }>;
@@ -70,6 +72,7 @@ export type PayMongoCheckoutSessionPayload = {
 
 export type BuildPayMongoCheckoutSessionPayloadInput = {
   attemptId: string;
+  appBaseUrl?: string;
   cancelUrl: string;
   currency?: "PHP";
   metadata: Record<string, unknown>;
@@ -128,6 +131,24 @@ function metadataStringMap(metadata: Record<string, unknown>) {
       .map(([key, value]) => [cleanString(key), cleanString(value)] as const)
       .filter(([key, value]) => key.length > 0 && value.length > 0)
   );
+}
+
+function lineItemImageUrl(imageSrc: string | undefined, appBaseUrl: string) {
+  const src = cleanString(imageSrc);
+
+  if (!src) {
+    return null;
+  }
+
+  try {
+    const url = new URL(src, parseBaseUrl(appBaseUrl));
+
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.toString()
+      : null;
+  } catch {
+    return null;
+  }
 }
 
 function parseBaseUrl(appBaseUrl: string) {
@@ -190,12 +211,20 @@ export function buildPayMongoCheckoutSessionPayload(
     data: {
       attributes: {
         cancel_url: input.cancelUrl,
-        line_items: input.reservation.items.map((item) => ({
-          amount: item.priceCentavos,
-          currency: input.currency ?? "PHP",
-          name: safeLineItemName(item),
-          quantity: item.quantity,
-        })),
+        line_items: input.reservation.items.map((item) => {
+          const imageUrl = lineItemImageUrl(
+            item.imageSrc,
+            input.appBaseUrl ?? input.successUrl
+          );
+
+          return {
+            amount: item.priceCentavos,
+            currency: input.currency ?? "PHP",
+            ...(imageUrl ? { images: [imageUrl] } : {}),
+            name: safeLineItemName(item),
+            quantity: item.quantity,
+          };
+        }),
         metadata: metadataStringMap(input.metadata),
         payment_method_types: normalizePayMongoPaymentMethods(
           input.paymentMethods

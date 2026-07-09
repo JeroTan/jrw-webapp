@@ -56,6 +56,21 @@ const ownerContext = {
   },
 } satisfies RequestActorContext;
 
+function orderSnapshotItems() {
+  return [
+    {
+      imageR2Key: null,
+      lineTotalCentavos: 3998,
+      productName: "Frozen Linen Shirt",
+      productSlug: "frozen-linen-shirt",
+      quantity: 2,
+      unitPriceCentavos: 1999,
+      variantLabel: "Size: Small",
+      variantOptions: [{ group: "Size", name: "Small" }],
+    },
+  ];
+}
+
 function orderListData() {
   return {
     items: [
@@ -69,6 +84,7 @@ function orderListData() {
           value: "ORDER_PLACED",
         },
         itemCount: 1,
+        items: orderSnapshotItems(),
         orderId: "order_1",
         orderNumber: "JRW-2026-ORDER1",
         payment: {

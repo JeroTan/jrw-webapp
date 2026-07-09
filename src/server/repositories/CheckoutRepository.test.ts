@@ -71,6 +71,21 @@ async function createCheckoutTestD1() {
       image_reference_id text,
       product_id text NOT NULL
     )`,
+    `CREATE TABLE product_photos (
+      id text PRIMARY KEY NOT NULL,
+      name text,
+      image_id text NOT NULL,
+      r2_key text NOT NULL,
+      sort_order integer DEFAULT 0 NOT NULL,
+      is_primary integer DEFAULT 0 NOT NULL,
+      file_size integer,
+      content_type text,
+      width integer,
+      height integer,
+      product_id text,
+      created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
     `CREATE TABLE checkout_reservations (
       id text PRIMARY KEY NOT NULL,
       checkout_attempt_id text NOT NULL,
@@ -178,8 +193,8 @@ async function createCheckoutTestD1() {
     .prepare(
       `INSERT INTO product_variants (
         id, name, stock, inventory_state, price, sku, is_preorder,
-        stock_version, stock_lock_version, variation_chain, product_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        stock_version, stock_lock_version, variation_chain, image_reference_id, product_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       "variant_linen_small",
@@ -192,7 +207,33 @@ async function createCheckoutTestD1() {
       7,
       0,
       JSON.stringify([{ group: "Size", name: "Small" }]),
+      "photo_variant",
       "prod_linen"
+    )
+    .run();
+  await d1
+    .prepare(
+      `INSERT INTO product_photos (
+        id, image_id, r2_key, sort_order, is_primary, product_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      "photo_primary",
+      "image_primary",
+      "products/prod_linen/primary.webp",
+      0,
+      1,
+      "prod_linen",
+      now,
+      now,
+      "photo_variant",
+      "image_variant",
+      "products/prod_linen/variant-small.webp",
+      1,
+      0,
+      "prod_linen",
+      now,
+      now
     )
     .run();
 
@@ -610,6 +651,11 @@ describe("CheckoutRepository", { timeout: 60_000 }, () => {
       expect(activeReservation).toMatchObject({
         cartFingerprint: "prod_linen:variant_linen_small:1999:1:1999",
         id: firstReservation.id,
+        items: [
+          {
+            imageSrc: "/assets/products/prod_linen/variant-small.webp",
+          },
+        ],
       });
     } finally {
       await mf.dispose();
@@ -817,7 +863,9 @@ describe("CheckoutRepository", { timeout: 60_000 }, () => {
         .first<{ count: number }>();
 
       expect(paymentCount?.count).toBe(0);
-      await expect(repository.findCheckoutAttempt(attempt.id)).resolves.toMatchObject({
+      await expect(
+        repository.findCheckoutAttempt(attempt.id)
+      ).resolves.toMatchObject({
         reservationId: reservation.id,
         status: "INVENTORY_RESERVED",
       });
@@ -903,23 +951,24 @@ describe("CheckoutRepository", { timeout: 60_000 }, () => {
         now,
         requestId: "req_checkout_attempt_guest",
       });
-      const reserved = await repository.reserveStockAndCreateCheckoutReservation({
-        attemptId: attempt.id,
-        cartFingerprint: "prod_linen:variant_linen_small:1999:2:3998",
-        expiresAt: "2026-06-12T08:15:00.000Z",
-        lines: [
-          {
-            mode: "STOCK",
-            priceCentavos: 1999,
-            productId: "prod_linen",
-            quantity: 2,
-            variantId: "variant_linen_small",
-          },
-        ],
-        now,
-        requestId: "req_checkout_reservation",
-        subtotalCentavos: 3998,
-      });
+      const reserved =
+        await repository.reserveStockAndCreateCheckoutReservation({
+          attemptId: attempt.id,
+          cartFingerprint: "prod_linen:variant_linen_small:1999:2:3998",
+          expiresAt: "2026-06-12T08:15:00.000Z",
+          lines: [
+            {
+              mode: "STOCK",
+              priceCentavos: 1999,
+              productId: "prod_linen",
+              quantity: 2,
+              variantId: "variant_linen_small",
+            },
+          ],
+          now,
+          requestId: "req_checkout_reservation",
+          subtotalCentavos: 3998,
+        });
 
       await repository.releaseCheckoutReservationForPaymentFailure({
         attemptId: attempt.id,
@@ -966,23 +1015,24 @@ describe("CheckoutRepository", { timeout: 60_000 }, () => {
         now,
         requestId: "req_checkout_attempt_guest",
       });
-      const reservation = await repository.reserveStockAndCreateCheckoutReservation({
-        attemptId: attempt.id,
-        cartFingerprint: "prod_linen:variant_linen_small:1999:2:3998",
-        expiresAt: "2026-06-12T08:15:00.000Z",
-        lines: [
-          {
-            mode: "STOCK",
-            priceCentavos: 1999,
-            productId: "prod_linen",
-            quantity: 2,
-            variantId: "variant_linen_small",
-          },
-        ],
-        now,
-        requestId: "req_checkout_reservation",
-        subtotalCentavos: 3998,
-      });
+      const reservation =
+        await repository.reserveStockAndCreateCheckoutReservation({
+          attemptId: attempt.id,
+          cartFingerprint: "prod_linen:variant_linen_small:1999:2:3998",
+          expiresAt: "2026-06-12T08:15:00.000Z",
+          lines: [
+            {
+              mode: "STOCK",
+              priceCentavos: 1999,
+              productId: "prod_linen",
+              quantity: 2,
+              variantId: "variant_linen_small",
+            },
+          ],
+          now,
+          requestId: "req_checkout_reservation",
+          subtotalCentavos: 3998,
+        });
 
       await repository.createCheckoutPayment({
         amountCentavos: 3998,
@@ -1025,7 +1075,9 @@ describe("CheckoutRepository", { timeout: 60_000 }, () => {
 
       expect(variant).toEqual({ stock: 1 });
       expect(reservationRow).toEqual({ status: "ACTIVE" });
-      await expect(repository.findCheckoutAttempt(attempt.id)).resolves.toMatchObject({
+      await expect(
+        repository.findCheckoutAttempt(attempt.id)
+      ).resolves.toMatchObject({
         reservationId: reservation!.id,
         status: "PAYMENT_CREATED",
       });
@@ -1046,32 +1098,34 @@ describe("CheckoutRepository", { timeout: 60_000 }, () => {
         now,
         requestId: "req_checkout_attempt_guest",
       });
-      const reserved = await repository.reserveStockAndCreateCheckoutReservation({
-        attemptId: attempt.id,
-        cartFingerprint: "prod_linen:variant_linen_small:1999:2:3998",
-        expiresAt: "2026-06-12T08:15:00.000Z",
-        lines: [
-          {
-            mode: "STOCK",
-            priceCentavos: 1999,
-            productId: "prod_linen",
-            quantity: 2,
-            variantId: "variant_linen_small",
-          },
-        ],
-        now,
-        requestId: "req_checkout_reservation",
-        subtotalCentavos: 3998,
-      });
+      const reserved =
+        await repository.reserveStockAndCreateCheckoutReservation({
+          attemptId: attempt.id,
+          cartFingerprint: "prod_linen:variant_linen_small:1999:2:3998",
+          expiresAt: "2026-06-12T08:15:00.000Z",
+          lines: [
+            {
+              mode: "STOCK",
+              priceCentavos: 1999,
+              productId: "prod_linen",
+              quantity: 2,
+              variantId: "variant_linen_small",
+            },
+          ],
+          now,
+          requestId: "req_checkout_reservation",
+          subtotalCentavos: 3998,
+        });
 
       const released = await repository.releaseExpiredCheckoutReservations({
         now: "2026-06-12T08:16:00.000Z",
         requestId: "req_checkout_expiry_sweep",
       });
-      const secondReleased = await repository.releaseExpiredCheckoutReservations({
-        now: "2026-06-12T08:17:00.000Z",
-        requestId: "req_checkout_expiry_sweep_again",
-      });
+      const secondReleased =
+        await repository.releaseExpiredCheckoutReservations({
+          now: "2026-06-12T08:17:00.000Z",
+          requestId: "req_checkout_expiry_sweep_again",
+        });
 
       const variant = await d1
         .prepare(

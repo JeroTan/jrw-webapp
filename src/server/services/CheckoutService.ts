@@ -374,6 +374,7 @@ function toPaymentReservation(
     expiresAt: reservation.expiresAt,
     id: reservation.id,
     items: (reservation.items ?? []).map((item) => ({
+      ...(item.imageSrc ? { imageSrc: item.imageSrc } : {}),
       name: item.name,
       priceCentavos: item.priceCentavos ?? 0,
       productId: item.productId,
@@ -749,6 +750,7 @@ export class CheckoutService {
       const providerResult = await this.payMongoClient.createCheckoutSession(
         buildPayMongoCheckoutSessionPayload({
           attemptId: attempt.id,
+          appBaseUrl: this.paymentConfig.appBaseUrl,
           cancelUrl: urls.cancelUrl,
           currency: "PHP",
           metadata: {

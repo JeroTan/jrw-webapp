@@ -133,7 +133,10 @@ function CheckoutStepper({ currentStep }: { currentStep: CheckoutStepId }) {
         {stepLabel}
       </a>
     ) : (
-      <span aria-current={isCurrent ? "step" : undefined} className={stepClassName}>
+      <span
+        aria-current={isCurrent ? "step" : undefined}
+        className={stepClassName}
+      >
         {stepLabel}
       </span>
     );
@@ -216,15 +219,9 @@ function CheckoutFlowSummary({
     return (
       <aside className={asideClassName}>
         <div className="grid gap-1">
-          <Skeleton
-            className="w-24"
-            label="Loading receipt summary label"
-          />
+          <Skeleton className="w-24" label="Loading receipt summary label" />
           <div className="flex items-end justify-between gap-grid-sm">
-            <Skeleton
-              className="w-16"
-              label="Loading receipt total label"
-            />
+            <Skeleton className="w-16" label="Loading receipt total label" />
             <Skeleton
               className="w-32 [&>span]:min-h-8"
               label="Loading receipt total"
@@ -257,9 +254,7 @@ function CheckoutFlowSummary({
           </strong>
         </div>
         {summaryDescription ? (
-          <p className="m-0 text-sm text-brand-muted">
-            {summaryDescription}
-          </p>
+          <p className="m-0 text-sm text-brand-muted">{summaryDescription}</p>
         ) : null}
         {summaryOverride?.statusRows?.length ? (
           <dl className="m-0 grid gap-1 border-t border-brand-border pt-grid-xs font-system text-xs">
@@ -292,7 +287,7 @@ function CheckoutFlowSummary({
             disabled={state.items.length === 0}
             fullWidth
             loading={checkoutValidation.isPending}
-            loadingLabel="Checking cart"
+            loadingLabel="Opening checkout"
             onClick={checkoutValidation.validate}
             textSize="xs"
             variant="primary"
@@ -358,7 +353,8 @@ function CheckoutFlowSummary({
         </p>
       ) : null}
 
-      {checkoutValidation.validation.message ? (
+      {checkoutValidation.validation.message &&
+      !checkoutValidation.isPending ? (
         <p className="m-0 text-sm font-bold text-brand-muted" role="status">
           {checkoutValidation.validation.message}
         </p>

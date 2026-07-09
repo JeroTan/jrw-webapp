@@ -16,6 +16,7 @@ import {
   buildCustomerOrderStatusLanes,
   type CustomerOrderStatusLane,
 } from "@/domain/orders/customer-order-status";
+import { product_photos, product_variants } from "@/domain/schema/catalog";
 import { order_snapshots, orders } from "@/domain/schema/transactions";
 
 export type CustomerOrderSnapshotOption = {
@@ -39,6 +40,7 @@ export type CustomerOrderReadModel = {
   currency: "PHP";
   fulfillment: CustomerOrderStatusLane;
   itemCount: number;
+  items: CustomerOrderSnapshotItem[];
   orderId: string;
   orderNumber: string;
   payment: CustomerOrderStatusLane;
@@ -265,6 +267,7 @@ function buildOrderReadModel(
     currency: "PHP",
     fulfillment: lanes.fulfillment,
     itemCount: items.length,
+    items,
     orderId: row.orderId,
     orderNumber: row.orderNumber ?? row.orderId,
     payment: lanes.payment,
@@ -552,7 +555,27 @@ export class DrizzleOrderRepository {
 
     const rows = await this.db
       .select({
-        imageR2Key: order_snapshots.image_r2_key,
+        imageR2Key: sql<string | null>`coalesce(
+          ${order_snapshots.image_r2_key},
+          (
+            select ${product_photos.r2_key}
+            from ${product_photos}
+            where ${product_photos.id} = (
+              select ${product_variants.image_reference_id}
+              from ${product_variants}
+              where ${product_variants.id} = ${order_snapshots.variant_id}
+              limit 1
+            )
+            limit 1
+          ),
+          (
+            select ${product_photos.r2_key}
+            from ${product_photos}
+            where ${product_photos.product_id} = ${order_snapshots.product_id}
+            order by ${product_photos.is_primary} desc, ${product_photos.sort_order} asc, ${product_photos.id} asc
+            limit 1
+          )
+        )`,
         orderId: order_snapshots.order_id,
         priceCentavos: order_snapshots.price_centavos,
         productName: order_snapshots.product_name,

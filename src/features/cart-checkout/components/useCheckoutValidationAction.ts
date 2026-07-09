@@ -1,7 +1,10 @@
 import * as React from "react";
 import type { CartState } from "@/domain/checkout/cart";
 import { validateCartBeforeCheckout } from "../api";
-import { applyCheckoutValidationSummaryToStore } from "../store";
+import {
+  applyCheckoutValidationSummaryToStore,
+  getCartSnapshot,
+} from "../store";
 
 export type CheckoutValidationUiStatus =
   | "idle"
@@ -74,8 +77,8 @@ export function useCheckoutValidationAction(input: {
       status: "pending",
     });
 
-    const requestState = state;
-    const result = await validateCartBeforeCheckout(requestState);
+    let requestState = state;
+    let result = await validateCartBeforeCheckout(requestState);
 
     if (!isCurrentValidation()) {
       return;
@@ -89,17 +92,48 @@ export function useCheckoutValidationAction(input: {
       return;
     }
 
-    const applied = applyCheckoutValidationSummaryToStore(
+    let applied = applyCheckoutValidationSummaryToStore(
       result.summary,
       requestState
     );
 
     if (!applied) {
-      setValidation({
-        message: "Cart changed. Check cart again.",
-        status: "changed",
-      });
-      return;
+      requestState = getCartSnapshot();
+
+      if (requestState.items.length === 0) {
+        setValidation({
+          message: "Add an item before checkout.",
+          status: "error",
+        });
+        return;
+      }
+
+      result = await validateCartBeforeCheckout(requestState);
+
+      if (!isCurrentValidation()) {
+        return;
+      }
+
+      if (result.kind === "failure") {
+        setValidation({
+          message: result.reason,
+          status: "error",
+        });
+        return;
+      }
+
+      applied = applyCheckoutValidationSummaryToStore(
+        result.summary,
+        requestState
+      );
+
+      if (!applied) {
+        setValidation({
+          message: "Cart changed. Check cart again.",
+          status: "changed",
+        });
+        return;
+      }
     }
 
     onValidated?.();
@@ -121,6 +155,10 @@ export function useCheckoutValidationAction(input: {
       message: messageForStatus(result.kind),
       status: result.kind,
     });
+
+    if (navigateOnSuccess) {
+      navigateToCheckout();
+    }
   }, [navigateOnSuccess, onValidated, state]);
 
   return {

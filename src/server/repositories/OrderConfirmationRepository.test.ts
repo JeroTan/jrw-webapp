@@ -48,6 +48,21 @@ async function createOrderConfirmationTestD1() {
       image_reference_id text,
       product_id text NOT NULL
     )`,
+    `CREATE TABLE product_photos (
+      id text PRIMARY KEY NOT NULL,
+      name text,
+      image_id text NOT NULL,
+      r2_key text NOT NULL,
+      sort_order integer DEFAULT 0 NOT NULL,
+      is_primary integer DEFAULT 0 NOT NULL,
+      file_size integer,
+      content_type text,
+      width integer,
+      height integer,
+      product_id text,
+      created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
     `CREATE TABLE checkout_attempts (
       id text PRIMARY KEY NOT NULL,
       customer_id text,
@@ -189,9 +204,34 @@ async function createOrderConfirmationTestD1() {
     .run();
   await d1
     .prepare(
+      `INSERT INTO product_photos (
+        id, image_id, r2_key, sort_order, is_primary, product_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      "photo_primary",
+      "image_primary",
+      "products/prod_linen/primary.webp",
+      0,
+      1,
+      "prod_linen",
+      now,
+      now,
+      "photo_variant",
+      "image_variant",
+      "products/prod_linen/variant-small.webp",
+      1,
+      0,
+      "prod_linen",
+      now,
+      now
+    )
+    .run();
+  await d1
+    .prepare(
       `INSERT INTO product_variants (
-        id, name, price, sku, variation_chain, product_id
-      ) VALUES (?, ?, ?, ?, ?, ?)`
+        id, name, price, sku, variation_chain, image_reference_id, product_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       "variant_linen_small",
@@ -199,6 +239,7 @@ async function createOrderConfirmationTestD1() {
       1999,
       "SKU-LINEN-S",
       JSON.stringify([{ group: "Size", name: "Small" }]),
+      "photo_variant",
       "prod_linen"
     )
     .run();
@@ -342,10 +383,11 @@ describe("DrizzleOrderConfirmationRepository", () => {
         .first<{ count: number }>();
       const snapshot = await d1
         .prepare(
-          `SELECT product_name, variant_name, price_centavos, quantity
+          `SELECT product_name, variant_name, price_centavos, quantity, image_r2_key
            FROM order_snapshots`
         )
         .first<{
+          image_r2_key: string | null;
           price_centavos: number;
           product_name: string;
           quantity: number;
@@ -357,6 +399,7 @@ describe("DrizzleOrderConfirmationRepository", () => {
       expect(snapshot).toEqual({
         product_name: "Linen Shirt",
         variant_name: "Size: Small",
+        image_r2_key: "products/prod_linen/variant-small.webp",
         price_centavos: 1999,
         quantity: 2,
       });

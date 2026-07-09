@@ -48,6 +48,21 @@ async function createOrderRepositoryTestD1() {
       image_reference_id text,
       product_id text NOT NULL
     )`,
+    `CREATE TABLE product_photos (
+      id text PRIMARY KEY NOT NULL,
+      name text,
+      image_id text NOT NULL,
+      r2_key text NOT NULL,
+      sort_order integer DEFAULT 0 NOT NULL,
+      is_primary integer DEFAULT 0 NOT NULL,
+      file_size integer,
+      content_type text,
+      width integer,
+      height integer,
+      product_id text,
+      created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
     `CREATE TABLE orders (
       id text PRIMARY KEY NOT NULL,
       order_number text,
@@ -133,6 +148,23 @@ async function createOrderRepositoryTestD1() {
       "SKU-LINEN-S",
       JSON.stringify([{ group: "Size", name: "Changed" }]),
       "prod_linen"
+    )
+    .run();
+  await d1
+    .prepare(
+      `INSERT INTO product_photos (
+        id, image_id, r2_key, sort_order, is_primary, product_id, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .bind(
+      "photo_linen_primary",
+      "image_linen_primary",
+      "products/prod_linen/primary.webp",
+      0,
+      1,
+      "prod_linen",
+      now,
+      now
     )
     .run();
   await d1
@@ -301,7 +333,7 @@ describe("order repository", () => {
       expect(byId).toMatchObject({
         items: [
           {
-            imageR2Key: null,
+            imageR2Key: "products/prod_linen/primary.webp",
             lineTotalCentavos: 3998,
             productName: "Frozen Linen Shirt",
             productSlug: "frozen-linen-shirt",
@@ -411,7 +443,7 @@ describe("order repository", () => {
         customerLabel: "Nina R.",
         items: [
           {
-            imageR2Key: null,
+            imageR2Key: "products/prod_linen/primary.webp",
             lineTotalCentavos: 3998,
             productName: "Frozen Linen Shirt",
             productSlug: "frozen-linen-shirt",

@@ -63,7 +63,7 @@ export function CartSummary({ onRefresh, state }: CartSummaryProps) {
         <Button
           disabled={isEmpty}
           loading={checkoutValidation.isPending}
-          loadingLabel="Checking cart"
+          loadingLabel="Opening checkout"
           onClick={checkoutValidation.validate}
           textSize="xs"
           variant="primary"
@@ -90,7 +90,8 @@ export function CartSummary({ onRefresh, state }: CartSummaryProps) {
         </Button>
       </div>
 
-      {checkoutValidation.validation.message ? (
+      {checkoutValidation.validation.message &&
+      !checkoutValidation.isPending ? (
         <p className="m-0 text-sm font-bold text-brand-muted" role="status">
           {checkoutValidation.validation.message}
         </p>

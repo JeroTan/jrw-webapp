@@ -74,22 +74,6 @@ export type CustomerOrderStatusLane = {
   value: string;
 };
 
-export type CustomerOrderSummary = {
-  createdAt: string;
-  currency: "PHP";
-  fulfillment: CustomerOrderStatusLane;
-  itemCount: number;
-  orderId: string;
-  orderNumber: string;
-  payment: CustomerOrderStatusLane;
-  refund: CustomerOrderStatusLane;
-  return: CustomerOrderStatusLane;
-  subtotalCentavos: number;
-  totalCentavos: number;
-  totalQuantity: number;
-  updatedAt: string;
-};
-
 export type CustomerOrderSnapshotItem = {
   imageR2Key: string | null;
   lineTotalCentavos: number;
@@ -102,6 +86,23 @@ export type CustomerOrderSnapshotItem = {
     group: string;
     name: string;
   }>;
+};
+
+export type CustomerOrderSummary = {
+  createdAt: string;
+  currency: "PHP";
+  fulfillment: CustomerOrderStatusLane;
+  itemCount: number;
+  items: CustomerOrderSnapshotItem[];
+  orderId: string;
+  orderNumber: string;
+  payment: CustomerOrderStatusLane;
+  refund: CustomerOrderStatusLane;
+  return: CustomerOrderStatusLane;
+  subtotalCentavos: number;
+  totalCentavos: number;
+  totalQuantity: number;
+  updatedAt: string;
 };
 
 export type CustomerOrderDetail = CustomerOrderSummary & {
@@ -162,6 +163,8 @@ function isOrderSummary(value: unknown): value is CustomerOrderSummary {
     value.currency === "PHP" &&
     isOrderLane(value.fulfillment) &&
     isSafeInteger(value.itemCount) &&
+    Array.isArray(value.items) &&
+    value.items.every(isOrderItem) &&
     typeof value.orderId === "string" &&
     typeof value.orderNumber === "string" &&
     isOrderLane(value.payment) &&

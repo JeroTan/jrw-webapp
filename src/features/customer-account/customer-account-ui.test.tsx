@@ -6,8 +6,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("lucide-react", () => ({
+  Check: "svg",
   ChevronDown: "svg",
   ChevronUp: "svg",
+  Copy: "svg",
 }));
 
 import { AccountFormField } from "./components/AccountFormField";
@@ -73,6 +75,18 @@ function customerOrderSummary() {
       value: "SHIPPED",
     },
     itemCount: 1,
+    items: [
+      {
+        imageR2Key: "products/frozen-linen-shirt/front.webp",
+        lineTotalCentavos: 3998,
+        productName: "Frozen Linen Shirt",
+        productSlug: "frozen-linen-shirt",
+        quantity: 2,
+        unitPriceCentavos: 1999,
+        variantLabel: "Size: Small",
+        variantOptions: [{ group: "Size", name: "Small" }],
+      },
+    ],
     orderId: "order_1",
     orderNumber: "JRW-2026-ORDER1",
     payment: {
@@ -105,7 +119,7 @@ function customerOrderDetail() {
     ...customerOrderSummary(),
     items: [
       {
-        imageR2Key: null,
+        imageR2Key: "products/frozen-linen-shirt/front.webp",
         lineTotalCentavos: 3998,
         productName: "Frozen Linen Shirt",
         productSlug: "frozen-linen-shirt",
@@ -368,11 +382,18 @@ describe("customer account UI", () => {
       })
     );
 
-    expect(markup).toContain("JRW-2026-ORDER1");
-    expect(markup).toContain("Payment paid");
-    expect(markup).toContain("Shipped");
-    expect(markup).toContain("No return requested");
-    expect(markup).toContain("No refund requested");
+    expect(markup).toContain("Frozen Linen Shirt");
+    expect(markup).toContain("Size: Small");
+    expect(markup).toContain("2 x PHP 19.99");
+    expect(markup).toContain("In transit");
+    expect(markup).toContain("Parcel picked up");
+    expect(markup).toContain("Total items: 2");
+    expect(markup).toContain("Order JRW-2026-ORDER1");
+    expect(markup).toContain("Copy order ID JRW-2026-ORDER1");
+    expect(markup).not.toContain("Payment paid");
+    expect(markup).not.toContain("No return requested");
+    expect(markup).not.toContain("No refund requested");
+    expect(markup).not.toContain("1 item across 1 line");
     expect(markup).toContain("PHP 39.98");
     expect(markup).toContain('href="/account/orders/order_1"');
     expect(markup).toContain("min-h-control-md");
@@ -380,6 +401,75 @@ describe("customer account UI", () => {
     expect(markup).not.toMatch(
       /checkout_url|providerCheckoutSession|PayMongo payload|nina@example|0917|Sampaguita|token|secret|signature|card/i
     );
+  });
+
+  it("deduplicates variant labels already present in option details", () => {
+    const order = customerOrderSummary();
+    const markup = renderToStaticMarkup(
+      createElement(CustomerOrdersView, {
+        orders: [
+          {
+            ...order,
+            items: [
+              {
+                ...order.items[0],
+                productName: "Men’s Gray Stand Collar Softshell Jacket",
+                quantity: 1,
+                variantLabel: "Large",
+                variantOptions: [
+                  { group: "Color", name: "Gray" },
+                  { group: "Size", name: "Large" },
+                ],
+              },
+            ],
+            totalQuantity: 1,
+          },
+        ],
+        pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+      })
+    );
+
+    expect(markup).toContain("Color: Gray / Size: Large");
+    expect(markup).not.toContain("Large / Color: Gray / Size: Large");
+  });
+
+  it("renders extra order items behind a compact summary badge", () => {
+    const order = customerOrderSummary();
+    const markup = renderToStaticMarkup(
+      createElement(CustomerOrdersView, {
+        orders: [
+          {
+            ...order,
+            itemCount: 2,
+            items: [
+              order.items[0],
+              {
+                imageR2Key: "products/wool-tote/front.webp",
+                lineTotalCentavos: 1250,
+                productName: "Wool Tote",
+                productSlug: "wool-tote",
+                quantity: 1,
+                unitPriceCentavos: 1250,
+                variantLabel: "Black",
+                variantOptions: [{ group: "Color", name: "Black" }],
+              },
+            ],
+            totalQuantity: 3,
+          },
+        ],
+        pagination: { page: 1, pageSize: 20, totalItems: 1, totalPages: 1 },
+      })
+    );
+
+    expect(markup).toContain("+ 1 more");
+    expect(markup).toContain("Show 1 more order item");
+    expect(markup).toContain("Order item summary");
+    expect(markup).toContain("Wool Tote");
+    expect(markup).toContain("Qty 1");
+    expect(markup).toContain("PHP 12.50");
+    expect(markup).toContain("group-hover:grid");
+    expect(markup).toContain("group-focus-within:grid");
+    expect(markup).not.toContain("Frozen Linen Shirt + 1 more");
   });
 
   it("renders customer order pagination controls for older orders", () => {
@@ -398,7 +488,7 @@ describe("customer account UI", () => {
     expect(markup).toContain("min-h-control-md");
   });
 
-  it("renders customer order detail from snapshot items with no-image fallback", () => {
+  it("renders customer order detail from snapshot items with image keys", () => {
     const markup = renderToStaticMarkup(
       createElement(CustomerOrderDetailView, { order: customerOrderDetail() })
     );
@@ -411,7 +501,12 @@ describe("customer account UI", () => {
     expect(markup).toContain("Your payment was received by JRW.");
     expect(markup).toContain("Frozen Linen Shirt");
     expect(markup).toContain("Size: Small");
-    expect(markup).toContain("No image");
+    expect(markup).not.toContain("Size: Small / Size: Small");
+    expect(markup).toContain(
+      'src="/assets/products/frozen-linen-shirt/front.webp"'
+    );
+    expect(markup).not.toContain("Snapshot");
+    expect(markup).not.toContain("No image");
     expect(markup).not.toContain("Mutable Catalog Shirt");
     expect(markup).not.toMatch(
       /PAYMENT_PAID|ORDER_PLACED|RETURN_NOT_REQUESTED|REFUND_NOT_REQUESTED/
