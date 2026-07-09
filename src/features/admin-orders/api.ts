@@ -1,5 +1,7 @@
 import type {
   AdminOrderDetail,
+  AdminFulfillmentStatus,
+  AdminFulfillmentUpdateResult,
   AdminOrderList,
   AdminOrderListQuery,
 } from "./types";
@@ -137,4 +139,22 @@ export async function fetchAdminOrderDetail(
   );
 
   return readApiEnvelope<AdminOrderDetail>(response);
+}
+
+export async function updateAdminOrderFulfillment(
+  orderIdOrNumber: string,
+  targetStatus: AdminFulfillmentStatus
+): Promise<AdminFulfillmentUpdateResult> {
+  const response = await adminOrderFetch(
+    `/api/admin/orders/${encodeURIComponent(orderIdOrNumber)}/fulfillment`,
+    {
+      body: JSON.stringify({ targetStatus }),
+      headers: {
+        "content-type": "application/json",
+      },
+      method: "PATCH",
+    }
+  );
+
+  return readApiEnvelope<AdminFulfillmentUpdateResult>(response);
 }

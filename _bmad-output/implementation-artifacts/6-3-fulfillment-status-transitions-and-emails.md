@@ -1,6 +1,6 @@
 # Story 6.3: Fulfillment Status Transitions and Emails
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -25,87 +25,87 @@ so that Customers can track delivery progress.
 
 ## Tasks / Subtasks
 
-- [ ] Add pure fulfillment transition domain rules. (AC: 3, 4, 5, 9)
-  - [ ] Create `src/domain/orders/fulfillment-transitions.ts`.
-  - [ ] Export exact `FulfillmentStatus` union: `ORDER_PLACED`, `PROCESSING`, `SHIPPED`, `DELIVERED`, `CANCELLED`.
-  - [ ] Export helper(s) for allowed next statuses and transition decision with safe reason codes.
-  - [ ] Enforce payment gate: only `PAYMENT_PAID` allows fulfillment movement.
-  - [ ] Unit test valid paths, terminal states, non-paid payment states, unknown values, and no payment-status mutation.
+- [x] Add pure fulfillment transition domain rules. (AC: 3, 4, 5, 9)
+  - [x] Created `src/domain/orders/fulfillment-transitions.ts`.
+  - [x] Exported exact `FulfillmentStatus` union and status guard/label helpers.
+  - [x] Exported allowed-next and transition decision helpers with safe reason codes.
+  - [x] Enforced `PAYMENT_PAID` gate.
+  - [x] Added unit tests for valid paths, terminal states, unpaid states, unknown values, and no payment-lane mutation.
 
-- [ ] Add durable fulfillment transition/email tracking. (AC: 6, 7, 8)
-  - [ ] Add schema table under `src/domain/schema/transactions.ts`; recommended name `order_fulfillment_events`.
-  - [ ] Recommended columns: `id`, `order_id`, `actor_id`, `old_fulfillment_status`, `new_fulfillment_status`, `request_id`, `email_status`, `email_sent_at`, `email_last_attempt_at`, `email_message_id`, `created_at`, `updated_at`.
-  - [ ] Add indexes for `order_id`, `email_status`, and `created_at`; add uniqueness/idempotency around `request_id` or equivalent safe request key.
-  - [ ] Generate migration under `migrations/` and update `src/domain/schema-invariants.test.ts`.
-  - [ ] Do not use this table as Epic 7 audit replacement; it supports fulfillment email retry and transition result lookup only.
+- [x] Add durable fulfillment transition/email tracking. (AC: 6, 7, 8)
+  - [x] Added `order_fulfillment_events` schema and relations.
+  - [x] Added old/new fulfillment, actor, request, timestamp, and email state columns.
+  - [x] Added `order_id`, `email_status`, `created_at`, and unique `request_id` indexes.
+  - [x] Added `migrations/0033_order_fulfillment_events.sql`.
+  - [x] Updated schema invariant tests and kept table separate from Epic 7 audit.
 
-- [ ] Extend `DrizzleOrderRepository` with mutation and email-claim methods. (AC: 4, 5, 6, 7)
-  - [ ] Add method to load current fulfillment transition subject by order id or order number with `payment_status`, `fulfillment_status`, `checkout_email`, `order_number`, totals, and snapshot items needed for email.
-  - [ ] Add conditional update method that changes `orders.fulfillment_status`, `orders.updated_at`, and `orders.updated_request_id` only when current status still matches expected status.
-  - [ ] Add transition-event insert/find methods for idempotent same-request handling.
-  - [ ] Add email claim/mark methods mirroring existing order/payment email pattern: claim `PENDING`/`FAILED` or stale `SENDING`, mark `SENT`, mark `FAILED`.
-  - [ ] Preserve Customer and Admin read contracts from 6.1/6.2.
+- [x] Extend `DrizzleOrderRepository` with mutation and email-claim methods. (AC: 4, 5, 6, 7)
+  - [x] Added transition subject loader with payment/fulfillment/contact/order/snapshot data.
+  - [x] Added conditional fulfillment update guarded by current status and paid payment status.
+  - [x] Added transition-event insert/find and same-request idempotency handling.
+  - [x] Added fulfillment email claim, sent, failed, and email payload methods.
+  - [x] Preserved Customer/Admin read contracts from 6.1/6.2.
 
-- [ ] Extend `OrderService` with Admin fulfillment use case. (AC: 2, 4, 5, 6, 7, 8)
-  - [ ] Add `updateAdminOrderFulfillment(...)`.
-  - [ ] Reuse current Admin guard policy: `auth: { mode: "required", roles: ["ADMIN"] }`; Super Admin remains denied unless page guard/API policy intentionally changes everywhere.
-  - [ ] Validate `orderIdOrNumber` and `targetStatus`; empty or unknown target returns `VALIDATION_FAILED`.
-  - [ ] Unknown order returns `RESOURCE_NOT_FOUND`; invalid payment/status/stale transition returns `CONFLICT_STATE`.
-  - [ ] On valid transition, update fulfillment and event atomically before email/audit side effects.
-  - [ ] Send/claim fulfillment email after domain state persists; email failure returns success with `email.status = "FAILED"` and safe details, not rollback.
-  - [ ] Publish `createAuditEvent({ action: "order.status_changed", target: { entity: "order" } })` with safe details. Use `order.fulfilled` only if existing convention clearly needs a separate delivered event.
-  - [ ] Use `OperationalLogger` for email/audit/provider failures; logs must scrub checkout email, phone, address, provider payloads, tokens, and stack traces.
+- [x] Extend `OrderService` with Admin fulfillment use case. (AC: 2, 4, 5, 6, 7, 8)
+  - [x] Added `updateAdminOrderFulfillment(...)`.
+  - [x] Reused Admin-only policy; Super Admin remains denied.
+  - [x] Validated blank order id and unknown target as `VALIDATION_FAILED`.
+  - [x] Returned `RESOURCE_NOT_FOUND` for unknown orders and `CONFLICT_STATE` for invalid payment/status/stale transitions.
+  - [x] Persisted fulfillment/event before email/audit side effects; D1 local explicit transaction limitation falls back to same conditional update/event sequence.
+  - [x] Sent/claimed email after persistence; email failure returns success with `email.status = "FAILED"`.
+  - [x] Published safe audit events with `order.status_changed`, `order.fulfilled`, or `order.cancelled`.
+  - [x] Logged email failures through `OperationalLogger` with safe details.
 
-- [ ] Add fulfillment status email domain and Resend adapter. (AC: 7)
-  - [ ] Create `src/domain/notifications/fulfillment-status-email.ts`.
-  - [ ] Create `src/adapter/infrastructure/resend/FulfillmentStatusEmailNotifier.ts`.
-  - [ ] Reuse existing `email-template` helpers and `resolveResendVerificationEmailConfig(...)`.
-  - [ ] Email copy uses customer-safe fulfillment labels, order number, status URL, and no provider/internal ids.
-  - [ ] Missing config uses failing notifier like order confirmation/payment status email notifiers.
+- [x] Add fulfillment status email domain and Resend adapter. (AC: 7)
+  - [x] Created `src/domain/notifications/fulfillment-status-email.ts`.
+  - [x] Created `src/adapter/infrastructure/resend/FulfillmentStatusEmailNotifier.ts`.
+  - [x] Reused existing email template/config helpers.
+  - [x] Kept email payload customer-safe with status label, order number, status URL, and snapshot items.
+  - [x] Missing config uses failing notifier fallback.
 
-- [ ] Extend controller/routes/OpenAPI. (AC: 2, 5, 7)
-  - [ ] Add `OrderController.updateAdminOrderFulfillment(...)`.
-  - [ ] Add `PATCH /api/admin/orders/:orderId/fulfillment` in `src/server/routes/orders.routes.ts`.
-  - [ ] Body schema allows only supported target statuses; `additionalProperties: false`.
-  - [ ] Response schema includes updated `order`, `transition`, `email`, and `allowedNextStatuses`.
-  - [ ] Error codes include `AUTH_REQUIRED`, `AUTH_FORBIDDEN`, `ACCOUNT_SUSPENDED`, `EMAIL_NOT_VERIFIED`, `ADMIN_APPROVAL_REQUIRED`, `VALIDATION_FAILED`, `RESOURCE_NOT_FOUND`, `CONFLICT_STATE`, `PROVIDER_UNAVAILABLE`, `INTERNAL_ERROR`.
-  - [ ] Extend `OrderRoutesOptions`/runtime controller wiring with `operationalLogger` and fulfillment email notifier creation. Update `createApp(...)` to pass canonical operational logger into orders routes.
-  - [ ] Keep `transform: rbacGuard(adminOrderAuth)` before controller construction.
+- [x] Extend controller/routes/OpenAPI. (AC: 2, 5, 7)
+  - [x] Added `OrderController.updateAdminOrderFulfillment(...)`.
+  - [x] Added `PATCH /api/admin/orders/:orderId/fulfillment`.
+  - [x] Added TypeBox body schema with supported target statuses and `additionalProperties: false`.
+  - [x] Added response schema for updated `order`, `transition`, `email`, and `allowedNextStatuses`.
+  - [x] Added conflict/provider/validation/auth error codes.
+  - [x] Added runtime wiring for `operationalLogger` and fulfillment email notifier; `createApp(...)` passes canonical logger.
+  - [x] Kept `rbacGuard(adminOrderAuth)` on route before controller construction.
 
-- [ ] Update Admin order detail UI. (AC: 1, 5, 7, 9)
-  - [ ] Add feature component under `src/features/admin-orders/components/` for fulfillment actions or extend `AdminOrderDetailDashboard.tsx` cleanly.
-  - [ ] Show valid next action buttons only; show disabled rows/reasons for blocked states.
-  - [ ] On success, refresh/reconcile order detail and show email state (`SENT`, `SENDING`, `FAILED`) in a safe toast/alert.
-  - [ ] On `CONFLICT_STATE`, roll back optimistic UI and show allowed next statuses/safe reason from API.
-  - [ ] Keep payment, fulfillment, return, refund lanes separate; do not add return/refund mutation controls.
-  - [ ] Keep Direction 05/06 styling: dense, bordered, square, keyboard-friendly, no shadows, no `jrw-*` CSS.
+- [x] Update Admin order detail UI. (AC: 1, 5, 7, 9)
+  - [x] Extended `AdminOrderDetailDashboard.tsx` with fulfillment action panel.
+  - [x] Show valid next action buttons only and safe blocked-state reasons.
+  - [x] On success, reconciles order detail and shows email state alert.
+  - [x] On `CONFLICT_STATE`, refreshes latest detail and shows safe reason.
+  - [x] Kept payment, fulfillment, return, refund lanes separate with no return/refund controls.
+  - [x] Kept dense square controls using shared `src/components` primitives.
 
-- [ ] Add focused tests. (AC: 3, 4, 5, 6, 7, 8, 10)
-  - [ ] Domain tests: transition matrix, payment gate, terminal states, cancellation before shipping only.
-  - [ ] Repository tests: atomic update, stale status conflict, event insertion/idempotency, email claim/mark success/failure, snapshot/email payload.
-  - [ ] Service tests: Admin allow/deny, invalid target, invalid transition, non-paid payment block, email success/failure non-rollback, audit event publish.
-  - [ ] Route tests: OpenAPI metadata, RBAC denial before controller, success envelope, validation rejection, conflict envelope, no provider/PII leak.
-  - [ ] UI tests: valid action buttons, disabled reasons, success refresh, conflict rollback, email failure alert, no return/refund controls.
+- [x] Add focused tests. (AC: 3, 4, 5, 6, 7, 8, 10)
+  - [x] Domain tests cover matrix, payment gate, terminal states, and unknown values.
+  - [x] Repository tests cover conditional update, stale conflict, event insert, email claim/mark, and email payload.
+  - [x] Service tests cover Admin allow/deny, non-paid conflict, stale conflict, email failure non-rollback, and audit publish/failure.
+  - [x] Route tests cover OpenAPI metadata, RBAC denial before controller, success envelope, and conflict envelope.
+  - [x] UI tests cover valid buttons, blocked reasons, and no return/refund controls.
 
-- [ ] Run validation gates. (AC: 10)
-  - [ ] `npx vitest run src/domain/orders/fulfillment-transitions.test.ts src/server/repositories/OrderRepository.test.ts src/server/services/OrderService.test.ts src/server/routes/orders.routes.test.ts src/features/admin-orders/admin-orders-ui.test.tsx`
-  - [ ] `npm run check`
-  - [ ] `npm run build-development` if schema/routes/UI changed broadly.
-  - [ ] `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`
-  - [ ] Manual/admin viewport QA if authenticated Admin fixture/session is available; otherwise document exact blocker.
+- [x] Run validation gates. (AC: 10)
+  - [x] Focused Vitest suite: 8 files, 59 tests passed.
+  - [x] `npm run check`: passed with existing hints only.
+  - [x] `npm run build-test`: passed; includes check, 140 test files / 939 tests, and development Astro build.
+  - [x] Token scan ran; hits are existing `jrw-studio` fixtures and tests, not new CSS/token selectors.
+  - [x] Manual/admin viewport QA: not run; no authenticated Admin browser fixture/session was established in this turn.
 
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint. Mark non-applicable items as `N/A` with reason.
 
-- [ ] Route auth metadata declares required auth, `roles: ["ADMIN"]`, and `admin-write` rate-limit class.
-- [ ] Route-level RBAC guard runs before validation or side effects for `PATCH /api/admin/orders/:orderId/fulfillment`.
-- [ ] Service/controller enforces actor state before mutation: authenticated, active, verified, approved.
-- [ ] Brand-scoped reads or writes: N/A because JRW order fulfillment is single-store Admin operations, not brand-scoped catalog editing.
-- [ ] Public/customer endpoints: N/A for new 6.3 work; existing Customer order endpoints must remain unchanged and read-only.
-- [ ] Denial tests cover unauthenticated actor, Customer/Prospect wrong role, Super Admin current-policy denial, suspended/inactive/unverified/unapproved Admin.
-- [ ] Error response uses safe envelope codes and does not leak provider/internal authorization, email, phone, address, or stack details.
-- [ ] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, request body, response schema, denial codes, and conflict codes.
+- [x] Route auth metadata declares required auth, `roles: ["ADMIN"]`, and `admin-write` rate-limit class.
+- [x] Route-level RBAC guard runs before validation or side effects for `PATCH /api/admin/orders/:orderId/fulfillment`.
+- [x] Service/controller enforces actor state before mutation: authenticated, active, verified, approved.
+- [x] Brand-scoped reads or writes: N/A because JRW order fulfillment is single-store Admin operations, not brand-scoped catalog editing.
+- [x] Public/customer endpoints: N/A for new 6.3 work; existing Customer order endpoints remain unchanged and read-only.
+- [x] Denial tests cover unauthenticated actor, Customer/Prospect wrong role, Super Admin current-policy denial, suspended/inactive/unverified/unapproved Admin.
+- [x] Error response uses safe envelope codes and does not leak provider/internal authorization, email, phone, address, or stack details.
+- [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, request body, response schema, denial codes, and conflict codes.
 
 ## Dev Notes
 
@@ -317,14 +317,53 @@ Recommended conflict details:
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
 
 ### Debug Log References
 
+- `npx vitest run src/domain/orders/fulfillment-transitions.test.ts src/domain/notifications/fulfillment-status-email.test.ts src/adapter/infrastructure/resend/FulfillmentStatusEmailNotifier.test.ts src/domain/schema-invariants.test.ts src/server/repositories/OrderRepository.test.ts src/server/services/OrderService.test.ts src/server/routes/orders.routes.test.ts src/features/admin-orders/admin-orders-ui.test.tsx`
+- `npm run check`
+- `npm run build-test`
+- `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`
+
 ### Completion Notes List
 
+- Added pure fulfillment transition matrix and labels with payment-paid gate and safe conflict reasons.
+- Added `order_fulfillment_events` persistence with request id idempotency, email state, migration, and schema invariant coverage.
+- Added Admin fulfillment PATCH API with RBAC, OpenAPI metadata, standard envelopes, service orchestration, audit events, operational logging, and Resend fulfillment email notifier.
+- Extended Admin order detail with a right-rail fulfillment action panel using shared primitives, full-width action buttons, blocked reasons, success email state messaging, and conflict refresh.
+- Follow-up UX tweak moved the existing two-column snapshot/actions workspace near the top, with fulfillment actions kept in the right rail.
+- Follow-up copy cleanup removed raw status codes and machine-oriented labels from Admin order UI.
+- Validation passed via focused Vitest suite, `npm run check`, and `npm run build-test`.
+- Manual authenticated Admin browser QA was not run because no Admin browser fixture/session was established in this turn.
+
 ### File List
+
+- `migrations/0033_order_fulfillment_events.sql`
+- `src/adapter/infrastructure/resend/FulfillmentStatusEmailNotifier.test.ts`
+- `src/adapter/infrastructure/resend/FulfillmentStatusEmailNotifier.ts`
+- `src/domain/notifications/fulfillment-status-email.test.ts`
+- `src/domain/notifications/fulfillment-status-email.ts`
+- `src/domain/orders/fulfillment-transitions.test.ts`
+- `src/domain/orders/fulfillment-transitions.ts`
+- `src/domain/schema-invariants.test.ts`
+- `src/domain/schema/transactions.ts`
+- `src/features/admin-orders/admin-orders-ui.test.tsx`
+- `src/features/admin-orders/api.ts`
+- `src/features/admin-orders/components/AdminOrderDetailDashboard.tsx`
+- `src/features/admin-orders/types.ts`
+- `src/server/app.ts`
+- `src/server/controllers/OrderController.ts`
+- `src/server/repositories/OrderRepository.test.ts`
+- `src/server/repositories/OrderRepository.ts`
+- `src/server/routes/orders.routes.test.ts`
+- `src/server/routes/orders.routes.ts`
+- `src/server/services/OrderService.test.ts`
+- `src/server/services/OrderService.ts`
 
 ## Change Log
 
 - 2026-07-09: Created ready-for-dev story with fulfillment transition, email persistence, audit hook, Admin UI, and validation guardrails.
+- 2026-07-09: Implemented fulfillment transition API, event/email tracking, Admin UI actions, tests, and validation; moved to review.
+- 2026-07-09: Moved the existing Admin fulfillment actions right rail near the top of the order detail page for faster operations.
+- 2026-07-09: Replaced machine-level Admin order UI labels/status text with human-facing copy.

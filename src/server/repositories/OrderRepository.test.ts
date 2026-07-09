@@ -97,6 +97,26 @@ async function createOrderRepositoryTestD1() {
     )`,
     `CREATE UNIQUE INDEX uq_orders_order_number ON orders(order_number)
       WHERE order_number IS NOT NULL`,
+    `CREATE TABLE order_fulfillment_events (
+      id text PRIMARY KEY NOT NULL,
+      order_id text NOT NULL,
+      actor_id text,
+      old_fulfillment_status text NOT NULL,
+      new_fulfillment_status text NOT NULL,
+      request_id text NOT NULL,
+      email_status text DEFAULT 'PENDING' NOT NULL,
+      email_sent_at text,
+      email_last_attempt_at text,
+      email_message_id text,
+      created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+    `CREATE UNIQUE INDEX uq_order_fulfillment_events_request_id
+      ON order_fulfillment_events(request_id)`,
+    `CREATE INDEX idx_order_fulfillment_events_order_id
+      ON order_fulfillment_events(order_id)`,
+    `CREATE INDEX idx_order_fulfillment_events_email_status
+      ON order_fulfillment_events(email_status)`,
     `CREATE TABLE order_snapshots (
       id text PRIMARY KEY NOT NULL,
       order_id text NOT NULL,
@@ -481,6 +501,124 @@ describe("order repository", () => {
       expect(JSON.stringify(byId)).not.toMatch(
         /payment_1|checkout_attempt|reservation_id|created_request_id|updated_request_id|message_id|checkout_url|provider|token|secret|signature|card/i
       );
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("persists paid fulfillment transitions atomically with event and email state", async () => {
+    const { d1, mf, repository } = await createOrderRepositoryTestD1();
+
+    try {
+      const transition = await repository.transitionAdminOrderFulfillment({
+        actorId: "admin_1",
+        expectedFulfillmentStatus: "SHIPPED",
+        now: "2026-07-08T02:00:00.000Z",
+        orderId: "order_1",
+        requestId: "req_fulfillment_ship",
+        targetStatus: "DELIVERED",
+      });
+
+      expect(transition).toMatchObject({
+        decision: "transitioned",
+        event: {
+          emailStatus: "PENDING",
+          newFulfillmentStatus: "DELIVERED",
+          oldFulfillmentStatus: "SHIPPED",
+          orderId: "order_1",
+          requestId: "req_fulfillment_ship",
+        },
+        order: {
+          fulfillment: { value: "DELIVERED" },
+          orderId: "order_1",
+        },
+      });
+
+      const stale = await repository.transitionAdminOrderFulfillment({
+        actorId: "admin_1",
+        expectedFulfillmentStatus: "SHIPPED",
+        now: "2026-07-08T02:01:00.000Z",
+        orderId: "order_1",
+        requestId: "req_fulfillment_stale",
+        targetStatus: "DELIVERED",
+      });
+      expect(stale).toMatchObject({
+        currentFulfillmentStatus: "DELIVERED",
+        decision: "stale",
+      });
+
+      const rows = await d1
+        .prepare(
+          `SELECT old_fulfillment_status, new_fulfillment_status, email_status
+           FROM order_fulfillment_events WHERE request_id = ?`
+        )
+        .bind("req_fulfillment_ship")
+        .all();
+      expect(rows.results).toEqual([
+        {
+          email_status: "PENDING",
+          new_fulfillment_status: "DELIVERED",
+          old_fulfillment_status: "SHIPPED",
+        },
+      ]);
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("claims and marks fulfillment event email attempts with retry-safe states", async () => {
+    const { mf, repository } = await createOrderRepositoryTestD1();
+
+    try {
+      const transition = await repository.transitionAdminOrderFulfillment({
+        actorId: "admin_1",
+        expectedFulfillmentStatus: "SHIPPED",
+        now: "2026-07-08T02:00:00.000Z",
+        orderId: "order_1",
+        requestId: "req_fulfillment_email",
+        targetStatus: "DELIVERED",
+      });
+      expect(transition.decision).toBe("transitioned");
+      const eventId =
+        transition.decision === "transitioned" ? transition.event.eventId : "";
+
+      const claimed = await repository.claimFulfillmentStatusEmail({
+        eventId,
+        now: "2026-07-08T02:02:00.000Z",
+        requestId: "req_claim",
+      });
+      const duplicateClaim = await repository.claimFulfillmentStatusEmail({
+        eventId,
+        now: "2026-07-08T02:03:00.000Z",
+        requestId: "req_claim_2",
+      });
+      const email = await repository.getFulfillmentStatusEmail(eventId);
+
+      expect(claimed).toBe(true);
+      expect(duplicateClaim).toBe(false);
+      expect(email).toMatchObject({
+        fulfillmentStatusLabel: "Delivered",
+        orderNumber: "JRW-2026-ORDER1",
+        toEmail: "nina@example.test",
+        totalCentavos: 3998,
+      });
+      expect(JSON.stringify(email)).not.toMatch(
+        /0917|Sampaguita|payment_1|provider|token|secret|card/i
+      );
+
+      await repository.markFulfillmentStatusEmailSent({
+        eventId,
+        messageId: "email_1",
+        now: "2026-07-08T02:04:00.000Z",
+        requestId: "req_sent",
+      });
+      const event = await repository.findFulfillmentEventByRequestId(
+        "req_fulfillment_email"
+      );
+      expect(event).toMatchObject({
+        emailMessageId: "email_1",
+        emailStatus: "SENT",
+      });
     } finally {
       await mf.dispose();
     }

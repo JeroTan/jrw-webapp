@@ -3,11 +3,34 @@ import { useEffect, useMemo, useState } from "react";
 import { EmptyState, Skeleton, StatusBadge } from "@/components/feedback";
 import { Button, ButtonLink } from "@/components/ui";
 import { buildCustomerOrderTimeline } from "@/domain/orders/customer-order-status";
+import {
+  allowedNextFulfillmentStatuses,
+  fulfillmentStatusLabel,
+  isFulfillmentStatus,
+  type FulfillmentStatus,
+} from "@/domain/orders/fulfillment-transitions";
 import { formatCatalogPrice } from "@/domain/products/price-format";
-import { fetchAdminOrderDetail } from "../api";
-import type { AdminOrderDetail } from "../types";
+import {
+  fetchAdminOrderDetail,
+  updateAdminOrderFulfillment,
+  type AdminOrderApiFailure,
+} from "../api";
+import type {
+  AdminFulfillmentEmailStatus,
+  AdminFulfillmentStatus,
+  AdminOrderDetail,
+} from "../types";
 
 type LoadState = "loading" | "ready" | "failed" | "not-found";
+type FulfillmentActionMessage = {
+  tone: "info" | "success" | "warning";
+  text: string;
+};
+type FulfillmentActionRow = {
+  label: string;
+  targetStatus: AdminFulfillmentStatus;
+  variant: "danger" | "primary" | "secondary";
+};
 
 export type AdminOrderDetailDashboardProps = {
   autoLoad?: boolean;
@@ -68,6 +91,74 @@ function productImageSrc(r2Key: string | null) {
     .join("/")}`;
 }
 
+function fulfillmentActionLabel(status: FulfillmentStatus): string {
+  switch (status) {
+    case "PROCESSING":
+      return "Start processing";
+    case "SHIPPED":
+      return "Mark as shipped";
+    case "DELIVERED":
+      return "Mark as delivered";
+    case "CANCELLED":
+      return "Cancel order";
+    case "ORDER_PLACED":
+      return "Mark as received";
+  }
+}
+
+function fulfillmentActionVariant(status: FulfillmentStatus) {
+  return status === "CANCELLED" ? ("danger" as const) : ("primary" as const);
+}
+
+export function fulfillmentActionRows(
+  order: AdminOrderDetail
+): FulfillmentActionRow[] {
+  if (order.payment.value !== "PAYMENT_PAID") {
+    return [];
+  }
+
+  if (!isFulfillmentStatus(order.fulfillment.value)) {
+    return [];
+  }
+
+  return allowedNextFulfillmentStatuses(order.fulfillment.value).map(
+    (targetStatus) => ({
+      label: fulfillmentActionLabel(targetStatus),
+      targetStatus,
+      variant: fulfillmentActionVariant(targetStatus),
+    })
+  );
+}
+
+function fulfillmentBlockedReason(order: AdminOrderDetail): string | null {
+  if (order.payment.value !== "PAYMENT_PAID") {
+    return "Fulfillment locked until payment is paid.";
+  }
+
+  if (!isFulfillmentStatus(order.fulfillment.value)) {
+    return "Current fulfillment status cannot be changed.";
+  }
+
+  if (allowedNextFulfillmentStatuses(order.fulfillment.value).length === 0) {
+    return `${fulfillmentStatusLabel(order.fulfillment.value)} is final.`;
+  }
+
+  return null;
+}
+
+function fulfillmentEmailMessage(status: AdminFulfillmentEmailStatus): string {
+  switch (status) {
+    case "SENT":
+      return "Fulfillment updated. Customer email sent.";
+    case "SENDING":
+      return "Fulfillment updated. Customer email already sending.";
+    case "FAILED":
+      return "Fulfillment updated. Customer email needs retry.";
+    case "PENDING":
+      return "Fulfillment updated. Customer email queued.";
+  }
+}
+
 function addressLines(order: AdminOrderDetail): string[] {
   return [
     order.shippingAddress.streetAddress,
@@ -89,17 +180,97 @@ function LanePanel({
   return (
     <article className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
       <StatusBadge label={label} tone={statusTone(value)} />
-      <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-        {value}
-      </p>
       <p className="m-0 text-sm text-brand-muted">
-        Updated {formatDateTime(updatedAt)}
+        Last updated {formatDateTime(updatedAt)}
       </p>
     </article>
   );
 }
 
-export function AdminOrderDetailView({ order }: { order: AdminOrderDetail }) {
+function customerKindLabel(kind: AdminOrderDetail["customerKind"]): string {
+  return kind === "CUSTOMER" ? "Customer account" : "Guest checkout";
+}
+
+function FulfillmentActionsPanel({
+  busyTarget,
+  message,
+  onUpdate,
+  order,
+}: {
+  busyTarget: AdminFulfillmentStatus | null;
+  message: FulfillmentActionMessage | null;
+  onUpdate?: (targetStatus: AdminFulfillmentStatus) => void;
+  order: AdminOrderDetail;
+}) {
+  const actions = fulfillmentActionRows(order);
+  const blockedReason = fulfillmentBlockedReason(order);
+
+  return (
+    <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
+      <div className="flex flex-wrap items-center justify-between gap-grid-xs">
+        <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
+          Fulfillment actions
+        </h2>
+        <StatusBadge
+          label={order.fulfillment.label}
+          tone={statusTone(order.fulfillment.value)}
+        />
+      </div>
+
+      {message ? (
+        <p
+          className={`m-0 border p-grid-xs text-sm ${
+            message.tone === "success"
+              ? "border-brand-success text-brand-success"
+              : message.tone === "warning"
+                ? "border-brand-danger text-brand-danger"
+                : "border-brand-border-strong text-brand-muted"
+          }`}
+          role={message.tone === "warning" ? "alert" : "status"}
+        >
+          {message.text}
+        </p>
+      ) : null}
+
+      {actions.length > 0 ? (
+        <div
+          className="grid gap-grid-xs"
+          role="group"
+          aria-label="Fulfillment next actions"
+        >
+          {actions.map((action) => (
+            <Button
+              fullWidth
+              key={action.targetStatus}
+              loading={busyTarget === action.targetStatus}
+              loadingLabel="Updating"
+              onClick={() => onUpdate?.(action.targetStatus)}
+              size="sm"
+              textSize="xs"
+              variant={action.variant}
+            >
+              {action.label}
+            </Button>
+          ))}
+        </div>
+      ) : (
+        <p className="m-0 text-sm text-brand-muted">{blockedReason}</p>
+      )}
+    </section>
+  );
+}
+
+export function AdminOrderDetailView({
+  busyTarget = null,
+  fulfillmentMessage = null,
+  onUpdateFulfillment,
+  order,
+}: {
+  busyTarget?: AdminFulfillmentStatus | null;
+  fulfillmentMessage?: FulfillmentActionMessage | null;
+  onUpdateFulfillment?: (targetStatus: AdminFulfillmentStatus) => void;
+  order: AdminOrderDetail;
+}) {
   const timeline = useMemo(
     () =>
       buildCustomerOrderTimeline({
@@ -121,7 +292,7 @@ export function AdminOrderDetailView({ order }: { order: AdminOrderDetail }) {
       <header className="grid gap-grid-xs border-b border-brand-border-strong py-grid-md md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
         <div className="grid gap-1">
           <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-            Read-only order truth
+            Order details
           </p>
           <h1 className="m-0 break-words font-heading text-[clamp(1.8rem,5vw,3rem)] font-bold text-brand-content">
             {order.orderNumber}
@@ -138,7 +309,7 @@ export function AdminOrderDetailView({ order }: { order: AdminOrderDetail }) {
 
       <section
         aria-label="Order totals"
-        className="grid gap-grid-sm md:grid-cols-4"
+        className="order-2 grid gap-grid-sm md:grid-cols-4"
       >
         <dl className="m-0 grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
           <dt className="font-system text-xs font-bold uppercase text-brand-muted">
@@ -148,7 +319,8 @@ export function AdminOrderDetailView({ order }: { order: AdminOrderDetail }) {
             {order.customerLabel}
           </dd>
           <dd className="m-0 text-sm text-brand-muted">
-            {order.customerKind} / {order.checkoutEmailMasked ?? "No email"}
+            {customerKindLabel(order.customerKind)} /{" "}
+            {order.checkoutEmailMasked ?? "No email"}
           </dd>
         </dl>
         <dl className="m-0 grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
@@ -180,13 +352,16 @@ export function AdminOrderDetailView({ order }: { order: AdminOrderDetail }) {
         </dl>
       </section>
 
-      <section aria-label="Order status lanes" className="grid gap-grid-sm">
+      <section
+        aria-label="Order status lanes"
+        className="order-3 grid gap-grid-sm"
+      >
         <div className="grid gap-1">
           <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
             Separate lanes
           </p>
           <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
-            Payment, fulfillment, return, refund
+            Status overview
           </h2>
         </div>
         <div className="grid gap-grid-sm md:grid-cols-4">
@@ -199,14 +374,14 @@ export function AdminOrderDetailView({ order }: { order: AdminOrderDetail }) {
 
       <section
         aria-label="Timeline"
-        className="grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm"
+        className="order-4 grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm"
       >
         <div className="grid gap-1">
           <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-            Latest first
+            Newest updates
           </p>
           <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
-            Status projection
+            Order timeline
           </h2>
         </div>
         <ol className="relative m-0 grid list-none gap-0 p-0 before:absolute before:bottom-0 before:left-0 before:top-grid-sm before:border-l before:border-brand-border-strong before:content-['']">
@@ -240,10 +415,10 @@ export function AdminOrderDetailView({ order }: { order: AdminOrderDetail }) {
         </ol>
       </section>
 
-      <section className="grid gap-grid-sm lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
+      <section className="order-1 grid gap-grid-sm lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
         <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
           <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
-            Snapshot items
+            Items purchased
           </h2>
           <ul className="m-0 grid list-none gap-0 border-t border-l border-brand-border p-0">
             {order.items.map((item, index) => {
@@ -293,9 +468,16 @@ export function AdminOrderDetailView({ order }: { order: AdminOrderDetail }) {
         </section>
 
         <aside className="grid content-start gap-grid-sm">
+          <FulfillmentActionsPanel
+            busyTarget={busyTarget}
+            message={fulfillmentMessage}
+            onUpdate={onUpdateFulfillment}
+            order={order}
+          />
+
           <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
             <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
-              Fulfillment contact
+              Customer contact
             </h2>
             <dl className="m-0 grid gap-grid-xs text-sm">
               <div>
@@ -349,6 +531,11 @@ export function AdminOrderDetailDashboard({
   const [loadState, setLoadState] = useState<LoadState>(initialLoadState);
   const [order, setOrder] = useState<AdminOrderDetail | null>(initialOrder);
   const [refreshToken, setRefreshToken] = useState(0);
+  const [busyTarget, setBusyTarget] = useState<AdminFulfillmentStatus | null>(
+    null
+  );
+  const [fulfillmentMessage, setFulfillmentMessage] =
+    useState<FulfillmentActionMessage | null>(null);
 
   useEffect(() => {
     if (!autoLoad) {
@@ -379,6 +566,47 @@ export function AdminOrderDetailDashboard({
       active = false;
     };
   }, [autoLoad, orderId, refreshToken]);
+
+  async function handleFulfillmentUpdate(targetStatus: AdminFulfillmentStatus) {
+    if (!order || busyTarget) {
+      return;
+    }
+
+    setBusyTarget(targetStatus);
+    setFulfillmentMessage(null);
+
+    try {
+      const result = await updateAdminOrderFulfillment(
+        order.orderId,
+        targetStatus
+      );
+      setOrder(result.order);
+      setFulfillmentMessage({
+        text: fulfillmentEmailMessage(result.email.status),
+        tone: result.email.status === "FAILED" ? "warning" : "success",
+      });
+    } catch (error) {
+      const failure = error as AdminOrderApiFailure;
+
+      if (failure.status === 409 && autoLoad) {
+        try {
+          setOrder(await fetchAdminOrderDetail(orderId));
+        } catch {
+          // Refresh is best-effort after stale state.
+        }
+      }
+
+      setFulfillmentMessage({
+        text:
+          failure.code === "CONFLICT_STATE"
+            ? "Order changed. Review latest status before trying again."
+            : "Fulfillment update failed.",
+        tone: "warning",
+      });
+    } finally {
+      setBusyTarget(null);
+    }
+  }
 
   return (
     <section className="grid gap-grid-sm">
@@ -421,7 +649,12 @@ export function AdminOrderDetailDashboard({
       ) : null}
 
       {loadState === "ready" && order ? (
-        <AdminOrderDetailView order={order} />
+        <AdminOrderDetailView
+          busyTarget={busyTarget}
+          fulfillmentMessage={fulfillmentMessage}
+          onUpdateFulfillment={handleFulfillmentUpdate}
+          order={order}
+        />
       ) : null}
     </section>
   );

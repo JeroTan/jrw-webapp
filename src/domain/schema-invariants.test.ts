@@ -18,6 +18,7 @@ import {
   checkout_reservation_items,
   checkout_reservation_releases,
   checkout_reservations,
+  order_fulfillment_events,
   orders,
   payment_webhook_events,
 } from "./schema/transactions";
@@ -741,5 +742,56 @@ describe("checkout schema invariants", () => {
         "idx_payment_webhook_events_created_at",
       ])
     );
+  });
+
+  it("stores fulfillment transition events without provider payloads or customer data", () => {
+    const config = getTableConfig(order_fulfillment_events);
+    const columns = config.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const indexes = config.indexes.map((index) => index.config.name);
+    const requestIdIndex = config.indexes.find(
+      (index) => index.config.name === "uq_order_fulfillment_events_request_id"
+    );
+
+    expect(columns).toEqual(
+      expect.arrayContaining([
+        "order_id",
+        "actor_id",
+        "old_fulfillment_status",
+        "new_fulfillment_status",
+        "request_id",
+        "email_status",
+        "email_sent_at",
+        "email_last_attempt_at",
+        "email_message_id",
+        "created_at",
+        "updated_at",
+      ])
+    );
+    expect(columns).not.toEqual(
+      expect.arrayContaining([
+        "checkout_email",
+        "phone",
+        "street_address",
+        "provider_payload",
+        "raw_payload",
+        "paymongo_payload",
+        "payment_response",
+        "card_data",
+        "token",
+        "secret",
+        "signature",
+      ])
+    );
+    expect(indexes).toEqual(
+      expect.arrayContaining([
+        "uq_order_fulfillment_events_request_id",
+        "idx_order_fulfillment_events_order_id",
+        "idx_order_fulfillment_events_email_status",
+        "idx_order_fulfillment_events_created_at",
+      ])
+    );
+    expect(requestIdIndex?.config.unique).toBe(true);
   });
 });

@@ -100,6 +100,7 @@ describe("admin orders UI", () => {
     expect(markup).toContain("JRW-2026-ORDER1");
     expect(markup).toContain("Nina R.");
     expect(markup).toContain("n***@example.test");
+    expect(markup).toContain("Customer account");
     expect(markup).toContain("Payment paid");
     expect(markup).toContain("Order placed");
     expect(markup).toContain("No return requested");
@@ -140,7 +141,7 @@ describe("admin orders UI", () => {
     );
   });
 
-  it("renders detail lanes, timeline, snapshot items, contact, shipping, and no mutation controls", () => {
+  it("renders detail lanes, timeline, fulfillment actions, contact, and shipping", () => {
     const markup = renderToStaticMarkup(
       createElement(AdminOrderDetailDashboard, {
         autoLoad: false,
@@ -150,24 +151,54 @@ describe("admin orders UI", () => {
       })
     );
 
-    expect(markup).toContain("Read-only order truth");
-    expect(markup).toContain("Payment, fulfillment, return, refund");
+    expect(markup).toContain("Order details");
+    expect(markup).toContain("Status overview");
     expect(markup).toContain("Payment confirmed");
     expect(markup).toContain("Order placed");
+    expect(markup).toContain("Fulfillment actions");
+    expect(markup).toContain("Start processing");
+    expect(markup).toContain("Cancel order");
+    expect(markup).toContain(
+      "order-1 grid gap-grid-sm lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]"
+    );
     expect(markup).toContain("Frozen Linen Shirt");
     expect(markup).toContain(
       'src="/assets/products/frozen-linen-shirt/front.webp"'
     );
     expect(markup).toContain("Size: Small");
+    expect(markup).toContain("Items purchased");
+    expect(markup).toContain("Customer contact");
     expect(markup).toContain("Nina Reyes");
     expect(markup).toContain("nina@example.test");
     expect(markup).toContain("09171234567");
     expect(markup).toContain("12 Sampaguita Street");
-    expect(markup).not.toContain("Mark shipped");
-    expect(markup).not.toContain("Cancel order");
     expect(markup).not.toContain("Approve refund");
     expect(markup).not.toContain("Return requested");
+    expect(markup).not.toMatch(/ORDER_PLACED|PAYMENT_PAID|CUSTOMER/);
     expect(markup).not.toContain(">Snapshot<");
+  });
+
+  it("renders disabled fulfillment reason when payment is not paid", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AdminOrderDetailDashboard, {
+        autoLoad: false,
+        initialLoadState: "ready",
+        initialOrder: {
+          ...order,
+          payment: {
+            kind: "payment",
+            label: "Payment pending",
+            updatedAt: "2026-07-08T01:00:00.000Z",
+            value: "PAYMENT_PENDING",
+          },
+        },
+        orderId: "order_1",
+      })
+    );
+
+    expect(markup).toContain("Fulfillment locked until payment is paid.");
+    expect(markup).not.toContain("Start processing");
+    expect(markup).not.toContain("Cancel order");
   });
 
   it("renders detail loading and not-found states", () => {

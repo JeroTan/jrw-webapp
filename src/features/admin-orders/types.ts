@@ -74,3 +74,29 @@ export type AdminOrderListQuery = {
   paymentStatus?: string;
   search?: string;
 };
+
+export type AdminFulfillmentStatus =
+  | "ORDER_PLACED"
+  | "PROCESSING"
+  | "SHIPPED"
+  | "DELIVERED"
+  | "CANCELLED";
+
+export type AdminFulfillmentEmailStatus =
+  | "FAILED"
+  | "PENDING"
+  | "SENT"
+  | "SENDING";
+
+export type AdminFulfillmentUpdateResult = {
+  allowedNextStatuses: AdminFulfillmentStatus[];
+  email: {
+    status: AdminFulfillmentEmailStatus;
+  };
+  order: AdminOrderDetail;
+  transition: {
+    eventId: string;
+    newStatus: AdminFulfillmentStatus;
+    oldStatus: AdminFulfillmentStatus;
+  };
+};

@@ -80,6 +80,10 @@ function laneBadge(label: string, value: string) {
   return <StatusBadge label={label} tone={statusTone(value)} />;
 }
 
+function customerKindLabel(kind: AdminOrderSummary["customerKind"]): string {
+  return kind === "CUSTOMER" ? "Customer account" : "Guest checkout";
+}
+
 export function AdminOrderListDashboard({
   autoLoad = true,
   initialData = DEFAULT_DATA,
@@ -189,7 +193,7 @@ export function AdminOrderListDashboard({
             <span>{order.customerLabel}</span>
             <span className="text-xs text-brand-muted">
               {order.checkoutEmailMasked ?? "No checkout email"} /{" "}
-              {order.customerKind}
+              {customerKindLabel(order.customerKind)}
             </span>
           </div>
         ),

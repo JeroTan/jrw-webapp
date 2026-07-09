@@ -15,6 +15,8 @@ import type {
   GetCustomerOrderDetailServiceInput,
   ListAdminOrdersServiceInput,
   ListCustomerOrdersServiceInput,
+  UpdateAdminOrderFulfillmentResult,
+  UpdateAdminOrderFulfillmentServiceInput,
 } from "@/server/services/OrderService";
 import type { AppResult } from "@/utils/general/result";
 
@@ -31,6 +33,9 @@ export type OrderServiceLike = {
   listCustomerOrders(
     input: ListCustomerOrdersServiceInput
   ): Promise<AppResult<CustomerOrderListResult>>;
+  updateAdminOrderFulfillment(
+    input: UpdateAdminOrderFulfillmentServiceInput
+  ): Promise<AppResult<UpdateAdminOrderFulfillmentResult>>;
 };
 
 export type OrderControllerResult<T> = {
@@ -122,6 +127,23 @@ export class OrderController {
     input: GetAdminOrderDetailServiceInput
   ): Promise<OrderControllerResult<AdminOrderDetailReadModel>> {
     const result = await this.service.getAdminOrderDetail(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+      status: 200,
+    };
+  }
+
+  async updateAdminOrderFulfillment(
+    input: UpdateAdminOrderFulfillmentServiceInput
+  ): Promise<OrderControllerResult<UpdateAdminOrderFulfillmentResult>> {
+    const result = await this.service.updateAdminOrderFulfillment(input);
 
     if (result.error) {
       return errorResult(result, input.requestId);

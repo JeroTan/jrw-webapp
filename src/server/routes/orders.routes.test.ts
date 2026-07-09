@@ -3,6 +3,7 @@ import { createApp } from "@/server/app";
 import type { RequestActorContext } from "@/server/context/request-context";
 import { OrderController } from "@/server/controllers/OrderController";
 import type { OrderServiceLike } from "@/server/controllers/OrderController";
+import { GeneralError } from "@/utils/general/error";
 import { Result } from "@/utils/general/result";
 
 const customerContext = {
@@ -201,6 +202,8 @@ describe("order routes", () => {
 
     const list = body.paths?.["/api/admin/orders"]?.get;
     const detail = body.paths?.["/api/admin/orders/{orderId}"]?.get;
+    const fulfillment =
+      body.paths?.["/api/admin/orders/{orderId}/fulfillment"]?.patch;
 
     expect(list?.summary).toBe("List Admin orders");
     expect(list?.tags).toContain("Orders");
@@ -221,6 +224,15 @@ describe("order routes", () => {
     expect(detail?.summary).toBe("Get Admin order detail");
     expect(detail?.description).toContain("order_snapshots");
     expect(detail?.description).toContain("excluding provider payloads");
+    expect(fulfillment?.summary).toBe("Update Admin order fulfillment");
+    expect(fulfillment?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN"],
+    });
+    expect(fulfillment?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(fulfillment?.["x-error-codes"]).toEqual(
+      expect.arrayContaining(["CONFLICT_STATE", "PROVIDER_UNAVAILABLE"])
+    );
   });
 
   it("returns signed-in customer order list/detail envelopes", async () => {
@@ -558,6 +570,124 @@ describe("order routes", () => {
       });
       expect(controllerFactoryCalls).toBe(0);
     }
+  });
+
+  it("returns Admin fulfillment update envelopes and conflict details", async () => {
+    const successApp = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        orders: {
+          controllerFactory: () =>
+            createController({
+              updateAdminOrderFulfillment: async () =>
+                Result.okay({
+                  allowedNextStatuses: ["SHIPPED"],
+                  email: { status: "SENT" },
+                  order: {
+                    ...adminOrderListData().items[0],
+                    contact: {
+                      checkoutEmail: "nina@example.test",
+                      fullName: "Nina Reyes",
+                      phone: "09171234567",
+                    },
+                    fulfillment: {
+                      kind: "fulfillment" as const,
+                      label: "Processing",
+                      updatedAt: "2026-07-08T02:00:00.000Z",
+                      value: "PROCESSING",
+                    },
+                    items: orderSnapshotItems(),
+                    shippingAddress: {
+                      barangay: "Poblacion",
+                      cityProvince: "Makati",
+                      postalCode: "1200",
+                      shippingType: "STANDARD",
+                      streetAddress: "12 Sampaguita Street",
+                    },
+                  },
+                  transition: {
+                    eventId: "fulfillment_event_1",
+                    newStatus: "PROCESSING",
+                    oldStatus: "ORDER_PLACED",
+                  },
+                }),
+            }),
+        },
+      },
+    });
+    const conflictApp = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        orders: {
+          controllerFactory: () =>
+            createController({
+              updateAdminOrderFulfillment: async () =>
+                Result.error(
+                  new GeneralError(
+                    { reason: "INVALID_TRANSITION" },
+                    "CONFLICT_STATE"
+                  )
+                ),
+            }),
+        },
+      },
+    });
+
+    const success = await successApp.handle(
+      new Request(
+        "https://jrw.test/api/admin/orders/JRW-2026-ORDER1/fulfillment",
+        {
+          body: JSON.stringify({ targetStatus: "PROCESSING" }),
+          headers: {
+            "content-type": "application/json",
+            cookie: "jrw_admin_session=admin-token",
+            "x-request-id": "req_fulfillment_route",
+          },
+          method: "PATCH",
+        }
+      )
+    );
+    const successBody = await success.json();
+
+    expect(success.status).toBe(200);
+    expect(successBody).toMatchObject({
+      data: {
+        email: { status: "SENT" },
+        order: { fulfillment: { value: "PROCESSING" } },
+        transition: {
+          newStatus: "PROCESSING",
+          oldStatus: "ORDER_PLACED",
+        },
+      },
+      meta: { requestId: "req_fulfillment_route" },
+    });
+
+    const conflict = await conflictApp.handle(
+      new Request(
+        "https://jrw.test/api/admin/orders/JRW-2026-ORDER1/fulfillment",
+        {
+          body: JSON.stringify({ targetStatus: "DELIVERED" }),
+          headers: {
+            "content-type": "application/json",
+            cookie: "jrw_admin_session=admin-token",
+            "x-request-id": "req_fulfillment_conflict",
+          },
+          method: "PATCH",
+        }
+      )
+    );
+
+    expect(conflict.status).toBe(409);
+    await expect(conflict.json()).resolves.toMatchObject({
+      error: {
+        code: "CONFLICT_STATE",
+        details: { reason: "INVALID_TRANSITION" },
+      },
+    });
   });
 
   it("rejects unsupported Admin order query fields", async () => {

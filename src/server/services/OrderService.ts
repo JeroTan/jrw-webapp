@@ -1,13 +1,40 @@
 import { evaluateRouteAccess, type RbacActorContext } from "@/domain/auth/rbac";
+import {
+  createAuditEvent,
+  NoopAuditEventPublisher,
+  type AuditEventPublisher,
+} from "@/domain/audit/events";
+import {
+  allowedNextFulfillmentStatuses,
+  evaluateFulfillmentTransition,
+  fulfillmentStatuses,
+  isFulfillmentStatus,
+  type FulfillmentStatus,
+} from "@/domain/orders/fulfillment-transitions";
+import {
+  FailingFulfillmentStatusEmailNotifier,
+  type FulfillmentStatusEmailNotifier,
+} from "@/domain/notifications/fulfillment-status-email";
+import {
+  createOperationalLogEvent,
+  noopOperationalLogger,
+  type OperationalLogger,
+} from "@/adapter/infrastructure/logging/operational-log";
 import type {
   AdminOrderDetailReadModel,
+  AdminFulfillmentTransitionSubject,
   AdminOrderListResult,
   CustomerOrderDetailReadModel,
   CustomerOrderListResult,
+  FulfillmentEmailStatus,
+  FulfillmentStatusEmailRecord,
   GetAdminOrderDetailInput,
   GetCustomerOrderDetailInput,
   ListAdminOrdersInput,
   ListCustomerOrdersInput,
+  OrderFulfillmentEventRecord,
+  TransitionAdminOrderFulfillmentInput,
+  TransitionAdminOrderFulfillmentResult,
 } from "@/server/repositories/OrderRepository";
 import { GeneralError, type ErrorCodeType } from "@/utils/general/error";
 import { Result, type AppResult } from "@/utils/general/result";
@@ -27,10 +54,35 @@ export type CustomerOrderRepositoryLike = {
 };
 
 export type AdminOrderRepositoryLike = {
+  claimFulfillmentStatusEmail(input: {
+    eventId: string;
+    now?: string;
+    requestId: string;
+  }): Promise<boolean>;
+  getAdminFulfillmentTransitionSubject(input: {
+    orderIdOrNumber: string;
+  }): Promise<AdminFulfillmentTransitionSubject | null>;
   getAdminOrderDetail(
     input: GetAdminOrderDetailInput
   ): Promise<AdminOrderDetailReadModel | null>;
+  getFulfillmentStatusEmail(
+    eventId: string
+  ): Promise<FulfillmentStatusEmailRecord | null>;
   listAdminOrders(input: ListAdminOrdersInput): Promise<AdminOrderListResult>;
+  markFulfillmentStatusEmailFailed(input: {
+    eventId: string;
+    now?: string;
+    requestId: string;
+  }): Promise<void>;
+  markFulfillmentStatusEmailSent(input: {
+    eventId: string;
+    messageId?: string;
+    now?: string;
+    requestId: string;
+  }): Promise<void>;
+  transitionAdminOrderFulfillment(
+    input: TransitionAdminOrderFulfillmentInput
+  ): Promise<TransitionAdminOrderFulfillmentResult>;
 };
 
 export type OrderRepositoryLike = CustomerOrderRepositoryLike &
@@ -79,15 +131,39 @@ export type GetAdminOrderDetailServiceInput = {
   requestId: string;
 };
 
+export type UpdateAdminOrderFulfillmentServiceInput = {
+  actor: OrderActorInput | undefined;
+  orderIdOrNumber: string;
+  requestId: string;
+  targetStatus: string;
+};
+
+export type UpdateAdminOrderFulfillmentResult = {
+  allowedNextStatuses: FulfillmentStatus[];
+  email: {
+    status: FulfillmentEmailStatus;
+  };
+  order: AdminOrderDetailReadModel;
+  transition: {
+    eventId: string;
+    newStatus: FulfillmentStatus;
+    oldStatus: FulfillmentStatus;
+  };
+};
+
 export type OrderServiceOptions = {
+  auditPublisher?: AuditEventPublisher;
+  emailNotifier?: FulfillmentStatusEmailNotifier;
+  now?: () => string;
+  operationalLogger?: OperationalLogger;
   repository: OrderRepositoryLike;
 };
 
 function serviceError(
   code: ErrorCodeType,
   data: Record<string, unknown> = {}
-): GeneralError<Record<string, never>> {
-  return new GeneralError(data as Record<string, never>, code);
+): GeneralError<Record<string, unknown>> {
+  return new GeneralError(data, code);
 }
 
 function providerFailure(error: unknown): boolean {
@@ -137,7 +213,7 @@ function requireCustomerActor(
 
 function requireAdminActor(
   actor: OrderActorInput | undefined
-): AppResult<{ adminId: string }> {
+): AppResult<{ adminId: string; safeActorId: string }> {
   const decision = evaluateRouteAccess({
     auth: adminOrderAuth,
     actor: actor
@@ -160,13 +236,26 @@ function requireAdminActor(
     return Result.error(serviceError("AUTH_FORBIDDEN"));
   }
 
-  return Result.okay({ adminId: actor.actorId });
+  return Result.okay({
+    adminId: actor.actorId,
+    safeActorId: actor.safeActorId ?? actor.actorId,
+  });
 }
 
 export class OrderService {
+  private readonly auditPublisher: AuditEventPublisher;
+  private readonly emailNotifier: FulfillmentStatusEmailNotifier;
+  private readonly now: () => string;
+  private readonly operationalLogger: OperationalLogger;
   private readonly repository: OrderRepositoryLike;
 
   constructor(options: OrderServiceOptions) {
+    this.auditPublisher =
+      options.auditPublisher ?? new NoopAuditEventPublisher();
+    this.emailNotifier =
+      options.emailNotifier ?? new FailingFulfillmentStatusEmailNotifier();
+    this.now = options.now ?? (() => new Date().toISOString());
+    this.operationalLogger = options.operationalLogger ?? noopOperationalLogger;
     this.repository = options.repository;
   }
 
@@ -274,4 +363,271 @@ export class OrderService {
       return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
     }
   }
+
+  async updateAdminOrderFulfillment(
+    input: UpdateAdminOrderFulfillmentServiceInput
+  ): Promise<AppResult<UpdateAdminOrderFulfillmentResult>> {
+    const actor = requireAdminActor(input.actor);
+
+    if (actor.error) {
+      return actor;
+    }
+
+    const orderIdOrNumber = input.orderIdOrNumber.trim();
+    const targetStatusText = input.targetStatus.trim().toUpperCase();
+
+    if (orderIdOrNumber.length === 0 || targetStatusText.length === 0) {
+      return Result.error(serviceError("VALIDATION_FAILED"));
+    }
+
+    if (!isFulfillmentStatus(targetStatusText)) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", {
+          allowedStatuses: fulfillmentStatuses,
+          reason: "UNKNOWN_TARGET_STATUS",
+          targetStatus: targetStatusText,
+        })
+      );
+    }
+
+    try {
+      const subject =
+        await this.repository.getAdminFulfillmentTransitionSubject({
+          orderIdOrNumber,
+        });
+
+      if (!subject) {
+        return Result.error(serviceError("RESOURCE_NOT_FOUND"));
+      }
+
+      const transitionCheck = evaluateFulfillmentTransition({
+        currentStatus: subject.fulfillmentStatus,
+        paymentStatus: subject.paymentStatus,
+        targetStatus: targetStatusText,
+      });
+
+      if (!transitionCheck.allowed) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", {
+            allowedNextStatuses: transitionCheck.allowedNextStatuses,
+            currentStatus: transitionCheck.currentStatus,
+            paymentStatus: transitionCheck.paymentStatus,
+            reason: transitionCheck.reason,
+            targetStatus: transitionCheck.targetStatus,
+          })
+        );
+      }
+
+      const now = this.now();
+      const transition = await this.repository.transitionAdminOrderFulfillment({
+        actorId: actor.content.adminId,
+        expectedFulfillmentStatus: transitionCheck.oldStatus,
+        now,
+        orderId: subject.orderId,
+        requestId: input.requestId,
+        targetStatus: transitionCheck.newStatus,
+      });
+
+      if (transition.decision === "missing-order") {
+        return Result.error(serviceError("RESOURCE_NOT_FOUND"));
+      }
+
+      if (transition.decision === "stale") {
+        return Result.error(
+          serviceError("CONFLICT_STATE", {
+            allowedNextStatuses: allowedNextFulfillmentStatuses(
+              transition.currentFulfillmentStatus
+            ),
+            currentStatus: transition.currentFulfillmentStatus,
+            reason: "STALE_FULFILLMENT_STATUS",
+            targetStatus: transitionCheck.newStatus,
+          })
+        );
+      }
+
+      const emailStatus = await this.sendFulfillmentStatusEmailIfNeeded({
+        event: transition.event,
+        now,
+        requestId: input.requestId,
+      });
+      await this.publishFulfillmentAudit({
+        actorId: actor.content.adminId,
+        event: transition.event,
+        requestId: input.requestId,
+        safeActorId: actor.content.safeActorId,
+      });
+
+      return Result.okay({
+        allowedNextStatuses: allowedNextFulfillmentStatuses(
+          transition.event.newFulfillmentStatus
+        ),
+        email: { status: emailStatus },
+        order: transition.order,
+        transition: {
+          eventId: transition.event.eventId,
+          newStatus: transition.event.newFulfillmentStatus,
+          oldStatus: transition.event.oldFulfillmentStatus,
+        },
+      });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("INTERNAL_ERROR"));
+    }
+  }
+
+  private async sendFulfillmentStatusEmailIfNeeded(input: {
+    event: OrderFulfillmentEventRecord;
+    now: string;
+    requestId: string;
+  }): Promise<FulfillmentEmailStatus> {
+    if (input.event.emailStatus === "SENT") {
+      return "SENT";
+    }
+
+    try {
+      const claimed = await this.repository.claimFulfillmentStatusEmail({
+        eventId: input.event.eventId,
+        now: input.now,
+        requestId: input.requestId,
+      });
+
+      if (!claimed) {
+        return "SENDING";
+      }
+
+      const email = await this.repository.getFulfillmentStatusEmail(
+        input.event.eventId
+      );
+
+      if (!email) {
+        await this.repository.markFulfillmentStatusEmailFailed({
+          eventId: input.event.eventId,
+          now: input.now,
+          requestId: input.requestId,
+        });
+        this.recordFulfillmentEmailFailure({
+          eventId: input.event.eventId,
+          orderId: input.event.orderId,
+          reason: "missing_email_payload",
+          requestId: input.requestId,
+        });
+
+        return "FAILED";
+      }
+
+      const sent = await this.emailNotifier.sendFulfillmentStatusEmail({
+        ...email,
+        requestId: input.requestId,
+      });
+
+      if (sent.ok) {
+        await this.repository.markFulfillmentStatusEmailSent({
+          eventId: input.event.eventId,
+          messageId: sent.messageId,
+          now: input.now,
+          requestId: input.requestId,
+        });
+
+        return "SENT";
+      }
+
+      await this.repository.markFulfillmentStatusEmailFailed({
+        eventId: input.event.eventId,
+        now: input.now,
+        requestId: input.requestId,
+      });
+      this.recordFulfillmentEmailFailure({
+        eventId: input.event.eventId,
+        orderId: input.event.orderId,
+        reason: "provider_send_failed",
+        requestId: input.requestId,
+      });
+
+      return "FAILED";
+    } catch {
+      this.recordFulfillmentEmailFailure({
+        eventId: input.event.eventId,
+        orderId: input.event.orderId,
+        reason: "email_state_failed",
+        requestId: input.requestId,
+      });
+
+      return "FAILED";
+    }
+  }
+
+  private recordFulfillmentEmailFailure(input: {
+    eventId: string;
+    orderId: string;
+    reason: string;
+    requestId: string;
+  }) {
+    try {
+      this.operationalLogger.record(
+        createOperationalLogEvent({
+          requestId: input.requestId,
+          errorCode: "PROVIDER_UNAVAILABLE",
+          targetResourceId: input.orderId,
+          details: {
+            action: "fulfillment.email_failed",
+            eventId: input.eventId,
+            orderId: input.orderId,
+            reason: input.reason,
+          },
+        })
+      );
+    } catch {
+      // Logging must never mask fulfillment update.
+    }
+  }
+
+  private async publishFulfillmentAudit(input: {
+    actorId: string;
+    event: OrderFulfillmentEventRecord;
+    requestId: string;
+    safeActorId: string;
+  }) {
+    try {
+      await this.auditPublisher.publish(
+        createAuditEvent({
+          requestId: input.requestId,
+          action: fulfillmentAuditAction(input.event.newFulfillmentStatus),
+          actor: {
+            id: input.actorId,
+            role: "ADMIN",
+            safeIdentifier: input.safeActorId,
+            type: "user",
+          },
+          target: {
+            entity: "order",
+            entityId: input.event.orderId,
+          },
+          safeDetails: {
+            fulfillmentEventId: input.event.eventId,
+            newFulfillmentStatus: input.event.newFulfillmentStatus,
+            oldFulfillmentStatus: input.event.oldFulfillmentStatus,
+            orderId: input.event.orderId,
+            source: "admin_fulfillment",
+          },
+        })
+      );
+    } catch {
+      // Audit must never mask fulfillment update.
+    }
+  }
+}
+
+function fulfillmentAuditAction(status: FulfillmentStatus) {
+  if (status === "CANCELLED") {
+    return "order.cancelled" as const;
+  }
+
+  if (status === "DELIVERED") {
+    return "order.fulfilled" as const;
+  }
+
+  return "order.status_changed" as const;
 }

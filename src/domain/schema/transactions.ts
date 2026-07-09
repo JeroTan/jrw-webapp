@@ -89,6 +89,38 @@ export const orders = sqliteTable(
   ]
 );
 
+export const order_fulfillment_events = sqliteTable(
+  "order_fulfillment_events",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    order_id: text("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    actor_id: text("actor_id"),
+    old_fulfillment_status: text("old_fulfillment_status").notNull(),
+    new_fulfillment_status: text("new_fulfillment_status").notNull(),
+    request_id: text("request_id").notNull(),
+    email_status: text("email_status").notNull().default("PENDING"),
+    email_sent_at: text("email_sent_at"),
+    email_last_attempt_at: text("email_last_attempt_at"),
+    email_message_id: text("email_message_id"),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("uq_order_fulfillment_events_request_id").on(table.request_id),
+    index("idx_order_fulfillment_events_order_id").on(table.order_id),
+    index("idx_order_fulfillment_events_email_status").on(table.email_status),
+    index("idx_order_fulfillment_events_created_at").on(table.created_at),
+  ]
+);
+
 export const checkout_attempts = sqliteTable(
   "checkout_attempts",
   {
@@ -444,9 +476,20 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     fields: [orders.customer_id],
     references: [customers.id],
   }),
+  fulfillmentEvents: many(order_fulfillment_events),
   snapshots: many(order_snapshots),
   reviews: many(reviews),
 }));
+
+export const orderFulfillmentEventsRelations = relations(
+  order_fulfillment_events,
+  ({ one }) => ({
+    order: one(orders, {
+      fields: [order_fulfillment_events.order_id],
+      references: [orders.id],
+    }),
+  })
+);
 
 export const checkoutAttemptsRelations = relations(
   checkout_attempts,

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import type {
   AdminOrderListResult,
   CustomerOrderListResult,
+  FulfillmentEmailStatus,
+  OrderFulfillmentEventRecord,
 } from "@/server/repositories/OrderRepository";
 import { OrderService, type OrderRepositoryLike } from "./OrderService";
 
@@ -83,6 +85,11 @@ function repositoryStub(
 
   return {
     calls,
+    claimFulfillmentStatusEmail: async () => false,
+    getAdminFulfillmentTransitionSubject: async (input) => {
+      calls.push(`subject:${input.orderIdOrNumber}`);
+      return null;
+    },
     getAdminOrderDetail: async (input) => {
       calls.push(`admin-detail:${input.orderIdOrNumber}`);
       return {
@@ -113,6 +120,7 @@ function repositoryStub(
         },
       };
     },
+    getFulfillmentStatusEmail: async () => null,
     getCustomerOrderDetail: async (input) => {
       calls.push(`detail:${input.customerId}:${input.orderIdOrNumber}`);
       return {
@@ -141,6 +149,11 @@ function repositoryStub(
       );
       return adminListResult;
     },
+    markFulfillmentStatusEmailFailed: async () => undefined,
+    markFulfillmentStatusEmailSent: async () => undefined,
+    transitionAdminOrderFulfillment: async () => ({
+      decision: "missing-order",
+    }),
     ...overrides,
   };
 }
@@ -176,6 +189,21 @@ const adminActor = {
     emailVerified: true,
   },
 } as const;
+
+const transitionEvent: OrderFulfillmentEventRecord = {
+  actorId: "admin_1",
+  createdAt: "2026-07-08T02:00:00.000Z",
+  emailLastAttemptAt: null,
+  emailMessageId: null,
+  emailSentAt: null,
+  emailStatus: "PENDING",
+  eventId: "fulfillment_event_1",
+  newFulfillmentStatus: "PROCESSING",
+  oldFulfillmentStatus: "ORDER_PLACED",
+  orderId: "order_1",
+  requestId: "req_fulfillment",
+  updatedAt: "2026-07-08T02:00:00.000Z",
+};
 
 describe("order service", () => {
   it("lists and gets orders for the authenticated active Customer actor", async () => {
@@ -408,5 +436,257 @@ describe("order service", () => {
       })
     ).resolves.toMatchObject({ error: { code: "RESOURCE_NOT_FOUND" } });
     expect(repository.calls).toEqual(["admin-detail:missing"]);
+  });
+
+  it("updates Admin fulfillment, sends email, and publishes audit without changing payment lane", async () => {
+    const repository = repositoryStub({
+      claimFulfillmentStatusEmail: async (input) => {
+        repository.calls.push(`claim-email:${input.eventId}`);
+        return true;
+      },
+      getFulfillmentStatusEmail: async (eventId) => {
+        repository.calls.push(`email:${eventId}`);
+        return {
+          currency: "PHP" as const,
+          fulfillmentStatusLabel: "Processing",
+          items: [
+            { amountCentavos: 1999, name: "Frozen Linen Shirt", quantity: 1 },
+          ],
+          orderNumber: "JRW-2026-ORDER1",
+          statusUrl: "/account/orders/JRW-2026-ORDER1",
+          toEmail: "nina@example.test",
+          totalCentavos: 1999,
+        };
+      },
+      getAdminFulfillmentTransitionSubject: async (input) => {
+        repository.calls.push(`subject:${input.orderIdOrNumber}`);
+        return {
+          checkoutEmail: "nina@example.test",
+          currency: "PHP" as const,
+          fulfillmentStatus: "ORDER_PLACED",
+          items: snapshotItems,
+          orderId: "order_1",
+          orderNumber: "JRW-2026-ORDER1",
+          paymentStatus: "PAYMENT_PAID",
+          totalCentavos: 1999,
+          updatedAt: "2026-07-08T01:00:00.000Z",
+        };
+      },
+      markFulfillmentStatusEmailSent: async (input) => {
+        repository.calls.push(`sent:${input.eventId}:${input.messageId}`);
+      },
+      transitionAdminOrderFulfillment: async (input) => {
+        repository.calls.push(
+          `transition:${input.orderId}:${input.expectedFulfillmentStatus}:${input.targetStatus}`
+        );
+        return {
+          decision: "transitioned" as const,
+          event: transitionEvent,
+          order: {
+            ...adminListResult.items[0],
+            fulfillment: {
+              kind: "fulfillment" as const,
+              label: "Processing",
+              updatedAt: "2026-07-08T02:00:00.000Z",
+              value: "PROCESSING",
+            },
+            contact: {
+              checkoutEmail: "nina@example.test",
+              fullName: "Nina Reyes",
+              phone: "09171234567",
+            },
+            items: snapshotItems,
+            payment: lanes.payment,
+            shippingAddress: {
+              barangay: "Poblacion",
+              cityProvince: "Makati",
+              postalCode: "1200",
+              shippingType: "STANDARD",
+              streetAddress: "12 Sampaguita Street",
+            },
+          },
+        };
+      },
+    });
+    const auditEvents: unknown[] = [];
+    const service = new OrderService({
+      auditPublisher: {
+        publish: async (event) => void auditEvents.push(event),
+      },
+      emailNotifier: {
+        sendFulfillmentStatusEmail: async () => ({
+          ok: true,
+          messageId: "email_1",
+        }),
+      },
+      now: () => "2026-07-08T02:00:00.000Z",
+      repository,
+    });
+
+    const result = await service.updateAdminOrderFulfillment({
+      actor: adminActor,
+      orderIdOrNumber: "JRW-2026-ORDER1",
+      requestId: "req_fulfillment",
+      targetStatus: "PROCESSING",
+    });
+
+    expect(result).toMatchObject({
+      content: {
+        email: { status: "SENT" satisfies FulfillmentEmailStatus },
+        order: {
+          fulfillment: { value: "PROCESSING" },
+          payment: { value: "PAYMENT_PAID" },
+        },
+        transition: {
+          newStatus: "PROCESSING",
+          oldStatus: "ORDER_PLACED",
+        },
+      },
+    });
+    expect(repository.calls).toEqual([
+      "subject:JRW-2026-ORDER1",
+      "transition:order_1:ORDER_PLACED:PROCESSING",
+      "claim-email:fulfillment_event_1",
+      "email:fulfillment_event_1",
+      "sent:fulfillment_event_1:email_1",
+    ]);
+    expect(JSON.stringify(auditEvents)).toContain("order.status_changed");
+  });
+
+  it("returns conflict for unpaid and stale fulfillment transitions", async () => {
+    const unpaidRepository = repositoryStub({
+      getAdminFulfillmentTransitionSubject: async () => ({
+        checkoutEmail: "nina@example.test",
+        currency: "PHP" as const,
+        fulfillmentStatus: "ORDER_PLACED",
+        items: snapshotItems,
+        orderId: "order_1",
+        orderNumber: "JRW-2026-ORDER1",
+        paymentStatus: "PAYMENT_PENDING",
+        totalCentavos: 1999,
+        updatedAt: "2026-07-08T01:00:00.000Z",
+      }),
+    });
+    const staleRepository = repositoryStub({
+      getAdminFulfillmentTransitionSubject: async () => ({
+        checkoutEmail: "nina@example.test",
+        currency: "PHP" as const,
+        fulfillmentStatus: "ORDER_PLACED",
+        items: snapshotItems,
+        orderId: "order_1",
+        orderNumber: "JRW-2026-ORDER1",
+        paymentStatus: "PAYMENT_PAID",
+        totalCentavos: 1999,
+        updatedAt: "2026-07-08T01:00:00.000Z",
+      }),
+      transitionAdminOrderFulfillment: async () => ({
+        currentFulfillmentStatus: "PROCESSING",
+        decision: "stale" as const,
+        orderId: "order_1",
+      }),
+    });
+
+    const unpaid = await new OrderService({
+      repository: unpaidRepository,
+    }).updateAdminOrderFulfillment({
+      actor: adminActor,
+      orderIdOrNumber: "order_1",
+      requestId: "req_unpaid",
+      targetStatus: "PROCESSING",
+    });
+    const stale = await new OrderService({
+      repository: staleRepository,
+    }).updateAdminOrderFulfillment({
+      actor: adminActor,
+      orderIdOrNumber: "order_1",
+      requestId: "req_stale",
+      targetStatus: "PROCESSING",
+    });
+
+    expect(unpaid.error).toMatchObject({
+      code: "CONFLICT_STATE",
+      data: { reason: "PAYMENT_NOT_PAID" },
+    });
+    expect(stale.error).toMatchObject({
+      code: "CONFLICT_STATE",
+      data: { reason: "STALE_FULFILLMENT_STATUS" },
+    });
+  });
+
+  it("keeps fulfillment success when email or audit fails and marks email failed", async () => {
+    const logs: unknown[] = [];
+    const repository = repositoryStub({
+      claimFulfillmentStatusEmail: async () => true,
+      getFulfillmentStatusEmail: async () => ({
+        currency: "PHP" as const,
+        fulfillmentStatusLabel: "Processing",
+        items: [],
+        orderNumber: "JRW-2026-ORDER1",
+        statusUrl: "/account/orders/JRW-2026-ORDER1",
+        toEmail: "nina@example.test",
+        totalCentavos: 1999,
+      }),
+      getAdminFulfillmentTransitionSubject: async () => ({
+        checkoutEmail: "nina@example.test",
+        currency: "PHP" as const,
+        fulfillmentStatus: "ORDER_PLACED",
+        items: snapshotItems,
+        orderId: "order_1",
+        orderNumber: "JRW-2026-ORDER1",
+        paymentStatus: "PAYMENT_PAID",
+        totalCentavos: 1999,
+        updatedAt: "2026-07-08T01:00:00.000Z",
+      }),
+      markFulfillmentStatusEmailFailed: async (input) => {
+        repository.calls.push(`failed:${input.eventId}`);
+      },
+      transitionAdminOrderFulfillment: async () => ({
+        decision: "transitioned" as const,
+        event: transitionEvent,
+        order: {
+          ...adminListResult.items[0],
+          contact: {
+            checkoutEmail: "nina@example.test",
+            fullName: "Nina Reyes",
+            phone: "09171234567",
+          },
+          items: snapshotItems,
+          shippingAddress: {
+            barangay: "Poblacion",
+            cityProvince: "Makati",
+            postalCode: "1200",
+            shippingType: "STANDARD",
+            streetAddress: "12 Sampaguita Street",
+          },
+        },
+      }),
+    });
+
+    const result = await new OrderService({
+      auditPublisher: {
+        publish: async () => {
+          throw new Error("audit down");
+        },
+      },
+      emailNotifier: {
+        sendFulfillmentStatusEmail: async () => ({ ok: false }),
+      },
+      operationalLogger: { record: (event) => void logs.push(event) },
+      repository,
+    }).updateAdminOrderFulfillment({
+      actor: adminActor,
+      orderIdOrNumber: "order_1",
+      requestId: "req_email_failed",
+      targetStatus: "PROCESSING",
+    });
+
+    expect(result).toMatchObject({
+      content: {
+        email: { status: "FAILED" },
+        transition: { eventId: "fulfillment_event_1" },
+      },
+    });
+    expect(repository.calls).toContain("failed:fulfillment_event_1");
+    expect(JSON.stringify(logs)).toContain("fulfillment.email_failed");
   });
 });

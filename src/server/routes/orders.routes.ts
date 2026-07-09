@@ -1,4 +1,8 @@
 import { t } from "elysia";
+import { createFulfillmentStatusEmailNotifier } from "@/adapter/infrastructure/resend/FulfillmentStatusEmailNotifier";
+import type { OperationalLogger } from "@/adapter/infrastructure/logging/operational-log";
+import type { AuditEventPublisher } from "@/domain/audit/events";
+import type { FulfillmentStatusEmailNotifier } from "@/domain/notifications/fulfillment-status-email";
 import { createDb } from "@/adapter/infrastructure/db/client";
 import { openApiErrorResponses, tboxApiSuccess } from "@/lib/typebox/api";
 import { OrderController } from "@/server/controllers/OrderController";
@@ -20,7 +24,10 @@ export type OrderControllerFactoryInput = {
 };
 
 export type OrderRoutesOptions = {
+  auditPublisher?: AuditEventPublisher;
   controllerFactory?: (input: OrderControllerFactoryInput) => OrderController;
+  emailNotifier?: FulfillmentStatusEmailNotifier;
+  operationalLogger?: OperationalLogger;
 };
 
 const customerOrderAuth = {
@@ -51,6 +58,7 @@ const adminOrderErrors = [
   "ADMIN_APPROVAL_REQUIRED",
   "VALIDATION_FAILED",
   "RESOURCE_NOT_FOUND",
+  "CONFLICT_STATE",
   "PROVIDER_UNAVAILABLE",
   "INTERNAL_ERROR",
 ] as const;
@@ -188,8 +196,44 @@ const tboxAdminOrderParams = t.Object(
   { additionalProperties: false }
 );
 
+const tboxFulfillmentStatus = t.Union([
+  t.Literal("ORDER_PLACED"),
+  t.Literal("PROCESSING"),
+  t.Literal("SHIPPED"),
+  t.Literal("DELIVERED"),
+  t.Literal("CANCELLED"),
+]);
+
+const tboxFulfillmentEmailStatus = t.Union([
+  t.Literal("FAILED"),
+  t.Literal("PENDING"),
+  t.Literal("SENT"),
+  t.Literal("SENDING"),
+]);
+
+const tboxAdminFulfillmentBody = t.Object(
+  {
+    targetStatus: tboxFulfillmentStatus,
+  },
+  { additionalProperties: false }
+);
+
+const tboxAdminFulfillmentData = t.Object({
+  allowedNextStatuses: t.Array(tboxFulfillmentStatus),
+  email: t.Object({
+    status: tboxFulfillmentEmailStatus,
+  }),
+  order: tboxAdminOrderDetailData,
+  transition: t.Object({
+    eventId: t.String(),
+    newStatus: tboxFulfillmentStatus,
+    oldStatus: tboxFulfillmentStatus,
+  }),
+});
+
 function createRuntimeController(
-  input: OrderControllerFactoryInput
+  input: OrderControllerFactoryInput,
+  options: OrderRoutesOptions
 ): OrderController {
   const db = input.runtimeEnv?.DB;
 
@@ -202,6 +246,11 @@ function createRuntimeController(
 
   return new OrderController(
     new OrderService({
+      auditPublisher: options.auditPublisher,
+      emailNotifier:
+        options.emailNotifier ??
+        createFulfillmentStatusEmailNotifier(input.runtimeEnv ?? {}),
+      operationalLogger: options.operationalLogger,
       repository: new DrizzleOrderRepository(createDb(db as D1Database)),
     })
   );
@@ -211,7 +260,10 @@ function getController(
   input: OrderControllerFactoryInput,
   options: OrderRoutesOptions
 ): OrderController {
-  return options.controllerFactory?.(input) ?? createRuntimeController(input);
+  return (
+    options.controllerFactory?.(input) ??
+    createRuntimeController(input, options)
+  );
 }
 
 function orderActor(
@@ -224,6 +276,7 @@ function orderActor(
         authenticated: actor.authenticated,
         eligibility: actor.eligibility,
         role: actor.role,
+        safeActorId: actor.safeActorId,
       }
     : undefined;
 }
@@ -405,6 +458,57 @@ export function ordersRoutes(app: AnyElysia, options: OrderRoutesOptions = {}) {
         response: {
           200: tboxApiSuccess(tboxAdminOrderDetailData),
           ...openApiErrorResponses([400, 401, 403, 404, 500, 503]),
+        },
+        transform: rbacGuard(adminOrderAuth),
+      }
+    )
+    .patch(
+      "/admin/orders/:orderId/fulfillment",
+      async (ctx) => {
+        const {
+          body,
+          request,
+          requestContext,
+          requestId,
+          runtimeEnv,
+          set,
+          params,
+        } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            body: { targetStatus: string };
+            params: { orderId: string };
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+          };
+        const controller = getController(
+          { request, requestId, runtimeEnv },
+          options
+        );
+        const result = await controller.updateAdminOrderFulfillment({
+          actor: orderActor(requestContext.actor),
+          orderIdOrNumber: params.orderId,
+          requestId,
+          targetStatus: body.targetStatus,
+        });
+
+        set.status = result.status;
+
+        return result.body as never;
+      },
+      {
+        body: tboxAdminFulfillmentBody,
+        detail: routeDetail({
+          summary: "Update Admin order fulfillment",
+          description:
+            "Moves one paid JRW order to a valid next fulfillment status for active approved Admin daily operations. The endpoint preserves payment, return, and refund lanes, records a fulfillment event with request id, emits safe audit metadata, and tracks the customer fulfillment email state without exposing provider payloads or secrets.",
+          tags: ["Orders"],
+          auth: adminOrderAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...adminOrderErrors],
+        }),
+        params: tboxAdminOrderParams,
+        response: {
+          200: tboxApiSuccess(tboxAdminFulfillmentData),
+          ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
         },
         transform: rbacGuard(adminOrderAuth),
       }
