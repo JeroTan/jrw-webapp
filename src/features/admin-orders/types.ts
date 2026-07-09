@@ -41,7 +41,6 @@ export type AdminReturnRecord = {
   previousStatus: AdminReturnStatus | null;
   reason: string;
   referenceId: string | null;
-  requestId: string;
   status: AdminReturnStatus;
   statusLabel: string;
   targetLabel: string;

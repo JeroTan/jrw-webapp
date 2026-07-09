@@ -253,7 +253,6 @@ describe("admin orders UI", () => {
               previousStatus: null,
               reason: "Wrong size",
               referenceId: null,
-              requestId: "req_return_1",
               status: "RETURN_REQUESTED",
               statusLabel: "Return requested",
               targetLabel: "Frozen Linen Shirt - Size: Small",
@@ -271,7 +270,9 @@ describe("admin orders UI", () => {
     expect(markup).toContain("Cancel return");
     expect(markup).toContain("md:col-span-2");
     expect(markup).not.toContain("Amount");
-    expect(markup).not.toMatch(/RETURN_APPROVED|RETURN_REJECTED|RETURN_CANCELLED/);
+    expect(markup).not.toMatch(
+      /RETURN_APPROVED|RETURN_REJECTED|RETURN_CANCELLED/
+    );
   });
 
   it("keeps remaining purchased items returnable after one item return request", () => {
@@ -326,7 +327,6 @@ describe("admin orders UI", () => {
               previousStatus: null,
               reason: "Wrong item",
               referenceId: null,
-              requestId: "req_return_1",
               status: "RETURN_REQUESTED",
               statusLabel: "Return requested",
               targetLabel: "Perfume EDP - 100ml",
@@ -344,12 +344,14 @@ describe("admin orders UI", () => {
       "Choose another purchased item to create a separate return request."
     );
     expect(markup).toContain("T-shirt 300 GSM - SM");
-    expect(markup).not.toContain("<option value=\"snapshot_1\">Perfume EDP");
+    expect(markup).not.toContain('<option value="snapshot_1">Perfume EDP');
     expect(markup).toContain("Record return request");
     expect(markup).toContain("Approve return");
     expect(markup).toContain("Decline return");
     expect(markup).toContain("Cancel return");
-    expect(markup).not.toContain("All purchased items already have return records.");
+    expect(markup).not.toContain(
+      "All purchased items already have return records."
+    );
     expect(markup).not.toContain(
       "Return request already covers whole order. Use return history actions below."
     );

@@ -354,7 +354,10 @@ function ReturnActionsPanel({
     if (hasExistingItemReturn) {
       setTargetType("item");
     }
-  }, [availableItems.map((item) => item.snapshotId).join("|"), hasExistingItemReturn]);
+  }, [
+    availableItems.map((item) => item.snapshotId).join("|"),
+    hasExistingItemReturn,
+  ]);
 
   async function submitReturn(event: { preventDefault(): void }) {
     event.preventDefault();
@@ -400,7 +403,10 @@ function ReturnActionsPanel({
         <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
           Return actions
         </h2>
-        <StatusBadge label={order.return.label} tone={statusTone(order.return.value)} />
+        <StatusBadge
+          label={order.return.label}
+          tone={statusTone(order.return.value)}
+        />
       </div>
 
       {activeMessage ? (
@@ -420,7 +426,8 @@ function ReturnActionsPanel({
 
       {orderLevelReturnExists ? (
         <p className="m-0 text-sm text-brand-muted">
-          Return request already covers whole order. Use return history actions below.
+          Return request already covers whole order. Use return history actions
+          below.
         </p>
       ) : blockedReason ? (
         <p className="m-0 text-sm text-brand-muted">{blockedReason}</p>
@@ -547,82 +554,80 @@ function ReturnHistoryPanel({
       ) : (
         <ol className="m-0 grid list-none gap-grid-xs p-0">
           {order.returnHistory.map((record) => {
-              const key = returnTargetKey(record);
-              const isLatestForTarget = !latestTargetKeys.has(key);
-              latestTargetKeys.add(key);
-              const nextStatuses = isLatestForTarget
-                ? allowedNextReturnStatuses(record.status).map(
-                    (status) => status as AdminReturnStatus
-                  )
-                : [];
+            const key = returnTargetKey(record);
+            const isLatestForTarget = !latestTargetKeys.has(key);
+            latestTargetKeys.add(key);
+            const nextStatuses = isLatestForTarget
+              ? allowedNextReturnStatuses(record.status).map(
+                  (status) => status as AdminReturnStatus
+                )
+              : [];
 
-              return (
-                <li
-                  className="grid gap-grid-xs border border-brand-border p-grid-xs"
-                  key={record.id}
-                >
-                  <div className="flex flex-wrap items-center justify-between gap-grid-xs">
-                    <StatusBadge
-                      label={record.statusLabel}
-                      tone={statusTone(record.status)}
-                    />
-                    <span className="font-system text-xs text-brand-muted">
-                      {formatDateTime(record.createdAt)}
-                    </span>
+            return (
+              <li
+                className="grid gap-grid-xs border border-brand-border p-grid-xs"
+                key={record.id}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-grid-xs">
+                  <StatusBadge
+                    label={record.statusLabel}
+                    tone={statusTone(record.status)}
+                  />
+                  <span className="font-system text-xs text-brand-muted">
+                    {formatDateTime(record.createdAt)}
+                  </span>
+                </div>
+                <p className="m-0 font-heading text-sm font-bold text-brand-content">
+                  {record.targetLabel}
+                </p>
+                <p className="m-0 text-sm text-brand-muted">{record.reason}</p>
+                {record.notes ? (
+                  <p className="m-0 text-sm text-brand-muted">
+                    Notes {record.notes}
+                  </p>
+                ) : null}
+                {record.referenceId ? (
+                  <p className="m-0 text-sm text-brand-muted">
+                    Reference {record.referenceId}
+                  </p>
+                ) : null}
+                <p className="m-0 font-system text-xs text-brand-muted">
+                  Recorded by {record.actorId ?? "Admin"}
+                </p>
+                {nextStatuses.length > 0 ? (
+                  <div
+                    aria-label="Return history actions"
+                    className="grid gap-grid-xs pt-grid-xs md:grid-cols-2"
+                    role="group"
+                  >
+                    {nextStatuses.map((status) => (
+                      <Button
+                        className={
+                          status === "RETURN_CANCELLED"
+                            ? "md:col-span-2"
+                            : undefined
+                        }
+                        disabled={busy}
+                        fullWidth
+                        key={status}
+                        loading={busy}
+                        loadingLabel="Saving"
+                        onClick={() => void recordNextStatus(record, status)}
+                        size="sm"
+                        textSize="xs"
+                        variant={
+                          status === "RETURN_CANCELLED" ? "danger" : "secondary"
+                        }
+                      >
+                        {returnHistoryActionLabel[status] ??
+                          returnStatusLabel(status)}
+                      </Button>
+                    ))}
                   </div>
-                  <p className="m-0 font-heading text-sm font-bold text-brand-content">
-                    {record.targetLabel}
-                  </p>
-                  <p className="m-0 text-sm text-brand-muted">{record.reason}</p>
-                  {record.notes ? (
-                    <p className="m-0 text-sm text-brand-muted">
-                      Notes {record.notes}
-                    </p>
-                  ) : null}
-                  {record.referenceId ? (
-                    <p className="m-0 text-sm text-brand-muted">
-                      Reference {record.referenceId}
-                    </p>
-                  ) : null}
-                  <p className="m-0 font-system text-xs text-brand-muted">
-                    Recorded by {record.actorId ?? "Admin"}
-                  </p>
-                  {nextStatuses.length > 0 ? (
-                    <div
-                      aria-label="Return history actions"
-                      className="grid gap-grid-xs pt-grid-xs md:grid-cols-2"
-                      role="group"
-                    >
-                      {nextStatuses.map((status) => (
-                        <Button
-                          className={
-                            status === "RETURN_CANCELLED"
-                              ? "md:col-span-2"
-                              : undefined
-                          }
-                          disabled={busy}
-                          fullWidth
-                          key={status}
-                          loading={busy}
-                          loadingLabel="Saving"
-                          onClick={() => void recordNextStatus(record, status)}
-                          size="sm"
-                          textSize="xs"
-                          variant={
-                            status === "RETURN_CANCELLED"
-                              ? "danger"
-                              : "secondary"
-                          }
-                        >
-                          {returnHistoryActionLabel[status] ??
-                            returnStatusLabel(status)}
-                        </Button>
-                      ))}
-                    </div>
-                  ) : null}
-                </li>
-              );
-            })}
+                ) : null}
+              </li>
+            );
+          })}
         </ol>
       )}
     </section>

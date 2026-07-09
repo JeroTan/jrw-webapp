@@ -686,7 +686,9 @@ describe("order repository", () => {
 
       expect(requested).toMatchObject({
         decision: "recorded",
-        order: { return: { label: "Return requested", value: "RETURN_REQUESTED" } },
+        order: {
+          return: { label: "Return requested", value: "RETURN_REQUESTED" },
+        },
         returnRecord: {
           amountCentavos: 500,
           orderSnapshotId: "snapshot_1",
@@ -703,7 +705,9 @@ describe("order repository", () => {
       });
       expect(approved).toMatchObject({
         decision: "recorded",
-        order: { return: { label: "Return approved", value: "RETURN_APPROVED" } },
+        order: {
+          return: { label: "Return approved", value: "RETURN_APPROVED" },
+        },
         returnRecord: {
           previousStatus: "RETURN_REQUESTED",
           status: "RETURN_APPROVED",
@@ -727,10 +731,9 @@ describe("order repository", () => {
         { request_id: "req_return_1", return_status: "RETURN_REQUESTED" },
         { request_id: "req_return_2", return_status: "RETURN_APPROVED" },
       ]);
-      expect(adminDetail?.returnHistory.map((record) => record.status)).toEqual([
-        "RETURN_APPROVED",
-        "RETURN_REQUESTED",
-      ]);
+      expect(adminDetail?.returnHistory.map((record) => record.status)).toEqual(
+        ["RETURN_APPROVED", "RETURN_REQUESTED"]
+      );
       expect(adminDetail?.returnHistory[1]).toMatchObject({
         notes: "Box inspected by support.",
         referenceId: "RET-1",
@@ -843,9 +846,30 @@ describe("order repository", () => {
     const { d1, mf, repository } = await createOrderRepositoryTestD1();
 
     try {
+      const staleOrderState = await repository.recordAdminOrderReturn({
+        actorId: "admin_1",
+        amountCentavos: null,
+        expectedReturnStatus: null,
+        now: "2026-07-08T03:00:00.000Z",
+        notes: null,
+        orderId: "order_2",
+        orderSnapshotId: null,
+        reason: "Order not ready",
+        referenceId: null,
+        requestId: "req_return_unready",
+        targetStatus: "RETURN_REQUESTED",
+        targetType: "ORDER",
+      });
+
       await d1
-        .prepare(`UPDATE orders SET fulfillment_status = ?, payment_status = ? WHERE id = ?`)
+        .prepare(
+          `UPDATE orders SET fulfillment_status = ?, payment_status = ? WHERE id = ?`
+        )
         .bind("DELIVERED", "PAYMENT_PAID", "order_2")
+        .run();
+      await d1
+        .prepare(`UPDATE orders SET fulfillment_status = ? WHERE id = ?`)
+        .bind("DELIVERED", "order_1")
         .run();
 
       const invalidTarget = await repository.recordAdminOrderReturn({
@@ -897,6 +921,11 @@ describe("order repository", () => {
       expect(invalidTarget).toMatchObject({
         decision: "invalid-target",
         orderId: "order_1",
+      });
+      expect(staleOrderState).toMatchObject({
+        decision: "stale",
+        orderId: "order_2",
+        reason: "PAYMENT_NOT_PAID",
       });
       expect(original).toMatchObject({ decision: "recorded" });
       expect(mismatch).toMatchObject({

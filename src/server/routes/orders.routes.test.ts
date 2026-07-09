@@ -608,18 +608,21 @@ describe("order routes", () => {
       expect(controllerFactoryCalls).toBe(0);
 
       const returnResponse = await app.handle(
-        new Request("https://jrw.test/api/admin/orders/JRW-2026-ORDER1/returns", {
-          body: JSON.stringify({
-            reason: "Wrong size",
-            targetStatus: "RETURN_REQUESTED",
-            targetType: "ORDER",
-          }),
-          headers: {
-            ...testCase.headers,
-            "content-type": "application/json",
-          },
-          method: "POST",
-        })
+        new Request(
+          "https://jrw.test/api/admin/orders/JRW-2026-ORDER1/returns",
+          {
+            body: JSON.stringify({
+              reason: "Wrong size",
+              targetStatus: "RETURN_REQUESTED",
+              targetType: "ORDER",
+            }),
+            headers: {
+              ...testCase.headers,
+              "content-type": "application/json",
+            },
+            method: "POST",
+          }
+        )
       );
 
       expect(returnResponse.status).toBe(testCase.expectedStatus);
@@ -713,7 +716,7 @@ describe("order routes", () => {
         }
       )
     );
-    const successBody = await success.json();
+    const successBody = (await success.json()) as { data: unknown };
 
     expect(success.status).toBe(200);
     expect(successBody).toMatchObject({
@@ -813,7 +816,6 @@ describe("order routes", () => {
                     previousStatus: null,
                     reason: "Wrong size",
                     referenceId: "RET-1",
-                    requestId: "req_return_route",
                     status: "RETURN_REQUESTED",
                     statusLabel: "Return requested",
                     targetLabel: "Frozen Linen Shirt - Size: Small",
@@ -862,7 +864,7 @@ describe("order routes", () => {
         method: "POST",
       })
     );
-    const successBody = await success.json();
+    const successBody = (await success.json()) as { data: unknown };
 
     expect(success.status).toBe(200);
     expect(successBody).toMatchObject({
@@ -881,6 +883,7 @@ describe("order routes", () => {
       },
       meta: { requestId: "req_return_route" },
     });
+    expect(JSON.stringify(successBody.data)).not.toContain("req_return_route");
 
     const conflict = await conflictApp.handle(
       new Request("https://jrw.test/api/admin/orders/JRW-2026-ORDER1/returns", {
@@ -906,7 +909,6 @@ describe("order routes", () => {
       },
     });
   });
-
 
   it("rejects unsupported Admin order query fields", async () => {
     const app = createApp({

@@ -116,7 +116,6 @@ export type AdminReturnRecordReadModel = {
   previousStatus: ReturnStatus | null;
   reason: string;
   referenceId: string | null;
-  requestId: string;
   status: ReturnStatus;
   statusLabel: string;
   targetLabel: string;
@@ -234,7 +233,11 @@ export type RecordAdminOrderReturnResult =
       currentReturnStatus: ReturnStatus | null;
       decision: "stale";
       orderId: string;
-      reason?: "REQUEST_ID_MISMATCH" | "STALE_RETURN_STATUS";
+      reason?:
+        | "FULFILLMENT_NOT_DELIVERED"
+        | "PAYMENT_NOT_PAID"
+        | "REQUEST_ID_MISMATCH"
+        | "STALE_RETURN_STATUS";
     }
   | {
       decision: "invalid-target";
@@ -477,7 +480,6 @@ function toAdminReturnRecord(row: {
   productName: string | null;
   reason: string;
   referenceId: string | null;
-  requestId: string;
   status: string;
   targetType: string;
   updatedAt: string;
@@ -500,7 +502,6 @@ function toAdminReturnRecord(row: {
     previousStatus: row.previousStatus as ReturnStatus | null,
     reason: row.reason,
     referenceId: safeString(row.referenceId),
-    requestId: row.requestId,
     status,
     statusLabel: returnStatusLabel(status),
     targetLabel: returnTargetLabel(row),
@@ -743,9 +744,9 @@ export class DrizzleOrderRepository {
     }
 
     const items = await this.orderSnapshotItems(row.orderId);
-    const latestReturn = (
-      await this.latestReturnByOrderId([row.orderId])
-    ).get(row.orderId);
+    const latestReturn = (await this.latestReturnByOrderId([row.orderId])).get(
+      row.orderId
+    );
 
     return {
       ...buildOrderReadModel(
@@ -996,7 +997,6 @@ export class DrizzleOrderRepository {
           productName: order_snapshots.product_name,
           reason: order_return_records.reason,
           referenceId: order_return_records.reference_id,
-          requestId: order_return_records.request_id,
           status: order_return_records.return_status,
           targetType: order_return_records.target_type,
           updatedAt: order_return_records.updated_at,
@@ -1043,14 +1043,39 @@ export class DrizzleOrderRepository {
 
       const orderRows = await db
         .select({
+          fulfillmentStatus: orders.fulfillment_status,
           id: orders.id,
+          paymentStatus: orders.payment_status,
         })
         .from(orders)
         .where(eq(orders.id, input.orderId))
         .limit(1);
+      const order = orderRows[0];
 
-      if (!orderRows[0]) {
+      if (!order) {
         return { decision: "missing-order" as const };
+      }
+
+      if (order.paymentStatus !== "PAYMENT_PAID") {
+        const latest = await this.latestReturnForTarget(db, input);
+
+        return {
+          currentReturnStatus: latest?.status ?? null,
+          decision: "stale" as const,
+          orderId: input.orderId,
+          reason: "PAYMENT_NOT_PAID" as const,
+        };
+      }
+
+      if (order.fulfillmentStatus !== "DELIVERED") {
+        const latest = await this.latestReturnForTarget(db, input);
+
+        return {
+          currentReturnStatus: latest?.status ?? null,
+          decision: "stale" as const,
+          orderId: input.orderId,
+          reason: "FULFILLMENT_NOT_DELIVERED" as const,
+        };
       }
 
       if (input.targetType === "ORDER" && input.orderSnapshotId) {
@@ -1617,7 +1642,10 @@ export class DrizzleOrderRepository {
         ? and(
             eq(order_return_records.target_type, "ITEM"),
             input.orderSnapshotId
-              ? eq(order_return_records.order_snapshot_id, input.orderSnapshotId)
+              ? eq(
+                  order_return_records.order_snapshot_id,
+                  input.orderSnapshotId
+                )
               : sql`${order_return_records.order_snapshot_id} IS NULL`
           )
         : and(
@@ -1631,7 +1659,9 @@ export class DrizzleOrderRepository {
         status: order_return_records.return_status,
       })
       .from(order_return_records)
-      .where(and(eq(order_return_records.order_id, input.orderId), targetFilter))
+      .where(
+        and(eq(order_return_records.order_id, input.orderId), targetFilter)
+      )
       .orderBy(
         desc(order_return_records.created_at),
         desc(order_return_records.id)
@@ -1662,7 +1692,6 @@ export class DrizzleOrderRepository {
         productName: order_snapshots.product_name,
         reason: order_return_records.reason,
         referenceId: order_return_records.reference_id,
-        requestId: order_return_records.request_id,
         status: order_return_records.return_status,
         targetType: order_return_records.target_type,
         updatedAt: order_return_records.updated_at,
@@ -1697,7 +1726,6 @@ export class DrizzleOrderRepository {
         productName: order_snapshots.product_name,
         reason: order_return_records.reason,
         referenceId: order_return_records.reference_id,
-        requestId: order_return_records.request_id,
         status: order_return_records.return_status,
         targetType: order_return_records.target_type,
         updatedAt: order_return_records.updated_at,

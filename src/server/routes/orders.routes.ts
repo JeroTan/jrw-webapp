@@ -169,7 +169,6 @@ const tboxAdminReturnRecord = t.Object({
   previousStatus: t.Union([tboxReturnStatus, t.Null()]),
   reason: t.String(),
   referenceId: t.Union([t.String(), t.Null()]),
-  requestId: t.String(),
   status: tboxReturnStatus,
   statusLabel: t.String(),
   targetLabel: t.String(),

@@ -1,6 +1,6 @@
 # Story 6.4: Manual Return Recording
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -94,6 +94,11 @@ Complete for every new or changed endpoint. Mark non-applicable items as `N/A` w
 - [x] Denial tests cover unauthenticated actor, Customer/Prospect wrong role, Super Admin current-policy denial, suspended/inactive/unverified/unapproved Admin, and controller-not-called guard path.
 - [x] Error response uses safe envelope codes and does not leak provider/internal authorization, email, phone, address, notes to Customer, reference IDs to Customer, request IDs outside meta, DB errors, or stack details.
 - [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, request body, response schema, denial codes, validation codes, and conflict codes.
+
+## Code Review Findings
+
+- [x] [Review][Patch] Return record response exposed raw `requestId` outside response `meta`, despite the endpoint guard requiring request IDs to stay out of data payloads. Fixed by keeping request IDs in persistence only and removing them from Admin return DTOs, OpenAPI schema, and client types.
+- [x] [Review][Patch] Return append persistence trusted the service-level paid/delivered check and did not re-check order state inside the repository transaction/fallback path. A stale subject could append a return after order state changed. Fixed by gating insert on `PAYMENT_PAID` and `DELIVERED` immediately before append.
 
 ## Dev Notes
 
@@ -351,7 +356,9 @@ GPT-5 Codex
 - `npx vitest run src/server/routes/orders.routes.test.ts` (pass)
 - `npx vitest run src/features/admin-orders/admin-orders-ui.test.tsx` (pass)
 - `npx vitest run src/domain/orders/customer-order-status.test.ts` (pass)
+- `npx vitest run src/domain/orders/return-transitions.test.ts src/domain/schema-invariants.test.ts src/server/repositories/OrderRepository.test.ts src/server/services/OrderService.test.ts src/server/routes/orders.routes.test.ts src/features/admin-orders/admin-orders-ui.test.tsx src/domain/orders/customer-order-status.test.ts` (pass)
 - `npm run check` (pass; existing unrelated hints remain)
+- `git diff --check` (pass; CRLF notices only)
 - `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` (pass; matches are existing tests/brand slugs only)
 - `npm run build-test` (pass: 141 files, 961 tests, Astro build complete)
 - `npm run db:migrate:remote` (pass: applied `0034_order_return_records.sql` to remote development D1)
@@ -364,7 +371,8 @@ GPT-5 Codex
 - Added Admin return service/controller/route with TypeBox contracts, Admin-only RBAC, return validation, paid/delivered transition conflicts, safe audit events, and no email/refund/inventory side effects.
 - Extended Admin order detail with inline return recording, conflict refresh, disabled reasons, newest-first return history, and shared primitive form controls. Customer projections now receive latest return status while hiding Admin notes/reference/actor/request details.
 - Adjusted return targeting so item-level return records only block that item; remaining purchased items stay selectable, and return history actions advance each latest target independently.
-- Completed full validation, applied remote development D1 migration, and moved story to review.
+- Code review removed raw return request IDs from response/client DTOs and added repository-side paid/delivered gating immediately before append.
+- Completed full validation, applied remote development D1 migration, and moved story to done.
 
 ### File List
 
@@ -393,3 +401,4 @@ GPT-5 Codex
 - 2026-07-09: Created ready-for-dev story with return transition rules, append-only return records, Admin recording UI, customer-safe projection, and validation guardrails.
 - 2026-07-09: Implemented manual return recording, validated full build-test, applied development migration, and moved story to review.
 - 2026-07-09: Fixed item-level return targeting so one returned item does not disable return actions for remaining items.
+- 2026-07-09: Code review fixed raw request-id exposure in return data and added repository-side paid/delivered append gating; moved story to done.
