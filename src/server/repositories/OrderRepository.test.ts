@@ -547,6 +547,34 @@ describe("order repository", () => {
         decision: "stale",
       });
 
+      await d1
+        .prepare(`UPDATE orders SET payment_status = ? WHERE id = ?`)
+        .bind("PAYMENT_PAID", "order_2")
+        .run();
+
+      const mismatchedRequestId =
+        await repository.transitionAdminOrderFulfillment({
+          actorId: "admin_1",
+          expectedFulfillmentStatus: "ORDER_PLACED",
+          now: "2026-07-08T02:02:00.000Z",
+          orderId: "order_2",
+          requestId: "req_fulfillment_ship",
+          targetStatus: "PROCESSING",
+        });
+      expect(mismatchedRequestId).toMatchObject({
+        currentFulfillmentStatus: "ORDER_PLACED",
+        decision: "stale",
+        orderId: "order_2",
+      });
+
+      const order2Rows = await d1
+        .prepare(`SELECT fulfillment_status FROM orders WHERE id = ?`)
+        .bind("order_2")
+        .all();
+      expect(order2Rows.results).toEqual([
+        { fulfillment_status: "ORDER_PLACED" },
+      ]);
+
       const rows = await d1
         .prepare(
           `SELECT old_fulfillment_status, new_fulfillment_status, email_status

@@ -569,6 +569,26 @@ describe("order routes", () => {
         error: { code: testCase.expectedCode },
       });
       expect(controllerFactoryCalls).toBe(0);
+
+      const fulfillmentResponse = await app.handle(
+        new Request(
+          "https://jrw.test/api/admin/orders/JRW-2026-ORDER1/fulfillment",
+          {
+            body: JSON.stringify({ targetStatus: "PROCESSING" }),
+            headers: {
+              ...testCase.headers,
+              "content-type": "application/json",
+            },
+            method: "PATCH",
+          }
+        )
+      );
+
+      expect(fulfillmentResponse.status).toBe(testCase.expectedStatus);
+      await expect(fulfillmentResponse.json()).resolves.toMatchObject({
+        error: { code: testCase.expectedCode },
+      });
+      expect(controllerFactoryCalls).toBe(0);
     }
   });
 

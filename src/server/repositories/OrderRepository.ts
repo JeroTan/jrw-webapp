@@ -754,6 +754,32 @@ export class DrizzleOrderRepository {
       const existing = existingRows[0];
 
       if (existing) {
+        if (
+          existing.orderId !== input.orderId ||
+          existing.oldFulfillmentStatus !== input.expectedFulfillmentStatus ||
+          existing.newFulfillmentStatus !== input.targetStatus
+        ) {
+          const latestRows = await db
+            .select({
+              fulfillmentStatus: orders.fulfillment_status,
+              id: orders.id,
+            })
+            .from(orders)
+            .where(eq(orders.id, input.orderId))
+            .limit(1);
+          const latest = latestRows[0];
+
+          if (!latest) {
+            return { decision: "missing-order" as const };
+          }
+
+          return {
+            currentFulfillmentStatus: latest.fulfillmentStatus,
+            decision: "stale" as const,
+            orderId: latest.id,
+          };
+        }
+
         return {
           decision: "already-requested" as const,
           event: toFulfillmentEventRecord(existing),

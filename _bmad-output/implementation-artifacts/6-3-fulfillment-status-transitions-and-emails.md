@@ -1,6 +1,6 @@
 # Story 6.3: Fulfillment Status Transitions and Emails
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -106,6 +106,11 @@ Complete for every new or changed endpoint. Mark non-applicable items as `N/A` w
 - [x] Denial tests cover unauthenticated actor, Customer/Prospect wrong role, Super Admin current-policy denial, suspended/inactive/unverified/unapproved Admin.
 - [x] Error response uses safe envelope codes and does not leak provider/internal authorization, email, phone, address, or stack details.
 - [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, request body, response schema, denial codes, and conflict codes.
+
+## Code Review Findings
+
+- [x] [P1] Fulfillment request-id idempotency accepted an existing `order_fulfillment_events.request_id` without checking same order, old status, and target status. A reused request ID could return a prior transition for another order and silently skip the requested order. Fixed by requiring exact idempotency match and returning stale conflict details for mismatches.
+- [x] [P2] Route guard coverage did not directly exercise `PATCH /api/admin/orders/:orderId/fulfillment` denial before controller construction. Added direct denial assertions for anonymous, Customer, Prospect, and Super Admin contexts.
 
 ## Dev Notes
 
@@ -322,7 +327,10 @@ GPT-5 Codex
 ### Debug Log References
 
 - `npx vitest run src/domain/orders/fulfillment-transitions.test.ts src/domain/notifications/fulfillment-status-email.test.ts src/adapter/infrastructure/resend/FulfillmentStatusEmailNotifier.test.ts src/domain/schema-invariants.test.ts src/server/repositories/OrderRepository.test.ts src/server/services/OrderService.test.ts src/server/routes/orders.routes.test.ts src/features/admin-orders/admin-orders-ui.test.tsx`
+- `npx vitest run src/server/repositories/OrderRepository.test.ts`
+- `npx vitest run src/server/routes/orders.routes.test.ts`
 - `npm run check`
+- `git diff --check`
 - `npm run build-test`
 - `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages`
 
@@ -334,6 +342,7 @@ GPT-5 Codex
 - Extended Admin order detail with a right-rail fulfillment action panel using shared primitives, full-width action buttons, blocked reasons, success email state messaging, and conflict refresh.
 - Follow-up UX tweak moved the existing two-column snapshot/actions workspace near the top, with fulfillment actions kept in the right rail.
 - Follow-up copy cleanup removed raw status codes and machine-oriented labels from Admin order UI.
+- Code review fixed request-id idempotency mismatch handling for fulfillment events and added direct PATCH route denial coverage.
 - Validation passed via focused Vitest suite, `npm run check`, and `npm run build-test`.
 - Manual authenticated Admin browser QA was not run because no Admin browser fixture/session was established in this turn.
 
@@ -367,3 +376,4 @@ GPT-5 Codex
 - 2026-07-09: Implemented fulfillment transition API, event/email tracking, Admin UI actions, tests, and validation; moved to review.
 - 2026-07-09: Moved the existing Admin fulfillment actions right rail near the top of the order detail page for faster operations.
 - 2026-07-09: Replaced machine-level Admin order UI labels/status text with human-facing copy.
+- 2026-07-09: Code review fixed fulfillment request-id mismatch idempotency, added direct PATCH denial regression coverage, and moved story to done.
