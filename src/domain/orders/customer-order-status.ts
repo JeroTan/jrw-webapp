@@ -49,7 +49,7 @@ const returnLabels: Record<string, string> = {
   RETURN_NOT_REQUESTED: "No return requested",
   RETURN_REQUESTED: "Return requested",
   RETURN_APPROVED: "Return approved",
-  RETURN_REJECTED: "Return unavailable",
+  RETURN_REJECTED: "Return declined",
   RETURN_RECEIVED: "Return received",
   RETURN_COMPLETED: "Return completed",
   RETURN_CANCELLED: "Return cancelled",
@@ -112,7 +112,9 @@ export function buildCustomerOrderStatusLanes(input: {
   fulfillmentStatus?: string | null;
   paymentStatus?: string | null;
   refundStatus?: string | null;
+  refundUpdatedAt?: string | null;
   returnStatus?: string | null;
+  returnUpdatedAt?: string | null;
   updatedAt?: string | null;
 }): CustomerOrderStatusLanes {
   const fulfillmentStatus =
@@ -133,10 +135,12 @@ export function buildCustomerOrderStatusLanes(input: {
     }),
     refund: lane({
       kind: "refund",
+      updatedAt: input.refundUpdatedAt,
       value: cleanStatus(input.refundStatus) ?? "REFUND_NOT_REQUESTED",
     }),
     return: lane({
       kind: "return",
+      updatedAt: input.returnUpdatedAt,
       value: cleanStatus(input.returnStatus) ?? "RETURN_NOT_REQUESTED",
     }),
   };

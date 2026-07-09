@@ -204,6 +204,7 @@ describe("order routes", () => {
     const detail = body.paths?.["/api/admin/orders/{orderId}"]?.get;
     const fulfillment =
       body.paths?.["/api/admin/orders/{orderId}/fulfillment"]?.patch;
+    const returns = body.paths?.["/api/admin/orders/{orderId}/returns"]?.post;
 
     expect(list?.summary).toBe("List Admin orders");
     expect(list?.tags).toContain("Orders");
@@ -233,6 +234,20 @@ describe("order routes", () => {
     expect(fulfillment?.["x-error-codes"]).toEqual(
       expect.arrayContaining(["CONFLICT_STATE", "PROVIDER_UNAVAILABLE"])
     );
+    expect(returns?.summary).toBe("Record Admin order return");
+    expect(returns?.["x-auth"]).toEqual({
+      mode: "required",
+      roles: ["ADMIN"],
+    });
+    expect(returns?.["x-rate-limit-class"]).toBe("admin-write");
+    expect(returns?.["x-error-codes"]).toEqual(
+      expect.arrayContaining([
+        "VALIDATION_FAILED",
+        "CONFLICT_STATE",
+        "PROVIDER_UNAVAILABLE",
+      ])
+    );
+    expect(returns?.description).toContain("append-only return history");
   });
 
   it("returns signed-in customer order list/detail envelopes", async () => {
@@ -415,11 +430,13 @@ describe("order routes", () => {
                       productName: "Frozen Linen Shirt",
                       productSlug: "frozen-linen-shirt",
                       quantity: 2,
+                      snapshotId: "snapshot_1",
                       unitPriceCentavos: 1999,
                       variantLabel: "Size: Small",
                       variantOptions: [{ group: "Size", name: "Small" }],
                     },
                   ],
+                  returnHistory: [],
                   shippingAddress: {
                     barangay: "Poblacion",
                     cityProvince: "Makati",
@@ -589,6 +606,27 @@ describe("order routes", () => {
         error: { code: testCase.expectedCode },
       });
       expect(controllerFactoryCalls).toBe(0);
+
+      const returnResponse = await app.handle(
+        new Request("https://jrw.test/api/admin/orders/JRW-2026-ORDER1/returns", {
+          body: JSON.stringify({
+            reason: "Wrong size",
+            targetStatus: "RETURN_REQUESTED",
+            targetType: "ORDER",
+          }),
+          headers: {
+            ...testCase.headers,
+            "content-type": "application/json",
+          },
+          method: "POST",
+        })
+      );
+
+      expect(returnResponse.status).toBe(testCase.expectedStatus);
+      await expect(returnResponse.json()).resolves.toMatchObject({
+        error: { code: testCase.expectedCode },
+      });
+      expect(controllerFactoryCalls).toBe(0);
     }
   });
 
@@ -618,7 +656,11 @@ describe("order routes", () => {
                       updatedAt: "2026-07-08T02:00:00.000Z",
                       value: "PROCESSING",
                     },
-                    items: orderSnapshotItems(),
+                    items: orderSnapshotItems().map((item) => ({
+                      ...item,
+                      snapshotId: "snapshot_1",
+                    })),
+                    returnHistory: [],
                     shippingAddress: {
                       barangay: "Poblacion",
                       cityProvince: "Makati",
@@ -709,6 +751,162 @@ describe("order routes", () => {
       },
     });
   });
+
+  it("returns Admin return recording envelopes and conflict details", async () => {
+    const orderDetail = {
+      ...adminOrderListData().items[0],
+      contact: {
+        checkoutEmail: "nina@example.test",
+        fullName: "Nina Reyes",
+        phone: "09171234567",
+      },
+      fulfillment: {
+        kind: "fulfillment" as const,
+        label: "Delivered",
+        updatedAt: "2026-07-08T02:00:00.000Z",
+        value: "DELIVERED",
+      },
+      items: orderSnapshotItems().map((item) => ({
+        ...item,
+        snapshotId: "snapshot_1",
+      })),
+      return: {
+        kind: "return" as const,
+        label: "Return requested",
+        updatedAt: "2026-07-08T03:00:00.000Z",
+        value: "RETURN_REQUESTED",
+      },
+      returnHistory: [],
+      shippingAddress: {
+        barangay: "Poblacion",
+        cityProvince: "Makati",
+        postalCode: "1200",
+        shippingType: "STANDARD",
+        streetAddress: "12 Sampaguita Street",
+      },
+    };
+    const successApp = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        orders: {
+          controllerFactory: () =>
+            createController({
+              recordAdminOrderReturn: async () =>
+                Result.okay({
+                  allowedNextStatuses: [
+                    "RETURN_APPROVED",
+                    "RETURN_REJECTED",
+                    "RETURN_CANCELLED",
+                  ],
+                  order: orderDetail,
+                  returnRecord: {
+                    actorId: "admin_1",
+                    amountCentavos: 500,
+                    createdAt: "2026-07-08T03:00:00.000Z",
+                    currency: "PHP",
+                    id: "return_1",
+                    notes: "Inspected.",
+                    orderId: "order_1",
+                    orderSnapshotId: "snapshot_1",
+                    previousStatus: null,
+                    reason: "Wrong size",
+                    referenceId: "RET-1",
+                    requestId: "req_return_route",
+                    status: "RETURN_REQUESTED",
+                    statusLabel: "Return requested",
+                    targetLabel: "Frozen Linen Shirt - Size: Small",
+                    targetType: "ITEM",
+                    updatedAt: "2026-07-08T03:00:00.000Z",
+                  },
+                }),
+            }),
+        },
+      },
+    });
+    const conflictApp = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        orders: {
+          controllerFactory: () =>
+            createController({
+              recordAdminOrderReturn: async () =>
+                Result.error(
+                  new GeneralError(
+                    { reason: "FULFILLMENT_NOT_DELIVERED" },
+                    "CONFLICT_STATE"
+                  )
+                ),
+            }),
+        },
+      },
+    });
+
+    const success = await successApp.handle(
+      new Request("https://jrw.test/api/admin/orders/JRW-2026-ORDER1/returns", {
+        body: JSON.stringify({
+          amountCentavos: 500,
+          orderSnapshotId: "snapshot_1",
+          reason: "Wrong size",
+          targetStatus: "RETURN_REQUESTED",
+          targetType: "ITEM",
+        }),
+        headers: {
+          "content-type": "application/json",
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_return_route",
+        },
+        method: "POST",
+      })
+    );
+    const successBody = await success.json();
+
+    expect(success.status).toBe(200);
+    expect(successBody).toMatchObject({
+      data: {
+        allowedNextStatuses: [
+          "RETURN_APPROVED",
+          "RETURN_REJECTED",
+          "RETURN_CANCELLED",
+        ],
+        order: { return: { value: "RETURN_REQUESTED" } },
+        returnRecord: {
+          reason: "Wrong size",
+          status: "RETURN_REQUESTED",
+          targetType: "ITEM",
+        },
+      },
+      meta: { requestId: "req_return_route" },
+    });
+
+    const conflict = await conflictApp.handle(
+      new Request("https://jrw.test/api/admin/orders/JRW-2026-ORDER1/returns", {
+        body: JSON.stringify({
+          reason: "Wrong size",
+          targetStatus: "RETURN_REQUESTED",
+          targetType: "ORDER",
+        }),
+        headers: {
+          "content-type": "application/json",
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_return_conflict",
+        },
+        method: "POST",
+      })
+    );
+
+    expect(conflict.status).toBe(409);
+    await expect(conflict.json()).resolves.toMatchObject({
+      error: {
+        code: "CONFLICT_STATE",
+        details: { reason: "FULFILLMENT_NOT_DELIVERED" },
+      },
+    });
+  });
+
 
   it("rejects unsupported Admin order query fields", async () => {
     const app = createApp({

@@ -95,4 +95,34 @@ describe("customer order status lanes", () => {
       /PAYMENT_PAID|ORDER_PLACED|RETURN_NOT_REQUESTED|REFUND_NOT_REQUESTED/
     );
   });
+
+  it("shows active return status with customer-safe labels and no Admin details", () => {
+    const lanes = buildCustomerOrderStatusLanes({
+      fulfillmentStatus: "DELIVERED",
+      paymentStatus: "PAYMENT_PAID",
+      returnStatus: "RETURN_APPROVED",
+      returnUpdatedAt: "2026-07-08T04:00:00.000Z",
+      updatedAt: "2026-07-08T03:00:00.000Z",
+    });
+    const timeline = buildCustomerOrderTimeline({
+      createdAt: "2026-07-08T01:00:00.000Z",
+      lanes,
+      updatedAt: "2026-07-08T04:00:00.000Z",
+    });
+
+    expect(lanes.return).toEqual({
+      kind: "return",
+      label: "Return approved",
+      updatedAt: "2026-07-08T04:00:00.000Z",
+      value: "RETURN_APPROVED",
+    });
+    expect(timeline[0]).toMatchObject({
+      label: "Return approved",
+      lane: "return",
+      title: "Return approved",
+    });
+    expect(JSON.stringify(timeline)).not.toMatch(
+      /RETURN_APPROVED|admin|notes|reference|request_id|provider/i
+    );
+  });
 });

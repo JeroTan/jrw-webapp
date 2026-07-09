@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { ReturnStatus } from "@/domain/orders/return-transitions";
 import type {
   AdminOrderListResult,
   CustomerOrderListResult,
@@ -90,6 +91,10 @@ function repositoryStub(
       calls.push(`subject:${input.orderIdOrNumber}`);
       return null;
     },
+    getAdminReturnTransitionSubject: async (input) => {
+      calls.push(`return-subject:${input.orderIdOrNumber}`);
+      return null;
+    },
     getAdminOrderDetail: async (input) => {
       calls.push(`admin-detail:${input.orderIdOrNumber}`);
       return {
@@ -106,11 +111,13 @@ function repositoryStub(
             productName: "Frozen Linen Shirt",
             productSlug: "frozen-linen-shirt",
             quantity: 1,
+            snapshotId: "snapshot_1",
             unitPriceCentavos: 1999,
             variantLabel: "Size: Small",
             variantOptions: [{ group: "Size", name: "Small" }],
           },
         ],
+        returnHistory: [],
         shippingAddress: {
           barangay: "Poblacion",
           cityProvince: "Makati",
@@ -151,6 +158,7 @@ function repositoryStub(
     },
     markFulfillmentStatusEmailFailed: async () => undefined,
     markFulfillmentStatusEmailSent: async () => undefined,
+    recordAdminOrderReturn: async () => ({ decision: "missing-order" }),
     transitionAdminOrderFulfillment: async () => ({
       decision: "missing-order",
     }),
@@ -495,7 +503,11 @@ describe("order service", () => {
               fullName: "Nina Reyes",
               phone: "09171234567",
             },
-            items: snapshotItems,
+            items: snapshotItems.map((item) => ({
+              ...item,
+              snapshotId: "snapshot_1",
+            })),
+            returnHistory: [],
             payment: lanes.payment,
             shippingAddress: {
               barangay: "Poblacion",
@@ -650,7 +662,11 @@ describe("order service", () => {
             fullName: "Nina Reyes",
             phone: "09171234567",
           },
-          items: snapshotItems,
+          items: snapshotItems.map((item) => ({
+            ...item,
+            snapshotId: "snapshot_1",
+          })),
+          returnHistory: [],
           shippingAddress: {
             barangay: "Poblacion",
             cityProvince: "Makati",
@@ -688,5 +704,463 @@ describe("order service", () => {
     });
     expect(repository.calls).toContain("failed:fulfillment_event_1");
     expect(JSON.stringify(logs)).toContain("fulfillment.email_failed");
+  });
+
+  it("records Admin returns, keeps payment and fulfillment lanes unchanged, and publishes safe audit", async () => {
+    const repository = repositoryStub({
+      getAdminReturnTransitionSubject: async (input) => {
+        repository.calls.push(`return-subject:${input.orderIdOrNumber}`);
+        return {
+          currency: "PHP" as const,
+          currentReturnStatus: null,
+          currentReturnUpdatedAt: null,
+          fulfillmentStatus: "DELIVERED",
+          items: [
+            {
+              ...snapshotItems[0],
+              snapshotId: "snapshot_1",
+            },
+          ],
+          orderId: "order_1",
+          orderNumber: "JRW-2026-ORDER1",
+          paymentStatus: "PAYMENT_PAID",
+          totalCentavos: 1999,
+          updatedAt: "2026-07-08T01:00:00.000Z",
+        };
+      },
+      recordAdminOrderReturn: async (input) => {
+        repository.calls.push(
+          `record-return:${input.orderId}:${input.targetType}:${input.orderSnapshotId}:${input.targetStatus}`
+        );
+        return {
+          decision: "recorded" as const,
+          order: {
+            ...adminListResult.items[0],
+            fulfillment: {
+              kind: "fulfillment" as const,
+              label: "Delivered",
+              updatedAt: "2026-07-08T01:00:00.000Z",
+              value: "DELIVERED",
+            },
+            return: {
+              kind: "return" as const,
+              label: "Return requested",
+              updatedAt: "2026-07-08T04:00:00.000Z",
+              value: "RETURN_REQUESTED",
+            },
+            contact: {
+              checkoutEmail: "nina@example.test",
+              fullName: "Nina Reyes",
+              phone: "09171234567",
+            },
+            items: [{ ...snapshotItems[0], snapshotId: "snapshot_1" }],
+            returnHistory: [],
+            shippingAddress: {
+              barangay: "Poblacion",
+              cityProvince: "Makati",
+              postalCode: "1200",
+              shippingType: "STANDARD",
+              streetAddress: "12 Sampaguita Street",
+            },
+          },
+          returnRecord: {
+            actorId: "admin_1",
+            amountCentavos: 500,
+            createdAt: "2026-07-08T04:00:00.000Z",
+            currency: "PHP" as const,
+            id: "return_1",
+            notes: "Inspected.",
+            orderId: "order_1",
+            orderSnapshotId: "snapshot_1",
+            previousStatus: null,
+            reason: "Wrong size",
+            referenceId: "RET-1",
+            requestId: "req_return",
+            status: "RETURN_REQUESTED" as ReturnStatus,
+            statusLabel: "Return requested",
+            targetLabel: "Frozen Linen Shirt - Size: Small",
+            targetType: "ITEM" as const,
+            updatedAt: "2026-07-08T04:00:00.000Z",
+          },
+        };
+      },
+    });
+    const auditEvents: unknown[] = [];
+    const service = new OrderService({
+      auditPublisher: {
+        publish: async (event) => void auditEvents.push(event),
+      },
+      now: () => "2026-07-08T04:00:00.000Z",
+      repository,
+    });
+
+    const result = await service.recordAdminOrderReturn({
+      actor: adminActor,
+      amountCentavos: 500,
+      notes: "Inspected.",
+      orderIdOrNumber: "JRW-2026-ORDER1",
+      orderSnapshotId: "snapshot_1",
+      reason: "Wrong size",
+      referenceId: "RET-1",
+      requestId: "req_return",
+      targetStatus: "RETURN_REQUESTED",
+      targetType: "ITEM",
+    });
+
+    expect(result).toMatchObject({
+      content: {
+        allowedNextStatuses: [
+          "RETURN_APPROVED",
+          "RETURN_REJECTED",
+          "RETURN_CANCELLED",
+        ],
+        order: {
+          fulfillment: { value: "DELIVERED" },
+          payment: { value: "PAYMENT_PAID" },
+          return: { value: "RETURN_REQUESTED" },
+        },
+        returnRecord: {
+          reason: "Wrong size",
+          status: "RETURN_REQUESTED",
+          targetType: "ITEM",
+        },
+      },
+    });
+    expect(repository.calls).toEqual([
+      "return-subject:JRW-2026-ORDER1",
+      "record-return:order_1:ITEM:snapshot_1:RETURN_REQUESTED",
+    ]);
+    expect(JSON.stringify(auditEvents)).toContain(
+      "refund-return.return_recorded"
+    );
+    expect(JSON.stringify(auditEvents)).not.toMatch(/Inspected|RET-1/);
+  });
+
+  it("records a return request for a remaining item when another item already has a return", async () => {
+    const repository = repositoryStub({
+      getAdminReturnTransitionSubject: async (input) => {
+        repository.calls.push(`return-subject:${input.orderIdOrNumber}`);
+        return {
+          currency: "PHP" as const,
+          currentReturnStatus: "RETURN_REQUESTED" as ReturnStatus,
+          currentReturnUpdatedAt: "2026-07-08T03:00:00.000Z",
+          fulfillmentStatus: "DELIVERED",
+          items: [
+            {
+              ...snapshotItems[0],
+              snapshotId: "snapshot_1",
+            },
+            {
+              imageR2Key: null,
+              lineTotalCentavos: 40000,
+              productName: "T-shirt 300 GSM",
+              productSlug: "t-shirt-300-gsm",
+              quantity: 1,
+              snapshotId: "snapshot_2",
+              unitPriceCentavos: 40000,
+              variantLabel: "SM",
+              variantOptions: [{ group: "Size", name: "SM" }],
+            },
+          ],
+          orderId: "order_1",
+          orderNumber: "JRW-2026-ORDER1",
+          paymentStatus: "PAYMENT_PAID",
+          returnHistory: [
+            {
+              actorId: "admin_1",
+              amountCentavos: null,
+              createdAt: "2026-07-08T03:00:00.000Z",
+              currency: "PHP" as const,
+              id: "return_1",
+              notes: null,
+              orderId: "order_1",
+              orderSnapshotId: "snapshot_1",
+              previousStatus: null,
+              reason: "Wrong item",
+              referenceId: null,
+              requestId: "req_return_1",
+              status: "RETURN_REQUESTED" as ReturnStatus,
+              statusLabel: "Return requested",
+              targetLabel: "Frozen Linen Shirt - Size: Small",
+              targetType: "ITEM" as const,
+              updatedAt: "2026-07-08T03:00:00.000Z",
+            },
+          ],
+          totalCentavos: 41999,
+          updatedAt: "2026-07-08T03:00:00.000Z",
+        };
+      },
+      recordAdminOrderReturn: async (input) => {
+        repository.calls.push(
+          `record-return:${input.orderSnapshotId}:${input.expectedReturnStatus ?? "null"}`
+        );
+        return {
+          decision: "recorded" as const,
+          order: {
+            ...adminListResult.items[0],
+            fulfillment: {
+              kind: "fulfillment" as const,
+              label: "Delivered",
+              updatedAt: "2026-07-08T01:00:00.000Z",
+              value: "DELIVERED",
+            },
+            return: {
+              kind: "return" as const,
+              label: "Return requested",
+              updatedAt: "2026-07-08T04:00:00.000Z",
+              value: "RETURN_REQUESTED",
+            },
+            contact: {
+              checkoutEmail: "nina@example.test",
+              fullName: "Nina Reyes",
+              phone: "09171234567",
+            },
+            items: [
+              { ...snapshotItems[0], snapshotId: "snapshot_1" },
+              {
+                imageR2Key: null,
+                lineTotalCentavos: 40000,
+                productName: "T-shirt 300 GSM",
+                productSlug: "t-shirt-300-gsm",
+                quantity: 1,
+                snapshotId: "snapshot_2",
+                unitPriceCentavos: 40000,
+                variantLabel: "SM",
+                variantOptions: [{ group: "Size", name: "SM" }],
+              },
+            ],
+            returnHistory: [],
+            shippingAddress: {
+              barangay: "Poblacion",
+              cityProvince: "Makati",
+              postalCode: "1200",
+              shippingType: "STANDARD",
+              streetAddress: "12 Sampaguita Street",
+            },
+          },
+          returnRecord: {
+            actorId: "admin_1",
+            amountCentavos: null,
+            createdAt: "2026-07-08T04:00:00.000Z",
+            currency: "PHP" as const,
+            id: "return_2",
+            notes: null,
+            orderId: "order_1",
+            orderSnapshotId: "snapshot_2",
+            previousStatus: null,
+            reason: "Second item issue",
+            referenceId: null,
+            requestId: "req_return_2",
+            status: "RETURN_REQUESTED" as ReturnStatus,
+            statusLabel: "Return requested",
+            targetLabel: "T-shirt 300 GSM - SM",
+            targetType: "ITEM" as const,
+            updatedAt: "2026-07-08T04:00:00.000Z",
+          },
+        };
+      },
+    });
+    const service = new OrderService({ repository });
+
+    const result = await service.recordAdminOrderReturn({
+      actor: adminActor,
+      orderIdOrNumber: "JRW-2026-ORDER1",
+      orderSnapshotId: "snapshot_2",
+      reason: "Second item issue",
+      requestId: "req_return_2",
+      targetStatus: "RETURN_REQUESTED",
+      targetType: "ITEM",
+    });
+
+    expect(result.error).toBeNull();
+    expect(result.content?.returnRecord).toMatchObject({
+      orderSnapshotId: "snapshot_2",
+      previousStatus: null,
+      status: "RETURN_REQUESTED",
+    });
+    expect(repository.calls).toEqual([
+      "return-subject:JRW-2026-ORDER1",
+      "record-return:snapshot_2:null",
+    ]);
+  });
+
+  it.each([
+    [{ authenticated: false, role: "PROSPECT" }, "AUTH_REQUIRED"],
+    [customerActor, "AUTH_FORBIDDEN"],
+    [
+      { authenticated: true, role: "SUPER_ADMIN", actorId: "owner_1" },
+      "AUTH_FORBIDDEN",
+    ],
+    [
+      {
+        ...adminActor,
+        accountStatus: {
+          approved: true,
+          emailVerified: true,
+          status: "SUSPENDED" as const,
+        },
+      },
+      "ACCOUNT_SUSPENDED",
+    ],
+    [
+      {
+        ...adminActor,
+        accountStatus: {
+          approved: true,
+          emailVerified: false,
+          status: "ACTIVE" as const,
+        },
+        eligibility: {
+          active: true,
+          approved: true,
+          emailVerified: false,
+        },
+      },
+      "EMAIL_NOT_VERIFIED",
+    ],
+    [
+      {
+        ...adminActor,
+        accountStatus: {
+          approved: false,
+          emailVerified: true,
+          status: "ACTIVE" as const,
+        },
+        eligibility: {
+          active: true,
+          approved: false,
+          emailVerified: true,
+        },
+      },
+      "ADMIN_APPROVAL_REQUIRED",
+    ],
+  ])("denies invalid Admin return actor %j", async (actor, expectedCode) => {
+    const repository = repositoryStub();
+    const service = new OrderService({ repository });
+
+    const result = await service.recordAdminOrderReturn({
+      actor,
+      orderIdOrNumber: "order_1",
+      reason: "Wrong size",
+      requestId: "req_return_denied",
+      targetStatus: "RETURN_REQUESTED",
+      targetType: "ORDER",
+    });
+
+    expect(result.error?.code).toBe(expectedCode);
+    expect(repository.calls).toEqual([]);
+  });
+
+  it("validates return body, paid/delivered gates, stale transitions, and audit failure safety", async () => {
+    const subject = {
+      currency: "PHP" as const,
+      currentReturnStatus: null,
+      currentReturnUpdatedAt: null,
+      fulfillmentStatus: "SHIPPED",
+      items: [{ ...snapshotItems[0], snapshotId: "snapshot_1" }],
+      orderId: "order_1",
+      orderNumber: "JRW-2026-ORDER1",
+      paymentStatus: "PAYMENT_PAID",
+      totalCentavos: 1999,
+      updatedAt: "2026-07-08T01:00:00.000Z",
+    };
+    const unpaid = await new OrderService({
+      repository: repositoryStub({
+        getAdminReturnTransitionSubject: async () => ({
+          ...subject,
+          fulfillmentStatus: "DELIVERED",
+          paymentStatus: "PAYMENT_PENDING",
+        }),
+      }),
+    }).recordAdminOrderReturn({
+      actor: adminActor,
+      orderIdOrNumber: "order_1",
+      reason: "Wrong size",
+      requestId: "req_unpaid_return",
+      targetStatus: "RETURN_REQUESTED",
+      targetType: "ORDER",
+    });
+    const notDelivered = await new OrderService({
+      repository: repositoryStub({
+        getAdminReturnTransitionSubject: async () => subject,
+      }),
+    }).recordAdminOrderReturn({
+      actor: adminActor,
+      orderIdOrNumber: "order_1",
+      reason: "Wrong size",
+      requestId: "req_not_delivered_return",
+      targetStatus: "RETURN_REQUESTED",
+      targetType: "ORDER",
+    });
+    const stale = await new OrderService({
+      repository: repositoryStub({
+        getAdminReturnTransitionSubject: async () => ({
+          ...subject,
+          currentReturnStatus: "RETURN_REQUESTED" as ReturnStatus,
+          fulfillmentStatus: "DELIVERED",
+          returnHistory: [
+            {
+              actorId: "admin_1",
+              amountCentavos: null,
+              createdAt: "2026-07-08T03:00:00.000Z",
+              currency: "PHP" as const,
+              id: "return_1",
+              notes: null,
+              orderId: "order_1",
+              orderSnapshotId: null,
+              previousStatus: null,
+              reason: "Wrong size",
+              referenceId: null,
+              requestId: "req_return_1",
+              status: "RETURN_REQUESTED" as ReturnStatus,
+              statusLabel: "Return requested",
+              targetLabel: "Entire order",
+              targetType: "ORDER" as const,
+              updatedAt: "2026-07-08T03:00:00.000Z",
+            },
+          ],
+        }),
+        recordAdminOrderReturn: async () => ({
+          currentReturnStatus: "RETURN_APPROVED" as ReturnStatus,
+          decision: "stale" as const,
+          orderId: "order_1",
+          reason: "STALE_RETURN_STATUS" as const,
+        }),
+      }),
+    }).recordAdminOrderReturn({
+      actor: adminActor,
+      orderIdOrNumber: "order_1",
+      reason: "Approved",
+      requestId: "req_stale_return",
+      targetStatus: "RETURN_APPROVED",
+      targetType: "ORDER",
+    });
+    const invalid = await new OrderService({
+      repository: repositoryStub(),
+    }).recordAdminOrderReturn({
+      actor: adminActor,
+      amountCentavos: -1,
+      orderIdOrNumber: " ",
+      reason: " ",
+      requestId: "req_invalid_return",
+      targetStatus: "RETURN_NOT_REQUESTED",
+      targetType: "ITEM",
+    });
+
+    expect(unpaid.error).toMatchObject({
+      code: "CONFLICT_STATE",
+      data: { reason: "PAYMENT_NOT_PAID" },
+    });
+    expect(notDelivered.error).toMatchObject({
+      code: "CONFLICT_STATE",
+      data: { reason: "FULFILLMENT_NOT_DELIVERED" },
+    });
+    expect(stale.error).toMatchObject({
+      code: "CONFLICT_STATE",
+      data: { reason: "STALE_RETURN_STATUS" },
+    });
+    expect(invalid.error).toMatchObject({
+      code: "VALIDATION_FAILED",
+    });
   });
 });

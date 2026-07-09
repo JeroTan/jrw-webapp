@@ -450,6 +450,47 @@ export const order_snapshots = sqliteTable(
   ]
 );
 
+export const order_return_records = sqliteTable(
+  "order_return_records",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    order_id: text("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    order_snapshot_id: text("order_snapshot_id").references(
+      () => order_snapshots.id,
+      { onDelete: "set null" }
+    ),
+    target_type: text("target_type").notNull(),
+    previous_return_status: text("previous_return_status"),
+    return_status: text("return_status").notNull(),
+    amount_centavos: integer("amount_centavos"),
+    currency: text("currency").notNull().default("PHP"),
+    reason: text("reason").notNull(),
+    notes: text("notes"),
+    reference_id: text("reference_id"),
+    actor_id: text("actor_id"),
+    request_id: text("request_id").notNull(),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("uq_order_return_records_request_id").on(table.request_id),
+    index("idx_order_return_records_order_id").on(table.order_id),
+    index("idx_order_return_records_order_snapshot_id").on(
+      table.order_snapshot_id
+    ),
+    index("idx_order_return_records_return_status").on(table.return_status),
+    index("idx_order_return_records_created_at").on(table.created_at),
+  ]
+);
+
 export const reviews = sqliteTable("reviews", {
   id: text("id")
     .primaryKey()
@@ -477,6 +518,7 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     references: [customers.id],
   }),
   fulfillmentEvents: many(order_fulfillment_events),
+  returnRecords: many(order_return_records),
   snapshots: many(order_snapshots),
   reviews: many(reviews),
 }));
@@ -613,7 +655,7 @@ export const paymentWebhookEventsRelations = relations(
 
 export const orderSnapshotsRelations = relations(
   order_snapshots,
-  ({ one }) => ({
+  ({ one, many }) => ({
     order: one(orders, {
       fields: [order_snapshots.order_id],
       references: [orders.id],
@@ -625,6 +667,21 @@ export const orderSnapshotsRelations = relations(
     variant: one(product_variants, {
       fields: [order_snapshots.variant_id],
       references: [product_variants.id],
+    }),
+    returnRecords: many(order_return_records),
+  })
+);
+
+export const orderReturnRecordsRelations = relations(
+  order_return_records,
+  ({ one }) => ({
+    order: one(orders, {
+      fields: [order_return_records.order_id],
+      references: [orders.id],
+    }),
+    snapshot: one(order_snapshots, {
+      fields: [order_return_records.order_snapshot_id],
+      references: [order_snapshots.id],
     }),
   })
 );

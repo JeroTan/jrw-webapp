@@ -52,6 +52,7 @@ const order: AdminOrderDetail = {
       productName: "Frozen Linen Shirt",
       productSlug: "frozen-linen-shirt",
       quantity: 2,
+      snapshotId: "snapshot_1",
       unitPriceCentavos: 1999,
       variantLabel: "Size: Small",
       variantOptions: [{ group: "Size", name: "Small" }],
@@ -59,6 +60,7 @@ const order: AdminOrderDetail = {
   ],
   orderId: "order_1",
   orderNumber: "JRW-2026-ORDER1",
+  returnHistory: [],
   shippingAddress: {
     barangay: "Poblacion",
     cityProvince: "Makati",
@@ -158,6 +160,10 @@ describe("admin orders UI", () => {
     expect(markup).toContain("Fulfillment actions");
     expect(markup).toContain("Start processing");
     expect(markup).toContain("Cancel order");
+    expect(markup).toContain("Return actions");
+    expect(markup).toContain("Return available after delivery.");
+    expect(markup).toContain("Return history");
+    expect(markup).toContain("No return history yet.");
     expect(markup).toContain(
       "order-1 grid gap-grid-sm lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]"
     );
@@ -174,8 +180,179 @@ describe("admin orders UI", () => {
     expect(markup).toContain("12 Sampaguita Street");
     expect(markup).not.toContain("Approve refund");
     expect(markup).not.toContain("Return requested");
-    expect(markup).not.toMatch(/ORDER_PLACED|PAYMENT_PAID|CUSTOMER/);
+    expect(markup).not.toMatch(
+      /ORDER_PLACED|PAYMENT_PAID|CUSTOMER|RETURN_NOT_REQUESTED/
+    );
     expect(markup).not.toContain(">Snapshot<");
+  });
+
+  it("renders return request form with human labels only", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AdminOrderDetailDashboard, {
+        autoLoad: false,
+        initialLoadState: "ready",
+        initialOrder: {
+          ...order,
+          fulfillment: {
+            kind: "fulfillment",
+            label: "Delivered",
+            updatedAt: "2026-07-08T02:00:00.000Z",
+            value: "DELIVERED",
+          },
+        },
+        orderId: "order_1",
+      })
+    );
+
+    expect(markup).toContain("Return actions");
+    expect(markup).toContain("Target type");
+    expect(markup).toContain("Entire order");
+    expect(markup).toContain("Purchased item");
+    expect(markup).toContain("Item");
+    expect(markup).toContain("Reason");
+    expect(markup).toContain("Notes");
+    expect(markup).toContain("Reference ID");
+    expect(markup).toContain("Record return request");
+    expect(markup).toContain("Return history");
+    expect(markup).toContain("No return history yet.");
+    expect(markup).not.toContain("Amount");
+    expect(markup).not.toMatch(
+      /RETURN_APPROVED|RETURN_RECEIVED|RETURN_REQUESTED|req_return_1/
+    );
+  });
+
+  it("renders direct next-step buttons after return is requested", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AdminOrderDetailDashboard, {
+        autoLoad: false,
+        initialLoadState: "ready",
+        initialOrder: {
+          ...order,
+          fulfillment: {
+            kind: "fulfillment",
+            label: "Delivered",
+            updatedAt: "2026-07-08T02:00:00.000Z",
+            value: "DELIVERED",
+          },
+          return: {
+            kind: "return",
+            label: "Return requested",
+            updatedAt: "2026-07-08T03:00:00.000Z",
+            value: "RETURN_REQUESTED",
+          },
+          returnHistory: [
+            {
+              actorId: "admin_1",
+              amountCentavos: 0,
+              createdAt: "2026-07-08T03:00:00.000Z",
+              currency: "PHP",
+              id: "return_1",
+              notes: null,
+              orderId: "order_1",
+              orderSnapshotId: "snapshot_1",
+              previousStatus: null,
+              reason: "Wrong size",
+              referenceId: null,
+              requestId: "req_return_1",
+              status: "RETURN_REQUESTED",
+              statusLabel: "Return requested",
+              targetLabel: "Frozen Linen Shirt - Size: Small",
+              targetType: "ITEM",
+              updatedAt: "2026-07-08T03:00:00.000Z",
+            },
+          ],
+        },
+        orderId: "order_1",
+      })
+    );
+
+    expect(markup).toContain("Approve return");
+    expect(markup).toContain("Decline return");
+    expect(markup).toContain("Cancel return");
+    expect(markup).toContain("md:col-span-2");
+    expect(markup).not.toContain("Amount");
+    expect(markup).not.toMatch(/RETURN_APPROVED|RETURN_REJECTED|RETURN_CANCELLED/);
+  });
+
+  it("keeps remaining purchased items returnable after one item return request", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AdminOrderDetailDashboard, {
+        autoLoad: false,
+        initialLoadState: "ready",
+        initialOrder: {
+          ...order,
+          fulfillment: {
+            kind: "fulfillment",
+            label: "Delivered",
+            updatedAt: "2026-07-08T02:00:00.000Z",
+            value: "DELIVERED",
+          },
+          itemCount: 2,
+          items: [
+            {
+              ...order.items[0],
+              productName: "Perfume EDP",
+              snapshotId: "snapshot_1",
+              variantLabel: "100ml",
+            },
+            {
+              imageR2Key: null,
+              lineTotalCentavos: 40000,
+              productName: "T-shirt 300 GSM",
+              productSlug: "t-shirt-300-gsm",
+              quantity: 1,
+              snapshotId: "snapshot_2",
+              unitPriceCentavos: 40000,
+              variantLabel: "SM",
+              variantOptions: [{ group: "Size", name: "SM" }],
+            },
+          ],
+          return: {
+            kind: "return",
+            label: "Return requested",
+            updatedAt: "2026-07-08T03:00:00.000Z",
+            value: "RETURN_REQUESTED",
+          },
+          returnHistory: [
+            {
+              actorId: "admin_1",
+              amountCentavos: 0,
+              createdAt: "2026-07-08T03:00:00.000Z",
+              currency: "PHP",
+              id: "return_1",
+              notes: null,
+              orderId: "order_1",
+              orderSnapshotId: "snapshot_1",
+              previousStatus: null,
+              reason: "Wrong item",
+              referenceId: null,
+              requestId: "req_return_1",
+              status: "RETURN_REQUESTED",
+              statusLabel: "Return requested",
+              targetLabel: "Perfume EDP - 100ml",
+              targetType: "ITEM",
+              updatedAt: "2026-07-08T03:00:00.000Z",
+            },
+          ],
+          totalQuantity: 2,
+        },
+        orderId: "order_1",
+      })
+    );
+
+    expect(markup).toContain(
+      "Choose another purchased item to create a separate return request."
+    );
+    expect(markup).toContain("T-shirt 300 GSM - SM");
+    expect(markup).not.toContain("<option value=\"snapshot_1\">Perfume EDP");
+    expect(markup).toContain("Record return request");
+    expect(markup).toContain("Approve return");
+    expect(markup).toContain("Decline return");
+    expect(markup).toContain("Cancel return");
+    expect(markup).not.toContain("All purchased items already have return records.");
+    expect(markup).not.toContain(
+      "Return request already covers whole order. Use return history actions below."
+    );
   });
 
   it("renders disabled fulfillment reason when payment is not paid", () => {

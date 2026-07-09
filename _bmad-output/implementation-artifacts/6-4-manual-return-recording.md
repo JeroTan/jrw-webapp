@@ -1,6 +1,6 @@
 # Story 6.4: Manual Return Recording
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -25,75 +25,75 @@ so that JRW can track return handling without automating provider refunds.
 
 ## Tasks / Subtasks
 
-- [ ] Add pure return transition domain rules. (AC: 4, 5, 6, 8, 9)
-  - [ ] Create `src/domain/orders/return-transitions.ts` or `src/domain/returns-refunds/return-transitions.ts`; keep it provider-free and DB-free.
-  - [ ] Export exact `ReturnStatus` union for submitted statuses, `ReturnDisplayStatus` if needed, label helpers, allowed-next helper, status guard, and transition evaluator.
-  - [ ] Treat `RETURN_NOT_REQUESTED` as display idle only. It can appear in lanes when no record exists, but must not be accepted as a mutation target.
-  - [ ] Enforce transition matrix from `docs/order-status-flow.md`.
-  - [ ] Enforce new-case gate: payment paid and delivered fulfillment.
+- [x] Add pure return transition domain rules. (AC: 4, 5, 6, 8, 9)
+  - [x] Create `src/domain/orders/return-transitions.ts` or `src/domain/returns-refunds/return-transitions.ts`; keep it provider-free and DB-free.
+  - [x] Export exact `ReturnStatus` union for submitted statuses, `ReturnDisplayStatus` if needed, label helpers, allowed-next helper, status guard, and transition evaluator.
+  - [x] Treat `RETURN_NOT_REQUESTED` as display idle only. It can appear in lanes when no record exists, but must not be accepted as a mutation target.
+  - [x] Enforce transition matrix from `docs/order-status-flow.md`.
+  - [x] Enforce new-case gate: payment paid and delivered fulfillment.
 
-- [ ] Add append-only return persistence. (AC: 3, 7, 8)
-  - [ ] Add Drizzle table in `src/domain/schema/transactions.ts`, recommended name `order_return_records`.
-  - [ ] Add migration `migrations/0034_order_return_records.sql` unless another migration already claimed that number.
-  - [ ] Columns should include `id`, `order_id`, nullable `order_snapshot_id`, `target_type`, nullable `previous_return_status`, `return_status`, nullable `amount_centavos`, `currency`, `reason`, nullable `notes`, nullable `reference_id`, `actor_id`, `request_id`, `created_at`, and `updated_at`.
-  - [ ] Add FK to `orders.id` with cascade delete and FK to `order_snapshots.id` with cascade or set-null chosen deliberately.
-  - [ ] Add unique index on `request_id`; add indexes on `order_id`, `order_snapshot_id`, `return_status`, and `created_at`.
-  - [ ] Add relations and schema invariant tests that reject customer contact, provider payload, tokens, signatures, raw PayMongo fields, and card data in the return table.
+- [x] Add append-only return persistence. (AC: 3, 7, 8)
+  - [x] Add Drizzle table in `src/domain/schema/transactions.ts`, recommended name `order_return_records`.
+  - [x] Add migration `migrations/0034_order_return_records.sql` unless another migration already claimed that number.
+  - [x] Columns should include `id`, `order_id`, nullable `order_snapshot_id`, `target_type`, nullable `previous_return_status`, `return_status`, nullable `amount_centavos`, `currency`, `reason`, nullable `notes`, nullable `reference_id`, `actor_id`, `request_id`, `created_at`, and `updated_at`.
+  - [x] Add FK to `orders.id` with cascade delete and FK to `order_snapshots.id` with cascade or set-null chosen deliberately.
+  - [x] Add unique index on `request_id`; add indexes on `order_id`, `order_snapshot_id`, `return_status`, and `created_at`.
+  - [x] Add relations and schema invariant tests that reject customer contact, provider payload, tokens, signatures, raw PayMongo fields, and card data in the return table.
 
-- [ ] Extend `DrizzleOrderRepository` read models and mutation methods. (AC: 2, 3, 6, 7, 8, 9)
-  - [ ] Load latest return record per order for Customer list/detail and Admin list/detail; pass latest status and timestamp into `buildCustomerOrderStatusLanes`.
-  - [ ] Add Admin-only return history to Admin detail, including safe labels and target labels.
-  - [ ] Expose `snapshotId` or equivalent stable item id only where Admin return selection needs it. Avoid adding internal item ids to Customer responses unless explicitly documented and tested.
-  - [ ] Add a transition subject loader with order id/number, payment status, fulfillment status, current latest return status, snapshots, and totals.
-  - [ ] Add `recordAdminOrderReturn(...)` that validates same-order item target, appends a record, and returns updated Admin detail.
-  - [ ] Copy 6.3 request-id learning: if an existing `request_id` row is found, accept it only when order, target, previous status, new status, and submitted details match; otherwise return stale/conflict instead of silently reusing another record.
+- [x] Extend `DrizzleOrderRepository` read models and mutation methods. (AC: 2, 3, 6, 7, 8, 9)
+  - [x] Load latest return record per order for Customer list/detail and Admin list/detail; pass latest status and timestamp into `buildCustomerOrderStatusLanes`.
+  - [x] Add Admin-only return history to Admin detail, including safe labels and target labels.
+  - [x] Expose `snapshotId` or equivalent stable item id only where Admin return selection needs it. Avoid adding internal item ids to Customer responses unless explicitly documented and tested.
+  - [x] Add a transition subject loader with order id/number, payment status, fulfillment status, current latest return status, snapshots, and totals.
+  - [x] Add `recordAdminOrderReturn(...)` that validates same-order item target, appends a record, and returns updated Admin detail.
+  - [x] Copy 6.3 request-id learning: if an existing `request_id` row is found, accept it only when order, target, previous status, new status, and submitted details match; otherwise return stale/conflict instead of silently reusing another record.
 
-- [ ] Extend service/controller/routes. (AC: 2, 6, 7, 8, 9)
-  - [ ] Add `OrderService.recordAdminOrderReturn(...)` using existing Admin-only policy; Super Admin remains denied unless product policy changes intentionally.
-  - [ ] Validate blank order id, invalid target type, missing item id for item target, unknown item id, unknown status, idle status, blank reason, oversized text, and invalid amount.
-  - [ ] Return `RESOURCE_NOT_FOUND` for unknown order, `VALIDATION_FAILED` for bad body/status/amount, `CONFLICT_STATE` for invalid state transitions or stale latest return state, and `PROVIDER_UNAVAILABLE` for D1 failures.
-  - [ ] Publish safe audit events with `refund-return.return_recorded` for first record and `refund-return.status_changed` for later records. Audit failure must never mask a successful return record.
-  - [ ] Add `OrderController.recordAdminOrderReturn(...)`.
-  - [ ] Add route `POST /admin/orders/:orderId/returns` in `src/server/routes/orders.routes.ts` with TypeBox params/body/response schemas, `routeDetail(...)`, `rbacGuard(adminOrderAuth)`, `admin-write` rate-limit class, and full error code list.
-  - [ ] Do not add email, PayMongo refund, inventory, or Customer mutation behavior in this story.
+- [x] Extend service/controller/routes. (AC: 2, 6, 7, 8, 9)
+  - [x] Add `OrderService.recordAdminOrderReturn(...)` using existing Admin-only policy; Super Admin remains denied unless product policy changes intentionally.
+  - [x] Validate blank order id, invalid target type, missing item id for item target, unknown item id, unknown status, idle status, blank reason, oversized text, and invalid amount.
+  - [x] Return `RESOURCE_NOT_FOUND` for unknown order, `VALIDATION_FAILED` for bad body/status/amount, `CONFLICT_STATE` for invalid state transitions or stale latest return state, and `PROVIDER_UNAVAILABLE` for D1 failures.
+  - [x] Publish safe audit events with `refund-return.return_recorded` for first record and `refund-return.status_changed` for later records. Audit failure must never mask a successful return record.
+  - [x] Add `OrderController.recordAdminOrderReturn(...)`.
+  - [x] Add route `POST /admin/orders/:orderId/returns` in `src/server/routes/orders.routes.ts` with TypeBox params/body/response schemas, `routeDetail(...)`, `rbacGuard(adminOrderAuth)`, `admin-write` rate-limit class, and full error code list.
+  - [x] Do not add email, PayMongo refund, inventory, or Customer mutation behavior in this story.
 
-- [ ] Extend Admin order UI. (AC: 1, 3, 8, 9)
-  - [ ] Update `src/features/admin-orders/types.ts` with return record, return response, and Admin item selection fields.
-  - [ ] Add `recordAdminOrderReturn(...)` to `src/features/admin-orders/api.ts`.
-  - [ ] Extend `AdminOrderDetailDashboard.tsx` rather than creating a parallel order detail screen.
-  - [ ] Use existing shared primitives: `Button`, `Input`, `Select`, `Textarea`, `Modal` or `Drawer`, `StatusBadge`, `Skeleton`, `EmptyState`, and `Toast`/inline alert as appropriate.
-  - [ ] UI must show visible labels for target type, item, status, amount, reason, notes, and reference ID. Required fields must be clear.
-  - [ ] Button copy should be operational: "Record return", "Save return record", "Return requested", "Return approved", "Return received", "Return completed". Do not show raw status codes in routine UI.
-  - [ ] Disable or explain return action when payment is not paid, fulfillment is not delivered, return is terminal, or selected item is invalid.
-  - [ ] On `CONFLICT_STATE`, refresh latest order detail and show allowed next status or safe reason.
-  - [ ] Show return history in Admin detail, newest-first, with target label, safe status label, amount when present, reason, notes, reference ID, actor safe id/label, and timestamp.
+- [x] Extend Admin order UI. (AC: 1, 3, 8, 9)
+  - [x] Update `src/features/admin-orders/types.ts` with return record, return response, and Admin item selection fields.
+  - [x] Add `recordAdminOrderReturn(...)` to `src/features/admin-orders/api.ts`.
+  - [x] Extend `AdminOrderDetailDashboard.tsx` rather than creating a parallel order detail screen.
+  - [x] Use existing shared primitives: `Button`, `Input`, `Select`, `Textarea`, `Modal` or `Drawer`, `StatusBadge`, `Skeleton`, `EmptyState`, and `Toast`/inline alert as appropriate.
+  - [x] UI must show visible labels for target type, item, status, amount, reason, notes, and reference ID. Required fields must be clear.
+  - [x] Button copy should be operational: "Record return", "Save return record", "Return requested", "Return approved", "Return received", "Return completed". Do not show raw status codes in routine UI.
+  - [x] Disable or explain return action when payment is not paid, fulfillment is not delivered, return is terminal, or selected item is invalid.
+  - [x] On `CONFLICT_STATE`, refresh latest order detail and show allowed next status or safe reason.
+  - [x] Show return history in Admin detail, newest-first, with target label, safe status label, amount when present, reason, notes, reference ID, actor safe id/label, and timestamp.
 
-- [ ] Update customer-safe projection. (AC: 9)
-  - [ ] Ensure Customer order list/detail and Admin list/detail receive latest return status from persistence.
-  - [ ] Keep `RETURN_NOT_REQUESTED` out of customer timeline events; existing `activeSupportTimelineEvents` already suppresses idle values, so preserve that behavior.
-  - [ ] Hide Admin-only return details from Customer endpoints while still showing safe return lane label when a return exists.
+- [x] Update customer-safe projection. (AC: 9)
+  - [x] Ensure Customer order list/detail and Admin list/detail receive latest return status from persistence.
+  - [x] Keep `RETURN_NOT_REQUESTED` out of customer timeline events; existing `activeSupportTimelineEvents` already suppresses idle values, so preserve that behavior.
+  - [x] Hide Admin-only return details from Customer endpoints while still showing safe return lane label when a return exists.
 
-- [ ] Add focused tests and validation. (AC: 10)
-  - [ ] Add domain tests for return status guards, labels, valid transitions, terminal states, idle rejection, paid/delivered gate, and unknown values.
-  - [ ] Extend `src/domain/schema-invariants.test.ts` for `order_return_records`.
-  - [ ] Extend `src/server/repositories/OrderRepository.test.ts` for append-only history, latest status projection, item target validation, idempotency match/mismatch, and customer detail hiding notes.
-  - [ ] Extend `src/server/services/OrderService.test.ts` for Admin allow/deny, Super Admin denial, payment/fulfillment gates, invalid transitions, audit publish/failure, and safe errors.
-  - [ ] Extend `src/server/routes/orders.routes.test.ts` for POST OpenAPI metadata, RBAC denial before controller, success envelope, validation envelope, and conflict envelope.
-  - [ ] Extend `src/features/admin-orders/admin-orders-ui.test.tsx` for return form states, disabled reasons, successful refresh, conflict refresh, and no raw status codes in visible copy.
-  - [ ] Run targeted tests plus `npm run check`; run `npm run build-test` if route/schema/UI changes are broad enough or document blocker.
+- [x] Add focused tests and validation. (AC: 10)
+  - [x] Add domain tests for return status guards, labels, valid transitions, terminal states, idle rejection, paid/delivered gate, and unknown values.
+  - [x] Extend `src/domain/schema-invariants.test.ts` for `order_return_records`.
+  - [x] Extend `src/server/repositories/OrderRepository.test.ts` for append-only history, latest status projection, item target validation, idempotency match/mismatch, and customer detail hiding notes.
+  - [x] Extend `src/server/services/OrderService.test.ts` for Admin allow/deny, Super Admin denial, payment/fulfillment gates, invalid transitions, audit publish/failure, and safe errors.
+  - [x] Extend `src/server/routes/orders.routes.test.ts` for POST OpenAPI metadata, RBAC denial before controller, success envelope, validation envelope, and conflict envelope.
+  - [x] Extend `src/features/admin-orders/admin-orders-ui.test.tsx` for return form states, disabled reasons, successful refresh, conflict refresh, and no raw status codes in visible copy.
+  - [x] Run targeted tests plus `npm run check`; run `npm run build-test` if route/schema/UI changes are broad enough or document blocker.
 
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint. Mark non-applicable items as `N/A` with reason.
 
-- [ ] Route auth metadata declares required auth, `roles: ["ADMIN"]`, and `admin-write` rate-limit class.
-- [ ] Route-level RBAC guard runs before validation or side effects for `POST /api/admin/orders/:orderId/returns`.
-- [ ] Service/controller enforces actor state before mutation: authenticated, active, verified, approved.
-- [ ] Brand-scoped reads or writes: N/A because JRW order returns are single-store Admin operations, not brand-scoped catalog editing.
-- [ ] Public/customer endpoints document why brand membership is not required and expose safe labels only.
-- [ ] Denial tests cover unauthenticated actor, Customer/Prospect wrong role, Super Admin current-policy denial, suspended/inactive/unverified/unapproved Admin, and controller-not-called guard path.
-- [ ] Error response uses safe envelope codes and does not leak provider/internal authorization, email, phone, address, notes to Customer, reference IDs to Customer, request IDs outside meta, DB errors, or stack details.
-- [ ] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, request body, response schema, denial codes, validation codes, and conflict codes.
+- [x] Route auth metadata declares required auth, `roles: ["ADMIN"]`, and `admin-write` rate-limit class.
+- [x] Route-level RBAC guard runs before validation or side effects for `POST /api/admin/orders/:orderId/returns`.
+- [x] Service/controller enforces actor state before mutation: authenticated, active, verified, approved.
+- [x] Brand-scoped reads or writes: N/A because JRW order returns are single-store Admin operations, not brand-scoped catalog editing.
+- [x] Public/customer endpoints: N/A for the new Admin return endpoint; existing customer endpoints keep safe return labels and no Admin return details.
+- [x] Denial tests cover unauthenticated actor, Customer/Prospect wrong role, Super Admin current-policy denial, suspended/inactive/unverified/unapproved Admin, and controller-not-called guard path.
+- [x] Error response uses safe envelope codes and does not leak provider/internal authorization, email, phone, address, notes to Customer, reference IDs to Customer, request IDs outside meta, DB errors, or stack details.
+- [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, request body, response schema, denial codes, validation codes, and conflict codes.
 
 ## Dev Notes
 
@@ -344,10 +344,52 @@ GPT-5 Codex
 
 ### Debug Log References
 
+- `npx vitest run src/domain/orders/return-transitions.test.ts` (pass)
+- `npx vitest run src/domain/schema-invariants.test.ts` (pass)
+- `npx vitest run src/server/repositories/OrderRepository.test.ts` (pass)
+- `npx vitest run src/server/services/OrderService.test.ts` (pass)
+- `npx vitest run src/server/routes/orders.routes.test.ts` (pass)
+- `npx vitest run src/features/admin-orders/admin-orders-ui.test.tsx` (pass)
+- `npx vitest run src/domain/orders/customer-order-status.test.ts` (pass)
+- `npm run check` (pass; existing unrelated hints remain)
+- `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` (pass; matches are existing tests/brand slugs only)
+- `npm run build-test` (pass: 141 files, 961 tests, Astro build complete)
+- `npm run db:migrate:remote` (pass: applied `0034_order_return_records.sql` to remote development D1)
+
 ### Completion Notes List
 
+- Added provider-free return transition rules, labels, submitted/display status guards, idle rejection, paid/delivered gate, and documented transition matrix coverage.
+- Added append-only `order_return_records` schema, migration, relations, and invariant coverage excluding contact/provider/card/secret fields. `order_snapshot_id` uses set-null so order-level audit remains intact if snapshot cleanup ever occurs.
+- Extended order read models with latest return lane projection, Admin-only return history, stable Admin `snapshotId` item selection, transition subject loading, append-only return inserts, same-order item validation, and request-id exact-match idempotency.
+- Added Admin return service/controller/route with TypeBox contracts, Admin-only RBAC, return validation, paid/delivered transition conflicts, safe audit events, and no email/refund/inventory side effects.
+- Extended Admin order detail with inline return recording, conflict refresh, disabled reasons, newest-first return history, and shared primitive form controls. Customer projections now receive latest return status while hiding Admin notes/reference/actor/request details.
+- Adjusted return targeting so item-level return records only block that item; remaining purchased items stay selectable, and return history actions advance each latest target independently.
+- Completed full validation, applied remote development D1 migration, and moved story to review.
+
 ### File List
+
+- src/domain/orders/return-transitions.ts
+- src/domain/orders/return-transitions.test.ts
+- migrations/0034_order_return_records.sql
+- src/domain/schema-invariants.test.ts
+- src/domain/schema/transactions.ts
+- src/domain/orders/customer-order-status.ts
+- src/server/repositories/OrderRepository.test.ts
+- src/server/repositories/OrderRepository.ts
+- src/server/controllers/OrderController.ts
+- src/server/routes/orders.routes.test.ts
+- src/server/routes/orders.routes.ts
+- src/server/services/OrderService.test.ts
+- src/server/services/OrderService.ts
+- src/features/admin-orders/admin-orders-ui.test.tsx
+- src/features/admin-orders/api.ts
+- src/features/admin-orders/components/AdminOrderDetailDashboard.tsx
+- src/features/admin-orders/types.ts
+- src/domain/orders/customer-order-status.test.ts
+- _bmad-output/implementation-artifacts/sprint-status.yaml
 
 ## Change Log
 
 - 2026-07-09: Created ready-for-dev story with return transition rules, append-only return records, Admin recording UI, customer-safe projection, and validation guardrails.
+- 2026-07-09: Implemented manual return recording, validated full build-test, applied development migration, and moved story to review.
+- 2026-07-09: Fixed item-level return targeting so one returned item does not disable return actions for remaining items.

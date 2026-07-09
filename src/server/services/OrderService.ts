@@ -12,6 +12,13 @@ import {
   type FulfillmentStatus,
 } from "@/domain/orders/fulfillment-transitions";
 import {
+  allowedNextReturnStatuses,
+  evaluateReturnTransition,
+  isReturnStatus,
+  returnStatuses,
+  type ReturnStatus,
+} from "@/domain/orders/return-transitions";
+import {
   FailingFulfillmentStatusEmailNotifier,
   type FulfillmentStatusEmailNotifier,
 } from "@/domain/notifications/fulfillment-status-email";
@@ -24,6 +31,9 @@ import type {
   AdminOrderDetailReadModel,
   AdminFulfillmentTransitionSubject,
   AdminOrderListResult,
+  AdminReturnRecordReadModel,
+  AdminReturnTargetType,
+  AdminReturnTransitionSubject,
   CustomerOrderDetailReadModel,
   CustomerOrderListResult,
   FulfillmentEmailStatus,
@@ -33,6 +43,8 @@ import type {
   ListAdminOrdersInput,
   ListCustomerOrdersInput,
   OrderFulfillmentEventRecord,
+  RecordAdminOrderReturnInput,
+  RecordAdminOrderReturnResult as RepositoryRecordAdminOrderReturnResult,
   TransitionAdminOrderFulfillmentInput,
   TransitionAdminOrderFulfillmentResult,
 } from "@/server/repositories/OrderRepository";
@@ -65,6 +77,9 @@ export type AdminOrderRepositoryLike = {
   getAdminOrderDetail(
     input: GetAdminOrderDetailInput
   ): Promise<AdminOrderDetailReadModel | null>;
+  getAdminReturnTransitionSubject(input: {
+    orderIdOrNumber: string;
+  }): Promise<AdminReturnTransitionSubject | null>;
   getFulfillmentStatusEmail(
     eventId: string
   ): Promise<FulfillmentStatusEmailRecord | null>;
@@ -80,6 +95,9 @@ export type AdminOrderRepositoryLike = {
     now?: string;
     requestId: string;
   }): Promise<void>;
+  recordAdminOrderReturn(
+    input: RecordAdminOrderReturnInput
+  ): Promise<RepositoryRecordAdminOrderReturnResult>;
   transitionAdminOrderFulfillment(
     input: TransitionAdminOrderFulfillmentInput
   ): Promise<TransitionAdminOrderFulfillmentResult>;
@@ -151,6 +169,25 @@ export type UpdateAdminOrderFulfillmentResult = {
   };
 };
 
+export type RecordAdminOrderReturnServiceInput = {
+  actor: OrderActorInput | undefined;
+  amountCentavos?: number;
+  notes?: string;
+  orderIdOrNumber: string;
+  orderSnapshotId?: string;
+  reason: string;
+  referenceId?: string;
+  requestId: string;
+  targetStatus: string;
+  targetType: string;
+};
+
+export type RecordAdminOrderReturnResult = {
+  allowedNextStatuses: ReturnStatus[];
+  order: AdminOrderDetailReadModel;
+  returnRecord: AdminReturnRecordReadModel;
+};
+
 export type OrderServiceOptions = {
   auditPublisher?: AuditEventPublisher;
   emailNotifier?: FulfillmentStatusEmailNotifier;
@@ -173,6 +210,71 @@ function providerFailure(error: unknown): boolean {
       error.message
     )
   );
+}
+
+function normalizeText(value: string | undefined): string | null {
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function normalizeOptionalText(
+  value: string | undefined,
+  maxLength: number
+): string | null | false {
+  if (typeof value === "undefined") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) {
+    return null;
+  }
+
+  return trimmed.length <= maxLength ? trimmed : false;
+}
+
+function normalizeTargetType(value: string): AdminReturnTargetType | null {
+  const normalized = value.trim().toUpperCase();
+
+  return normalized === "ORDER" || normalized === "ITEM" ? normalized : null;
+}
+
+function normalizeReturnAmount(value: number | undefined): number | null | false {
+  if (typeof value === "undefined") {
+    return null;
+  }
+
+  return Number.isSafeInteger(value) && value >= 0 ? value : false;
+}
+
+function targetKey(input: {
+  orderSnapshotId: string | null;
+  targetType: AdminReturnTargetType;
+}) {
+  return input.targetType === "ORDER"
+    ? "ORDER"
+    : `ITEM:${input.orderSnapshotId ?? ""}`;
+}
+
+function latestReturnStatusForTarget(
+  subject: AdminReturnTransitionSubject,
+  input: {
+    orderSnapshotId: string | null;
+    targetType: AdminReturnTargetType;
+  }
+): ReturnStatus | null {
+  const expectedKey = targetKey(input);
+  const record = (subject.returnHistory ?? []).find(
+    (historyRecord) =>
+      targetKey({
+        orderSnapshotId: historyRecord.orderSnapshotId,
+        targetType: historyRecord.targetType,
+      }) === expectedKey
+  );
+
+  return record?.status ?? null;
 }
 
 function requireCustomerActor(
@@ -478,6 +580,169 @@ export class OrderService {
     }
   }
 
+  async recordAdminOrderReturn(
+    input: RecordAdminOrderReturnServiceInput
+  ): Promise<AppResult<RecordAdminOrderReturnResult>> {
+    const actor = requireAdminActor(input.actor);
+
+    if (actor.error) {
+      return actor;
+    }
+
+    const orderIdOrNumber = input.orderIdOrNumber.trim();
+    const targetType = normalizeTargetType(input.targetType);
+    const targetStatusText = input.targetStatus.trim().toUpperCase();
+    const reason = normalizeText(input.reason);
+    const notes = normalizeOptionalText(input.notes, 2_000);
+    const referenceId = normalizeOptionalText(input.referenceId, 128);
+    const amountCentavos = normalizeReturnAmount(input.amountCentavos);
+    const orderSnapshotId = normalizeText(input.orderSnapshotId);
+
+    if (
+      orderIdOrNumber.length === 0 ||
+      !targetType ||
+      targetStatusText.length === 0 ||
+      !reason ||
+      reason.length > 512 ||
+      notes === false ||
+      referenceId === false ||
+      amountCentavos === false
+    ) {
+      return Result.error(serviceError("VALIDATION_FAILED"));
+    }
+
+    if (!isReturnStatus(targetStatusText)) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", {
+          allowedStatuses: returnStatuses,
+          reason: "UNKNOWN_TARGET_STATUS",
+          targetStatus: targetStatusText,
+        })
+      );
+    }
+
+    if (
+      (targetType === "ITEM" && !orderSnapshotId) ||
+      (targetType === "ORDER" && orderSnapshotId)
+    ) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", {
+          reason: "INVALID_RETURN_TARGET",
+          targetType,
+        })
+      );
+    }
+
+    try {
+      const subject = await this.repository.getAdminReturnTransitionSubject({
+        orderIdOrNumber,
+      });
+
+      if (!subject) {
+        return Result.error(serviceError("RESOURCE_NOT_FOUND"));
+      }
+
+      if (
+        targetType === "ITEM" &&
+        !subject.items.some((item) => item.snapshotId === orderSnapshotId)
+      ) {
+        return Result.error(
+          serviceError("VALIDATION_FAILED", {
+            reason: "INVALID_RETURN_TARGET",
+            targetType,
+          })
+        );
+      }
+
+      const currentTargetStatus = latestReturnStatusForTarget(subject, {
+        orderSnapshotId,
+        targetType,
+      });
+
+      const transitionCheck = evaluateReturnTransition({
+        currentStatus: currentTargetStatus,
+        fulfillmentStatus: subject.fulfillmentStatus,
+        paymentStatus: subject.paymentStatus,
+        targetStatus: targetStatusText,
+      });
+
+      if (!transitionCheck.allowed) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", {
+            allowedNextStatuses: transitionCheck.allowedNextStatuses,
+            currentStatus: transitionCheck.currentStatus,
+            fulfillmentStatus: transitionCheck.fulfillmentStatus,
+            paymentStatus: transitionCheck.paymentStatus,
+            reason: transitionCheck.reason,
+            targetStatus: transitionCheck.targetStatus,
+          })
+        );
+      }
+
+      const returnResult = await this.repository.recordAdminOrderReturn({
+        actorId: actor.content.adminId,
+        amountCentavos,
+        expectedReturnStatus: transitionCheck.oldStatus,
+        notes,
+        now: this.now(),
+        orderId: subject.orderId,
+        orderSnapshotId,
+        reason,
+        referenceId,
+        requestId: input.requestId,
+        targetStatus: transitionCheck.newStatus,
+        targetType,
+      });
+
+      if (returnResult.decision === "missing-order") {
+        return Result.error(serviceError("RESOURCE_NOT_FOUND"));
+      }
+
+      if (returnResult.decision === "invalid-target") {
+        return Result.error(
+          serviceError("VALIDATION_FAILED", {
+            reason: "INVALID_RETURN_TARGET",
+            targetType,
+          })
+        );
+      }
+
+      if (returnResult.decision === "stale") {
+        return Result.error(
+          serviceError("CONFLICT_STATE", {
+            allowedNextStatuses: allowedNextReturnStatuses(
+              returnResult.currentReturnStatus
+            ),
+            currentStatus: returnResult.currentReturnStatus,
+            reason: returnResult.reason ?? "STALE_RETURN_STATUS",
+            targetStatus: transitionCheck.newStatus,
+          })
+        );
+      }
+
+      await this.publishReturnAudit({
+        actorId: actor.content.adminId,
+        requestId: input.requestId,
+        returnRecord: returnResult.returnRecord,
+        safeActorId: actor.content.safeActorId,
+      });
+
+      return Result.okay({
+        allowedNextStatuses: allowedNextReturnStatuses(
+          returnResult.returnRecord.status
+        ),
+        order: returnResult.order,
+        returnRecord: returnResult.returnRecord,
+      });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("INTERNAL_ERROR"));
+    }
+  }
+
   private async sendFulfillmentStatusEmailIfNeeded(input: {
     event: OrderFulfillmentEventRecord;
     now: string;
@@ -616,6 +881,45 @@ export class OrderService {
       );
     } catch {
       // Audit must never mask fulfillment update.
+    }
+  }
+
+  private async publishReturnAudit(input: {
+    actorId: string;
+    requestId: string;
+    returnRecord: AdminReturnRecordReadModel;
+    safeActorId: string;
+  }) {
+    try {
+      await this.auditPublisher.publish(
+        createAuditEvent({
+          requestId: input.requestId,
+          action: input.returnRecord.previousStatus
+            ? "refund-return.status_changed"
+            : "refund-return.return_recorded",
+          actor: {
+            id: input.actorId,
+            role: "ADMIN",
+            safeIdentifier: input.safeActorId,
+            type: "user",
+          },
+          target: {
+            entity: "refund-return",
+            entityId: input.returnRecord.id,
+          },
+          safeDetails: {
+            amountCentavos: input.returnRecord.amountCentavos,
+            newReturnStatus: input.returnRecord.status,
+            oldReturnStatus: input.returnRecord.previousStatus,
+            orderId: input.returnRecord.orderId,
+            returnRecordId: input.returnRecord.id,
+            source: "admin_return",
+            targetType: input.returnRecord.targetType,
+          },
+        })
+      );
+    } catch {
+      // Audit must never mask return recording.
     }
   }
 }

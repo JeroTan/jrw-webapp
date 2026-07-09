@@ -13,9 +13,40 @@ export type AdminOrderSnapshotItem = {
   productName: string;
   productSlug: string | null;
   quantity: number;
+  snapshotId: string;
   unitPriceCentavos: number;
   variantLabel: string;
   variantOptions: AdminOrderSnapshotOption[];
+};
+
+export type AdminReturnStatus =
+  | "RETURN_REQUESTED"
+  | "RETURN_APPROVED"
+  | "RETURN_REJECTED"
+  | "RETURN_RECEIVED"
+  | "RETURN_COMPLETED"
+  | "RETURN_CANCELLED";
+
+export type AdminReturnTargetType = "ORDER" | "ITEM";
+
+export type AdminReturnRecord = {
+  actorId: string | null;
+  amountCentavos: number | null;
+  createdAt: string;
+  currency: "PHP";
+  id: string;
+  notes: string | null;
+  orderId: string;
+  orderSnapshotId: string | null;
+  previousStatus: AdminReturnStatus | null;
+  reason: string;
+  referenceId: string | null;
+  requestId: string;
+  status: AdminReturnStatus;
+  statusLabel: string;
+  targetLabel: string;
+  targetType: AdminReturnTargetType;
+  updatedAt: string;
 };
 
 export type AdminOrderSummary = {
@@ -44,6 +75,7 @@ export type AdminOrderDetail = AdminOrderSummary & {
     phone: string | null;
   };
   items: AdminOrderSnapshotItem[];
+  returnHistory: AdminReturnRecord[];
   shippingAddress: {
     barangay: string | null;
     cityProvince: string | null;
@@ -99,4 +131,20 @@ export type AdminFulfillmentUpdateResult = {
     newStatus: AdminFulfillmentStatus;
     oldStatus: AdminFulfillmentStatus;
   };
+};
+
+export type AdminReturnRecordRequest = {
+  amountCentavos?: number;
+  notes?: string;
+  orderSnapshotId?: string;
+  reason: string;
+  referenceId?: string;
+  targetStatus: AdminReturnStatus;
+  targetType: AdminReturnTargetType;
+};
+
+export type AdminReturnRecordResult = {
+  allowedNextStatuses: AdminReturnStatus[];
+  order: AdminOrderDetail;
+  returnRecord: AdminReturnRecord;
 };

@@ -133,6 +133,33 @@ async function createOrderRepositoryTestD1() {
       snapshot_timestamp text DEFAULT CURRENT_TIMESTAMP NOT NULL,
       snapshot_signature text
     )`,
+    `CREATE TABLE order_return_records (
+      id text PRIMARY KEY NOT NULL,
+      order_id text NOT NULL,
+      order_snapshot_id text,
+      target_type text NOT NULL,
+      previous_return_status text,
+      return_status text NOT NULL,
+      amount_centavos integer,
+      currency text DEFAULT 'PHP' NOT NULL,
+      reason text NOT NULL,
+      notes text,
+      reference_id text,
+      actor_id text,
+      request_id text NOT NULL,
+      created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+    `CREATE UNIQUE INDEX uq_order_return_records_request_id
+      ON order_return_records(request_id)`,
+    `CREATE INDEX idx_order_return_records_order_id
+      ON order_return_records(order_id)`,
+    `CREATE INDEX idx_order_return_records_order_snapshot_id
+      ON order_return_records(order_snapshot_id)`,
+    `CREATE INDEX idx_order_return_records_return_status
+      ON order_return_records(return_status)`,
+    `CREATE INDEX idx_order_return_records_created_at
+      ON order_return_records(created_at)`,
   ]) {
     await d1.prepare(statement).run();
   }
@@ -588,6 +615,297 @@ describe("order repository", () => {
           new_fulfillment_status: "DELIVERED",
           old_fulfillment_status: "SHIPPED",
         },
+      ]);
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("records append-only returns, projects latest status, and hides Admin-only return details from Customer views", async () => {
+    const { d1, mf, repository } = await createOrderRepositoryTestD1();
+
+    try {
+      await d1
+        .prepare(`UPDATE orders SET fulfillment_status = ? WHERE id = ?`)
+        .bind("DELIVERED", "order_1")
+        .run();
+
+      const subject = await repository.getAdminReturnTransitionSubject({
+        orderIdOrNumber: "order_1",
+      });
+
+      expect(subject).toMatchObject({
+        currentReturnStatus: null,
+        fulfillmentStatus: "DELIVERED",
+        items: [{ snapshotId: "snapshot_1" }],
+        paymentStatus: "PAYMENT_PAID",
+      });
+
+      const requested = await repository.recordAdminOrderReturn({
+        actorId: "admin_1",
+        amountCentavos: 500,
+        expectedReturnStatus: null,
+        now: "2026-07-08T03:00:00.000Z",
+        notes: "Box inspected by support.",
+        orderId: "order_1",
+        orderSnapshotId: "snapshot_1",
+        reason: "Wrong size",
+        referenceId: "RET-1",
+        requestId: "req_return_1",
+        targetStatus: "RETURN_REQUESTED",
+        targetType: "ITEM",
+      });
+      const duplicate = await repository.recordAdminOrderReturn({
+        actorId: "admin_1",
+        amountCentavos: 500,
+        expectedReturnStatus: null,
+        now: "2026-07-08T03:01:00.000Z",
+        notes: "Box inspected by support.",
+        orderId: "order_1",
+        orderSnapshotId: "snapshot_1",
+        reason: "Wrong size",
+        referenceId: "RET-1",
+        requestId: "req_return_1",
+        targetStatus: "RETURN_REQUESTED",
+        targetType: "ITEM",
+      });
+      const approved = await repository.recordAdminOrderReturn({
+        actorId: "admin_1",
+        amountCentavos: 500,
+        expectedReturnStatus: "RETURN_REQUESTED",
+        now: "2026-07-08T03:02:00.000Z",
+        notes: null,
+        orderId: "order_1",
+        orderSnapshotId: "snapshot_1",
+        reason: "Approved after review",
+        referenceId: "RET-1A",
+        requestId: "req_return_2",
+        targetStatus: "RETURN_APPROVED",
+        targetType: "ITEM",
+      });
+
+      expect(requested).toMatchObject({
+        decision: "recorded",
+        order: { return: { label: "Return requested", value: "RETURN_REQUESTED" } },
+        returnRecord: {
+          amountCentavos: 500,
+          orderSnapshotId: "snapshot_1",
+          previousStatus: null,
+          reason: "Wrong size",
+          status: "RETURN_REQUESTED",
+          targetLabel: "Frozen Linen Shirt - Size: Small",
+          targetType: "ITEM",
+        },
+      });
+      expect(duplicate).toMatchObject({
+        decision: "already-requested",
+        returnRecord: { status: "RETURN_REQUESTED" },
+      });
+      expect(approved).toMatchObject({
+        decision: "recorded",
+        order: { return: { label: "Return approved", value: "RETURN_APPROVED" } },
+        returnRecord: {
+          previousStatus: "RETURN_REQUESTED",
+          status: "RETURN_APPROVED",
+        },
+      });
+
+      const adminDetail = await repository.getAdminOrderDetail({
+        orderIdOrNumber: "order_1",
+      });
+      const customerDetail = await repository.getCustomerOrderDetail({
+        customerId: "customer_1",
+        orderIdOrNumber: "order_1",
+      });
+      const rows = await d1
+        .prepare(
+          `SELECT request_id, return_status FROM order_return_records ORDER BY created_at, id`
+        )
+        .all();
+
+      expect(rows.results).toEqual([
+        { request_id: "req_return_1", return_status: "RETURN_REQUESTED" },
+        { request_id: "req_return_2", return_status: "RETURN_APPROVED" },
+      ]);
+      expect(adminDetail?.returnHistory.map((record) => record.status)).toEqual([
+        "RETURN_APPROVED",
+        "RETURN_REQUESTED",
+      ]);
+      expect(adminDetail?.returnHistory[1]).toMatchObject({
+        notes: "Box inspected by support.",
+        referenceId: "RET-1",
+      });
+      expect(customerDetail).toMatchObject({
+        return: { label: "Return approved", value: "RETURN_APPROVED" },
+      });
+      expect(JSON.stringify(customerDetail)).not.toMatch(
+        /Box inspected|RET-1|admin_1|req_return|reference/i
+      );
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("allows separate return requests for separate purchased items", async () => {
+    const { d1, mf, repository } = await createOrderRepositoryTestD1();
+
+    try {
+      await d1
+        .prepare(`UPDATE orders SET fulfillment_status = ? WHERE id = ?`)
+        .bind("DELIVERED", "order_1")
+        .run();
+      await d1
+        .prepare(
+          `INSERT INTO order_snapshots (
+            id, order_id, product_id, product_slug, variant_id, product_name,
+            variant_name, variant_options, price_at_purchase, price_centavos,
+            quantity, image_r2_key, snapshot_timestamp, snapshot_signature
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+        )
+        .bind(
+          "snapshot_3",
+          "order_1",
+          "prod_linen",
+          "t-shirt-300-gsm",
+          "variant_linen_small",
+          "T-shirt 300 GSM",
+          "SM",
+          JSON.stringify([{ group: "Size", name: "SM" }]),
+          40000,
+          40000,
+          1,
+          null,
+          "2026-07-08T01:03:00.000Z",
+          "sig_3"
+        )
+        .run();
+
+      const firstItem = await repository.recordAdminOrderReturn({
+        actorId: "admin_1",
+        amountCentavos: null,
+        expectedReturnStatus: null,
+        now: "2026-07-08T03:00:00.000Z",
+        notes: null,
+        orderId: "order_1",
+        orderSnapshotId: "snapshot_1",
+        reason: "Wrong scent",
+        referenceId: null,
+        requestId: "req_return_item_1",
+        targetStatus: "RETURN_REQUESTED",
+        targetType: "ITEM",
+      });
+      const secondItem = await repository.recordAdminOrderReturn({
+        actorId: "admin_1",
+        amountCentavos: null,
+        expectedReturnStatus: null,
+        now: "2026-07-08T03:01:00.000Z",
+        notes: null,
+        orderId: "order_1",
+        orderSnapshotId: "snapshot_3",
+        reason: "Wrong size",
+        referenceId: null,
+        requestId: "req_return_item_2",
+        targetStatus: "RETURN_REQUESTED",
+        targetType: "ITEM",
+      });
+      const rows = await d1
+        .prepare(
+          `SELECT order_snapshot_id, return_status
+           FROM order_return_records ORDER BY created_at, request_id`
+        )
+        .all();
+
+      expect(firstItem).toMatchObject({ decision: "recorded" });
+      expect(secondItem).toMatchObject({
+        decision: "recorded",
+        returnRecord: {
+          orderSnapshotId: "snapshot_3",
+          previousStatus: null,
+          status: "RETURN_REQUESTED",
+        },
+      });
+      expect(rows.results).toEqual([
+        {
+          order_snapshot_id: "snapshot_1",
+          return_status: "RETURN_REQUESTED",
+        },
+        {
+          order_snapshot_id: "snapshot_3",
+          return_status: "RETURN_REQUESTED",
+        },
+      ]);
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("rejects invalid return targets and mismatched request ids without appending history", async () => {
+    const { d1, mf, repository } = await createOrderRepositoryTestD1();
+
+    try {
+      await d1
+        .prepare(`UPDATE orders SET fulfillment_status = ?, payment_status = ? WHERE id = ?`)
+        .bind("DELIVERED", "PAYMENT_PAID", "order_2")
+        .run();
+
+      const invalidTarget = await repository.recordAdminOrderReturn({
+        actorId: "admin_1",
+        amountCentavos: null,
+        expectedReturnStatus: null,
+        now: "2026-07-08T03:00:00.000Z",
+        notes: null,
+        orderId: "order_1",
+        orderSnapshotId: "snapshot_2",
+        reason: "Wrong item",
+        referenceId: null,
+        requestId: "req_return_invalid_item",
+        targetStatus: "RETURN_REQUESTED",
+        targetType: "ITEM",
+      });
+      const original = await repository.recordAdminOrderReturn({
+        actorId: "admin_1",
+        amountCentavos: null,
+        expectedReturnStatus: null,
+        now: "2026-07-08T03:01:00.000Z",
+        notes: null,
+        orderId: "order_1",
+        orderSnapshotId: null,
+        reason: "Order issue",
+        referenceId: null,
+        requestId: "req_return_collision",
+        targetStatus: "RETURN_REQUESTED",
+        targetType: "ORDER",
+      });
+      const mismatch = await repository.recordAdminOrderReturn({
+        actorId: "admin_1",
+        amountCentavos: null,
+        expectedReturnStatus: null,
+        now: "2026-07-08T03:02:00.000Z",
+        notes: null,
+        orderId: "order_2",
+        orderSnapshotId: null,
+        reason: "Different order",
+        referenceId: null,
+        requestId: "req_return_collision",
+        targetStatus: "RETURN_REQUESTED",
+        targetType: "ORDER",
+      });
+      const rows = await d1
+        .prepare(`SELECT order_id, request_id FROM order_return_records`)
+        .all();
+
+      expect(invalidTarget).toMatchObject({
+        decision: "invalid-target",
+        orderId: "order_1",
+      });
+      expect(original).toMatchObject({ decision: "recorded" });
+      expect(mismatch).toMatchObject({
+        currentReturnStatus: null,
+        decision: "stale",
+        orderId: "order_2",
+      });
+      expect(rows.results).toEqual([
+        { order_id: "order_1", request_id: "req_return_collision" },
       ]);
     } finally {
       await mf.dispose();

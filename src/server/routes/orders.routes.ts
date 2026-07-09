@@ -91,6 +91,13 @@ const tboxCustomerOrderItem = t.Object({
   ),
 });
 
+const tboxAdminOrderItem = t.Intersect([
+  tboxCustomerOrderItem,
+  t.Object({
+    snapshotId: t.String(),
+  }),
+]);
+
 const tboxCustomerOrderSummary = t.Object({
   createdAt: t.String(),
   currency: t.Literal("PHP"),
@@ -139,23 +146,69 @@ const tboxAdminOrderListData = t.Object({
 
 const tboxCustomerOrderDetailData = tboxCustomerOrderSummary;
 
-const tboxAdminOrderDetailData = t.Intersect([
-  tboxAdminOrderSummary,
-  t.Object({
-    contact: t.Object({
-      checkoutEmail: t.Union([t.String(), t.Null()]),
-      fullName: t.Union([t.String(), t.Null()]),
-      phone: t.Union([t.String(), t.Null()]),
-    }),
-    shippingAddress: t.Object({
-      barangay: t.Union([t.String(), t.Null()]),
-      cityProvince: t.Union([t.String(), t.Null()]),
-      postalCode: t.Union([t.String(), t.Null()]),
-      shippingType: t.String(),
-      streetAddress: t.Union([t.String(), t.Null()]),
-    }),
-  }),
+const tboxReturnStatus = t.Union([
+  t.Literal("RETURN_REQUESTED"),
+  t.Literal("RETURN_APPROVED"),
+  t.Literal("RETURN_REJECTED"),
+  t.Literal("RETURN_RECEIVED"),
+  t.Literal("RETURN_COMPLETED"),
+  t.Literal("RETURN_CANCELLED"),
 ]);
+
+const tboxReturnTargetType = t.Union([t.Literal("ORDER"), t.Literal("ITEM")]);
+
+const tboxAdminReturnRecord = t.Object({
+  actorId: t.Union([t.String(), t.Null()]),
+  amountCentavos: t.Union([t.Integer({ minimum: 0 }), t.Null()]),
+  createdAt: t.String(),
+  currency: t.Literal("PHP"),
+  id: t.String(),
+  notes: t.Union([t.String(), t.Null()]),
+  orderId: t.String(),
+  orderSnapshotId: t.Union([t.String(), t.Null()]),
+  previousStatus: t.Union([tboxReturnStatus, t.Null()]),
+  reason: t.String(),
+  referenceId: t.Union([t.String(), t.Null()]),
+  requestId: t.String(),
+  status: tboxReturnStatus,
+  statusLabel: t.String(),
+  targetLabel: t.String(),
+  targetType: tboxReturnTargetType,
+  updatedAt: t.String(),
+});
+
+const tboxAdminOrderDetailData = t.Object({
+  checkoutEmailMasked: t.Union([t.String(), t.Null()]),
+  contact: t.Object({
+    checkoutEmail: t.Union([t.String(), t.Null()]),
+    fullName: t.Union([t.String(), t.Null()]),
+    phone: t.Union([t.String(), t.Null()]),
+  }),
+  createdAt: t.String(),
+  currency: t.Literal("PHP"),
+  customerKind: t.Union([t.Literal("CUSTOMER"), t.Literal("GUEST")]),
+  customerLabel: t.String(),
+  fulfillment: tboxLane,
+  itemCount: t.Integer({ minimum: 0 }),
+  items: t.Array(tboxAdminOrderItem),
+  orderId: t.String(),
+  orderNumber: t.String(),
+  payment: tboxLane,
+  refund: tboxLane,
+  return: tboxLane,
+  returnHistory: t.Array(tboxAdminReturnRecord),
+  shippingAddress: t.Object({
+    barangay: t.Union([t.String(), t.Null()]),
+    cityProvince: t.Union([t.String(), t.Null()]),
+    postalCode: t.Union([t.String(), t.Null()]),
+    shippingType: t.String(),
+    streetAddress: t.Union([t.String(), t.Null()]),
+  }),
+  subtotalCentavos: t.Integer({ minimum: 0 }),
+  totalCentavos: t.Integer({ minimum: 0 }),
+  totalQuantity: t.Integer({ minimum: 0 }),
+  updatedAt: t.String(),
+});
 
 const tboxCustomerOrderListQuery = t.Object(
   {
@@ -218,6 +271,19 @@ const tboxAdminFulfillmentBody = t.Object(
   { additionalProperties: false }
 );
 
+const tboxAdminReturnBody = t.Object(
+  {
+    amountCentavos: t.Optional(t.Integer({ minimum: 0 })),
+    notes: t.Optional(t.String({ maxLength: 2000 })),
+    orderSnapshotId: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
+    reason: t.String({ minLength: 1, maxLength: 512 }),
+    referenceId: t.Optional(t.String({ maxLength: 128 })),
+    targetStatus: tboxReturnStatus,
+    targetType: tboxReturnTargetType,
+  },
+  { additionalProperties: false }
+);
+
 const tboxAdminFulfillmentData = t.Object({
   allowedNextStatuses: t.Array(tboxFulfillmentStatus),
   email: t.Object({
@@ -229,6 +295,12 @@ const tboxAdminFulfillmentData = t.Object({
     newStatus: tboxFulfillmentStatus,
     oldStatus: tboxFulfillmentStatus,
   }),
+});
+
+const tboxAdminReturnData = t.Object({
+  allowedNextStatuses: t.Array(tboxReturnStatus),
+  order: tboxAdminOrderDetailData,
+  returnRecord: tboxAdminReturnRecord,
 });
 
 function createRuntimeController(
@@ -508,6 +580,71 @@ export function ordersRoutes(app: AnyElysia, options: OrderRoutesOptions = {}) {
         params: tboxAdminOrderParams,
         response: {
           200: tboxApiSuccess(tboxAdminFulfillmentData),
+          ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
+        },
+        transform: rbacGuard(adminOrderAuth),
+      }
+    )
+    .post(
+      "/admin/orders/:orderId/returns",
+      async (ctx) => {
+        const {
+          body,
+          request,
+          requestContext,
+          requestId,
+          runtimeEnv,
+          set,
+          params,
+        } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            body: {
+              amountCentavos?: number;
+              notes?: string;
+              orderSnapshotId?: string;
+              reason: string;
+              referenceId?: string;
+              targetStatus: string;
+              targetType: string;
+            };
+            params: { orderId: string };
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+          };
+        const controller = getController(
+          { request, requestId, runtimeEnv },
+          options
+        );
+        const result = await controller.recordAdminOrderReturn({
+          actor: orderActor(requestContext.actor),
+          amountCentavos: body.amountCentavos,
+          notes: body.notes,
+          orderIdOrNumber: params.orderId,
+          orderSnapshotId: body.orderSnapshotId,
+          reason: body.reason,
+          referenceId: body.referenceId,
+          requestId,
+          targetStatus: body.targetStatus,
+          targetType: body.targetType,
+        });
+
+        set.status = result.status;
+
+        return result.body as never;
+      },
+      {
+        body: tboxAdminReturnBody,
+        detail: routeDetail({
+          summary: "Record Admin order return",
+          description:
+            "Records an append-only return history entry for a paid, delivered JRW order. Active approved Admins can record order-level or order_snapshots item-level return progress. The endpoint preserves payment, fulfillment, and refund lanes, exposes updated Admin order detail, and does not trigger PayMongo refunds, inventory changes, customer mutations, email, provider payload storage, or raw request-id display.",
+          tags: ["Orders"],
+          auth: adminOrderAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...adminOrderErrors],
+        }),
+        params: tboxAdminOrderParams,
+        response: {
+          200: tboxApiSuccess(tboxAdminReturnData),
           ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
         },
         transform: rbacGuard(adminOrderAuth),

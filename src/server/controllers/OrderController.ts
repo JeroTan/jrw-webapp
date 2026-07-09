@@ -15,6 +15,8 @@ import type {
   GetCustomerOrderDetailServiceInput,
   ListAdminOrdersServiceInput,
   ListCustomerOrdersServiceInput,
+  RecordAdminOrderReturnResult,
+  RecordAdminOrderReturnServiceInput,
   UpdateAdminOrderFulfillmentResult,
   UpdateAdminOrderFulfillmentServiceInput,
 } from "@/server/services/OrderService";
@@ -33,6 +35,9 @@ export type OrderServiceLike = {
   listCustomerOrders(
     input: ListCustomerOrdersServiceInput
   ): Promise<AppResult<CustomerOrderListResult>>;
+  recordAdminOrderReturn(
+    input: RecordAdminOrderReturnServiceInput
+  ): Promise<AppResult<RecordAdminOrderReturnResult>>;
   updateAdminOrderFulfillment(
     input: UpdateAdminOrderFulfillmentServiceInput
   ): Promise<AppResult<UpdateAdminOrderFulfillmentResult>>;
@@ -144,6 +149,23 @@ export class OrderController {
     input: UpdateAdminOrderFulfillmentServiceInput
   ): Promise<OrderControllerResult<UpdateAdminOrderFulfillmentResult>> {
     const result = await this.service.updateAdminOrderFulfillment(input);
+
+    if (result.error) {
+      return errorResult(result, input.requestId);
+    }
+
+    return {
+      body: apiSuccessWithRequestId(result.content, input.requestId, {
+        code: "SUCCESS",
+      }),
+      status: 200,
+    };
+  }
+
+  async recordAdminOrderReturn(
+    input: RecordAdminOrderReturnServiceInput
+  ): Promise<OrderControllerResult<RecordAdminOrderReturnResult>> {
+    const result = await this.service.recordAdminOrderReturn(input);
 
     if (result.error) {
       return errorResult(result, input.requestId);

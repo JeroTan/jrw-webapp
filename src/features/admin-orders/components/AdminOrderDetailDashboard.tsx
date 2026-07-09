@@ -1,7 +1,7 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { EmptyState, Skeleton, StatusBadge } from "@/components/feedback";
-import { Button, ButtonLink } from "@/components/ui";
+import { Button, ButtonLink, Input, Select, Textarea } from "@/components/ui";
 import { buildCustomerOrderTimeline } from "@/domain/orders/customer-order-status";
 import {
   allowedNextFulfillmentStatuses,
@@ -9,9 +9,15 @@ import {
   isFulfillmentStatus,
   type FulfillmentStatus,
 } from "@/domain/orders/fulfillment-transitions";
+import {
+  allowedNextReturnStatuses,
+  isReturnStatus,
+  returnStatusLabel,
+} from "@/domain/orders/return-transitions";
 import { formatCatalogPrice } from "@/domain/products/price-format";
 import {
   fetchAdminOrderDetail,
+  recordAdminOrderReturn,
   updateAdminOrderFulfillment,
   type AdminOrderApiFailure,
 } from "../api";
@@ -19,6 +25,9 @@ import type {
   AdminFulfillmentEmailStatus,
   AdminFulfillmentStatus,
   AdminOrderDetail,
+  AdminReturnRecordRequest,
+  AdminReturnStatus,
+  AdminReturnTargetType,
 } from "../types";
 
 type LoadState = "loading" | "ready" | "failed" | "not-found";
@@ -26,10 +35,18 @@ type FulfillmentActionMessage = {
   tone: "info" | "success" | "warning";
   text: string;
 };
+type ReturnActionMessage = FulfillmentActionMessage;
 type FulfillmentActionRow = {
   label: string;
   targetStatus: AdminFulfillmentStatus;
   variant: "danger" | "primary" | "secondary";
+};
+const returnHistoryActionLabel: Partial<Record<AdminReturnStatus, string>> = {
+  RETURN_APPROVED: "Approve return",
+  RETURN_CANCELLED: "Cancel return",
+  RETURN_COMPLETED: "Complete return",
+  RETURN_RECEIVED: "Mark received",
+  RETURN_REJECTED: "Decline return",
 };
 
 export type AdminOrderDetailDashboardProps = {
@@ -110,6 +127,25 @@ function fulfillmentActionVariant(status: FulfillmentStatus) {
   return status === "CANCELLED" ? ("danger" as const) : ("primary" as const);
 }
 
+function returnTargetKey(record: {
+  orderSnapshotId: string | null;
+  targetType: AdminReturnTargetType;
+}) {
+  return record.targetType === "ORDER"
+    ? "ORDER"
+    : `ITEM:${record.orderSnapshotId ?? ""}`;
+}
+
+function returnedItemIds(order: AdminOrderDetail) {
+  return new Set(
+    order.returnHistory
+      .filter(
+        (record) => record.targetType === "ITEM" && record.orderSnapshotId
+      )
+      .map((record) => record.orderSnapshotId as string)
+  );
+}
+
 export function fulfillmentActionRows(
   order: AdminOrderDetail
 ): FulfillmentActionRow[] {
@@ -141,6 +177,25 @@ function fulfillmentBlockedReason(order: AdminOrderDetail): string | null {
 
   if (allowedNextFulfillmentStatuses(order.fulfillment.value).length === 0) {
     return `${fulfillmentStatusLabel(order.fulfillment.value)} is final.`;
+  }
+
+  return null;
+}
+
+function returnBlockedReason(order: AdminOrderDetail): string | null {
+  if (order.payment.value !== "PAYMENT_PAID") {
+    return "Return locked until payment is paid.";
+  }
+
+  if (order.fulfillment.value !== "DELIVERED") {
+    return "Return available after delivery.";
+  }
+
+  if (
+    order.return.value !== "RETURN_NOT_REQUESTED" &&
+    !isReturnStatus(order.return.value)
+  ) {
+    return "Current return status cannot be changed.";
   }
 
   return null;
@@ -260,16 +315,336 @@ function FulfillmentActionsPanel({
   );
 }
 
+function ReturnActionsPanel({
+  busy,
+  message,
+  onRecord,
+  order,
+}: {
+  busy: boolean;
+  message: ReturnActionMessage | null;
+  onRecord?: (body: AdminReturnRecordRequest) => Promise<void> | void;
+  order: AdminOrderDetail;
+}) {
+  const blockedReason = returnBlockedReason(order);
+  const orderLevelReturnExists = order.returnHistory.some(
+    (record) => record.targetType === "ORDER"
+  );
+  const unavailableItemIds = returnedItemIds(order);
+  const availableItems = order.items.filter(
+    (item) => !unavailableItemIds.has(item.snapshotId)
+  );
+  const hasExistingItemReturn =
+    order.returnHistory.some((record) => record.targetType === "ITEM") &&
+    !orderLevelReturnExists;
+  const canCreateItemReturn =
+    !orderLevelReturnExists && availableItems.length > 0;
+  const [targetType, setTargetType] = useState<"item" | "order">("order");
+  const [itemId, setItemId] = useState(availableItems[0]?.snapshotId ?? "");
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+  const [referenceId, setReferenceId] = useState("");
+  const [localMessage, setLocalMessage] = useState<ReturnActionMessage | null>(
+    null
+  );
+  const effectiveTargetType = hasExistingItemReturn ? "item" : targetType;
+
+  useEffect(() => {
+    setItemId(availableItems[0]?.snapshotId ?? "");
+    if (hasExistingItemReturn) {
+      setTargetType("item");
+    }
+  }, [availableItems.map((item) => item.snapshotId).join("|"), hasExistingItemReturn]);
+
+  async function submitReturn(event: { preventDefault(): void }) {
+    event.preventDefault();
+
+    const trimmedReason = reason.trim();
+
+    if (!trimmedReason) {
+      setLocalMessage({
+        text: "Reason is required.",
+        tone: "warning",
+      });
+      return;
+    }
+
+    if (effectiveTargetType === "item" && !itemId) {
+      setLocalMessage({
+        text: "Choose an item before saving.",
+        tone: "warning",
+      });
+      return;
+    }
+
+    setLocalMessage(null);
+
+    await onRecord?.({
+      notes: notes.trim() || undefined,
+      orderSnapshotId: effectiveTargetType === "item" ? itemId : undefined,
+      reason: trimmedReason,
+      referenceId: referenceId.trim() || undefined,
+      targetStatus: "RETURN_REQUESTED",
+      targetType:
+        effectiveTargetType === "item"
+          ? ("ITEM" satisfies AdminReturnTargetType)
+          : ("ORDER" satisfies AdminReturnTargetType),
+    });
+  }
+
+  const activeMessage = message ?? localMessage;
+
+  return (
+    <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
+      <div className="flex flex-wrap items-center justify-between gap-grid-xs">
+        <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
+          Return actions
+        </h2>
+        <StatusBadge label={order.return.label} tone={statusTone(order.return.value)} />
+      </div>
+
+      {activeMessage ? (
+        <p
+          className={`m-0 border p-grid-xs text-sm ${
+            activeMessage.tone === "success"
+              ? "border-brand-success text-brand-success"
+              : activeMessage.tone === "warning"
+                ? "border-brand-danger text-brand-danger"
+                : "border-brand-border-strong text-brand-muted"
+          }`}
+          role={activeMessage.tone === "warning" ? "alert" : "status"}
+        >
+          {activeMessage.text}
+        </p>
+      ) : null}
+
+      {orderLevelReturnExists ? (
+        <p className="m-0 text-sm text-brand-muted">
+          Return request already covers whole order. Use return history actions below.
+        </p>
+      ) : blockedReason ? (
+        <p className="m-0 text-sm text-brand-muted">{blockedReason}</p>
+      ) : !canCreateItemReturn ? (
+        <p className="m-0 text-sm text-brand-muted">
+          All purchased items already have return records.
+        </p>
+      ) : (
+        <form className="grid gap-grid-xs" onSubmit={submitReturn}>
+          {hasExistingItemReturn ? (
+            <p className="m-0 text-sm text-brand-muted">
+              Choose another purchased item to create a separate return request.
+            </p>
+          ) : (
+            <Select
+              controlSize="sm"
+              label="Target type"
+              onChange={(event) =>
+                setTargetType(
+                  event.currentTarget.value === "item" ? "item" : "order"
+                )
+              }
+              textSize="sm"
+              value={targetType}
+            >
+              <option value="order">Entire order</option>
+              <option value="item">Purchased item</option>
+            </Select>
+          )}
+
+          <Select
+            controlSize="sm"
+            disabled={effectiveTargetType !== "item"}
+            label="Item"
+            onChange={(event) => setItemId(event.currentTarget.value)}
+            textSize="sm"
+            value={itemId}
+          >
+            {availableItems.map((item) => (
+              <option key={item.snapshotId} value={item.snapshotId}>
+                {item.productName} - {item.variantLabel}
+              </option>
+            ))}
+          </Select>
+
+          <Textarea
+            label="Reason"
+            onChange={(event) => setReason(event.currentTarget.value)}
+            required
+            rows={3}
+            textSize="sm"
+            value={reason}
+          />
+
+          <Textarea
+            label="Notes"
+            onChange={(event) => setNotes(event.currentTarget.value)}
+            rows={3}
+            textSize="sm"
+            value={notes}
+          />
+
+          <label className="grid gap-grid-xs font-system text-[0.8125rem] font-bold text-brand-content">
+            <span>Reference ID</span>
+            <Input
+              onChange={(event) => setReferenceId(event.currentTarget.value)}
+              placeholder="Optional"
+              textSize="sm"
+              value={referenceId}
+            />
+          </label>
+
+          <Button
+            disabled={busy}
+            fullWidth
+            loading={busy}
+            loadingLabel="Saving"
+            size="sm"
+            textSize="xs"
+            type="submit"
+            variant="primary"
+          >
+            Record return request
+          </Button>
+        </form>
+      )}
+    </section>
+  );
+}
+
+function ReturnHistoryPanel({
+  busy,
+  onRecord,
+  order,
+}: {
+  busy: boolean;
+  onRecord?: (body: AdminReturnRecordRequest) => Promise<void> | void;
+  order: AdminOrderDetail;
+}) {
+  const latestTargetKeys = new Set<string>();
+
+  async function recordNextStatus(
+    record: AdminOrderDetail["returnHistory"][number],
+    targetStatus: AdminReturnStatus
+  ) {
+    await onRecord?.({
+      orderSnapshotId:
+        record.targetType === "ITEM"
+          ? (record.orderSnapshotId ?? undefined)
+          : undefined,
+      reason: `${returnStatusLabel(targetStatus)} from return history`,
+      targetStatus,
+      targetType: record.targetType,
+    });
+  }
+
+  return (
+    <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
+      <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
+        Return history
+      </h2>
+      {order.returnHistory.length === 0 ? (
+        <p className="m-0 text-sm text-brand-muted">No return history yet.</p>
+      ) : (
+        <ol className="m-0 grid list-none gap-grid-xs p-0">
+          {order.returnHistory.map((record) => {
+              const key = returnTargetKey(record);
+              const isLatestForTarget = !latestTargetKeys.has(key);
+              latestTargetKeys.add(key);
+              const nextStatuses = isLatestForTarget
+                ? allowedNextReturnStatuses(record.status).map(
+                    (status) => status as AdminReturnStatus
+                  )
+                : [];
+
+              return (
+                <li
+                  className="grid gap-grid-xs border border-brand-border p-grid-xs"
+                  key={record.id}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-grid-xs">
+                    <StatusBadge
+                      label={record.statusLabel}
+                      tone={statusTone(record.status)}
+                    />
+                    <span className="font-system text-xs text-brand-muted">
+                      {formatDateTime(record.createdAt)}
+                    </span>
+                  </div>
+                  <p className="m-0 font-heading text-sm font-bold text-brand-content">
+                    {record.targetLabel}
+                  </p>
+                  <p className="m-0 text-sm text-brand-muted">{record.reason}</p>
+                  {record.notes ? (
+                    <p className="m-0 text-sm text-brand-muted">
+                      Notes {record.notes}
+                    </p>
+                  ) : null}
+                  {record.referenceId ? (
+                    <p className="m-0 text-sm text-brand-muted">
+                      Reference {record.referenceId}
+                    </p>
+                  ) : null}
+                  <p className="m-0 font-system text-xs text-brand-muted">
+                    Recorded by {record.actorId ?? "Admin"}
+                  </p>
+                  {nextStatuses.length > 0 ? (
+                    <div
+                      aria-label="Return history actions"
+                      className="grid gap-grid-xs pt-grid-xs md:grid-cols-2"
+                      role="group"
+                    >
+                      {nextStatuses.map((status) => (
+                        <Button
+                          className={
+                            status === "RETURN_CANCELLED"
+                              ? "md:col-span-2"
+                              : undefined
+                          }
+                          disabled={busy}
+                          fullWidth
+                          key={status}
+                          loading={busy}
+                          loadingLabel="Saving"
+                          onClick={() => void recordNextStatus(record, status)}
+                          size="sm"
+                          textSize="xs"
+                          variant={
+                            status === "RETURN_CANCELLED"
+                              ? "danger"
+                              : "secondary"
+                          }
+                        >
+                          {returnHistoryActionLabel[status] ??
+                            returnStatusLabel(status)}
+                        </Button>
+                      ))}
+                    </div>
+                  ) : null}
+                </li>
+              );
+            })}
+        </ol>
+      )}
+    </section>
+  );
+}
+
 export function AdminOrderDetailView({
   busyTarget = null,
   fulfillmentMessage = null,
   onUpdateFulfillment,
+  onRecordReturn,
   order,
+  returnBusy = false,
+  returnMessage = null,
 }: {
   busyTarget?: AdminFulfillmentStatus | null;
   fulfillmentMessage?: FulfillmentActionMessage | null;
+  onRecordReturn?: (body: AdminReturnRecordRequest) => Promise<void> | void;
   onUpdateFulfillment?: (targetStatus: AdminFulfillmentStatus) => void;
   order: AdminOrderDetail;
+  returnBusy?: boolean;
+  returnMessage?: ReturnActionMessage | null;
 }) {
   const timeline = useMemo(
     () =>
@@ -415,8 +790,8 @@ export function AdminOrderDetailView({
         </ol>
       </section>
 
-      <section className="order-1 grid gap-grid-sm lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]">
-        <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
+      <section className="order-1 grid gap-grid-sm lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)] lg:items-start">
+        <section className="grid content-start gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
           <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
             Items purchased
           </h2>
@@ -472,6 +847,19 @@ export function AdminOrderDetailView({
             busyTarget={busyTarget}
             message={fulfillmentMessage}
             onUpdate={onUpdateFulfillment}
+            order={order}
+          />
+
+          <ReturnActionsPanel
+            busy={returnBusy}
+            message={returnMessage}
+            onRecord={onRecordReturn}
+            order={order}
+          />
+
+          <ReturnHistoryPanel
+            busy={returnBusy}
+            onRecord={onRecordReturn}
             order={order}
           />
 
@@ -536,6 +924,9 @@ export function AdminOrderDetailDashboard({
   );
   const [fulfillmentMessage, setFulfillmentMessage] =
     useState<FulfillmentActionMessage | null>(null);
+  const [returnBusy, setReturnBusy] = useState(false);
+  const [returnMessage, setReturnMessage] =
+    useState<ReturnActionMessage | null>(null);
 
   useEffect(() => {
     if (!autoLoad) {
@@ -608,6 +999,44 @@ export function AdminOrderDetailDashboard({
     }
   }
 
+  async function handleReturnRecord(body: AdminReturnRecordRequest) {
+    if (!order || returnBusy) {
+      return;
+    }
+
+    setReturnBusy(true);
+    setReturnMessage(null);
+
+    try {
+      const result = await recordAdminOrderReturn(order.orderId, body);
+      setOrder(result.order);
+      setReturnMessage({
+        text: "Return record saved.",
+        tone: "success",
+      });
+    } catch (error) {
+      const failure = error as AdminOrderApiFailure;
+
+      if (failure.status === 409 && autoLoad) {
+        try {
+          setOrder(await fetchAdminOrderDetail(orderId));
+        } catch {
+          // Refresh is best-effort after stale state.
+        }
+      }
+
+      setReturnMessage({
+        text:
+          failure.code === "CONFLICT_STATE"
+            ? "Return status changed. Review latest status before saving again."
+            : "Return record failed.",
+        tone: "warning",
+      });
+    } finally {
+      setReturnBusy(false);
+    }
+  }
+
   return (
     <section className="grid gap-grid-sm">
       {loadState === "loading" ? (
@@ -652,8 +1081,11 @@ export function AdminOrderDetailDashboard({
         <AdminOrderDetailView
           busyTarget={busyTarget}
           fulfillmentMessage={fulfillmentMessage}
+          onRecordReturn={handleReturnRecord}
           onUpdateFulfillment={handleFulfillmentUpdate}
           order={order}
+          returnBusy={returnBusy}
+          returnMessage={returnMessage}
         />
       ) : null}
     </section>
