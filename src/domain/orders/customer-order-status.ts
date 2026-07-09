@@ -59,7 +59,7 @@ const refundLabels: Record<string, string> = {
   REFUND_NOT_REQUESTED: "No refund requested",
   REFUND_PENDING: "Refund pending",
   REFUND_APPROVED: "Refund approved",
-  REFUND_DECLINED: "Refund unavailable",
+  REFUND_DECLINED: "Refund declined",
   REFUND_SENT: "Refund sent",
   REFUND_FAILED: "Refund failed",
 };

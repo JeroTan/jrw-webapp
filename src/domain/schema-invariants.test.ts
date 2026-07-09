@@ -19,6 +19,7 @@ import {
   checkout_reservation_releases,
   checkout_reservations,
   order_fulfillment_events,
+  order_refund_records,
   order_return_records,
   orders,
   payment_webhook_events,
@@ -846,6 +847,62 @@ describe("checkout schema invariants", () => {
         "idx_order_return_records_order_snapshot_id",
         "idx_order_return_records_return_status",
         "idx_order_return_records_created_at",
+      ])
+    );
+    expect(requestIdIndex?.config.unique).toBe(true);
+  });
+
+  it("stores refund records append-only without provider payloads or customer contact", () => {
+    const config = getTableConfig(order_refund_records);
+    const columns = config.columns
+      .map((column) => getColumnName(column))
+      .filter((name): name is string => Boolean(name));
+    const indexes = config.indexes.map((index) => index.config.name);
+    const requestIdIndex = config.indexes.find(
+      (index) => index.config.name === "uq_order_refund_records_request_id"
+    );
+
+    expect(columns).toEqual(
+      expect.arrayContaining([
+        "order_id",
+        "order_snapshot_id",
+        "target_type",
+        "previous_refund_status",
+        "refund_status",
+        "amount_centavos",
+        "currency",
+        "reason",
+        "notes",
+        "reference_id",
+        "actor_id",
+        "request_id",
+        "created_at",
+        "updated_at",
+      ])
+    );
+    expect(columns).not.toEqual(
+      expect.arrayContaining([
+        "checkout_email",
+        "phone",
+        "street_address",
+        "provider_payload",
+        "raw_payload",
+        "paymongo_payload",
+        "paymongo_response",
+        "payment_response",
+        "card_data",
+        "token",
+        "secret",
+        "signature",
+      ])
+    );
+    expect(indexes).toEqual(
+      expect.arrayContaining([
+        "uq_order_refund_records_request_id",
+        "idx_order_refund_records_order_id",
+        "idx_order_refund_records_order_snapshot_id",
+        "idx_order_refund_records_refund_status",
+        "idx_order_refund_records_created_at",
       ])
     );
     expect(requestIdIndex?.config.unique).toBe(true);

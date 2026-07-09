@@ -160,6 +160,33 @@ async function createOrderRepositoryTestD1() {
       ON order_return_records(return_status)`,
     `CREATE INDEX idx_order_return_records_created_at
       ON order_return_records(created_at)`,
+    `CREATE TABLE order_refund_records (
+      id text PRIMARY KEY NOT NULL,
+      order_id text NOT NULL,
+      order_snapshot_id text,
+      target_type text NOT NULL,
+      previous_refund_status text,
+      refund_status text NOT NULL,
+      amount_centavos integer NOT NULL,
+      currency text DEFAULT 'PHP' NOT NULL,
+      reason text NOT NULL,
+      notes text,
+      reference_id text,
+      actor_id text,
+      request_id text NOT NULL,
+      created_at text DEFAULT CURRENT_TIMESTAMP NOT NULL,
+      updated_at text DEFAULT CURRENT_TIMESTAMP NOT NULL
+    )`,
+    `CREATE UNIQUE INDEX uq_order_refund_records_request_id
+      ON order_refund_records(request_id)`,
+    `CREATE INDEX idx_order_refund_records_order_id
+      ON order_refund_records(order_id)`,
+    `CREATE INDEX idx_order_refund_records_order_snapshot_id
+      ON order_refund_records(order_snapshot_id)`,
+    `CREATE INDEX idx_order_refund_records_refund_status
+      ON order_refund_records(refund_status)`,
+    `CREATE INDEX idx_order_refund_records_created_at
+      ON order_refund_records(created_at)`,
   ]) {
     await d1.prepare(statement).run();
   }
@@ -837,6 +864,233 @@ describe("order repository", () => {
           return_status: "RETURN_REQUESTED",
         },
       ]);
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("records append-only refunds, projects latest status, and hides Admin-only refund details from Customer views", async () => {
+    const { d1, mf, repository } = await createOrderRepositoryTestD1();
+
+    try {
+      await d1
+        .prepare(`UPDATE orders SET fulfillment_status = ? WHERE id = ?`)
+        .bind("CANCELLED", "order_1")
+        .run();
+
+      const subject = await repository.getAdminRefundTransitionSubject({
+        orderIdOrNumber: "order_1",
+      });
+
+      expect(subject).toMatchObject({
+        currentRefundStatus: null,
+        items: [{ snapshotId: "snapshot_1" }],
+        paymentStatus: "PAYMENT_PAID",
+        refundHistory: [],
+      });
+
+      const pending = await repository.recordAdminOrderRefund({
+        actorId: "admin_1",
+        amountCentavos: 1999,
+        expectedRefundStatus: null,
+        now: "2026-07-08T03:00:00.000Z",
+        notes: "Refund reviewed by support.",
+        orderId: "order_1",
+        orderSnapshotId: "snapshot_1",
+        reason: "Paid cancellation",
+        referenceId: "RF-1",
+        requestId: "req_refund_1",
+        targetStatus: "REFUND_PENDING",
+        targetType: "ITEM",
+      });
+      const duplicate = await repository.recordAdminOrderRefund({
+        actorId: "admin_1",
+        amountCentavos: 1999,
+        expectedRefundStatus: null,
+        now: "2026-07-08T03:01:00.000Z",
+        notes: "Refund reviewed by support.",
+        orderId: "order_1",
+        orderSnapshotId: "snapshot_1",
+        reason: "Paid cancellation",
+        referenceId: "RF-1",
+        requestId: "req_refund_1",
+        targetStatus: "REFUND_PENDING",
+        targetType: "ITEM",
+      });
+      const approved = await repository.recordAdminOrderRefund({
+        actorId: "admin_1",
+        amountCentavos: 1999,
+        expectedRefundStatus: "REFUND_PENDING",
+        now: "2026-07-08T03:02:00.000Z",
+        notes: null,
+        orderId: "order_1",
+        orderSnapshotId: "snapshot_1",
+        reason: "Approved after review",
+        referenceId: "RF-1A",
+        requestId: "req_refund_2",
+        targetStatus: "REFUND_APPROVED",
+        targetType: "ITEM",
+      });
+
+      expect(pending).toMatchObject({
+        decision: "recorded",
+        order: { refund: { label: "Refund pending", value: "REFUND_PENDING" } },
+        refundRecord: {
+          amountCentavos: 1999,
+          orderSnapshotId: "snapshot_1",
+          previousStatus: null,
+          reason: "Paid cancellation",
+          status: "REFUND_PENDING",
+          targetLabel: "Frozen Linen Shirt - Size: Small",
+          targetType: "ITEM",
+        },
+      });
+      expect(duplicate).toMatchObject({
+        decision: "already-requested",
+        refundRecord: { status: "REFUND_PENDING" },
+      });
+      expect(approved).toMatchObject({
+        decision: "recorded",
+        order: { refund: { label: "Refund approved", value: "REFUND_APPROVED" } },
+        refundRecord: {
+          previousStatus: "REFUND_PENDING",
+          status: "REFUND_APPROVED",
+        },
+      });
+
+      const adminDetail = await repository.getAdminOrderDetail({
+        orderIdOrNumber: "order_1",
+      });
+      const customerDetail = await repository.getCustomerOrderDetail({
+        customerId: "customer_1",
+        orderIdOrNumber: "order_1",
+      });
+      const rows = await d1
+        .prepare(
+          `SELECT request_id, refund_status FROM order_refund_records ORDER BY created_at, id`
+        )
+        .all();
+
+      expect(rows.results).toEqual([
+        { refund_status: "REFUND_PENDING", request_id: "req_refund_1" },
+        { refund_status: "REFUND_APPROVED", request_id: "req_refund_2" },
+      ]);
+      expect(adminDetail?.refundHistory.map((record) => record.status)).toEqual([
+        "REFUND_APPROVED",
+        "REFUND_PENDING",
+      ]);
+      expect(adminDetail?.refundHistory[1]).toMatchObject({
+        notes: "Refund reviewed by support.",
+        referenceId: "RF-1",
+      });
+      expect(customerDetail).toMatchObject({
+        refund: { label: "Refund approved", value: "REFUND_APPROVED" },
+      });
+      expect(JSON.stringify(customerDetail)).not.toMatch(
+        /Refund reviewed|RF-1|admin_1|req_refund|reference/i
+      );
+    } finally {
+      await mf.dispose();
+    }
+  }, 20_000);
+
+  it("guards refund amount caps, mixed-scope conflicts, request id mismatches, and paid gate", async () => {
+    const { d1, mf, repository } = await createOrderRepositoryTestD1();
+
+    try {
+      const overCap = await repository.recordAdminOrderRefund({
+        actorId: "admin_1",
+        amountCentavos: 3999,
+        expectedRefundStatus: null,
+        now: "2026-07-08T03:00:00.000Z",
+        notes: null,
+        orderId: "order_1",
+        orderSnapshotId: "snapshot_1",
+        reason: "Too high",
+        referenceId: null,
+        requestId: "req_refund_overcap",
+        targetStatus: "REFUND_PENDING",
+        targetType: "ITEM",
+      });
+      const original = await repository.recordAdminOrderRefund({
+        actorId: "admin_1",
+        amountCentavos: 3998,
+        expectedRefundStatus: null,
+        now: "2026-07-08T03:01:00.000Z",
+        notes: null,
+        orderId: "order_1",
+        orderSnapshotId: null,
+        reason: "Whole order refund",
+        referenceId: null,
+        requestId: "req_refund_scope",
+        targetStatus: "REFUND_PENDING",
+        targetType: "ORDER",
+      });
+      const mixedScope = await repository.recordAdminOrderRefund({
+        actorId: "admin_1",
+        amountCentavos: 1999,
+        expectedRefundStatus: null,
+        now: "2026-07-08T03:02:00.000Z",
+        notes: null,
+        orderId: "order_1",
+        orderSnapshotId: "snapshot_1",
+        reason: "Item after order",
+        referenceId: null,
+        requestId: "req_refund_item_after_order",
+        targetStatus: "REFUND_PENDING",
+        targetType: "ITEM",
+      });
+      const mismatch = await repository.recordAdminOrderRefund({
+        actorId: "admin_1",
+        amountCentavos: 3997,
+        expectedRefundStatus: null,
+        now: "2026-07-08T03:03:00.000Z",
+        notes: null,
+        orderId: "order_1",
+        orderSnapshotId: null,
+        reason: "Changed amount",
+        referenceId: null,
+        requestId: "req_refund_scope",
+        targetStatus: "REFUND_PENDING",
+        targetType: "ORDER",
+      });
+      const unpaid = await repository.recordAdminOrderRefund({
+        actorId: "admin_1",
+        amountCentavos: 1999,
+        expectedRefundStatus: null,
+        now: "2026-07-08T03:04:00.000Z",
+        notes: null,
+        orderId: "order_2",
+        orderSnapshotId: null,
+        reason: "Unpaid",
+        referenceId: null,
+        requestId: "req_refund_unpaid",
+        targetStatus: "REFUND_PENDING",
+        targetType: "ORDER",
+      });
+      const rows = await d1
+        .prepare(`SELECT request_id FROM order_refund_records ORDER BY request_id`)
+        .all();
+
+      expect(overCap).toMatchObject({
+        decision: "stale",
+        maxAmountCentavos: 3998,
+        reason: "AMOUNT_EXCEEDS_TARGET",
+      });
+      expect(original).toMatchObject({ decision: "recorded" });
+      expect(mixedScope).toMatchObject({
+        decision: "stale",
+        reason: "REFUND_SCOPE_CONFLICT",
+      });
+      expect(mismatch).toMatchObject({
+        decision: "stale",
+        reason: "REQUEST_ID_MISMATCH",
+      });
+      expect(unpaid).toMatchObject({
+        decision: "stale",
+        reason: "PAYMENT_NOT_PAID",
+      });
+      expect(rows.results).toEqual([{ request_id: "req_refund_scope" }]);
     } finally {
       await mf.dispose();
     }

@@ -156,6 +156,15 @@ const tboxReturnStatus = t.Union([
 ]);
 
 const tboxReturnTargetType = t.Union([t.Literal("ORDER"), t.Literal("ITEM")]);
+const tboxRefundTargetType = t.Union([t.Literal("ORDER"), t.Literal("ITEM")]);
+
+const tboxRefundStatus = t.Union([
+  t.Literal("REFUND_PENDING"),
+  t.Literal("REFUND_APPROVED"),
+  t.Literal("REFUND_DECLINED"),
+  t.Literal("REFUND_SENT"),
+  t.Literal("REFUND_FAILED"),
+]);
 
 const tboxAdminReturnRecord = t.Object({
   actorId: t.Union([t.String(), t.Null()]),
@@ -173,6 +182,25 @@ const tboxAdminReturnRecord = t.Object({
   statusLabel: t.String(),
   targetLabel: t.String(),
   targetType: tboxReturnTargetType,
+  updatedAt: t.String(),
+});
+
+const tboxAdminRefundRecord = t.Object({
+  actorId: t.Union([t.String(), t.Null()]),
+  amountCentavos: t.Integer({ minimum: 1 }),
+  createdAt: t.String(),
+  currency: t.Literal("PHP"),
+  id: t.String(),
+  notes: t.Union([t.String(), t.Null()]),
+  orderId: t.String(),
+  orderSnapshotId: t.Union([t.String(), t.Null()]),
+  previousStatus: t.Union([tboxRefundStatus, t.Null()]),
+  reason: t.String(),
+  referenceId: t.Union([t.String(), t.Null()]),
+  status: tboxRefundStatus,
+  statusLabel: t.String(),
+  targetLabel: t.String(),
+  targetType: tboxRefundTargetType,
   updatedAt: t.String(),
 });
 
@@ -194,6 +222,7 @@ const tboxAdminOrderDetailData = t.Object({
   orderNumber: t.String(),
   payment: tboxLane,
   refund: tboxLane,
+  refundHistory: t.Array(tboxAdminRefundRecord),
   return: tboxLane,
   returnHistory: t.Array(tboxAdminReturnRecord),
   shippingAddress: t.Object({
@@ -283,6 +312,19 @@ const tboxAdminReturnBody = t.Object(
   { additionalProperties: false }
 );
 
+const tboxAdminRefundBody = t.Object(
+  {
+    amountCentavos: t.Integer({ minimum: 1 }),
+    notes: t.Optional(t.String({ maxLength: 2000 })),
+    orderSnapshotId: t.Optional(t.String({ minLength: 1, maxLength: 128 })),
+    reason: t.String({ minLength: 1, maxLength: 512 }),
+    referenceId: t.Optional(t.String({ maxLength: 128 })),
+    targetStatus: tboxRefundStatus,
+    targetType: tboxRefundTargetType,
+  },
+  { additionalProperties: false }
+);
+
 const tboxAdminFulfillmentData = t.Object({
   allowedNextStatuses: t.Array(tboxFulfillmentStatus),
   email: t.Object({
@@ -300,6 +342,12 @@ const tboxAdminReturnData = t.Object({
   allowedNextStatuses: t.Array(tboxReturnStatus),
   order: tboxAdminOrderDetailData,
   returnRecord: tboxAdminReturnRecord,
+});
+
+const tboxAdminRefundData = t.Object({
+  allowedNextStatuses: t.Array(tboxRefundStatus),
+  order: tboxAdminOrderDetailData,
+  refundRecord: tboxAdminRefundRecord,
 });
 
 function createRuntimeController(
@@ -644,6 +692,71 @@ export function ordersRoutes(app: AnyElysia, options: OrderRoutesOptions = {}) {
         params: tboxAdminOrderParams,
         response: {
           200: tboxApiSuccess(tboxAdminReturnData),
+          ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
+        },
+        transform: rbacGuard(adminOrderAuth),
+      }
+    )
+    .post(
+      "/admin/orders/:orderId/refunds",
+      async (ctx) => {
+        const {
+          body,
+          request,
+          requestContext,
+          requestId,
+          runtimeEnv,
+          set,
+          params,
+        } = ctx as typeof ctx &
+          RequestContextDecorations & {
+            body: {
+              amountCentavos: number;
+              notes?: string;
+              orderSnapshotId?: string;
+              reason: string;
+              referenceId?: string;
+              targetStatus: string;
+              targetType: string;
+            };
+            params: { orderId: string };
+            runtimeEnv?: Partial<Env> & Record<string, unknown>;
+          };
+        const controller = getController(
+          { request, requestId, runtimeEnv },
+          options
+        );
+        const result = await controller.recordAdminOrderRefund({
+          actor: orderActor(requestContext.actor),
+          amountCentavos: body.amountCentavos,
+          notes: body.notes,
+          orderIdOrNumber: params.orderId,
+          orderSnapshotId: body.orderSnapshotId,
+          reason: body.reason,
+          referenceId: body.referenceId,
+          requestId,
+          targetStatus: body.targetStatus,
+          targetType: body.targetType,
+        });
+
+        set.status = result.status;
+
+        return result.body as never;
+      },
+      {
+        body: tboxAdminRefundBody,
+        detail: routeDetail({
+          summary: "Record Admin order refund",
+          description:
+            "Records an append-only manual refund history entry for a paid JRW order. Active approved Admins can record order-level or order_snapshots item-level refund progress with amount and evidence reference when sent. The endpoint preserves payment, fulfillment, and return lanes, exposes updated Admin order detail, and does not execute PayMongo refunds, create provider refund resources, store provider payloads, mutate inventory, send email, or mutate Customer state.",
+          tags: ["Orders"],
+          auth: adminOrderAuth,
+          rateLimitClass: "admin-write",
+          errorCodes: [...adminOrderErrors],
+        }),
+        params: tboxAdminOrderParams,
+        response: {
+          200: tboxApiSuccess(tboxAdminRefundData),
           ...openApiErrorResponses([400, 401, 403, 404, 409, 500, 503]),
         },
         transform: rbacGuard(adminOrderAuth),

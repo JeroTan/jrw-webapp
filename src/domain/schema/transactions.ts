@@ -491,6 +491,47 @@ export const order_return_records = sqliteTable(
   ]
 );
 
+export const order_refund_records = sqliteTable(
+  "order_refund_records",
+  {
+    id: text("id")
+      .primaryKey()
+      .$defaultFn(() => createId()),
+    order_id: text("order_id")
+      .notNull()
+      .references(() => orders.id, { onDelete: "cascade" }),
+    order_snapshot_id: text("order_snapshot_id").references(
+      () => order_snapshots.id,
+      { onDelete: "set null" }
+    ),
+    target_type: text("target_type").notNull(),
+    previous_refund_status: text("previous_refund_status"),
+    refund_status: text("refund_status").notNull(),
+    amount_centavos: integer("amount_centavos").notNull(),
+    currency: text("currency").notNull().default("PHP"),
+    reason: text("reason").notNull(),
+    notes: text("notes"),
+    reference_id: text("reference_id"),
+    actor_id: text("actor_id"),
+    request_id: text("request_id").notNull(),
+    created_at: text("created_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+    updated_at: text("updated_at")
+      .notNull()
+      .default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("uq_order_refund_records_request_id").on(table.request_id),
+    index("idx_order_refund_records_order_id").on(table.order_id),
+    index("idx_order_refund_records_order_snapshot_id").on(
+      table.order_snapshot_id
+    ),
+    index("idx_order_refund_records_refund_status").on(table.refund_status),
+    index("idx_order_refund_records_created_at").on(table.created_at),
+  ]
+);
+
 export const reviews = sqliteTable("reviews", {
   id: text("id")
     .primaryKey()
@@ -518,6 +559,7 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     references: [customers.id],
   }),
   fulfillmentEvents: many(order_fulfillment_events),
+  refundRecords: many(order_refund_records),
   returnRecords: many(order_return_records),
   snapshots: many(order_snapshots),
   reviews: many(reviews),
@@ -668,6 +710,7 @@ export const orderSnapshotsRelations = relations(
       fields: [order_snapshots.variant_id],
       references: [product_variants.id],
     }),
+    refundRecords: many(order_refund_records),
     returnRecords: many(order_return_records),
   })
 );
@@ -681,6 +724,20 @@ export const orderReturnRecordsRelations = relations(
     }),
     snapshot: one(order_snapshots, {
       fields: [order_return_records.order_snapshot_id],
+      references: [order_snapshots.id],
+    }),
+  })
+);
+
+export const orderRefundRecordsRelations = relations(
+  order_refund_records,
+  ({ one }) => ({
+    order: one(orders, {
+      fields: [order_refund_records.order_id],
+      references: [orders.id],
+    }),
+    snapshot: one(order_snapshots, {
+      fields: [order_refund_records.order_snapshot_id],
       references: [order_snapshots.id],
     }),
   })

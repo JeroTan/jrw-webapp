@@ -125,4 +125,35 @@ describe("customer order status lanes", () => {
       /RETURN_APPROVED|admin|notes|reference|request_id|provider/i
     );
   });
+
+  it("shows active refund status with customer-safe labels and no Admin details", () => {
+    const lanes = buildCustomerOrderStatusLanes({
+      fulfillmentStatus: "DELIVERED",
+      paymentStatus: "PAYMENT_PAID",
+      refundStatus: "REFUND_DECLINED",
+      refundUpdatedAt: "2026-07-08T05:00:00.000Z",
+      updatedAt: "2026-07-08T03:00:00.000Z",
+    });
+    const timeline = buildCustomerOrderTimeline({
+      createdAt: "2026-07-08T01:00:00.000Z",
+      lanes,
+      updatedAt: "2026-07-08T05:00:00.000Z",
+    });
+
+    expect(lanes.refund).toEqual({
+      kind: "refund",
+      label: "Refund declined",
+      updatedAt: "2026-07-08T05:00:00.000Z",
+      value: "REFUND_DECLINED",
+    });
+    expect(timeline[0]).toMatchObject({
+      label: "Refund declined",
+      lane: "refund",
+      title: "Refund declined",
+      tone: "warning",
+    });
+    expect(JSON.stringify(timeline)).not.toMatch(
+      /REFUND_DECLINED|admin|notes|reference|request_id|paymongo|provider/i
+    );
+  });
 });

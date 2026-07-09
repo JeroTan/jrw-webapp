@@ -4,6 +4,8 @@ import type {
   AdminFulfillmentUpdateResult,
   AdminOrderList,
   AdminOrderListQuery,
+  AdminRefundRecordRequest,
+  AdminRefundRecordResult,
   AdminReturnRecordRequest,
   AdminReturnRecordResult,
 } from "./types";
@@ -177,4 +179,22 @@ export async function recordAdminOrderReturn(
   );
 
   return readApiEnvelope<AdminReturnRecordResult>(response);
+}
+
+export async function recordAdminOrderRefund(
+  orderIdOrNumber: string,
+  body: AdminRefundRecordRequest
+): Promise<AdminRefundRecordResult> {
+  const response = await adminOrderFetch(
+    `/api/admin/orders/${encodeURIComponent(orderIdOrNumber)}/refunds`,
+    {
+      body: JSON.stringify(body),
+      headers: {
+        "content-type": "application/json",
+      },
+      method: "POST",
+    }
+  );
+
+  return readApiEnvelope<AdminRefundRecordResult>(response);
 }

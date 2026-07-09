@@ -22,6 +22,10 @@ import {
   returnStatusLabel,
 } from "@/domain/orders/return-transitions";
 import {
+  type RefundStatus,
+  refundStatusLabel,
+} from "@/domain/orders/refund-transitions";
+import {
   buildCustomerOrderStatusLanes,
   type CustomerOrderStatusLane,
 } from "@/domain/orders/customer-order-status";
@@ -31,6 +35,7 @@ import type {
 } from "@/domain/notifications/fulfillment-status-email";
 import {
   order_fulfillment_events,
+  order_refund_records,
   order_return_records,
   order_snapshots,
   orders,
@@ -92,6 +97,7 @@ export type AdminOrderDetailReadModel = AdminOrderReadModel & {
     phone: string | null;
   };
   items: AdminOrderSnapshotItem[];
+  refundHistory: AdminRefundRecordReadModel[];
   returnHistory: AdminReturnRecordReadModel[];
   shippingAddress: {
     barangay: string | null;
@@ -103,6 +109,7 @@ export type AdminOrderDetailReadModel = AdminOrderReadModel & {
 };
 
 export type AdminReturnTargetType = "ITEM" | "ORDER";
+export type AdminRefundTargetType = "ITEM" | "ORDER";
 
 export type AdminReturnRecordReadModel = {
   actorId: string | null;
@@ -120,6 +127,25 @@ export type AdminReturnRecordReadModel = {
   statusLabel: string;
   targetLabel: string;
   targetType: AdminReturnTargetType;
+  updatedAt: string;
+};
+
+export type AdminRefundRecordReadModel = {
+  actorId: string | null;
+  amountCentavos: number;
+  createdAt: string;
+  currency: "PHP";
+  id: string;
+  notes: string | null;
+  orderId: string;
+  orderSnapshotId: string | null;
+  previousStatus: RefundStatus | null;
+  reason: string;
+  referenceId: string | null;
+  status: RefundStatus;
+  statusLabel: string;
+  targetLabel: string;
+  targetType: AdminRefundTargetType;
   updatedAt: string;
 };
 
@@ -167,6 +193,21 @@ export type AdminReturnTransitionSubject = {
   orderNumber: string;
   paymentStatus: string;
   returnHistory?: AdminReturnRecordReadModel[];
+  totalCentavos: number;
+  updatedAt: string;
+};
+
+export type AdminRefundTransitionSubject = {
+  currency: "PHP";
+  currentRefundStatus: RefundStatus | null;
+  currentRefundUpdatedAt: string | null;
+  fulfillmentStatus: string;
+  items: AdminOrderSnapshotItem[];
+  orderId: string;
+  orderNumber: string;
+  paymentStatus: string;
+  refundHistory: AdminRefundRecordReadModel[];
+  returnHistory: AdminReturnRecordReadModel[];
   totalCentavos: number;
   updatedAt: string;
 };
@@ -238,6 +279,45 @@ export type RecordAdminOrderReturnResult =
         | "PAYMENT_NOT_PAID"
         | "REQUEST_ID_MISMATCH"
         | "STALE_RETURN_STATUS";
+    }
+  | {
+      decision: "invalid-target";
+      orderId: string;
+    }
+  | { decision: "missing-order" };
+
+export type RecordAdminOrderRefundInput = {
+  actorId: string;
+  amountCentavos: number;
+  expectedRefundStatus: RefundStatus | null;
+  notes: string | null;
+  now?: string;
+  orderId: string;
+  orderSnapshotId: string | null;
+  reason: string;
+  referenceId: string | null;
+  requestId: string;
+  targetStatus: RefundStatus;
+  targetType: AdminRefundTargetType;
+};
+
+export type RecordAdminOrderRefundResult =
+  | {
+      decision: "already-requested" | "recorded";
+      order: AdminOrderDetailReadModel;
+      refundRecord: AdminRefundRecordReadModel;
+    }
+  | {
+      currentRefundStatus: RefundStatus | null;
+      decision: "stale";
+      maxAmountCentavos?: number;
+      orderId: string;
+      reason?:
+        | "AMOUNT_EXCEEDS_TARGET"
+        | "PAYMENT_NOT_PAID"
+        | "REFUND_SCOPE_CONFLICT"
+        | "REQUEST_ID_MISMATCH"
+        | "STALE_REFUND_STATUS";
     }
   | {
       decision: "invalid-target";
@@ -510,6 +590,46 @@ function toAdminReturnRecord(row: {
   };
 }
 
+function toAdminRefundRecord(row: {
+  actorId: string | null;
+  amountCentavos: number;
+  createdAt: string;
+  currency: string;
+  id: string;
+  notes: string | null;
+  orderId: string;
+  orderSnapshotId: string | null;
+  previousStatus: string | null;
+  productName: string | null;
+  reason: string;
+  referenceId: string | null;
+  status: string;
+  targetType: string;
+  updatedAt: string;
+  variantName: string | null;
+}): AdminRefundRecordReadModel {
+  const status = row.status as RefundStatus;
+
+  return {
+    actorId: row.actorId,
+    amountCentavos: safeCentavos(row.amountCentavos),
+    createdAt: row.createdAt,
+    currency: "PHP",
+    id: row.id,
+    notes: safeString(row.notes),
+    orderId: row.orderId,
+    orderSnapshotId: row.orderSnapshotId,
+    previousStatus: row.previousStatus as RefundStatus | null,
+    reason: row.reason,
+    referenceId: safeString(row.referenceId),
+    status,
+    statusLabel: refundStatusLabel(status),
+    targetLabel: returnTargetLabel(row),
+    targetType: row.targetType === "ITEM" ? "ITEM" : "ORDER",
+    updatedAt: row.updatedAt,
+  };
+}
+
 function buildOrderReadModel(
   row: {
     createdAt: string;
@@ -518,6 +638,8 @@ function buildOrderReadModel(
     orderId: string;
     orderNumber: string | null;
     paymentStatus: string;
+    refundStatus?: string | null;
+    refundUpdatedAt?: string | null;
     returnStatus?: string | null;
     returnUpdatedAt?: string | null;
     subtotalCentavos: number;
@@ -529,6 +651,8 @@ function buildOrderReadModel(
   const lanes = buildCustomerOrderStatusLanes({
     fulfillmentStatus: row.fulfillmentStatus,
     paymentStatus: row.paymentStatus,
+    refundStatus: row.refundStatus,
+    refundUpdatedAt: row.refundUpdatedAt,
     returnStatus: row.returnStatus,
     returnUpdatedAt: row.returnUpdatedAt,
     updatedAt: row.updatedAt,
@@ -563,6 +687,8 @@ function buildAdminOrderReadModel(
     orderId: string;
     orderNumber: string | null;
     paymentStatus: string;
+    refundStatus?: string | null;
+    refundUpdatedAt?: string | null;
     returnStatus?: string | null;
     returnUpdatedAt?: string | null;
     subtotalCentavos: number;
@@ -688,14 +814,20 @@ export class DrizzleOrderRepository {
     const latestReturnByOrderId = await this.latestReturnByOrderId(
       orderRows.map((row) => row.orderId)
     );
+    const latestRefundByOrderId = await this.latestRefundByOrderId(
+      orderRows.map((row) => row.orderId)
+    );
 
     return {
       items: orderRows.map((row) => {
         const latestReturn = latestReturnByOrderId.get(row.orderId);
+        const latestRefund = latestRefundByOrderId.get(row.orderId);
 
         return buildOrderReadModel(
           {
             ...row,
+            refundStatus: latestRefund?.status,
+            refundUpdatedAt: latestRefund?.createdAt,
             returnStatus: latestReturn?.status,
             returnUpdatedAt: latestReturn?.createdAt,
           },
@@ -747,11 +879,16 @@ export class DrizzleOrderRepository {
     const latestReturn = (await this.latestReturnByOrderId([row.orderId])).get(
       row.orderId
     );
+    const latestRefund = (await this.latestRefundByOrderId([row.orderId])).get(
+      row.orderId
+    );
 
     return {
       ...buildOrderReadModel(
         {
           ...row,
+          refundStatus: latestRefund?.status,
+          refundUpdatedAt: latestRefund?.createdAt,
           returnStatus: latestReturn?.status,
           returnUpdatedAt: latestReturn?.createdAt,
         },
@@ -801,14 +938,20 @@ export class DrizzleOrderRepository {
     const latestReturnByOrderId = await this.latestReturnByOrderId(
       orderRows.map((row) => row.orderId)
     );
+    const latestRefundByOrderId = await this.latestRefundByOrderId(
+      orderRows.map((row) => row.orderId)
+    );
 
     return {
       items: orderRows.map((row) => {
         const latestReturn = latestReturnByOrderId.get(row.orderId);
+        const latestRefund = latestRefundByOrderId.get(row.orderId);
 
         return buildAdminOrderReadModel(
           {
             ...row,
+            refundStatus: latestRefund?.status,
+            refundUpdatedAt: latestRefund?.createdAt,
             returnStatus: latestReturn?.status,
             returnUpdatedAt: latestReturn?.createdAt,
           },
@@ -864,12 +1007,16 @@ export class DrizzleOrderRepository {
 
     const items = await this.adminOrderSnapshotItems(row.orderId);
     const returnHistory = await this.orderReturnHistory(row.orderId);
+    const refundHistory = await this.orderRefundHistory(row.orderId);
     const latestReturn = returnHistory[0];
+    const latestRefund = refundHistory[0];
 
     return {
       ...buildAdminOrderReadModel(
         {
           ...row,
+          refundStatus: latestRefund?.status,
+          refundUpdatedAt: latestRefund?.createdAt,
           returnStatus: latestReturn?.status,
           returnUpdatedAt: latestReturn?.createdAt,
         },
@@ -881,6 +1028,7 @@ export class DrizzleOrderRepository {
         phone: safeString(row.phone),
       },
       items,
+      refundHistory,
       returnHistory,
       shippingAddress: {
         barangay: safeString(row.barangay),
@@ -973,6 +1121,52 @@ export class DrizzleOrderRepository {
       orderNumber: row.orderNumber ?? row.orderId,
       paymentStatus: row.paymentStatus,
       returnHistory,
+      totalCentavos: safeCentavos(Number(row.totalCentavos)),
+      updatedAt: row.updatedAt,
+    };
+  }
+
+  async getAdminRefundTransitionSubject(input: {
+    orderIdOrNumber: string;
+  }): Promise<AdminRefundTransitionSubject | null> {
+    const rows = await this.db
+      .select({
+        currency: orders.currency,
+        fulfillmentStatus: orders.fulfillment_status,
+        orderId: orders.id,
+        orderNumber: orders.order_number,
+        paymentStatus: orders.payment_status,
+        totalCentavos: orders.total_centavos,
+        updatedAt: orders.updated_at,
+      })
+      .from(orders)
+      .where(
+        or(
+          eq(orders.id, input.orderIdOrNumber),
+          eq(orders.order_number, input.orderIdOrNumber)
+        )
+      )
+      .limit(1);
+    const row = rows[0];
+
+    if (!row) {
+      return null;
+    }
+
+    const latestRefund = await this.latestRefundForOrder(this.db, row.orderId);
+    const refundHistory = await this.orderRefundHistory(row.orderId);
+
+    return {
+      currency: "PHP",
+      currentRefundStatus: latestRefund?.status ?? null,
+      currentRefundUpdatedAt: latestRefund?.createdAt ?? null,
+      fulfillmentStatus: row.fulfillmentStatus,
+      items: await this.adminOrderSnapshotItems(row.orderId),
+      orderId: row.orderId,
+      orderNumber: row.orderNumber ?? row.orderId,
+      paymentStatus: row.paymentStatus,
+      refundHistory,
+      returnHistory: await this.orderReturnHistory(row.orderId),
       totalCentavos: safeCentavos(Number(row.totalCentavos)),
       updatedAt: row.updatedAt,
     };
@@ -1186,6 +1380,234 @@ export class DrizzleOrderRepository {
       decision: result.decision,
       order,
       returnRecord: result.returnRecord,
+    };
+  }
+
+  async recordAdminOrderRefund(
+    input: RecordAdminOrderRefundInput
+  ): Promise<RecordAdminOrderRefundResult> {
+    const now = input.now ?? new Date().toISOString();
+    const applyRecord = async (db: AppDb) => {
+      const existingRows = await db
+        .select({
+          actorId: order_refund_records.actor_id,
+          amountCentavos: order_refund_records.amount_centavos,
+          createdAt: order_refund_records.created_at,
+          currency: order_refund_records.currency,
+          id: order_refund_records.id,
+          notes: order_refund_records.notes,
+          orderId: order_refund_records.order_id,
+          orderSnapshotId: order_refund_records.order_snapshot_id,
+          previousStatus: order_refund_records.previous_refund_status,
+          productName: order_snapshots.product_name,
+          reason: order_refund_records.reason,
+          referenceId: order_refund_records.reference_id,
+          status: order_refund_records.refund_status,
+          targetType: order_refund_records.target_type,
+          updatedAt: order_refund_records.updated_at,
+          variantName: order_snapshots.variant_name,
+        })
+        .from(order_refund_records)
+        .leftJoin(
+          order_snapshots,
+          eq(order_snapshots.id, order_refund_records.order_snapshot_id)
+        )
+        .where(eq(order_refund_records.request_id, input.requestId))
+        .limit(1);
+      const existing = existingRows[0];
+
+      if (existing) {
+        const exactMatch =
+          existing.orderId === input.orderId &&
+          (existing.actorId ?? null) === input.actorId &&
+          existing.targetType === input.targetType &&
+          (existing.orderSnapshotId ?? null) === input.orderSnapshotId &&
+          (existing.previousStatus ?? null) === input.expectedRefundStatus &&
+          existing.status === input.targetStatus &&
+          existing.amountCentavos === input.amountCentavos &&
+          existing.reason === input.reason &&
+          (existing.notes ?? null) === input.notes &&
+          (existing.referenceId ?? null) === input.referenceId;
+
+        if (!exactMatch) {
+          const latest = await this.latestRefundForTarget(db, input);
+
+          return {
+            currentRefundStatus: latest?.status ?? null,
+            decision: "stale" as const,
+            orderId: input.orderId,
+            reason: "REQUEST_ID_MISMATCH" as const,
+          };
+        }
+
+        return {
+          decision: "already-requested" as const,
+          refundRecord: toAdminRefundRecord(existing),
+        };
+      }
+
+      const orderRows = await db
+        .select({
+          id: orders.id,
+          paymentStatus: orders.payment_status,
+          totalCentavos: orders.total_centavos,
+        })
+        .from(orders)
+        .where(eq(orders.id, input.orderId))
+        .limit(1);
+      const order = orderRows[0];
+
+      if (!order) {
+        return { decision: "missing-order" as const };
+      }
+
+      const latest = await this.latestRefundForTarget(db, input);
+
+      if (order.paymentStatus !== "PAYMENT_PAID") {
+        return {
+          currentRefundStatus: latest?.status ?? null,
+          decision: "stale" as const,
+          orderId: input.orderId,
+          reason: "PAYMENT_NOT_PAID" as const,
+        };
+      }
+
+      if (input.targetType === "ORDER" && input.orderSnapshotId) {
+        return { decision: "invalid-target" as const, orderId: input.orderId };
+      }
+
+      let maxAmountCentavos = safeCentavos(Number(order.totalCentavos));
+
+      if (input.targetType === "ITEM") {
+        if (!input.orderSnapshotId) {
+          return {
+            decision: "invalid-target" as const,
+            orderId: input.orderId,
+          };
+        }
+
+        const snapshotRows = await db
+          .select({
+            id: order_snapshots.id,
+            priceCentavos: order_snapshots.price_centavos,
+            quantity: order_snapshots.quantity,
+          })
+          .from(order_snapshots)
+          .where(
+            and(
+              eq(order_snapshots.id, input.orderSnapshotId),
+              eq(order_snapshots.order_id, input.orderId)
+            )
+          )
+          .limit(1);
+        const snapshot = snapshotRows[0];
+
+        if (!snapshot) {
+          return {
+            decision: "invalid-target" as const,
+            orderId: input.orderId,
+          };
+        }
+
+        maxAmountCentavos =
+          safeCentavos(Number(snapshot.priceCentavos)) *
+          Math.max(0, Number(snapshot.quantity) || 0);
+      }
+
+      if (input.amountCentavos > maxAmountCentavos) {
+        return {
+          currentRefundStatus: latest?.status ?? null,
+          decision: "stale" as const,
+          maxAmountCentavos,
+          orderId: input.orderId,
+          reason: "AMOUNT_EXCEEDS_TARGET" as const,
+        };
+      }
+
+      if (await this.refundScopeConflict(db, input)) {
+        return {
+          currentRefundStatus: latest?.status ?? null,
+          decision: "stale" as const,
+          orderId: input.orderId,
+          reason: "REFUND_SCOPE_CONFLICT" as const,
+        };
+      }
+
+      if ((latest?.status ?? null) !== input.expectedRefundStatus) {
+        return {
+          currentRefundStatus: latest?.status ?? null,
+          decision: "stale" as const,
+          orderId: input.orderId,
+          reason: "STALE_REFUND_STATUS" as const,
+        };
+      }
+
+      const recordId = createId();
+
+      await db.insert(order_refund_records).values({
+        actor_id: input.actorId,
+        amount_centavos: input.amountCentavos,
+        created_at: now,
+        currency: "PHP",
+        id: recordId,
+        notes: input.notes,
+        order_id: input.orderId,
+        order_snapshot_id: input.orderSnapshotId,
+        previous_refund_status: input.expectedRefundStatus,
+        reason: input.reason,
+        reference_id: input.referenceId,
+        refund_status: input.targetStatus,
+        request_id: input.requestId,
+        target_type: input.targetType,
+        updated_at: now,
+      });
+
+      const refundRecord = await this.refundRecordById(db, recordId);
+
+      if (!refundRecord) {
+        return { decision: "missing-order" as const };
+      }
+
+      return {
+        decision: "recorded" as const,
+        refundRecord,
+      };
+    };
+
+    let result: Awaited<ReturnType<typeof applyRecord>>;
+
+    try {
+      result = await this.db.transaction((tx) =>
+        applyRecord(tx as unknown as AppDb)
+      );
+    } catch (error) {
+      if (!isD1ExplicitTransactionUnsupported(error)) {
+        throw error;
+      }
+
+      result = await applyRecord(this.db);
+    }
+
+    if (
+      result.decision === "missing-order" ||
+      result.decision === "stale" ||
+      result.decision === "invalid-target"
+    ) {
+      return result;
+    }
+
+    const order = await this.getAdminOrderDetail({
+      orderIdOrNumber: result.refundRecord.orderId,
+    });
+
+    if (!order) {
+      return { decision: "missing-order" };
+    }
+
+    return {
+      decision: result.decision,
+      order,
+      refundRecord: result.refundRecord,
     };
   }
 
@@ -1606,6 +2028,52 @@ export class DrizzleOrderRepository {
     return latest;
   }
 
+  private async latestRefundByOrderId(orderIds: string[]): Promise<
+    Map<
+      string,
+      {
+        createdAt: string;
+        status: RefundStatus;
+      }
+    >
+  > {
+    const latest = new Map<
+      string,
+      {
+        createdAt: string;
+        status: RefundStatus;
+      }
+    >();
+
+    if (orderIds.length === 0) {
+      return latest;
+    }
+
+    const rows = await this.db
+      .select({
+        createdAt: order_refund_records.created_at,
+        orderId: order_refund_records.order_id,
+        status: order_refund_records.refund_status,
+      })
+      .from(order_refund_records)
+      .where(inArray(order_refund_records.order_id, orderIds))
+      .orderBy(
+        desc(order_refund_records.created_at),
+        desc(order_refund_records.id)
+      );
+
+    for (const row of rows) {
+      if (!latest.has(row.orderId)) {
+        latest.set(row.orderId, {
+          createdAt: row.createdAt,
+          status: row.status as RefundStatus,
+        });
+      }
+    }
+
+    return latest;
+  }
+
   private async latestReturnForOrder(
     db: AppDb,
     orderId: string
@@ -1674,6 +2142,101 @@ export class DrizzleOrderRepository {
       : null;
   }
 
+  private async latestRefundForOrder(
+    db: AppDb,
+    orderId: string
+  ): Promise<{ createdAt: string; status: RefundStatus } | null> {
+    const rows = await db
+      .select({
+        createdAt: order_refund_records.created_at,
+        status: order_refund_records.refund_status,
+      })
+      .from(order_refund_records)
+      .where(eq(order_refund_records.order_id, orderId))
+      .orderBy(
+        desc(order_refund_records.created_at),
+        desc(order_refund_records.id)
+      )
+      .limit(1);
+    const row = rows[0];
+
+    return row
+      ? { createdAt: row.createdAt, status: row.status as RefundStatus }
+      : null;
+  }
+
+  private async latestRefundForTarget(
+    db: AppDb,
+    input: {
+      orderId: string;
+      orderSnapshotId: string | null;
+      targetType: AdminRefundTargetType;
+    }
+  ): Promise<{ createdAt: string; status: RefundStatus } | null> {
+    const targetFilter =
+      input.targetType === "ITEM"
+        ? and(
+            eq(order_refund_records.target_type, "ITEM"),
+            input.orderSnapshotId
+              ? eq(
+                  order_refund_records.order_snapshot_id,
+                  input.orderSnapshotId
+                )
+              : sql`${order_refund_records.order_snapshot_id} IS NULL`
+          )
+        : and(
+            eq(order_refund_records.target_type, "ORDER"),
+            sql`${order_refund_records.order_snapshot_id} IS NULL`
+          );
+
+    const rows = await db
+      .select({
+        createdAt: order_refund_records.created_at,
+        status: order_refund_records.refund_status,
+      })
+      .from(order_refund_records)
+      .where(
+        and(eq(order_refund_records.order_id, input.orderId), targetFilter)
+      )
+      .orderBy(
+        desc(order_refund_records.created_at),
+        desc(order_refund_records.id)
+      )
+      .limit(1);
+    const row = rows[0];
+
+    return row
+      ? { createdAt: row.createdAt, status: row.status as RefundStatus }
+      : null;
+  }
+
+  private async refundScopeConflict(
+    db: AppDb,
+    input: {
+      orderId: string;
+      orderSnapshotId: string | null;
+      targetType: AdminRefundTargetType;
+    }
+  ): Promise<boolean> {
+    const conflictingRows = await db
+      .select({ id: order_refund_records.id })
+      .from(order_refund_records)
+      .where(
+        input.targetType === "ORDER"
+          ? and(
+              eq(order_refund_records.order_id, input.orderId),
+              eq(order_refund_records.target_type, "ITEM")
+            )
+          : and(
+              eq(order_refund_records.order_id, input.orderId),
+              eq(order_refund_records.target_type, "ORDER")
+            )
+      )
+      .limit(1);
+
+    return Boolean(conflictingRows[0]);
+  }
+
   private async returnRecordById(
     db: AppDb,
     recordId: string
@@ -1707,6 +2270,41 @@ export class DrizzleOrderRepository {
     const row = rows[0];
 
     return row ? toAdminReturnRecord(row) : null;
+  }
+
+  private async refundRecordById(
+    db: AppDb,
+    recordId: string
+  ): Promise<AdminRefundRecordReadModel | null> {
+    const rows = await db
+      .select({
+        actorId: order_refund_records.actor_id,
+        amountCentavos: order_refund_records.amount_centavos,
+        createdAt: order_refund_records.created_at,
+        currency: order_refund_records.currency,
+        id: order_refund_records.id,
+        notes: order_refund_records.notes,
+        orderId: order_refund_records.order_id,
+        orderSnapshotId: order_refund_records.order_snapshot_id,
+        previousStatus: order_refund_records.previous_refund_status,
+        productName: order_snapshots.product_name,
+        reason: order_refund_records.reason,
+        referenceId: order_refund_records.reference_id,
+        status: order_refund_records.refund_status,
+        targetType: order_refund_records.target_type,
+        updatedAt: order_refund_records.updated_at,
+        variantName: order_snapshots.variant_name,
+      })
+      .from(order_refund_records)
+      .leftJoin(
+        order_snapshots,
+        eq(order_snapshots.id, order_refund_records.order_snapshot_id)
+      )
+      .where(eq(order_refund_records.id, recordId))
+      .limit(1);
+    const row = rows[0];
+
+    return row ? toAdminRefundRecord(row) : null;
   }
 
   private async orderReturnHistory(
@@ -1743,5 +2341,41 @@ export class DrizzleOrderRepository {
       );
 
     return rows.map((row) => toAdminReturnRecord(row));
+  }
+
+  private async orderRefundHistory(
+    orderId: string
+  ): Promise<AdminRefundRecordReadModel[]> {
+    const rows = await this.db
+      .select({
+        actorId: order_refund_records.actor_id,
+        amountCentavos: order_refund_records.amount_centavos,
+        createdAt: order_refund_records.created_at,
+        currency: order_refund_records.currency,
+        id: order_refund_records.id,
+        notes: order_refund_records.notes,
+        orderId: order_refund_records.order_id,
+        orderSnapshotId: order_refund_records.order_snapshot_id,
+        previousStatus: order_refund_records.previous_refund_status,
+        productName: order_snapshots.product_name,
+        reason: order_refund_records.reason,
+        referenceId: order_refund_records.reference_id,
+        status: order_refund_records.refund_status,
+        targetType: order_refund_records.target_type,
+        updatedAt: order_refund_records.updated_at,
+        variantName: order_snapshots.variant_name,
+      })
+      .from(order_refund_records)
+      .leftJoin(
+        order_snapshots,
+        eq(order_snapshots.id, order_refund_records.order_snapshot_id)
+      )
+      .where(eq(order_refund_records.order_id, orderId))
+      .orderBy(
+        desc(order_refund_records.created_at),
+        desc(order_refund_records.id)
+      );
+
+    return rows.map((row) => toAdminRefundRecord(row));
   }
 }

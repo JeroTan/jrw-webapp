@@ -1,6 +1,6 @@
 # Story 6.5: Manual Refund Recording
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -27,81 +27,81 @@ so that JRW can track refund handling without implying automated PayMongo refund
 
 ## Tasks / Subtasks
 
-- [ ] Add pure refund transition domain rules. (AC: 4, 5, 6, 7, 10, 11)
-  - [ ] Create `src/domain/orders/refund-transitions.ts` or `src/domain/returns-refunds/refund-transitions.ts`; keep it provider-free and DB-free.
-  - [ ] Export exact `RefundStatus` union, `RefundDisplayStatus` if needed, label helpers, allowed-next helper, status guard, and transition evaluator.
-  - [ ] Treat `REFUND_NOT_REQUESTED` as display idle only. It can appear in lanes when no record exists, but must not be accepted as a mutation target.
-  - [ ] Reject or normalize legacy aliases at the boundary; do not persist `REFUND_REQUESTED`, `REFUND_REJECTED`, or `REFUND_COMPLETED`.
-  - [ ] Enforce transition matrix from `docs/order-status-flow.md`.
-  - [ ] Enforce payment-paid gate without requiring delivered fulfillment for every refund case.
+- [x] Add pure refund transition domain rules. (AC: 4, 5, 6, 7, 10, 11)
+  - [x] Create `src/domain/orders/refund-transitions.ts` or `src/domain/returns-refunds/refund-transitions.ts`; keep it provider-free and DB-free.
+  - [x] Export exact `RefundStatus` union, `RefundDisplayStatus` if needed, label helpers, allowed-next helper, status guard, and transition evaluator.
+  - [x] Treat `REFUND_NOT_REQUESTED` as display idle only. It can appear in lanes when no record exists, but must not be accepted as a mutation target.
+  - [x] Reject or normalize legacy aliases at the boundary; do not persist `REFUND_REQUESTED`, `REFUND_REJECTED`, or `REFUND_COMPLETED`.
+  - [x] Enforce transition matrix from `docs/order-status-flow.md`.
+  - [x] Enforce payment-paid gate without requiring delivered fulfillment for every refund case.
 
-- [ ] Add append-only refund persistence. (AC: 3, 8, 9, 10)
-  - [ ] Add Drizzle table in `src/domain/schema/transactions.ts`, recommended name `order_refund_records`.
-  - [ ] Add migration `migrations/0035_order_refund_records.sql` unless another migration already claimed that number.
-  - [ ] Columns should include `id`, `order_id`, nullable `order_snapshot_id`, `target_type`, nullable `previous_refund_status`, `refund_status`, `amount_centavos`, `currency`, `reason`, nullable `notes`, nullable `reference_id`, `actor_id`, `request_id`, `created_at`, and `updated_at`.
-  - [ ] Consider nullable `return_record_id` only if implementation links a refund to a completed return; if added, validate same order/target and keep Customer responses hidden.
-  - [ ] Add FK to `orders.id` with cascade delete and FK to `order_snapshots.id` with set-null, mirroring `order_return_records`.
-  - [ ] Add unique index on `request_id`; add indexes on `order_id`, `order_snapshot_id`, `refund_status`, and `created_at`.
-  - [ ] Add CHECK constraints for allowed `target_type`, allowed `refund_status`, and positive `amount_centavos`.
-  - [ ] Add relations and schema invariant tests that reject customer contact, provider payload, PayMongo payload/response, tokens, signatures, raw card data, and provider secrets in the refund table.
+- [x] Add append-only refund persistence. (AC: 3, 8, 9, 10)
+  - [x] Add Drizzle table in `src/domain/schema/transactions.ts`, recommended name `order_refund_records`.
+  - [x] Add migration `migrations/0035_order_refund_records.sql` unless another migration already claimed that number.
+  - [x] Columns should include `id`, `order_id`, nullable `order_snapshot_id`, `target_type`, nullable `previous_refund_status`, `refund_status`, `amount_centavos`, `currency`, `reason`, nullable `notes`, nullable `reference_id`, `actor_id`, `request_id`, `created_at`, and `updated_at`.
+  - [x] Consider nullable `return_record_id` only if implementation links a refund to a completed return; if added, validate same order/target and keep Customer responses hidden.
+  - [x] Add FK to `orders.id` with cascade delete and FK to `order_snapshots.id` with set-null, mirroring `order_return_records`.
+  - [x] Add unique index on `request_id`; add indexes on `order_id`, `order_snapshot_id`, `refund_status`, and `created_at`.
+  - [x] Add CHECK constraints for allowed `target_type`, allowed `refund_status`, and positive `amount_centavos`.
+  - [x] Add relations and schema invariant tests that reject customer contact, provider payload, PayMongo payload/response, tokens, signatures, raw card data, and provider secrets in the refund table.
 
-- [ ] Extend `DrizzleOrderRepository` read models and mutation methods. (AC: 2, 3, 7, 8, 9, 11)
-  - [ ] Load latest refund record per order for Customer list/detail and Admin list/detail; pass latest status and timestamp into `buildCustomerOrderStatusLanes`.
-  - [ ] Add Admin-only refund history to Admin detail, including safe labels, amount, and target labels.
-  - [ ] Add a refund transition subject loader with order id/number, payment status, fulfillment status, latest return/refund history, snapshots, order total, and item line totals.
-  - [ ] Add `recordAdminOrderRefund(...)` that validates same-order item target, amount caps, mixed order/item target conflicts, request-id idempotency, and append-only insert.
-  - [ ] If an existing `request_id` row is found, accept it only when order, target, previous status, new status, amount, reason, notes, and reference id match exactly; otherwise return stale/conflict instead of reusing another record.
-  - [ ] Re-check `PAYMENT_PAID`, target existence, and amount cap immediately before append inside repository transaction/fallback path, not only in the service.
+- [x] Extend `DrizzleOrderRepository` read models and mutation methods. (AC: 2, 3, 7, 8, 9, 11)
+  - [x] Load latest refund record per order for Customer list/detail and Admin list/detail; pass latest status and timestamp into `buildCustomerOrderStatusLanes`.
+  - [x] Add Admin-only refund history to Admin detail, including safe labels, amount, and target labels.
+  - [x] Add a refund transition subject loader with order id/number, payment status, fulfillment status, latest return/refund history, snapshots, order total, and item line totals.
+  - [x] Add `recordAdminOrderRefund(...)` that validates same-order item target, amount caps, mixed order/item target conflicts, request-id idempotency, and append-only insert.
+  - [x] If an existing `request_id` row is found, accept it only when order, target, previous status, new status, amount, reason, notes, and reference id match exactly; otherwise return stale/conflict instead of reusing another record.
+  - [x] Re-check `PAYMENT_PAID`, target existence, and amount cap immediately before append inside repository transaction/fallback path, not only in the service.
 
-- [ ] Extend service/controller/routes. (AC: 2, 7, 8, 9, 10, 11)
-  - [ ] Add `OrderService.recordAdminOrderRefund(...)` using existing Admin-only policy; Super Admin remains denied unless product policy changes intentionally.
-  - [ ] Validate blank order id, invalid target type, missing item id for item target, unknown item id, unknown status, idle status, legacy alias status, blank reason, invalid/oversized text, missing/invalid amount, over-cap amount, and missing reference id when target status is `REFUND_SENT`.
-  - [ ] Return `RESOURCE_NOT_FOUND` for unknown order, `VALIDATION_FAILED` for bad body/status/amount/reference/target, `CONFLICT_STATE` for invalid state transitions or stale latest refund state, and `PROVIDER_UNAVAILABLE` for D1 failures.
-  - [ ] Publish safe audit events with `refund-return.refund_recorded` for first record and `refund-return.status_changed` for later records. Audit failure must never mask a successful refund record.
-  - [ ] Add `OrderController.recordAdminOrderRefund(...)`.
-  - [ ] Add route `POST /admin/orders/:orderId/refunds` in `src/server/routes/orders.routes.ts` with TypeBox params/body/response schemas, `routeDetail(...)`, `rbacGuard(adminOrderAuth)`, `admin-write` rate-limit class, and full error code list.
-  - [ ] Do not add PayMongo SDK calls, PayMongo refund client wrappers, webhook reconciliation, email, payment mutation, inventory mutation, or Customer mutation behavior in this story.
+- [x] Extend service/controller/routes. (AC: 2, 7, 8, 9, 10, 11)
+  - [x] Add `OrderService.recordAdminOrderRefund(...)` using existing Admin-only policy; Super Admin remains denied unless product policy changes intentionally.
+  - [x] Validate blank order id, invalid target type, missing item id for item target, unknown item id, unknown status, idle status, legacy alias status, blank reason, invalid/oversized text, missing/invalid amount, over-cap amount, and missing reference id when target status is `REFUND_SENT`.
+  - [x] Return `RESOURCE_NOT_FOUND` for unknown order, `VALIDATION_FAILED` for bad body/status/amount/reference/target, `CONFLICT_STATE` for invalid state transitions or stale latest refund state, and `PROVIDER_UNAVAILABLE` for D1 failures.
+  - [x] Publish safe audit events with `refund-return.refund_recorded` for first record and `refund-return.status_changed` for later records. Audit failure must never mask a successful refund record.
+  - [x] Add `OrderController.recordAdminOrderRefund(...)`.
+  - [x] Add route `POST /admin/orders/:orderId/refunds` in `src/server/routes/orders.routes.ts` with TypeBox params/body/response schemas, `routeDetail(...)`, `rbacGuard(adminOrderAuth)`, `admin-write` rate-limit class, and full error code list.
+  - [x] Do not add PayMongo SDK calls, PayMongo refund client wrappers, webhook reconciliation, email, payment mutation, inventory mutation, or Customer mutation behavior in this story.
 
-- [ ] Extend Admin order UI. (AC: 1, 3, 5, 9, 10, 11)
-  - [ ] Update `src/features/admin-orders/types.ts` with refund record, refund response, and refund request types.
-  - [ ] Add `recordAdminOrderRefund(...)` to `src/features/admin-orders/api.ts`.
-  - [ ] Extend `AdminOrderDetailDashboard.tsx` rather than creating a parallel order detail screen.
-  - [ ] Reuse patterns from Story 6.4 return actions/history; keep refund controls separate from return controls.
-  - [ ] Use existing shared primitives: `Button`, `Input`, `Select`, `Textarea`, `StatusBadge`, `Skeleton`, `EmptyState`, and inline alert/toast pattern as appropriate.
-  - [ ] UI must show visible labels for target type, item, status, amount, reason, notes, and reference ID. Required fields must be clear.
-  - [ ] Button/copy should be operational and manual: "Record refund", "Save refund record", "Refund pending", "Refund approved", "Refund sent". Do not show raw status codes in routine UI.
-  - [ ] Disable or explain refund action when payment is not paid, selected item is invalid, amount exceeds target cap, order/item scope conflicts with existing refund scope, or refund status is terminal.
-  - [ ] On `CONFLICT_STATE`, refresh latest order detail and show allowed next status or safe reason.
-  - [ ] Show refund history in Admin detail, newest-first, with target label, safe status label, amount, reason, notes, reference ID, actor safe id/label, and timestamp.
-  - [ ] No visible copy may say PayMongo refund was executed, queued, sent, or created by this app.
+- [x] Extend Admin order UI. (AC: 1, 3, 5, 9, 10, 11)
+  - [x] Update `src/features/admin-orders/types.ts` with refund record, refund response, and refund request types.
+  - [x] Add `recordAdminOrderRefund(...)` to `src/features/admin-orders/api.ts`.
+  - [x] Extend `AdminOrderDetailDashboard.tsx` rather than creating a parallel order detail screen.
+  - [x] Reuse patterns from Story 6.4 return actions/history; keep refund controls separate from return controls.
+  - [x] Use existing shared primitives: `Button`, `Input`, `Select`, `Textarea`, `StatusBadge`, `Skeleton`, `EmptyState`, and inline alert/toast pattern as appropriate.
+  - [x] UI must show visible labels for target type, item, status, amount, reason, notes, and reference ID. Required fields must be clear.
+  - [x] Button/copy should be operational and manual: "Record refund", "Save refund record", "Refund pending", "Refund approved", "Refund sent". Do not show raw status codes in routine UI.
+  - [x] Disable or explain refund action when payment is not paid, selected item is invalid, amount exceeds target cap, order/item scope conflicts with existing refund scope, or refund status is terminal.
+  - [x] On `CONFLICT_STATE`, refresh latest order detail and show allowed next status or safe reason.
+  - [x] Show refund history in Admin detail, newest-first, with target label, safe status label, amount, reason, notes, reference ID, actor safe id/label, and timestamp.
+  - [x] No visible copy may say PayMongo refund was executed, queued, sent, or created by this app.
 
-- [ ] Update customer-safe projection. (AC: 11)
-  - [ ] Ensure Customer order list/detail and Admin list/detail receive latest refund status from persistence.
-  - [ ] Keep `REFUND_NOT_REQUESTED` out of customer timeline events; existing `activeSupportTimelineEvents` already suppresses idle values, so preserve that behavior.
-  - [ ] Hide Admin-only refund details from Customer endpoints while still showing safe refund lane label when a refund exists.
+- [x] Update customer-safe projection. (AC: 11)
+  - [x] Ensure Customer order list/detail and Admin list/detail receive latest refund status from persistence.
+  - [x] Keep `REFUND_NOT_REQUESTED` out of customer timeline events; existing `activeSupportTimelineEvents` already suppresses idle values, so preserve that behavior.
+  - [x] Hide Admin-only refund details from Customer endpoints while still showing safe refund lane label when a refund exists.
 
-- [ ] Add focused tests and validation. (AC: 12)
-  - [ ] Add domain tests for refund status guards, labels, valid transitions, terminal states, idle rejection, legacy alias rejection/normalization, paid gate, and unknown values.
-  - [ ] Extend `src/domain/schema-invariants.test.ts` for `order_refund_records`.
-  - [ ] Extend `src/server/repositories/OrderRepository.test.ts` for append-only history, latest status projection, item target validation, order/item mixed-scope conflict, amount caps, idempotency match/mismatch, repository-side paid gate, and Customer detail hiding notes/reference/actor.
-  - [ ] Extend `src/server/services/OrderService.test.ts` for Admin allow/deny, Super Admin denial, payment gate, invalid transitions, amount over-cap, `REFUND_SENT` reference requirement, audit publish/failure, and safe errors.
-  - [ ] Extend `src/server/routes/orders.routes.test.ts` for POST OpenAPI metadata, RBAC denial before controller, success envelope, validation envelope, and conflict envelope.
-  - [ ] Extend `src/features/admin-orders/admin-orders-ui.test.tsx` for refund form states, disabled reasons, amount validation, successful refresh, conflict refresh, and no raw status/provider-execution wording in visible copy.
-  - [ ] Extend `src/domain/orders/customer-order-status.test.ts` if label/timeline behavior changes.
-  - [ ] Run targeted tests plus `npm run check`; prefer `npm run build-test` before moving story to review because this changes schema, API, service, repository, and React UI.
+- [x] Add focused tests and validation. (AC: 12)
+  - [x] Add domain tests for refund status guards, labels, valid transitions, terminal states, idle rejection, legacy alias rejection/normalization, paid gate, and unknown values.
+  - [x] Extend `src/domain/schema-invariants.test.ts` for `order_refund_records`.
+  - [x] Extend `src/server/repositories/OrderRepository.test.ts` for append-only history, latest status projection, item target validation, order/item mixed-scope conflict, amount caps, idempotency match/mismatch, repository-side paid gate, and Customer detail hiding notes/reference/actor.
+  - [x] Extend `src/server/services/OrderService.test.ts` for Admin allow/deny, Super Admin denial, payment gate, invalid transitions, amount over-cap, `REFUND_SENT` reference requirement, audit publish/failure, and safe errors.
+  - [x] Extend `src/server/routes/orders.routes.test.ts` for POST OpenAPI metadata, RBAC denial before controller, success envelope, validation envelope, and conflict envelope.
+  - [x] Extend `src/features/admin-orders/admin-orders-ui.test.tsx` for refund form states, disabled reasons, amount validation, successful refresh, conflict refresh, and no raw status/provider-execution wording in visible copy.
+  - [x] Extend `src/domain/orders/customer-order-status.test.ts` if label/timeline behavior changes.
+  - [x] Run targeted tests plus `npm run check`; prefer `npm run build-test` before moving story to review because this changes schema, API, service, repository, and React UI.
 
 ## Endpoint Guard Checklist
 
 Complete for every new or changed endpoint. Mark non-applicable items as `N/A` with reason.
 
-- [ ] Route auth metadata declares required auth, `roles: ["ADMIN"]`, and `admin-write` rate-limit class.
-- [ ] Route-level RBAC guard runs before validation or side effects for `POST /api/admin/orders/:orderId/refunds`.
-- [ ] Service/controller enforces actor state before mutation: authenticated, active, verified, approved.
-- [ ] Brand-scoped reads or writes: N/A because JRW order refunds are single-store Admin operations, not brand-scoped catalog editing.
-- [ ] Public/customer endpoints: N/A for the new Admin refund endpoint; existing customer endpoints keep safe refund labels and no Admin refund details.
-- [ ] Denial tests cover unauthenticated actor, Customer/Prospect wrong role, Super Admin current-policy denial, suspended/inactive/unverified/unapproved Admin, and controller-not-called guard path.
-- [ ] Error response uses safe envelope codes and does not leak provider/internal authorization, email, phone, address, Admin notes to Customer, reference IDs to Customer, request IDs outside meta, DB errors, or stack details.
-- [ ] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, request body, response schema, denial codes, validation codes, and conflict codes.
+- [x] Route auth metadata declares required auth, `roles: ["ADMIN"]`, and `admin-write` rate-limit class.
+- [x] Route-level RBAC guard runs before validation or side effects for `POST /api/admin/orders/:orderId/refunds`.
+- [x] Service/controller enforces actor state before mutation: authenticated, active, verified, approved.
+- [x] Brand-scoped reads or writes: N/A because JRW order refunds are single-store Admin operations, not brand-scoped catalog editing.
+- [x] Public/customer endpoints: N/A for the new Admin refund endpoint; existing customer endpoints keep safe refund labels and no Admin refund details.
+- [x] Denial tests cover unauthenticated actor, Customer/Prospect wrong role, Super Admin current-policy denial, suspended/inactive/unverified/unapproved Admin, and controller-not-called guard path.
+- [x] Error response uses safe envelope codes and does not leak provider/internal authorization, email, phone, address, Admin notes to Customer, reference IDs to Customer, request IDs outside meta, DB errors, or stack details.
+- [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, request body, response schema, denial codes, validation codes, and conflict codes.
 
 ## Dev Notes
 
@@ -368,12 +368,57 @@ Recommended conflict details:
 
 GPT-5 Codex
 
+### Status Review
+
+Moved to review on 2026-07-09 after implementation, targeted tests, full build-test, and remote development D1 migration.
+
 ### Debug Log References
+
+- `npx vitest run src/domain/orders/refund-transitions.test.ts` passed.
+- `npx vitest run src/domain/schema-invariants.test.ts` passed.
+- `npx vitest run src/server/repositories/OrderRepository.test.ts` passed.
+- `npx vitest run src/server/services/OrderService.test.ts` passed.
+- `npx vitest run src/server/routes/orders.routes.test.ts` passed.
+- `npx vitest run src/features/admin-orders/admin-orders-ui.test.tsx` passed.
+- `npx vitest run src/domain/orders/customer-order-status.test.ts` passed.
+- Targeted combined suite passed: 7 files, 89 tests.
+- `npm run check` passed with existing hints printed by Astro.
+- `npm run build-test` passed: 142 files, 974 tests, Astro build complete.
+- `npm run db:migrate:remote` applied `0035_order_refund_records.sql` to development D1.
 
 ### Completion Notes List
 
+- Added pure refund transition rules for pending, approved, declined, sent, and failed states, with idle and legacy alias rejection.
+- Added append-only `order_refund_records` schema, migration, relations, request-id idempotency, amount caps, and mixed order/item scope conflict checks.
+- Projected latest refund lane into Customer/Admin read models while keeping Customer endpoints free of Admin notes, reference IDs, actor IDs, and request IDs.
+- Added Admin refund endpoint, service orchestration, controller method, route schema/docs, RBAC guard, and safe audit publishing.
+- Added Admin refund form/history panels using shared UI primitives and human labels only.
+- Changed Customer refund declined label to `Refund declined`.
+
 ### File List
+
+- `migrations/0035_order_refund_records.sql`
+- `src/domain/orders/customer-order-status.test.ts`
+- `src/domain/orders/customer-order-status.ts`
+- `src/domain/orders/refund-transitions.test.ts`
+- `src/domain/orders/refund-transitions.ts`
+- `src/domain/schema-invariants.test.ts`
+- `src/domain/schema/transactions.ts`
+- `src/features/admin-orders/admin-orders-ui.test.tsx`
+- `src/features/admin-orders/api.ts`
+- `src/features/admin-orders/components/AdminOrderDetailDashboard.tsx`
+- `src/features/admin-orders/types.ts`
+- `src/server/controllers/OrderController.ts`
+- `src/server/repositories/OrderRepository.test.ts`
+- `src/server/repositories/OrderRepository.ts`
+- `src/server/routes/orders.routes.test.ts`
+- `src/server/routes/orders.routes.ts`
+- `src/server/services/OrderService.test.ts`
+- `src/server/services/OrderService.ts`
+- `_bmad-output/implementation-artifacts/6-5-manual-refund-recording.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Change Log
 
 - 2026-07-09: Created ready-for-dev story with refund transition rules, append-only refund records, amount caps, Admin recording UI, customer-safe projection, and no-PayMongo-execution guardrails.
+- 2026-07-09: Implemented manual refund recording across domain, schema, repository, service/controller/routes, Admin UI, customer-safe projection, tests, and development D1 migration.

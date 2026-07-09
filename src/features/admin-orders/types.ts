@@ -48,6 +48,34 @@ export type AdminReturnRecord = {
   updatedAt: string;
 };
 
+export type AdminRefundStatus =
+  | "REFUND_PENDING"
+  | "REFUND_APPROVED"
+  | "REFUND_DECLINED"
+  | "REFUND_SENT"
+  | "REFUND_FAILED";
+
+export type AdminRefundTargetType = "ORDER" | "ITEM";
+
+export type AdminRefundRecord = {
+  actorId: string | null;
+  amountCentavos: number;
+  createdAt: string;
+  currency: "PHP";
+  id: string;
+  notes: string | null;
+  orderId: string;
+  orderSnapshotId: string | null;
+  previousStatus: AdminRefundStatus | null;
+  reason: string;
+  referenceId: string | null;
+  status: AdminRefundStatus;
+  statusLabel: string;
+  targetLabel: string;
+  targetType: AdminRefundTargetType;
+  updatedAt: string;
+};
+
 export type AdminOrderSummary = {
   checkoutEmailMasked: string | null;
   createdAt: string;
@@ -74,6 +102,7 @@ export type AdminOrderDetail = AdminOrderSummary & {
     phone: string | null;
   };
   items: AdminOrderSnapshotItem[];
+  refundHistory: AdminRefundRecord[];
   returnHistory: AdminReturnRecord[];
   shippingAddress: {
     barangay: string | null;
@@ -146,4 +175,20 @@ export type AdminReturnRecordResult = {
   allowedNextStatuses: AdminReturnStatus[];
   order: AdminOrderDetail;
   returnRecord: AdminReturnRecord;
+};
+
+export type AdminRefundRecordRequest = {
+  amountCentavos: number;
+  notes?: string;
+  orderSnapshotId?: string;
+  reason: string;
+  referenceId?: string;
+  targetStatus: AdminRefundStatus;
+  targetType: AdminRefundTargetType;
+};
+
+export type AdminRefundRecordResult = {
+  allowedNextStatuses: AdminRefundStatus[];
+  order: AdminOrderDetail;
+  refundRecord: AdminRefundRecord;
 };

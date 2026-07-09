@@ -436,6 +436,7 @@ describe("order routes", () => {
                       variantOptions: [{ group: "Size", name: "Small" }],
                     },
                   ],
+                  refundHistory: [],
                   returnHistory: [],
                   shippingAddress: {
                     barangay: "Poblacion",
@@ -663,6 +664,7 @@ describe("order routes", () => {
                       ...item,
                       snapshotId: "snapshot_1",
                     })),
+                    refundHistory: [],
                     returnHistory: [],
                     shippingAddress: {
                       barangay: "Poblacion",
@@ -779,6 +781,7 @@ describe("order routes", () => {
         updatedAt: "2026-07-08T03:00:00.000Z",
         value: "RETURN_REQUESTED",
       },
+      refundHistory: [],
       returnHistory: [],
       shippingAddress: {
         barangay: "Poblacion",
@@ -906,6 +909,163 @@ describe("order routes", () => {
       error: {
         code: "CONFLICT_STATE",
         details: { reason: "FULFILLMENT_NOT_DELIVERED" },
+      },
+    });
+  });
+
+  it("returns Admin refund recording envelopes and conflict details", async () => {
+    const orderDetail = {
+      ...adminOrderListData().items[0],
+      contact: {
+        checkoutEmail: "nina@example.test",
+        fullName: "Nina Reyes",
+        phone: "09171234567",
+      },
+      items: orderSnapshotItems().map((item) => ({
+        ...item,
+        snapshotId: "snapshot_1",
+      })),
+      refund: {
+        kind: "refund" as const,
+        label: "Refund pending",
+        updatedAt: "2026-07-08T03:00:00.000Z",
+        value: "REFUND_PENDING",
+      },
+      refundHistory: [],
+      returnHistory: [],
+      shippingAddress: {
+        barangay: "Poblacion",
+        cityProvince: "Makati",
+        postalCode: "1200",
+        shippingType: "STANDARD",
+        streetAddress: "12 Sampaguita Street",
+      },
+    };
+    const successApp = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        orders: {
+          controllerFactory: () =>
+            createController({
+              recordAdminOrderRefund: async () =>
+                Result.okay({
+                  allowedNextStatuses: [
+                    "REFUND_APPROVED",
+                    "REFUND_DECLINED",
+                    "REFUND_FAILED",
+                  ],
+                  order: orderDetail,
+                  refundRecord: {
+                    actorId: "admin_1",
+                    amountCentavos: 1999,
+                    createdAt: "2026-07-08T03:00:00.000Z",
+                    currency: "PHP",
+                    id: "refund_1",
+                    notes: "Manual refund reviewed.",
+                    orderId: "order_1",
+                    orderSnapshotId: "snapshot_1",
+                    previousStatus: null,
+                    reason: "Paid cancellation",
+                    referenceId: "RF-1",
+                    status: "REFUND_PENDING",
+                    statusLabel: "Refund pending",
+                    targetLabel: "Frozen Linen Shirt - Size: Small",
+                    targetType: "ITEM",
+                    updatedAt: "2026-07-08T03:00:00.000Z",
+                  },
+                }),
+            }),
+        },
+      },
+    });
+    const conflictApp = createApp({
+      requestContext: {
+        resolveActorFromSession: async () => adminContext,
+      },
+      routes: {
+        orders: {
+          controllerFactory: () =>
+            createController({
+              recordAdminOrderRefund: async () =>
+                Result.error(
+                  new GeneralError(
+                    { maxAmountCentavos: 1999, reason: "AMOUNT_EXCEEDS_TARGET" },
+                    "CONFLICT_STATE"
+                  )
+                ),
+            }),
+        },
+      },
+    });
+
+    const success = await successApp.handle(
+      new Request("https://jrw.test/api/admin/orders/JRW-2026-ORDER1/refunds", {
+        body: JSON.stringify({
+          amountCentavos: 1999,
+          orderSnapshotId: "snapshot_1",
+          reason: "Paid cancellation",
+          referenceId: "RF-1",
+          targetStatus: "REFUND_PENDING",
+          targetType: "ITEM",
+        }),
+        headers: {
+          "content-type": "application/json",
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_refund_route",
+        },
+        method: "POST",
+      })
+    );
+    const successBody = (await success.json()) as { data: unknown };
+
+    expect(success.status).toBe(200);
+    expect(successBody).toMatchObject({
+      data: {
+        allowedNextStatuses: [
+          "REFUND_APPROVED",
+          "REFUND_DECLINED",
+          "REFUND_FAILED",
+        ],
+        order: { refund: { value: "REFUND_PENDING" } },
+        refundRecord: {
+          amountCentavos: 1999,
+          reason: "Paid cancellation",
+          status: "REFUND_PENDING",
+          targetType: "ITEM",
+        },
+      },
+      meta: { requestId: "req_refund_route" },
+    });
+    expect(JSON.stringify(successBody.data)).not.toContain("req_refund_route");
+    expect(JSON.stringify(successBody.data)).not.toMatch(/PayMongo refund/i);
+
+    const conflict = await conflictApp.handle(
+      new Request("https://jrw.test/api/admin/orders/JRW-2026-ORDER1/refunds", {
+        body: JSON.stringify({
+          amountCentavos: 2000,
+          reason: "Too high",
+          targetStatus: "REFUND_PENDING",
+          targetType: "ORDER",
+        }),
+        headers: {
+          "content-type": "application/json",
+          cookie: "jrw_admin_session=admin-token",
+          "x-request-id": "req_refund_conflict",
+        },
+        method: "POST",
+      })
+    );
+
+    expect(conflict.status).toBe(409);
+    await expect(conflict.json()).resolves.toMatchObject({
+      error: {
+        code: "CONFLICT_STATE",
+        details: {
+          maxAmountCentavos: 1999,
+          reason: "AMOUNT_EXCEEDS_TARGET",
+        },
       },
     });
   });

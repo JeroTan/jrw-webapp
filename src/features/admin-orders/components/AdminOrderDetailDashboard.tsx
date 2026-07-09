@@ -14,9 +14,15 @@ import {
   isReturnStatus,
   returnStatusLabel,
 } from "@/domain/orders/return-transitions";
+import {
+  allowedNextRefundStatuses,
+  isRefundStatus,
+  refundStatusLabel,
+} from "@/domain/orders/refund-transitions";
 import { formatCatalogPrice } from "@/domain/products/price-format";
 import {
   fetchAdminOrderDetail,
+  recordAdminOrderRefund,
   recordAdminOrderReturn,
   updateAdminOrderFulfillment,
   type AdminOrderApiFailure,
@@ -25,6 +31,9 @@ import type {
   AdminFulfillmentEmailStatus,
   AdminFulfillmentStatus,
   AdminOrderDetail,
+  AdminRefundRecordRequest,
+  AdminRefundStatus,
+  AdminRefundTargetType,
   AdminReturnRecordRequest,
   AdminReturnStatus,
   AdminReturnTargetType,
@@ -36,6 +45,7 @@ type FulfillmentActionMessage = {
   text: string;
 };
 type ReturnActionMessage = FulfillmentActionMessage;
+type RefundActionMessage = FulfillmentActionMessage;
 type FulfillmentActionRow = {
   label: string;
   targetStatus: AdminFulfillmentStatus;
@@ -47,6 +57,12 @@ const returnHistoryActionLabel: Partial<Record<AdminReturnStatus, string>> = {
   RETURN_COMPLETED: "Complete return",
   RETURN_RECEIVED: "Mark received",
   RETURN_REJECTED: "Decline return",
+};
+const refundHistoryActionLabel: Partial<Record<AdminRefundStatus, string>> = {
+  REFUND_APPROVED: "Approve refund",
+  REFUND_DECLINED: "Decline refund",
+  REFUND_FAILED: "Mark failed",
+  REFUND_SENT: "Mark sent",
 };
 
 export type AdminOrderDetailDashboardProps = {
@@ -146,6 +162,33 @@ function returnedItemIds(order: AdminOrderDetail) {
   );
 }
 
+function refundTargetKey(record: {
+  orderSnapshotId: string | null;
+  targetType: AdminRefundTargetType;
+}) {
+  return record.targetType === "ORDER"
+    ? "ORDER"
+    : `ITEM:${record.orderSnapshotId ?? ""}`;
+}
+
+function refundedItemIds(order: AdminOrderDetail) {
+  return new Set(
+    order.refundHistory
+      .filter(
+        (record) => record.targetType === "ITEM" && record.orderSnapshotId
+      )
+      .map((record) => record.orderSnapshotId as string)
+  );
+}
+
+function refundActionVariant(status: AdminRefundStatus) {
+  return status === "REFUND_DECLINED" || status === "REFUND_FAILED"
+    ? ("danger" as const)
+    : status === "REFUND_SENT"
+      ? ("primary" as const)
+      : ("secondary" as const);
+}
+
 export function fulfillmentActionRows(
   order: AdminOrderDetail
 ): FulfillmentActionRow[] {
@@ -196,6 +239,21 @@ function returnBlockedReason(order: AdminOrderDetail): string | null {
     !isReturnStatus(order.return.value)
   ) {
     return "Current return status cannot be changed.";
+  }
+
+  return null;
+}
+
+function refundBlockedReason(order: AdminOrderDetail): string | null {
+  if (order.payment.value !== "PAYMENT_PAID") {
+    return "Refund locked until payment is paid.";
+  }
+
+  if (
+    order.refund.value !== "REFUND_NOT_REQUESTED" &&
+    !isRefundStatus(order.refund.value)
+  ) {
+    return "Current refund status cannot be changed.";
   }
 
   return null;
@@ -634,20 +692,439 @@ function ReturnHistoryPanel({
   );
 }
 
+function RefundActionsPanel({
+  busy,
+  message,
+  onRecord,
+  order,
+}: {
+  busy: boolean;
+  message: RefundActionMessage | null;
+  onRecord?: (body: AdminRefundRecordRequest) => Promise<void> | void;
+  order: AdminOrderDetail;
+}) {
+  const blockedReason = refundBlockedReason(order);
+  const orderLevelRefundExists = order.refundHistory.some(
+    (record) => record.targetType === "ORDER"
+  );
+  const unavailableItemIds = refundedItemIds(order);
+  const availableItems = order.items.filter(
+    (item) => !unavailableItemIds.has(item.snapshotId)
+  );
+  const hasExistingItemRefund =
+    order.refundHistory.some((record) => record.targetType === "ITEM") &&
+    !orderLevelRefundExists;
+  const [targetType, setTargetType] = useState<"item" | "order">("order");
+  const [itemId, setItemId] = useState(availableItems[0]?.snapshotId ?? "");
+  const [reason, setReason] = useState("");
+  const [notes, setNotes] = useState("");
+  const [referenceId, setReferenceId] = useState("");
+  const effectiveTargetType = hasExistingItemRefund ? "item" : targetType;
+  const selectedItem = availableItems.find((item) => item.snapshotId === itemId);
+  const defaultAmount =
+    effectiveTargetType === "item"
+      ? (selectedItem?.lineTotalCentavos ?? 0)
+      : order.totalCentavos;
+  const [amount, setAmount] = useState(
+    defaultAmount > 0 ? String(defaultAmount) : ""
+  );
+  const [localMessage, setLocalMessage] = useState<RefundActionMessage | null>(
+    null
+  );
+  const canCreateRefund =
+    !orderLevelRefundExists &&
+    (effectiveTargetType === "order" || availableItems.length > 0);
+
+  useEffect(() => {
+    setItemId(availableItems[0]?.snapshotId ?? "");
+    if (hasExistingItemRefund) {
+      setTargetType("item");
+    }
+  }, [
+    availableItems.map((item) => item.snapshotId).join("|"),
+    hasExistingItemRefund,
+  ]);
+
+  useEffect(() => {
+    setAmount(defaultAmount > 0 ? String(defaultAmount) : "");
+  }, [defaultAmount]);
+
+  async function submitRefund(event: { preventDefault(): void }) {
+    event.preventDefault();
+
+    const trimmedReason = reason.trim();
+    const amountCentavos = Number(amount.trim());
+
+    if (!Number.isSafeInteger(amountCentavos) || amountCentavos <= 0) {
+      setLocalMessage({
+        text: "Refund amount is required.",
+        tone: "warning",
+      });
+      return;
+    }
+
+    if (amountCentavos > defaultAmount) {
+      setLocalMessage({
+        text: `Refund amount cannot exceed ${formatCatalogPrice(defaultAmount)}.`,
+        tone: "warning",
+      });
+      return;
+    }
+
+    if (!trimmedReason) {
+      setLocalMessage({
+        text: "Reason is required.",
+        tone: "warning",
+      });
+      return;
+    }
+
+    if (effectiveTargetType === "item" && !itemId) {
+      setLocalMessage({
+        text: "Choose an item before saving.",
+        tone: "warning",
+      });
+      return;
+    }
+
+    setLocalMessage(null);
+
+    await onRecord?.({
+      amountCentavos,
+      notes: notes.trim() || undefined,
+      orderSnapshotId: effectiveTargetType === "item" ? itemId : undefined,
+      reason: trimmedReason,
+      referenceId: referenceId.trim() || undefined,
+      targetStatus: "REFUND_PENDING",
+      targetType:
+        effectiveTargetType === "item"
+          ? ("ITEM" satisfies AdminRefundTargetType)
+          : ("ORDER" satisfies AdminRefundTargetType),
+    });
+  }
+
+  const activeMessage = message ?? localMessage;
+
+  return (
+    <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
+      <div className="flex flex-wrap items-center justify-between gap-grid-xs">
+        <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
+          Refund actions
+        </h2>
+        <StatusBadge
+          label={order.refund.label}
+          tone={statusTone(order.refund.value)}
+        />
+      </div>
+
+      {activeMessage ? (
+        <p
+          className={`m-0 border p-grid-xs text-sm ${
+            activeMessage.tone === "success"
+              ? "border-brand-success text-brand-success"
+              : activeMessage.tone === "warning"
+                ? "border-brand-danger text-brand-danger"
+                : "border-brand-border-strong text-brand-muted"
+          }`}
+          role={activeMessage.tone === "warning" ? "alert" : "status"}
+        >
+          {activeMessage.text}
+        </p>
+      ) : null}
+
+      {orderLevelRefundExists ? (
+        <p className="m-0 text-sm text-brand-muted">
+          Refund record already covers whole order. Use refund history actions
+          below.
+        </p>
+      ) : blockedReason ? (
+        <p className="m-0 text-sm text-brand-muted">{blockedReason}</p>
+      ) : !canCreateRefund ? (
+        <p className="m-0 text-sm text-brand-muted">
+          All purchased items already have refund records.
+        </p>
+      ) : (
+        <form className="grid gap-grid-xs" onSubmit={submitRefund}>
+          {hasExistingItemRefund ? (
+            <p className="m-0 text-sm text-brand-muted">
+              Choose another purchased item to create a separate refund record.
+            </p>
+          ) : (
+            <Select
+              controlSize="sm"
+              label="Target type"
+              onChange={(event) =>
+                setTargetType(
+                  event.currentTarget.value === "item" ? "item" : "order"
+                )
+              }
+              textSize="sm"
+              value={targetType}
+            >
+              <option value="order">Entire order</option>
+              <option value="item">Purchased item</option>
+            </Select>
+          )}
+
+          <Select
+            controlSize="sm"
+            disabled={effectiveTargetType !== "item"}
+            label="Item"
+            onChange={(event) => setItemId(event.currentTarget.value)}
+            textSize="sm"
+            value={itemId}
+          >
+            {availableItems.map((item) => (
+              <option key={item.snapshotId} value={item.snapshotId}>
+                {item.productName} - {item.variantLabel}
+              </option>
+            ))}
+          </Select>
+
+          <label className="grid gap-grid-xs font-system text-[0.8125rem] font-bold text-brand-content">
+            <span>Refund amount (centavos)</span>
+            <Input
+              min={1}
+              onChange={(event) => setAmount(event.currentTarget.value)}
+              required
+              textSize="sm"
+              type="number"
+              value={amount}
+            />
+          </label>
+
+          <Textarea
+            label="Reason"
+            onChange={(event) => setReason(event.currentTarget.value)}
+            required
+            rows={3}
+            textSize="sm"
+            value={reason}
+          />
+
+          <Textarea
+            label="Notes"
+            onChange={(event) => setNotes(event.currentTarget.value)}
+            rows={3}
+            textSize="sm"
+            value={notes}
+          />
+
+          <label className="grid gap-grid-xs font-system text-[0.8125rem] font-bold text-brand-content">
+            <span>Reference ID</span>
+            <Input
+              onChange={(event) => setReferenceId(event.currentTarget.value)}
+              placeholder="Optional"
+              textSize="sm"
+              value={referenceId}
+            />
+          </label>
+
+          <Button
+            disabled={busy}
+            fullWidth
+            loading={busy}
+            loadingLabel="Saving"
+            size="sm"
+            textSize="xs"
+            type="submit"
+            variant="primary"
+          >
+            Record refund
+          </Button>
+        </form>
+      )}
+    </section>
+  );
+}
+
+function RefundHistoryPanel({
+  busy,
+  onRecord,
+  order,
+}: {
+  busy: boolean;
+  onRecord?: (body: AdminRefundRecordRequest) => Promise<void> | void;
+  order: AdminOrderDetail;
+}) {
+  const latestTargetKeys = new Set<string>();
+  const [referenceByRecordId, setReferenceByRecordId] = useState<
+    Record<string, string>
+  >({});
+  const [localMessage, setLocalMessage] = useState<RefundActionMessage | null>(
+    null
+  );
+
+  async function recordNextStatus(
+    record: AdminOrderDetail["refundHistory"][number],
+    targetStatus: AdminRefundStatus
+  ) {
+    const referenceId =
+      record.referenceId ?? referenceByRecordId[record.id]?.trim() ?? "";
+
+    if (targetStatus === "REFUND_SENT" && !referenceId) {
+      setLocalMessage({
+        text: "Reference ID is required before marking refund sent.",
+        tone: "warning",
+      });
+      return;
+    }
+
+    setLocalMessage(null);
+
+    await onRecord?.({
+      amountCentavos: record.amountCentavos,
+      orderSnapshotId:
+        record.targetType === "ITEM"
+          ? (record.orderSnapshotId ?? undefined)
+          : undefined,
+      reason: `${refundStatusLabel(targetStatus)} from refund history`,
+      referenceId: referenceId || undefined,
+      targetStatus,
+      targetType: record.targetType,
+    });
+  }
+
+  return (
+    <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
+      <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
+        Refund history
+      </h2>
+
+      {localMessage ? (
+        <p
+          className="m-0 border border-brand-danger p-grid-xs text-sm text-brand-danger"
+          role="alert"
+        >
+          {localMessage.text}
+        </p>
+      ) : null}
+
+      {order.refundHistory.length === 0 ? (
+        <p className="m-0 text-sm text-brand-muted">No refund history yet.</p>
+      ) : (
+        <ol className="m-0 grid list-none gap-grid-xs p-0">
+          {order.refundHistory.map((record) => {
+            const key = refundTargetKey(record);
+            const isLatestForTarget = !latestTargetKeys.has(key);
+            latestTargetKeys.add(key);
+            const nextStatuses = isLatestForTarget
+              ? allowedNextRefundStatuses(record.status).map(
+                  (status) => status as AdminRefundStatus
+                )
+              : [];
+            const needsSentReference =
+              nextStatuses.includes("REFUND_SENT") && !record.referenceId;
+
+            return (
+              <li
+                className="grid gap-grid-xs border border-brand-border p-grid-xs"
+                key={record.id}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-grid-xs">
+                  <StatusBadge
+                    label={record.statusLabel}
+                    tone={statusTone(record.status)}
+                  />
+                  <span className="font-system text-xs text-brand-muted">
+                    {formatDateTime(record.createdAt)}
+                  </span>
+                </div>
+                <p className="m-0 font-heading text-sm font-bold text-brand-content">
+                  {record.targetLabel}
+                </p>
+                <p className="m-0 text-sm text-brand-muted">{record.reason}</p>
+                <p className="m-0 text-sm text-brand-muted">
+                  Amount {formatCatalogPrice(record.amountCentavos)}
+                </p>
+                {record.notes ? (
+                  <p className="m-0 text-sm text-brand-muted">
+                    Notes {record.notes}
+                  </p>
+                ) : null}
+                {record.referenceId ? (
+                  <p className="m-0 text-sm text-brand-muted">
+                    Reference {record.referenceId}
+                  </p>
+                ) : null}
+                <p className="m-0 font-system text-xs text-brand-muted">
+                  Recorded by {record.actorId ?? "Admin"}
+                </p>
+
+                {needsSentReference ? (
+                  <label className="grid gap-grid-xs font-system text-[0.8125rem] font-bold text-brand-content">
+                    <span>Reference ID</span>
+                    <Input
+                      onChange={(event) =>
+                        setReferenceByRecordId((values) => ({
+                          ...values,
+                          [record.id]: event.currentTarget.value,
+                        }))
+                      }
+                      placeholder="Required for sent refund"
+                      textSize="sm"
+                      value={referenceByRecordId[record.id] ?? ""}
+                    />
+                  </label>
+                ) : null}
+
+                {isLatestForTarget && nextStatuses.length === 0 ? (
+                  <p className="m-0 text-sm text-brand-muted">
+                    {refundStatusLabel(record.status)} is final.
+                  </p>
+                ) : nextStatuses.length > 0 ? (
+                  <div
+                    aria-label="Refund history actions"
+                    className="grid gap-grid-xs pt-grid-xs md:grid-cols-2"
+                    role="group"
+                  >
+                    {nextStatuses.map((status) => (
+                      <Button
+                        disabled={busy}
+                        fullWidth
+                        key={status}
+                        loading={busy}
+                        loadingLabel="Saving"
+                        onClick={() => void recordNextStatus(record, status)}
+                        size="sm"
+                        textSize="xs"
+                        variant={refundActionVariant(status)}
+                      >
+                        {refundHistoryActionLabel[status] ??
+                          refundStatusLabel(status)}
+                      </Button>
+                    ))}
+                  </div>
+                ) : null}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
+  );
+}
+
 export function AdminOrderDetailView({
   busyTarget = null,
   fulfillmentMessage = null,
+  onRecordRefund,
   onUpdateFulfillment,
   onRecordReturn,
   order,
+  refundBusy = false,
+  refundMessage = null,
   returnBusy = false,
   returnMessage = null,
 }: {
   busyTarget?: AdminFulfillmentStatus | null;
   fulfillmentMessage?: FulfillmentActionMessage | null;
+  onRecordRefund?: (body: AdminRefundRecordRequest) => Promise<void> | void;
   onRecordReturn?: (body: AdminReturnRecordRequest) => Promise<void> | void;
   onUpdateFulfillment?: (targetStatus: AdminFulfillmentStatus) => void;
   order: AdminOrderDetail;
+  refundBusy?: boolean;
+  refundMessage?: RefundActionMessage | null;
   returnBusy?: boolean;
   returnMessage?: ReturnActionMessage | null;
 }) {
@@ -868,6 +1345,19 @@ export function AdminOrderDetailView({
             order={order}
           />
 
+          <RefundActionsPanel
+            busy={refundBusy}
+            message={refundMessage}
+            onRecord={onRecordRefund}
+            order={order}
+          />
+
+          <RefundHistoryPanel
+            busy={refundBusy}
+            onRecord={onRecordRefund}
+            order={order}
+          />
+
           <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
             <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
               Customer contact
@@ -932,6 +1422,9 @@ export function AdminOrderDetailDashboard({
   const [returnBusy, setReturnBusy] = useState(false);
   const [returnMessage, setReturnMessage] =
     useState<ReturnActionMessage | null>(null);
+  const [refundBusy, setRefundBusy] = useState(false);
+  const [refundMessage, setRefundMessage] =
+    useState<RefundActionMessage | null>(null);
 
   useEffect(() => {
     if (!autoLoad) {
@@ -1042,6 +1535,44 @@ export function AdminOrderDetailDashboard({
     }
   }
 
+  async function handleRefundRecord(body: AdminRefundRecordRequest) {
+    if (!order || refundBusy) {
+      return;
+    }
+
+    setRefundBusy(true);
+    setRefundMessage(null);
+
+    try {
+      const result = await recordAdminOrderRefund(order.orderId, body);
+      setOrder(result.order);
+      setRefundMessage({
+        text: "Refund record saved.",
+        tone: "success",
+      });
+    } catch (error) {
+      const failure = error as AdminOrderApiFailure;
+
+      if (failure.status === 409 && autoLoad) {
+        try {
+          setOrder(await fetchAdminOrderDetail(orderId));
+        } catch {
+          // Refresh is best-effort after stale state.
+        }
+      }
+
+      setRefundMessage({
+        text:
+          failure.code === "CONFLICT_STATE"
+            ? "Refund status changed. Review latest status before saving again."
+            : "Refund record failed.",
+        tone: "warning",
+      });
+    } finally {
+      setRefundBusy(false);
+    }
+  }
+
   return (
     <section className="grid gap-grid-sm">
       {loadState === "loading" ? (
@@ -1086,9 +1617,12 @@ export function AdminOrderDetailDashboard({
         <AdminOrderDetailView
           busyTarget={busyTarget}
           fulfillmentMessage={fulfillmentMessage}
+          onRecordRefund={handleRefundRecord}
           onRecordReturn={handleReturnRecord}
           onUpdateFulfillment={handleFulfillmentUpdate}
           order={order}
+          refundBusy={refundBusy}
+          refundMessage={refundMessage}
           returnBusy={returnBusy}
           returnMessage={returnMessage}
         />

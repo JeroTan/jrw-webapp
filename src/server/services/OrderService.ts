@@ -19,6 +19,14 @@ import {
   type ReturnStatus,
 } from "@/domain/orders/return-transitions";
 import {
+  allowedNextRefundStatuses,
+  evaluateRefundTransition,
+  isLegacyRefundStatusAlias,
+  isRefundStatus,
+  refundStatuses,
+  type RefundStatus,
+} from "@/domain/orders/refund-transitions";
+import {
   FailingFulfillmentStatusEmailNotifier,
   type FulfillmentStatusEmailNotifier,
 } from "@/domain/notifications/fulfillment-status-email";
@@ -31,6 +39,9 @@ import type {
   AdminOrderDetailReadModel,
   AdminFulfillmentTransitionSubject,
   AdminOrderListResult,
+  AdminRefundRecordReadModel,
+  AdminRefundTargetType,
+  AdminRefundTransitionSubject,
   AdminReturnRecordReadModel,
   AdminReturnTargetType,
   AdminReturnTransitionSubject,
@@ -43,6 +54,8 @@ import type {
   ListAdminOrdersInput,
   ListCustomerOrdersInput,
   OrderFulfillmentEventRecord,
+  RecordAdminOrderRefundInput,
+  RecordAdminOrderRefundResult as RepositoryRecordAdminOrderRefundResult,
   RecordAdminOrderReturnInput,
   RecordAdminOrderReturnResult as RepositoryRecordAdminOrderReturnResult,
   TransitionAdminOrderFulfillmentInput,
@@ -77,6 +90,9 @@ export type AdminOrderRepositoryLike = {
   getAdminOrderDetail(
     input: GetAdminOrderDetailInput
   ): Promise<AdminOrderDetailReadModel | null>;
+  getAdminRefundTransitionSubject(input: {
+    orderIdOrNumber: string;
+  }): Promise<AdminRefundTransitionSubject | null>;
   getAdminReturnTransitionSubject(input: {
     orderIdOrNumber: string;
   }): Promise<AdminReturnTransitionSubject | null>;
@@ -98,6 +114,9 @@ export type AdminOrderRepositoryLike = {
   recordAdminOrderReturn(
     input: RecordAdminOrderReturnInput
   ): Promise<RepositoryRecordAdminOrderReturnResult>;
+  recordAdminOrderRefund(
+    input: RecordAdminOrderRefundInput
+  ): Promise<RepositoryRecordAdminOrderRefundResult>;
   transitionAdminOrderFulfillment(
     input: TransitionAdminOrderFulfillmentInput
   ): Promise<TransitionAdminOrderFulfillmentResult>;
@@ -188,6 +207,25 @@ export type RecordAdminOrderReturnResult = {
   returnRecord: AdminReturnRecordReadModel;
 };
 
+export type RecordAdminOrderRefundServiceInput = {
+  actor: OrderActorInput | undefined;
+  amountCentavos?: number;
+  notes?: string;
+  orderIdOrNumber: string;
+  orderSnapshotId?: string;
+  reason: string;
+  referenceId?: string;
+  requestId: string;
+  targetStatus: string;
+  targetType: string;
+};
+
+export type RecordAdminOrderRefundResult = {
+  allowedNextStatuses: RefundStatus[];
+  order: AdminOrderDetailReadModel;
+  refundRecord: AdminRefundRecordReadModel;
+};
+
 export type OrderServiceOptions = {
   auditPublisher?: AuditEventPublisher;
   emailNotifier?: FulfillmentStatusEmailNotifier;
@@ -249,9 +287,15 @@ function normalizeReturnAmount(value: number | undefined): number | null | false
   return Number.isSafeInteger(value) && value >= 0 ? value : false;
 }
 
+function normalizeRefundAmount(value: number | undefined): number | false {
+  return typeof value === "number" && Number.isSafeInteger(value) && value > 0
+    ? value
+    : false;
+}
+
 function targetKey(input: {
   orderSnapshotId: string | null;
-  targetType: AdminReturnTargetType;
+  targetType: AdminRefundTargetType | AdminReturnTargetType;
 }) {
   return input.targetType === "ORDER"
     ? "ORDER"
@@ -275,6 +319,56 @@ function latestReturnStatusForTarget(
   );
 
   return record?.status ?? null;
+}
+
+function latestRefundStatusForTarget(
+  subject: AdminRefundTransitionSubject,
+  input: {
+    orderSnapshotId: string | null;
+    targetType: AdminRefundTargetType;
+  }
+): RefundStatus | null {
+  const expectedKey = targetKey(input);
+  const record = subject.refundHistory.find(
+    (historyRecord) =>
+      targetKey({
+        orderSnapshotId: historyRecord.orderSnapshotId,
+        targetType: historyRecord.targetType,
+      }) === expectedKey
+  );
+
+  return record?.status ?? null;
+}
+
+function refundScopeConflict(
+  subject: AdminRefundTransitionSubject,
+  input: {
+    targetType: AdminRefundTargetType;
+  }
+): boolean {
+  if (input.targetType === "ORDER") {
+    return subject.refundHistory.some((record) => record.targetType === "ITEM");
+  }
+
+  return subject.refundHistory.some((record) => record.targetType === "ORDER");
+}
+
+function refundTargetMaxAmount(
+  subject: AdminRefundTransitionSubject,
+  input: {
+    orderSnapshotId: string | null;
+    targetType: AdminRefundTargetType;
+  }
+): number | null {
+  if (input.targetType === "ORDER") {
+    return subject.totalCentavos;
+  }
+
+  const item = subject.items.find(
+    (snapshotItem) => snapshotItem.snapshotId === input.orderSnapshotId
+  );
+
+  return item?.lineTotalCentavos ?? null;
 }
 
 function requireCustomerActor(
@@ -743,6 +837,211 @@ export class OrderService {
     }
   }
 
+  async recordAdminOrderRefund(
+    input: RecordAdminOrderRefundServiceInput
+  ): Promise<AppResult<RecordAdminOrderRefundResult>> {
+    const actor = requireAdminActor(input.actor);
+
+    if (actor.error) {
+      return actor;
+    }
+
+    const orderIdOrNumber = input.orderIdOrNumber.trim();
+    const targetType = normalizeTargetType(input.targetType);
+    const targetStatusText = input.targetStatus.trim().toUpperCase();
+    const reason = normalizeText(input.reason);
+    const notes = normalizeOptionalText(input.notes, 2_000);
+    const referenceId = normalizeOptionalText(input.referenceId, 128);
+    const amountCentavos = normalizeRefundAmount(input.amountCentavos);
+    const orderSnapshotId = normalizeText(input.orderSnapshotId);
+
+    if (
+      orderIdOrNumber.length === 0 ||
+      !targetType ||
+      targetStatusText.length === 0 ||
+      !reason ||
+      reason.length > 512 ||
+      notes === false ||
+      referenceId === false ||
+      amountCentavos === false
+    ) {
+      return Result.error(serviceError("VALIDATION_FAILED"));
+    }
+
+    if (isLegacyRefundStatusAlias(targetStatusText)) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", {
+          reason: "LEGACY_REFUND_STATUS_ALIAS",
+          targetStatus: targetStatusText,
+        })
+      );
+    }
+
+    if (!isRefundStatus(targetStatusText)) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", {
+          allowedStatuses: refundStatuses,
+          reason: "UNKNOWN_TARGET_STATUS",
+          targetStatus: targetStatusText,
+        })
+      );
+    }
+
+    if (
+      (targetType === "ITEM" && !orderSnapshotId) ||
+      (targetType === "ORDER" && orderSnapshotId)
+    ) {
+      return Result.error(
+        serviceError("VALIDATION_FAILED", {
+          reason: "INVALID_REFUND_TARGET",
+          targetType,
+        })
+      );
+    }
+
+    try {
+      const subject = await this.repository.getAdminRefundTransitionSubject({
+        orderIdOrNumber,
+      });
+
+      if (!subject) {
+        return Result.error(serviceError("RESOURCE_NOT_FOUND"));
+      }
+
+      if (
+        targetType === "ITEM" &&
+        !subject.items.some((item) => item.snapshotId === orderSnapshotId)
+      ) {
+        return Result.error(
+          serviceError("VALIDATION_FAILED", {
+            reason: "INVALID_REFUND_TARGET",
+            targetType,
+          })
+        );
+      }
+
+      if (refundScopeConflict(subject, { targetType })) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", {
+            reason: "REFUND_SCOPE_CONFLICT",
+            targetType,
+          })
+        );
+      }
+
+      const maxAmountCentavos = refundTargetMaxAmount(subject, {
+        orderSnapshotId,
+        targetType,
+      });
+
+      if (maxAmountCentavos === null) {
+        return Result.error(
+          serviceError("VALIDATION_FAILED", {
+            reason: "INVALID_REFUND_TARGET",
+            targetType,
+          })
+        );
+      }
+
+      if (amountCentavos > maxAmountCentavos) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", {
+            amountCentavos,
+            maxAmountCentavos,
+            reason: "AMOUNT_EXCEEDS_TARGET",
+          })
+        );
+      }
+
+      const currentTargetStatus = latestRefundStatusForTarget(subject, {
+        orderSnapshotId,
+        targetType,
+      });
+
+      const transitionCheck = evaluateRefundTransition({
+        currentStatus: currentTargetStatus,
+        paymentStatus: subject.paymentStatus,
+        referenceId,
+        targetStatus: targetStatusText,
+      });
+
+      if (!transitionCheck.allowed) {
+        return Result.error(
+          serviceError("CONFLICT_STATE", {
+            allowedNextStatuses: transitionCheck.allowedNextStatuses,
+            currentStatus: transitionCheck.currentStatus,
+            paymentStatus: transitionCheck.paymentStatus,
+            reason: transitionCheck.reason,
+            targetStatus: transitionCheck.targetStatus,
+          })
+        );
+      }
+
+      const refundResult = await this.repository.recordAdminOrderRefund({
+        actorId: actor.content.adminId,
+        amountCentavos,
+        expectedRefundStatus: transitionCheck.oldStatus,
+        notes,
+        now: this.now(),
+        orderId: subject.orderId,
+        orderSnapshotId,
+        reason,
+        referenceId,
+        requestId: input.requestId,
+        targetStatus: transitionCheck.newStatus,
+        targetType,
+      });
+
+      if (refundResult.decision === "missing-order") {
+        return Result.error(serviceError("RESOURCE_NOT_FOUND"));
+      }
+
+      if (refundResult.decision === "invalid-target") {
+        return Result.error(
+          serviceError("VALIDATION_FAILED", {
+            reason: "INVALID_REFUND_TARGET",
+            targetType,
+          })
+        );
+      }
+
+      if (refundResult.decision === "stale") {
+        return Result.error(
+          serviceError("CONFLICT_STATE", {
+            allowedNextStatuses: allowedNextRefundStatuses(
+              refundResult.currentRefundStatus
+            ),
+            currentStatus: refundResult.currentRefundStatus,
+            maxAmountCentavos: refundResult.maxAmountCentavos,
+            reason: refundResult.reason ?? "STALE_REFUND_STATUS",
+            targetStatus: transitionCheck.newStatus,
+          })
+        );
+      }
+
+      await this.publishRefundAudit({
+        actorId: actor.content.adminId,
+        refundRecord: refundResult.refundRecord,
+        requestId: input.requestId,
+        safeActorId: actor.content.safeActorId,
+      });
+
+      return Result.okay({
+        allowedNextStatuses: allowedNextRefundStatuses(
+          refundResult.refundRecord.status
+        ),
+        order: refundResult.order,
+        refundRecord: refundResult.refundRecord,
+      });
+    } catch (error) {
+      if (providerFailure(error)) {
+        return Result.error(serviceError("PROVIDER_UNAVAILABLE"));
+      }
+
+      return Result.error(serviceError("INTERNAL_ERROR"));
+    }
+  }
+
   private async sendFulfillmentStatusEmailIfNeeded(input: {
     event: OrderFulfillmentEventRecord;
     now: string;
@@ -920,6 +1219,45 @@ export class OrderService {
       );
     } catch {
       // Audit must never mask return recording.
+    }
+  }
+
+  private async publishRefundAudit(input: {
+    actorId: string;
+    refundRecord: AdminRefundRecordReadModel;
+    requestId: string;
+    safeActorId: string;
+  }) {
+    try {
+      await this.auditPublisher.publish(
+        createAuditEvent({
+          requestId: input.requestId,
+          action: input.refundRecord.previousStatus
+            ? "refund-return.status_changed"
+            : "refund-return.refund_recorded",
+          actor: {
+            id: input.actorId,
+            role: "ADMIN",
+            safeIdentifier: input.safeActorId,
+            type: "user",
+          },
+          target: {
+            entity: "refund-return",
+            entityId: input.refundRecord.id,
+          },
+          safeDetails: {
+            amountCentavos: input.refundRecord.amountCentavos,
+            newRefundStatus: input.refundRecord.status,
+            oldRefundStatus: input.refundRecord.previousStatus,
+            orderId: input.refundRecord.orderId,
+            refundRecordId: input.refundRecord.id,
+            source: "admin_refund",
+            targetType: input.refundRecord.targetType,
+          },
+        })
+      );
+    } catch {
+      // Audit must never mask refund recording.
     }
   }
 }

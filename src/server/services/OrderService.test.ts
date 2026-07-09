@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import type { RefundStatus } from "@/domain/orders/refund-transitions";
 import type { ReturnStatus } from "@/domain/orders/return-transitions";
 import type {
   AdminOrderListResult,
@@ -95,6 +96,10 @@ function repositoryStub(
       calls.push(`return-subject:${input.orderIdOrNumber}`);
       return null;
     },
+    getAdminRefundTransitionSubject: async (input) => {
+      calls.push(`refund-subject:${input.orderIdOrNumber}`);
+      return null;
+    },
     getAdminOrderDetail: async (input) => {
       calls.push(`admin-detail:${input.orderIdOrNumber}`);
       return {
@@ -117,6 +122,7 @@ function repositoryStub(
             variantOptions: [{ group: "Size", name: "Small" }],
           },
         ],
+        refundHistory: [],
         returnHistory: [],
         shippingAddress: {
           barangay: "Poblacion",
@@ -158,6 +164,7 @@ function repositoryStub(
     },
     markFulfillmentStatusEmailFailed: async () => undefined,
     markFulfillmentStatusEmailSent: async () => undefined,
+    recordAdminOrderRefund: async () => ({ decision: "missing-order" }),
     recordAdminOrderReturn: async () => ({ decision: "missing-order" }),
     transitionAdminOrderFulfillment: async () => ({
       decision: "missing-order",
@@ -507,6 +514,7 @@ describe("order service", () => {
               ...item,
               snapshotId: "snapshot_1",
             })),
+            refundHistory: [],
             returnHistory: [],
             payment: lanes.payment,
             shippingAddress: {
@@ -666,6 +674,7 @@ describe("order service", () => {
             ...item,
             snapshotId: "snapshot_1",
           })),
+          refundHistory: [],
           returnHistory: [],
           shippingAddress: {
             barangay: "Poblacion",
@@ -754,6 +763,7 @@ describe("order service", () => {
               phone: "09171234567",
             },
             items: [{ ...snapshotItems[0], snapshotId: "snapshot_1" }],
+            refundHistory: [],
             returnHistory: [],
             shippingAddress: {
               barangay: "Poblacion",
@@ -929,6 +939,7 @@ describe("order service", () => {
                 variantOptions: [{ group: "Size", name: "SM" }],
               },
             ],
+            refundHistory: [],
             returnHistory: [],
             shippingAddress: {
               barangay: "Poblacion",
@@ -982,6 +993,287 @@ describe("order service", () => {
       "return-subject:JRW-2026-ORDER1",
       "record-return:snapshot_2:null",
     ]);
+  });
+
+  it("records Admin refunds, keeps other lanes unchanged, and publishes safe audit", async () => {
+    const repository = repositoryStub({
+      getAdminRefundTransitionSubject: async (input) => {
+        repository.calls.push(`refund-subject:${input.orderIdOrNumber}`);
+        return {
+          currency: "PHP" as const,
+          currentRefundStatus: null,
+          currentRefundUpdatedAt: null,
+          fulfillmentStatus: "CANCELLED",
+          items: [
+            {
+              ...snapshotItems[0],
+              lineTotalCentavos: 1999,
+              snapshotId: "snapshot_1",
+            },
+          ],
+          orderId: "order_1",
+          orderNumber: "JRW-2026-ORDER1",
+          paymentStatus: "PAYMENT_PAID",
+          refundHistory: [],
+          returnHistory: [],
+          totalCentavos: 1999,
+          updatedAt: "2026-07-08T01:00:00.000Z",
+        };
+      },
+      recordAdminOrderRefund: async (input) => {
+        repository.calls.push(
+          `record-refund:${input.orderId}:${input.targetType}:${input.orderSnapshotId}:${input.targetStatus}:${input.amountCentavos}`
+        );
+        return {
+          decision: "recorded" as const,
+          order: {
+            ...adminListResult.items[0],
+            fulfillment: {
+              kind: "fulfillment" as const,
+              label: "Cancelled",
+              updatedAt: "2026-07-08T01:00:00.000Z",
+              value: "CANCELLED",
+            },
+            refund: {
+              kind: "refund" as const,
+              label: "Refund pending",
+              updatedAt: "2026-07-08T04:00:00.000Z",
+              value: "REFUND_PENDING",
+            },
+            contact: {
+              checkoutEmail: "nina@example.test",
+              fullName: "Nina Reyes",
+              phone: "09171234567",
+            },
+            items: [{ ...snapshotItems[0], snapshotId: "snapshot_1" }],
+            refundHistory: [],
+            returnHistory: [],
+            shippingAddress: {
+              barangay: "Poblacion",
+              cityProvince: "Makati",
+              postalCode: "1200",
+              shippingType: "STANDARD",
+              streetAddress: "12 Sampaguita Street",
+            },
+          },
+          refundRecord: {
+            actorId: "admin_1",
+            amountCentavos: 1999,
+            createdAt: "2026-07-08T04:00:00.000Z",
+            currency: "PHP" as const,
+            id: "refund_1",
+            notes: "Manual refund reviewed.",
+            orderId: "order_1",
+            orderSnapshotId: "snapshot_1",
+            previousStatus: null,
+            reason: "Paid cancellation",
+            referenceId: "RF-1",
+            status: "REFUND_PENDING" as RefundStatus,
+            statusLabel: "Refund pending",
+            targetLabel: "Frozen Linen Shirt - Size: Small",
+            targetType: "ITEM" as const,
+            updatedAt: "2026-07-08T04:00:00.000Z",
+          },
+        };
+      },
+    });
+    const auditEvents: unknown[] = [];
+    const service = new OrderService({
+      auditPublisher: {
+        publish: async (event) => void auditEvents.push(event),
+      },
+      now: () => "2026-07-08T04:00:00.000Z",
+      repository,
+    });
+
+    const result = await service.recordAdminOrderRefund({
+      actor: adminActor,
+      amountCentavos: 1999,
+      notes: "Manual refund reviewed.",
+      orderIdOrNumber: "JRW-2026-ORDER1",
+      orderSnapshotId: "snapshot_1",
+      reason: "Paid cancellation",
+      referenceId: "RF-1",
+      requestId: "req_refund",
+      targetStatus: "REFUND_PENDING",
+      targetType: "ITEM",
+    });
+
+    expect(result).toMatchObject({
+      content: {
+        allowedNextStatuses: [
+          "REFUND_APPROVED",
+          "REFUND_DECLINED",
+          "REFUND_FAILED",
+        ],
+        order: {
+          fulfillment: { value: "CANCELLED" },
+          payment: { value: "PAYMENT_PAID" },
+          refund: { value: "REFUND_PENDING" },
+        },
+        refundRecord: {
+          amountCentavos: 1999,
+          reason: "Paid cancellation",
+          status: "REFUND_PENDING",
+          targetType: "ITEM",
+        },
+      },
+    });
+    expect(repository.calls).toEqual([
+      "refund-subject:JRW-2026-ORDER1",
+      "record-refund:order_1:ITEM:snapshot_1:REFUND_PENDING:1999",
+    ]);
+    expect(JSON.stringify(auditEvents)).toContain(
+      "refund-return.refund_recorded"
+    );
+    expect(JSON.stringify(auditEvents)).not.toMatch(/Manual refund|RF-1/);
+  });
+
+  it("validates refund body, paid gate, amount caps, sent reference, aliases, and stale transitions", async () => {
+    const subject = {
+      currency: "PHP" as const,
+      currentRefundStatus: null,
+      currentRefundUpdatedAt: null,
+      fulfillmentStatus: "CANCELLED",
+      items: [{ ...snapshotItems[0], snapshotId: "snapshot_1" }],
+      orderId: "order_1",
+      orderNumber: "JRW-2026-ORDER1",
+      paymentStatus: "PAYMENT_PAID",
+      refundHistory: [],
+      returnHistory: [],
+      totalCentavos: 1999,
+      updatedAt: "2026-07-08T01:00:00.000Z",
+    };
+    const unpaid = await new OrderService({
+      repository: repositoryStub({
+        getAdminRefundTransitionSubject: async () => ({
+          ...subject,
+          paymentStatus: "PAYMENT_PENDING",
+        }),
+      }),
+    }).recordAdminOrderRefund({
+      actor: adminActor,
+      amountCentavos: 1999,
+      orderIdOrNumber: "order_1",
+      reason: "Paid cancellation",
+      requestId: "req_unpaid_refund",
+      targetStatus: "REFUND_PENDING",
+      targetType: "ORDER",
+    });
+    const overCap = await new OrderService({
+      repository: repositoryStub({
+        getAdminRefundTransitionSubject: async () => subject,
+      }),
+    }).recordAdminOrderRefund({
+      actor: adminActor,
+      amountCentavos: 2000,
+      orderIdOrNumber: "order_1",
+      reason: "Too high",
+      requestId: "req_overcap_refund",
+      targetStatus: "REFUND_PENDING",
+      targetType: "ORDER",
+    });
+    const missingReference = await new OrderService({
+      repository: repositoryStub({
+        getAdminRefundTransitionSubject: async () => ({
+          ...subject,
+          currentRefundStatus: "REFUND_APPROVED" as RefundStatus,
+          refundHistory: [
+            {
+              actorId: "admin_1",
+              amountCentavos: 1999,
+              createdAt: "2026-07-08T03:00:00.000Z",
+              currency: "PHP" as const,
+              id: "refund_1",
+              notes: null,
+              orderId: "order_1",
+              orderSnapshotId: null,
+              previousStatus: null,
+              reason: "Approved",
+              referenceId: null,
+              status: "REFUND_APPROVED" as RefundStatus,
+              statusLabel: "Refund approved",
+              targetLabel: "Entire order",
+              targetType: "ORDER" as const,
+              updatedAt: "2026-07-08T03:00:00.000Z",
+            },
+          ],
+        }),
+      }),
+    }).recordAdminOrderRefund({
+      actor: adminActor,
+      amountCentavos: 1999,
+      orderIdOrNumber: "order_1",
+      reason: "Sent",
+      requestId: "req_sent_missing_reference",
+      targetStatus: "REFUND_SENT",
+      targetType: "ORDER",
+    });
+    const alias = await new OrderService({
+      repository: repositoryStub(),
+    }).recordAdminOrderRefund({
+      actor: adminActor,
+      amountCentavos: 1999,
+      orderIdOrNumber: "order_1",
+      reason: "Alias",
+      requestId: "req_alias_refund",
+      targetStatus: "REFUND_REQUESTED",
+      targetType: "ORDER",
+    });
+    const stale = await new OrderService({
+      repository: repositoryStub({
+        getAdminRefundTransitionSubject: async () => subject,
+        recordAdminOrderRefund: async () => ({
+          currentRefundStatus: "REFUND_APPROVED" as RefundStatus,
+          decision: "stale" as const,
+          orderId: "order_1",
+          reason: "STALE_REFUND_STATUS" as const,
+        }),
+      }),
+    }).recordAdminOrderRefund({
+      actor: adminActor,
+      amountCentavos: 1999,
+      orderIdOrNumber: "order_1",
+      reason: "Pending",
+      requestId: "req_stale_refund",
+      targetStatus: "REFUND_PENDING",
+      targetType: "ORDER",
+    });
+    const invalid = await new OrderService({
+      repository: repositoryStub(),
+    }).recordAdminOrderRefund({
+      actor: adminActor,
+      amountCentavos: 0,
+      orderIdOrNumber: " ",
+      reason: " ",
+      requestId: "req_invalid_refund",
+      targetStatus: "REFUND_NOT_REQUESTED",
+      targetType: "ITEM",
+    });
+
+    expect(unpaid.error).toMatchObject({
+      code: "CONFLICT_STATE",
+      data: { reason: "PAYMENT_NOT_PAID" },
+    });
+    expect(overCap.error).toMatchObject({
+      code: "CONFLICT_STATE",
+      data: { maxAmountCentavos: 1999, reason: "AMOUNT_EXCEEDS_TARGET" },
+    });
+    expect(missingReference.error).toMatchObject({
+      code: "CONFLICT_STATE",
+      data: { reason: "MISSING_REFUND_REFERENCE" },
+    });
+    expect(alias.error).toMatchObject({
+      code: "VALIDATION_FAILED",
+      data: { reason: "LEGACY_REFUND_STATUS_ALIAS" },
+    });
+    expect(stale.error).toMatchObject({
+      code: "CONFLICT_STATE",
+      data: { reason: "STALE_REFUND_STATUS" },
+    });
+    expect(invalid.error).toMatchObject({
+      code: "VALIDATION_FAILED",
+    });
   });
 
   it.each([

@@ -60,6 +60,7 @@ const order: AdminOrderDetail = {
   ],
   orderId: "order_1",
   orderNumber: "JRW-2026-ORDER1",
+  refundHistory: [],
   returnHistory: [],
   shippingAddress: {
     barangay: "Poblacion",
@@ -164,6 +165,11 @@ describe("admin orders UI", () => {
     expect(markup).toContain("Return available after delivery.");
     expect(markup).toContain("Return history");
     expect(markup).toContain("No return history yet.");
+    expect(markup).toContain("Refund actions");
+    expect(markup).toContain("Refund amount (centavos)");
+    expect(markup).toContain("Record refund");
+    expect(markup).toContain("Refund history");
+    expect(markup).toContain("No refund history yet.");
     expect(markup).toContain(
       "order-1 grid gap-grid-sm lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]"
     );
@@ -181,7 +187,7 @@ describe("admin orders UI", () => {
     expect(markup).not.toContain("Approve refund");
     expect(markup).not.toContain("Return requested");
     expect(markup).not.toMatch(
-      /ORDER_PLACED|PAYMENT_PAID|CUSTOMER|RETURN_NOT_REQUESTED/
+      /ORDER_PLACED|PAYMENT_PAID|CUSTOMER|RETURN_NOT_REQUESTED|REFUND_NOT_REQUESTED/
     );
     expect(markup).not.toContain(">Snapshot<");
   });
@@ -215,7 +221,6 @@ describe("admin orders UI", () => {
     expect(markup).toContain("Record return request");
     expect(markup).toContain("Return history");
     expect(markup).toContain("No return history yet.");
-    expect(markup).not.toContain("Amount");
     expect(markup).not.toMatch(
       /RETURN_APPROVED|RETURN_RECEIVED|RETURN_REQUESTED|req_return_1/
     );
@@ -269,9 +274,107 @@ describe("admin orders UI", () => {
     expect(markup).toContain("Decline return");
     expect(markup).toContain("Cancel return");
     expect(markup).toContain("md:col-span-2");
-    expect(markup).not.toContain("Amount");
     expect(markup).not.toMatch(
       /RETURN_APPROVED|RETURN_REJECTED|RETURN_CANCELLED/
+    );
+  });
+
+  it("renders refund request form with amount filled from order value", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AdminOrderDetailDashboard, {
+        autoLoad: false,
+        initialLoadState: "ready",
+        initialOrder: order,
+        orderId: "order_1",
+      })
+    );
+
+    expect(markup).toContain("Refund actions");
+    expect(markup).toContain("Target type");
+    expect(markup).toContain("Entire order");
+    expect(markup).toContain("Purchased item");
+    expect(markup).toContain("Item");
+    expect(markup).toContain("Refund amount (centavos)");
+    expect(markup).toContain('value="3998"');
+    expect(markup).toContain("Reason");
+    expect(markup).toContain("Notes");
+    expect(markup).toContain("Reference ID");
+    expect(markup).toContain("Record refund");
+    expect(markup).toContain("Refund history");
+    expect(markup).toContain("No refund history yet.");
+    expect(markup).not.toContain("PayMongo");
+    expect(markup).not.toMatch(
+      /REFUND_PENDING|REFUND_APPROVED|REFUND_DECLINED|REFUND_SENT|REFUND_FAILED/
+    );
+  });
+
+  it("renders refund history next-step buttons with reference prompt before sent", () => {
+    const markup = renderToStaticMarkup(
+      createElement(AdminOrderDetailDashboard, {
+        autoLoad: false,
+        initialLoadState: "ready",
+        initialOrder: {
+          ...order,
+          refund: {
+            kind: "refund",
+            label: "Refund approved",
+            updatedAt: "2026-07-08T04:00:00.000Z",
+            value: "REFUND_APPROVED",
+          },
+          refundHistory: [
+            {
+              actorId: "admin_1",
+              amountCentavos: 3998,
+              createdAt: "2026-07-08T04:00:00.000Z",
+              currency: "PHP",
+              id: "refund_2",
+              notes: "Finance approved",
+              orderId: "order_1",
+              orderSnapshotId: "snapshot_1",
+              previousStatus: "REFUND_PENDING",
+              reason: "Approved by support",
+              referenceId: null,
+              status: "REFUND_APPROVED",
+              statusLabel: "Refund approved",
+              targetLabel: "Frozen Linen Shirt - Size: Small",
+              targetType: "ITEM",
+              updatedAt: "2026-07-08T04:00:00.000Z",
+            },
+            {
+              actorId: "admin_1",
+              amountCentavos: 3998,
+              createdAt: "2026-07-08T03:00:00.000Z",
+              currency: "PHP",
+              id: "refund_1",
+              notes: null,
+              orderId: "order_1",
+              orderSnapshotId: "snapshot_1",
+              previousStatus: null,
+              reason: "Damaged item",
+              referenceId: null,
+              status: "REFUND_PENDING",
+              statusLabel: "Refund pending",
+              targetLabel: "Frozen Linen Shirt - Size: Small",
+              targetType: "ITEM",
+              updatedAt: "2026-07-08T03:00:00.000Z",
+            },
+          ],
+        },
+        orderId: "order_1",
+      })
+    );
+
+    expect(markup).toContain("Refund history");
+    expect(markup).toContain("Refund approved");
+    expect(markup).toContain("Amount PHP 39.98");
+    expect(markup).toContain("Reference ID");
+    expect(markup).toContain("Required for sent refund");
+    expect(markup).toContain("Mark sent");
+    expect(markup).not.toContain("Approve refund");
+    expect(markup).not.toContain("Decline refund");
+    expect(markup).not.toContain("Mark failed");
+    expect(markup).not.toMatch(
+      /REFUND_PENDING|REFUND_APPROVED|REFUND_DECLINED|REFUND_SENT|REFUND_FAILED/
     );
   });
 
