@@ -170,6 +170,9 @@ describe("admin orders UI", () => {
     expect(markup).toContain("Record refund");
     expect(markup).toContain("Refund history");
     expect(markup).toContain("No refund history yet.");
+    expect(markup.match(/aria-expanded="false"/g)?.length).toBe(4);
+    expect(markup).not.toContain('aria-expanded="true"');
+    expect(markup).toContain("lucide-chevron-right");
     expect(markup).toContain(
       "order-1 grid gap-grid-sm lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)]"
     );

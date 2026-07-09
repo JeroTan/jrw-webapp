@@ -1,5 +1,6 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { EmptyState, Skeleton, StatusBadge } from "@/components/feedback";
 import { Button, ButtonLink, Input, Select, Textarea } from "@/components/ui";
 import { buildCustomerOrderTimeline } from "@/domain/orders/customer-order-status";
@@ -304,6 +305,51 @@ function customerKindLabel(kind: AdminOrderDetail["customerKind"]): string {
   return kind === "CUSTOMER" ? "Customer account" : "Guest checkout";
 }
 
+function CollapsibleAdminPanel({
+  badge,
+  children,
+  title,
+}: {
+  badge?: React.ReactNode;
+  children: React.ReactNode;
+  title: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const contentId = React.useId();
+
+  return (
+    <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
+      <div className="flex flex-wrap items-center justify-between gap-grid-xs">
+        <h2 className="m-0 min-w-0">
+          <Button
+            aria-controls={contentId}
+            aria-expanded={open}
+            className="justify-start text-left"
+            onClick={() => setOpen((value) => !value)}
+            paddingX="none"
+            size="sm"
+            textSize="sm"
+            variant="ghost"
+          >
+            {open ? (
+              <ChevronDown aria-hidden="true" className="size-5 shrink-0" />
+            ) : (
+              <ChevronRight aria-hidden="true" className="size-5 shrink-0" />
+            )}
+            <span className="font-heading text-xl font-bold text-brand-content">
+              {title}
+            </span>
+          </Button>
+        </h2>
+        {badge}
+      </div>
+      <div className="grid gap-grid-xs" hidden={!open} id={contentId}>
+        {children}
+      </div>
+    </section>
+  );
+}
+
 function FulfillmentActionsPanel({
   busyTarget,
   message,
@@ -456,17 +502,15 @@ function ReturnActionsPanel({
   const activeMessage = message ?? localMessage;
 
   return (
-    <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
-      <div className="flex flex-wrap items-center justify-between gap-grid-xs">
-        <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
-          Return actions
-        </h2>
+    <CollapsibleAdminPanel
+      badge={
         <StatusBadge
           label={order.return.label}
           tone={statusTone(order.return.value)}
         />
-      </div>
-
+      }
+      title="Return actions"
+    >
       {activeMessage ? (
         <p
           className={`m-0 border p-grid-xs text-sm ${
@@ -572,7 +616,7 @@ function ReturnActionsPanel({
           </Button>
         </form>
       )}
-    </section>
+    </CollapsibleAdminPanel>
   );
 }
 
@@ -603,10 +647,7 @@ function ReturnHistoryPanel({
   }
 
   return (
-    <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
-      <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
-        Return history
-      </h2>
+    <CollapsibleAdminPanel title="Return history">
       {order.returnHistory.length === 0 ? (
         <p className="m-0 text-sm text-brand-muted">No return history yet.</p>
       ) : (
@@ -688,7 +729,7 @@ function ReturnHistoryPanel({
           })}
         </ol>
       )}
-    </section>
+    </CollapsibleAdminPanel>
   );
 }
 
@@ -806,17 +847,15 @@ function RefundActionsPanel({
   const activeMessage = message ?? localMessage;
 
   return (
-    <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
-      <div className="flex flex-wrap items-center justify-between gap-grid-xs">
-        <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
-          Refund actions
-        </h2>
+    <CollapsibleAdminPanel
+      badge={
         <StatusBadge
           label={order.refund.label}
           tone={statusTone(order.refund.value)}
         />
-      </div>
-
+      }
+      title="Refund actions"
+    >
       {activeMessage ? (
         <p
           className={`m-0 border p-grid-xs text-sm ${
@@ -934,7 +973,7 @@ function RefundActionsPanel({
           </Button>
         </form>
       )}
-    </section>
+    </CollapsibleAdminPanel>
   );
 }
 
@@ -986,11 +1025,7 @@ function RefundHistoryPanel({
   }
 
   return (
-    <section className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
-      <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
-        Refund history
-      </h2>
-
+    <CollapsibleAdminPanel title="Refund history">
       {localMessage ? (
         <p
           className="m-0 border border-brand-danger p-grid-xs text-sm text-brand-danger"
@@ -1101,7 +1136,7 @@ function RefundHistoryPanel({
           })}
         </ol>
       )}
-    </section>
+    </CollapsibleAdminPanel>
   );
 }
 
