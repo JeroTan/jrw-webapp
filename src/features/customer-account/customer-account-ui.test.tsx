@@ -472,19 +472,20 @@ describe("customer account UI", () => {
     expect(markup).not.toContain("Frozen Linen Shirt + 1 more");
   });
 
-  it("renders customer order pagination controls for older orders", () => {
+  it("renders seamless customer order loading for older pages", () => {
     const markup = renderToStaticMarkup(
       createElement(CustomerOrdersView, {
-        onPageChange: () => undefined,
+        onLoadMore: () => undefined,
         orders: [customerOrderSummary()],
-        pagination: { page: 2, pageSize: 20, totalItems: 41, totalPages: 3 },
+        pagination: { page: 1, pageSize: 20, totalItems: 41, totalPages: 3 },
       })
     );
 
-    expect(markup).toContain("Order pagination");
-    expect(markup).toContain("Previous");
-    expect(markup).toContain("Next");
-    expect(markup).toContain("Page 2 of 3");
+    expect(markup).toContain("Showing 1 of 41 orders");
+    expect(markup).toContain("Load older orders");
+    expect(markup).not.toContain("Order pagination");
+    expect(markup).not.toContain("Previous");
+    expect(markup).not.toContain("Page 1 of 3");
     expect(markup).toContain("min-h-control-md");
   });
 

@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { StatusBadge } from "@/components/feedback";
 import { Button, ButtonLink } from "@/components/ui";
 import { buildCustomerOrderTimeline } from "@/domain/orders/customer-order-status";
@@ -214,11 +214,15 @@ function OrdersEmptyState() {
 }
 
 export function CustomerOrdersView({
-  onPageChange,
+  loadMoreError = null,
+  loadingMore = false,
+  onLoadMore,
   orders,
   pagination,
 }: {
-  onPageChange?: (page: number) => void;
+  loadMoreError?: string | null;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
   orders: CustomerOrderSummary[];
   pagination: CustomerOrderPagination;
 }) {
@@ -226,6 +230,14 @@ export function CustomerOrdersView({
     null
   );
   const [openItemsOrderId, setOpenItemsOrderId] = useState<string | null>(null);
+  const loadMoreRef = useRef<HTMLDivElement | null>(null);
+  const hasMoreOrders = pagination.page < pagination.totalPages;
+  const showLoadMoreFooter =
+    Boolean(onLoadMore) &&
+    (pagination.totalPages > 1 || loadingMore || Boolean(loadMoreError));
+  const loadedItemsLabel = `Showing ${orders.length} of ${
+    pagination.totalItems
+  } order${pagination.totalItems === 1 ? "" : "s"}`;
 
   useEffect(() => {
     if (!copiedOrderNumber) {
@@ -238,6 +250,31 @@ export function CustomerOrdersView({
 
     return () => window.clearTimeout(timeoutId);
   }, [copiedOrderNumber]);
+
+  useEffect(() => {
+    if (!onLoadMore || !hasMoreOrders || loadingMore) {
+      return;
+    }
+
+    const target = loadMoreRef.current;
+
+    if (!target || typeof IntersectionObserver === "undefined") {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) {
+          onLoadMore();
+        }
+      },
+      { rootMargin: "360px 0px" }
+    );
+
+    observer.observe(target);
+
+    return () => observer.disconnect();
+  }, [hasMoreOrders, loadingMore, onLoadMore]);
 
   async function copyOrderNumber(orderNumber: string) {
     if (typeof navigator === "undefined" || !navigator.clipboard?.writeText) {
@@ -396,29 +433,34 @@ export function CustomerOrdersView({
         })}
       </div>
 
-      {onPageChange && pagination.totalPages > 1 ? (
-        <nav
-          aria-label="Order pagination"
+      {showLoadMoreFooter ? (
+        <div
+          aria-live="polite"
           className="flex flex-wrap items-center justify-between gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-xs"
+          ref={loadMoreRef}
         >
-          <Button
-            disabled={pagination.page <= 1}
-            onClick={() => onPageChange(pagination.page - 1)}
-            textSize="xs"
-          >
-            Previous
-          </Button>
-          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-            Page {pagination.page} of {pagination.totalPages}
-          </p>
-          <Button
-            disabled={pagination.page >= pagination.totalPages}
-            onClick={() => onPageChange(pagination.page + 1)}
-            textSize="xs"
-          >
-            Next
-          </Button>
-        </nav>
+          <div className="grid gap-1">
+            <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
+              {loadingMore
+                ? "Loading older orders..."
+                : hasMoreOrders
+                  ? loadedItemsLabel
+                  : `All ${pagination.totalItems} order${
+                      pagination.totalItems === 1 ? "" : "s"
+                    } loaded.`}
+            </p>
+            {loadMoreError ? (
+              <p className="m-0 text-sm text-brand-danger" role="alert">
+                {loadMoreError}
+              </p>
+            ) : null}
+          </div>
+          {hasMoreOrders && onLoadMore ? (
+            <Button disabled={loadingMore} onClick={onLoadMore} textSize="xs">
+              {loadMoreError ? "Retry older orders" : "Load older orders"}
+            </Button>
+          ) : null}
+        </div>
       ) : null}
     </section>
   );
@@ -439,14 +481,25 @@ export function CustomerOrdersPanel() {
   const [data, setData] = useState<CustomerOrderList | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState(1);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [loadMoreError, setLoadMoreError] = useState<string | null>(null);
+  const mountedRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     let mounted = true;
 
     setError(null);
     setLoading(true);
-    getCustomerOrders({ page })
+    setLoadMoreError(null);
+    getCustomerOrders({ page: 1 })
       .then((orders) => {
         if (!mounted) return;
         setData(orders);
@@ -469,7 +522,65 @@ export function CustomerOrdersPanel() {
     return () => {
       mounted = false;
     };
-  }, [page]);
+  }, []);
+
+  const loadMoreOrders = useCallback(() => {
+    if (
+      !data ||
+      loadingMore ||
+      data.pagination.page >= data.pagination.totalPages
+    ) {
+      return;
+    }
+
+    const nextPage = data.pagination.page + 1;
+
+    setLoadingMore(true);
+    setLoadMoreError(null);
+    getCustomerOrders({ page: nextPage })
+      .then((orders) => {
+        if (!mountedRef.current) {
+          return;
+        }
+
+        setData((current) => {
+          if (!current) {
+            return orders;
+          }
+
+          const existingOrderIds = new Set(
+            current.items.map((order) => order.orderId)
+          );
+          const newItems = orders.items.filter(
+            (order) => !existingOrderIds.has(order.orderId)
+          );
+
+          return {
+            items: [...current.items, ...newItems],
+            pagination: orders.pagination,
+          };
+        });
+      })
+      .catch((loadError) => {
+        if (!mountedRef.current) {
+          return;
+        }
+
+        if (
+          loadError instanceof CustomerAccountApiError &&
+          (loadError.status === 401 || loadError.status === 403)
+        ) {
+          window.location.replace("/account/sign-in?returnTo=/account/orders");
+          return;
+        }
+        setLoadMoreError("We could not load older orders. Please retry.");
+      })
+      .finally(() => {
+        if (mountedRef.current) {
+          setLoadingMore(false);
+        }
+      });
+  }, [data, loadingMore]);
 
   return (
     <AccountDashboardShell
@@ -485,7 +596,9 @@ export function CustomerOrdersPanel() {
         <CustomerOrdersUnavailable message={error ?? "Orders unavailable."} />
       ) : (
         <CustomerOrdersView
-          onPageChange={setPage}
+          loadMoreError={loadMoreError}
+          loadingMore={loadingMore}
+          onLoadMore={loadMoreOrders}
           orders={data.items}
           pagination={data.pagination}
         />

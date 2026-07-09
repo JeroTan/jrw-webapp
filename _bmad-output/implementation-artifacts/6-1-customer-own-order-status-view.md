@@ -373,6 +373,7 @@ GPT-5 Codex
 - Extended existing checkout payment-return receipt DTO/UI with four status lanes while preserving server-owned guest lookup only; raw email query is ignored and tested as non-lookup.
 - Replaced account orders placeholder with list/detail pages and React panels using shared `ButtonLink`/`StatusBadge`, snapshot no-image fallback, four-lane timeline, and safe loading/not-found/error states.
 - Code review added account order pagination controls and stabilized D1 repository test timeout.
+- Follow-up UX fix replaced page-switch pagination with seamless older-order loading: the list keeps visible orders, auto-loads the next API page near the bottom, deduplicates appended orders, and keeps a manual fallback retry/load button.
 - Manual viewport QA at 320, 375, 768, 1024, and 1440 remains blocked until seeded authenticated order fixtures exist; component markup assertions cover responsive classes and visual contract.
 
 ### File List
@@ -412,3 +413,4 @@ GPT-5 Codex
 - 2026-07-08: Development started; status set to in-progress.
 - 2026-07-08: Implemented Shopper own-order status view/API and moved story to review.
 - 2026-07-08: Code review fixed pagination reachability and repository test timeout; status set to done.
+- 2026-07-09: Added seamless paginated loading for older customer orders; customer account UI tests passed.
