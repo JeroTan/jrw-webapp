@@ -11,7 +11,7 @@
 
 JRW Simple E-commerce is a high-performance, scalable web application designed for selling apparel (T-shirts). Built on a modern edge-computing stack (Cloudflare Workers + Astro), it follows a "Technical Brutalist" design language: clean, authoritative, and data-driven.
 
-The project aims to provide a "viable start" with a focus on transactional integrity via Durable Objects, automated PayMongo refunds, and a clear roadmap for Philippine logistics (COD integration).
+The project aims to provide a "viable start" with a focus on transactional integrity via Durable Objects, manual refund tracking, and a clear roadmap for Philippine logistics (COD integration).
 
 ---
 
@@ -51,7 +51,7 @@ The project aims to provide a "viable start" with a focus on transactional integ
 - **Catalog & Discovery**: Grid-based catalog with search, brand filtering, and tag badges (NEW/HOT).
 - **Durable Checkout**: PayMongo integration (Card, GCash, Maya).
 - **Stock Integrity**: Durable Objects to prevent overselling.
-- **Automated Refunds**: Cancelled `PENDING` orders trigger automated PayMongo API refunds.
+- **Manual Refund Tracking**: Admins record refund status, amount, reason, and reference evidence without executing PayMongo refunds from the app.
 - **Notifications**: Resend integration for Admin (Low stock) and Customer (Order status).
 - **Cancellation**: Users can cancel `PENDING` orders. `ON_THE_WAY` orders require contacting support.
 - **Shipping Options**:

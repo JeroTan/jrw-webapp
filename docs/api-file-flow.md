@@ -334,25 +334,25 @@ flowchart TD
 
 ```mermaid
 flowchart TD
-  A["GET /api/orders"] --> X["src/pages/api/[...slug].ts"]
-  B["GET /api/orders/{orderId}"] --> X
-  C["PATCH /api/orders/{orderId}/fulfillment-status"] --> X
+  A["GET /api/customer/orders"] --> X["src/pages/api/[...slug].ts"]
+  B["GET /api/customer/orders/{orderId}"] --> X
+  C["GET /api/admin/orders"] --> X
+  D["GET /api/admin/orders/{orderId}"] --> X
+  E["PATCH /api/admin/orders/{orderId}/fulfillment"] --> X
   X --> Y["src/server/app.ts"]
-  Y --> Z["planned src/server/routes/order.routes.ts"]
-  Z --> T["To be implemented"]
+  Y --> Z["src/server/routes/orders.routes.ts"]
+  Z --> T["OrderController -> OrderService -> OrderRepository"]
 ```
 
 ### Returns And Refunds
 
 ```mermaid
 flowchart TD
-  A["GET /api/orders/{orderId}/returns"] --> X["src/pages/api/[...slug].ts"]
-  B["POST /api/orders/{orderId}/returns"] --> X
-  C["GET /api/orders/{orderId}/refunds"] --> X
-  D["POST /api/orders/{orderId}/refunds"] --> X
+  A["POST /api/admin/orders/{orderId}/returns"] --> X["src/pages/api/[...slug].ts"]
+  B["POST /api/admin/orders/{orderId}/refunds"] --> X
   X --> Y["src/server/app.ts"]
-  Y --> Z["planned return/refund routes"]
-  Z --> T["To be implemented"]
+  Y --> Z["src/server/routes/orders.routes.ts"]
+  Z --> T["Manual append-only return/refund records"]
 ```
 
 ### Audit And Activity

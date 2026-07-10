@@ -1,6 +1,6 @@
 # Story 6.5: Manual Refund Recording
 
-Status: review
+Status: done
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -102,6 +102,11 @@ Complete for every new or changed endpoint. Mark non-applicable items as `N/A` w
 - [x] Denial tests cover unauthenticated actor, Customer/Prospect wrong role, Super Admin current-policy denial, suspended/inactive/unverified/unapproved Admin, and controller-not-called guard path.
 - [x] Error response uses safe envelope codes and does not leak provider/internal authorization, email, phone, address, Admin notes to Customer, reference IDs to Customer, request IDs outside meta, DB errors, or stack details.
 - [x] OpenAPI/endpoint catalog lists auth mode, roles, rate-limit class, request body, response schema, denial codes, validation codes, and conflict codes.
+
+## Code Review Findings
+
+- [x] P2 Docs still described planned `/api/orders/{orderId}/refunds` routes and automated PayMongo refunds. Updated API flow docs, endpoint catalog, and product overview to current Admin-only manual refund recording.
+- [x] P3 Story and sprint tracking remained in `review` after implementation validation. Moved story 6.5 and sprint status to `done` after CR.
 
 ## Dev Notes
 
@@ -370,7 +375,7 @@ GPT-5 Codex
 
 ### Status Review
 
-Moved to review on 2026-07-09 after implementation, targeted tests, full build-test, and remote development D1 migration.
+Moved to review on 2026-07-09 after implementation, targeted tests, full build-test, and remote development D1 migration. Code review completed on 2026-07-10; story moved to done after docs/status fixes.
 
 ### Debug Log References
 
@@ -385,6 +390,11 @@ Moved to review on 2026-07-09 after implementation, targeted tests, full build-t
 - `npm run check` passed with existing hints printed by Astro.
 - `npm run build-test` passed: 142 files, 974 tests, Astro build complete.
 - `npm run db:migrate:remote` applied `0035_order_refund_records.sql` to development D1.
+- Code review doc/status pass found stale API/refund docs and updated them.
+- Code review targeted suite passed: 7 files, 89 tests.
+- Code review `git diff --check` passed with line-ending warnings only.
+- Code review `npm run check` passed with existing 11 hints.
+- Code review `npm run build-test` passed on rerun: 142 files, 974 tests, Astro build complete.
 
 ### Completion Notes List
 
@@ -394,6 +404,7 @@ Moved to review on 2026-07-09 after implementation, targeted tests, full build-t
 - Added Admin refund endpoint, service orchestration, controller method, route schema/docs, RBAC guard, and safe audit publishing.
 - Added Admin refund form/history panels using shared UI primitives and human labels only.
 - Changed Customer refund declined label to `Refund declined`.
+- Code review updated stale docs so refund flow points to Admin manual recording and does not imply PayMongo execution.
 
 ### File List
 
@@ -415,6 +426,9 @@ Moved to review on 2026-07-09 after implementation, targeted tests, full build-t
 - `src/server/routes/orders.routes.ts`
 - `src/server/services/OrderService.test.ts`
 - `src/server/services/OrderService.ts`
+- `docs/api-file-flow.md`
+- `docs/jrw-simple-ecommerce-site.md`
+- `_bmad-output/implementation-artifacts/1-3-api-endpoint-catalog.md`
 - `_bmad-output/implementation-artifacts/6-5-manual-refund-recording.md`
 - `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
@@ -422,3 +436,4 @@ Moved to review on 2026-07-09 after implementation, targeted tests, full build-t
 
 - 2026-07-09: Created ready-for-dev story with refund transition rules, append-only refund records, amount caps, Admin recording UI, customer-safe projection, and no-PayMongo-execution guardrails.
 - 2026-07-09: Implemented manual refund recording across domain, schema, repository, service/controller/routes, Admin UI, customer-safe projection, tests, and development D1 migration.
+- 2026-07-10: Code review completed; stale refund docs/status fixed and story moved to done.
