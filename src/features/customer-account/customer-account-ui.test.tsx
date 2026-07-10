@@ -494,15 +494,26 @@ describe("customer account UI", () => {
       createElement(CustomerOrderDetailView, { order: customerOrderDetail() })
     );
 
-    expect(markup).toContain("Order truth timeline");
+    expect(markup).toContain("In transit");
+    expect(markup.match(/In transit/g)?.length).toBe(1);
+    expect(markup).toContain("Order detail");
     expect(markup).toContain("Latest update first");
     expect(markup).toContain("Order status");
-    expect(markup).toContain("Order placed");
-    expect(markup).toContain("Payment confirmed");
-    expect(markup).toContain("Your payment was received by JRW.");
+    expect(markup).toContain("Parcel picked up");
+    expect(markup).toContain("Your parcel was handed to logistics.");
+    expect(markup).not.toContain("Order updates");
+    expect(markup).not.toContain("Newest first");
+    expect(markup).not.toContain("Payment, delivery, returns, refunds");
+    expect(markup).not.toContain("sm:grid-cols-2 xl:grid-cols-4");
+    expect(markup).not.toContain("min-h-[9rem]");
+    expect(markup).not.toContain("No return requested");
+    expect(markup).not.toContain("No refund requested");
     expect(markup).toContain("Frozen Linen Shirt");
     expect(markup).toContain("Size: Small");
     expect(markup).not.toContain("Size: Small / Size: Small");
+    expect(markup).not.toMatch(
+      /state only|manual return state|manual refund state|payment state|fulfillment state|order truth timeline|\blanes?\b|process step|architecture/i
+    );
     expect(markup).toContain(
       'src="/assets/products/frozen-linen-shirt/front.webp"'
     );

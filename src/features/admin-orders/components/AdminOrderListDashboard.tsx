@@ -280,8 +280,8 @@ export function AdminOrderListDashboard({
           </p>
           <h1 className="text-[clamp(1.8rem,6vw,3.8rem)]">Orders</h1>
           <p className="max-w-[72ch] text-[0.9375rem] text-brand-muted">
-            Review payment, fulfillment, return, and refund lanes for support
-            and fulfillment work.
+            Review payment, fulfillment, return, and refund status areas for
+            support and fulfillment work.
           </p>
         </div>
         <dl

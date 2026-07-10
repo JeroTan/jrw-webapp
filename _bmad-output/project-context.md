@@ -2,7 +2,7 @@
 project_name: "jrw-webapp"
 user_name: "MR. JRW"
 date: "2026-05-11"
-lastUpdated: "2026-07-08"
+lastUpdated: "2026-07-10"
 sections_completed:
   - technology_stack
   - language_rules
@@ -241,6 +241,10 @@ Tooling:
 - Destructive or authority-changing actions require deliberate confirmation.
 - Ownership transfer needs target eligibility, confirmation phrase, password re-entry, and audit trail.
 - UI copy must state what the screen, section, or field does for the user. Prefer "You can manage your list of brands here" over policy explanations.
+- Customer-facing UI must never use implementation/meta descriptions such as "state only", "manual return state", "manual refund state", "lane", "order truth timeline", "process step", or architecture explanations. Do not render category-list eyebrows like "Payment, delivery, returns, refunds" above customer order cards. Customer order status cards should show understandable status, title, timestamp, and action/outcome copy only.
+- Customer-facing order detail must avoid redundant eyebrow labels such as "Order updates" above the order number and "Newest first" above the timeline when the visible heading already explains the section.
+- Customer-facing order detail must not render Admin-style status dashboards or four status cards. Keep the customer order timeline visible, then show order items and totals.
+- Customer-facing order delivery copy should say "Delivery", not "Fulfillment". Keep "Fulfillment" for Admin operations only.
 - Page descriptions should name the user's available work: manage records, edit details, review requests, upload images, check status, retry payment, or view history.
 - Helper text should explain immediate field meaning or consequence. Do not use helper text for internal doctrine, architecture notes, legal positioning, payment ownership, or anti-marketplace disclaimers.
 - Keep brand UI labels practical: "Brand", "No brand", "Brand members", "Join requests", "Linked products". Use "catalog group" only when it clarifies product assignment.
@@ -300,4 +304,4 @@ For humans:
 - Remove rules once code structure makes them obvious.
 - Review after architecture artifact or major source reorganization.
 
-Last Updated: 2026-06-12
+Last Updated: 2026-07-10

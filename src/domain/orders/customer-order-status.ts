@@ -86,7 +86,7 @@ export function customerOrderStatusLaneLabel(
     case "fulfillment":
       return (
         (status && fulfillmentLabels[status]) ??
-        "Fulfillment status unavailable"
+        "Delivery status unavailable"
       );
     case "return":
       return (status && returnLabels[status]) ?? "Return status unavailable";
@@ -356,22 +356,70 @@ function activeSupportTimelineEvents(input: {
     return [];
   }
 
+  const description = supportStatusDescription(input.lane.kind, status);
+
   return [
     {
-      description:
-        input.lane.kind === "return"
-          ? "JRW is tracking this return request."
-          : "JRW is tracking this refund request.",
+      description,
       id: `${input.lane.kind}-${status.toLowerCase().replaceAll("_", "-")}`,
       label: input.lane.label,
       lane: input.lane.kind,
       title: input.lane.label,
-      tone: /REJECTED|DECLINED|FAILED|CANCELLED/.test(status)
-        ? "warning"
-        : "info",
-      updatedAt: input.updatedAt ?? input.lane.updatedAt,
+      tone: supportStatusTone(status),
+      updatedAt: input.lane.updatedAt ?? input.updatedAt ?? null,
     },
   ];
+}
+
+function supportStatusDescription(
+  kind: CustomerOrderStatusLaneKind,
+  status: string
+): string {
+  if (kind === "return") {
+    switch (status) {
+      case "RETURN_REQUESTED":
+        return "JRW received your return request.";
+      case "RETURN_APPROVED":
+        return "JRW approved your return request.";
+      case "RETURN_REJECTED":
+        return "JRW declined this return request.";
+      case "RETURN_RECEIVED":
+        return "JRW received your returned item.";
+      case "RETURN_COMPLETED":
+        return "Your return is complete.";
+      case "RETURN_CANCELLED":
+        return "This return request was cancelled.";
+      default:
+        return "JRW updated your return request.";
+    }
+  }
+
+  switch (status) {
+    case "REFUND_PENDING":
+      return "JRW is reviewing your refund request.";
+    case "REFUND_APPROVED":
+      return "JRW approved your refund request.";
+    case "REFUND_DECLINED":
+      return "JRW declined this refund request.";
+    case "REFUND_SENT":
+      return "Your refund was sent.";
+    case "REFUND_FAILED":
+      return "Refund could not be sent. Contact JRW support.";
+    default:
+      return "JRW updated your refund request.";
+  }
+}
+
+function supportStatusTone(status: string): CustomerOrderTimelineEvent["tone"] {
+  if (/REJECTED|DECLINED|FAILED|CANCELLED/.test(status)) {
+    return "warning";
+  }
+
+  if (/COMPLETED|SENT/.test(status)) {
+    return "success";
+  }
+
+  return "info";
 }
 
 export function buildCustomerOrderTimeline(input: {

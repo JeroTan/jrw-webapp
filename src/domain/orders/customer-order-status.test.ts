@@ -46,7 +46,7 @@ describe("customer order status lanes", () => {
       "Payment status unavailable"
     );
     expect(customerOrderStatusLaneLabel("fulfillment", "DRONE_HANDOFF")).toBe(
-      "Fulfillment status unavailable"
+      "Delivery status unavailable"
     );
     expect(customerOrderStatusLaneLabel("return", "WAREHOUSE_INTERNAL")).toBe(
       "Return status unavailable"
@@ -117,9 +117,11 @@ describe("customer order status lanes", () => {
       value: "RETURN_APPROVED",
     });
     expect(timeline[0]).toMatchObject({
+      description: "JRW approved your return request.",
       label: "Return approved",
       lane: "return",
       title: "Return approved",
+      updatedAt: "2026-07-08T04:00:00.000Z",
     });
     expect(JSON.stringify(timeline)).not.toMatch(
       /RETURN_APPROVED|admin|notes|reference|request_id|provider/i
@@ -147,13 +149,45 @@ describe("customer order status lanes", () => {
       value: "REFUND_DECLINED",
     });
     expect(timeline[0]).toMatchObject({
+      description: "JRW declined this refund request.",
       label: "Refund declined",
       lane: "refund",
       title: "Refund declined",
       tone: "warning",
+      updatedAt: "2026-07-08T05:00:00.000Z",
     });
     expect(JSON.stringify(timeline)).not.toMatch(
       /REFUND_DECLINED|admin|notes|reference|request_id|paymongo|provider/i
     );
+  });
+
+  it("uses outcome-specific return and refund messages with lane timestamps", () => {
+    const timeline = buildCustomerOrderTimeline({
+      createdAt: "2026-07-08T01:00:00.000Z",
+      lanes: buildCustomerOrderStatusLanes({
+        fulfillmentStatus: "DELIVERED",
+        paymentStatus: "PAYMENT_PAID",
+        refundStatus: "REFUND_PENDING",
+        refundUpdatedAt: "2026-07-08T06:00:00.000Z",
+        returnStatus: "RETURN_REJECTED",
+        returnUpdatedAt: "2026-07-08T05:00:00.000Z",
+        updatedAt: "2026-07-08T03:00:00.000Z",
+      }),
+      updatedAt: "2026-07-08T07:00:00.000Z",
+    });
+
+    expect(timeline[0]).toMatchObject({
+      description: "JRW is reviewing your refund request.",
+      label: "Refund pending",
+      title: "Refund pending",
+      updatedAt: "2026-07-08T06:00:00.000Z",
+    });
+    expect(timeline[1]).toMatchObject({
+      description: "JRW declined this return request.",
+      label: "Return declined",
+      title: "Return declined",
+      updatedAt: "2026-07-08T05:00:00.000Z",
+    });
+    expect(JSON.stringify(timeline)).not.toMatch(/tracking this/i);
   });
 });

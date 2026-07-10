@@ -1,7 +1,12 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { AdminOrderDetailDashboard } from "./components/AdminOrderDetailDashboard";
+import {
+  AdminOrderDetailDashboard,
+  fulfillmentConflictMessage,
+  refundConflictMessage,
+  returnConflictMessage,
+} from "./components/AdminOrderDetailDashboard";
 import { AdminOrderListDashboard } from "./components/AdminOrderListDashboard";
 import type { AdminOrderDetail, AdminOrderList } from "./types";
 
@@ -156,6 +161,11 @@ describe("admin orders UI", () => {
 
     expect(markup).toContain("Order details");
     expect(markup).toContain("Status overview");
+    expect(markup).toContain("Payment");
+    expect(markup).toContain("Fulfillment");
+    expect(markup).toContain("Return");
+    expect(markup).toContain("Refund");
+    expect(markup).toContain("sm:grid-cols-2 xl:grid-cols-4");
     expect(markup).toContain("Payment confirmed");
     expect(markup).toContain("Order placed");
     expect(markup).toContain("Fulfillment actions");
@@ -192,9 +202,65 @@ describe("admin orders UI", () => {
     expect(markup).not.toContain("Approve refund");
     expect(markup).not.toContain("Return requested");
     expect(markup).not.toMatch(
+      /state only|manual return state|manual refund state|payment state|fulfillment state|order truth timeline/i
+    );
+    expect(markup).not.toMatch(
       /ORDER_PLACED|PAYMENT_PAID|CUSTOMER|RETURN_NOT_REQUESTED|REFUND_NOT_REQUESTED/
     );
     expect(markup).not.toContain(">Snapshot<");
+  });
+
+  it("builds safe conflict messages from server details", () => {
+    expect(
+      fulfillmentConflictMessage({
+        code: "CONFLICT_STATE",
+        details: {
+          allowedNextStatuses: ["SHIPPED", "CANCELLED"],
+          currentStatus: "PROCESSING",
+        },
+        message: "Conflict",
+        status: 409,
+      })
+    ).toBe(
+      "Order status changed. Current fulfillment: Processing. Next: Mark as shipped, Cancel order."
+    );
+    expect(
+      returnConflictMessage({
+        code: "CONFLICT_STATE",
+        details: {
+          allowedNextStatuses: ["RETURN_RECEIVED"],
+          currentStatus: "RETURN_APPROVED",
+        },
+        message: "Conflict",
+        status: 409,
+      })
+    ).toBe(
+      "Return status changed. Current return: Return approved. Next: Mark received."
+    );
+    expect(
+      refundConflictMessage({
+        code: "CONFLICT_STATE",
+        details: {
+          allowedNextStatuses: ["REFUND_SENT"],
+          currentStatus: "REFUND_APPROVED",
+        },
+        message: "Conflict",
+        status: 409,
+      })
+    ).toBe(
+      "Refund status changed. Current refund: Refund approved. Next: Mark sent."
+    );
+    expect(
+      refundConflictMessage({
+        code: "CONFLICT_STATE",
+        details: {
+          maxAmountCentavos: 3998,
+          reason: "AMOUNT_EXCEEDS_TARGET",
+        },
+        message: "Conflict",
+        status: 409,
+      })
+    ).toBe("Refund amount is above current target maximum PHP 39.98.");
   });
 
   it("renders return request form with human labels only", () => {

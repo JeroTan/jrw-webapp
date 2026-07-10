@@ -1,6 +1,6 @@
 # Story 6.6: Order Truth Timeline and Status UX
 
-Status: ready-for-dev
+Status: review
 
 <!-- Note: Validation is optional. Run validate-create-story for quality check before dev-story. -->
 
@@ -12,9 +12,13 @@ so that payment, fulfillment, return, and refund state are understandable.
 
 ## Acceptance Criteria
 
-1. Customer and Admin order detail use a shared order-truth presentation for four lanes: payment, fulfillment, return, and refund. Lane labels are text-based, color-independent, and never merge payment with fulfillment, return, or refund.
-2. Customer order list still shows one latest meaningful customer-safe event, but customer order detail shows four safe lane summaries plus newest-first timeline events. Idle `RETURN_NOT_REQUESTED` and `REFUND_NOT_REQUESTED` may appear in lane summaries but must not render as timeline events.
+1. Customer and Admin order detail use shared order-truth data for payment, fulfillment, return, and refund without merging those states. Admin may show four lane cards; Customer shows the timeline only.
+2. Customer order list still shows one latest meaningful customer-safe event. Customer order detail shows a customer-safe order timeline, not an Admin-style four-card status dashboard. Idle `RETURN_NOT_REQUESTED` and `REFUND_NOT_REQUESTED` must not render in customer detail.
 3. Customer-facing UI never renders raw status codes, provider names/payloads, webhook details, Admin notes, reference IDs, actor IDs, request IDs, checkout email, phone, address, tokens, signatures, secrets, or card/payment internals.
+   - Customer-facing order status cards must also avoid implementation/meta descriptions such as "state only", "manual return state", "manual refund state", "lane", "order truth timeline", "process step", category-list eyebrows like "Payment, delivery, returns, refunds", or architecture explanations. Show customer-understandable status, title, timestamp, and action/outcome copy only.
+   - Customer-facing delivery copy must say "Delivery", not "Fulfillment". Keep "Fulfillment" for Admin operations.
+   - Customer-facing order detail must not render redundant eyebrow labels such as "Order updates" above the order number or "Newest first" above the timeline when the heading already says what the section is.
+   - Customer-facing order detail must not render the four-card payment/delivery/return/refund dashboard. Keep that operational card view for Admin; customer detail keeps the order timeline.
 4. Admin order detail follows Direction 05 shell continuity and Direction 06 order truth layout: dense operational page, four lane cards, newest updates, and action panels for fulfillment, return, and refund without creating a second order detail screen.
 5. Admin timeline/lane UI shows valid next actions only where actions exist. Unavailable actions or terminal states show safe disabled reasons, including payment-not-paid, return-before-delivery, terminal fulfillment/return/refund status, invalid current status, scope conflicts, amount cap conflicts, and missing reference ID for sent refund evidence.
 6. On `CONFLICT_STATE` from fulfillment, return, or refund actions, Admin UI refreshes latest order detail, removes stale pending/busy state, and shows a safe conflict message that includes current status and allowed next actions when the server returns those details.
@@ -27,45 +31,45 @@ so that payment, fulfillment, return, and refund state are understandable.
 
 ## Tasks / Subtasks
 
-- [ ] Create or extract shared order-truth display components. (AC: 1, 2, 4, 10, 11)
-  - [ ] Preferred home: `src/components/data-display/OrderTruthTimeline.tsx` and, if needed, `OrderStatusLanes.tsx`; keep feature-specific action panels in feature modules.
-  - [ ] Inputs should accept `CustomerOrderStatusLanes`, `CustomerOrderTimelineEvent[]`, optional heading/eyebrow, and mode-specific copy without exposing raw `lane.value` text.
-  - [ ] Use `StatusBadge`, Tailwind v4 token utilities, sharp borders, stable grid dimensions, and responsive tracks. Do not add a new timeline library.
-  - [ ] Preserve existing `buildCustomerOrderTimeline(...)` as domain source of customer-safe events unless tests prove it needs a small extension.
+- [x] Create or extract shared order-truth display components. (AC: 1, 2, 4, 10, 11)
+  - [x] Preferred home: `src/components/data-display/OrderTruthTimeline.tsx` and, if needed, `OrderStatusLanes.tsx`; keep feature-specific action panels in feature modules.
+  - [x] Inputs should accept `CustomerOrderStatusLanes`, `CustomerOrderTimelineEvent[]`, optional heading/eyebrow, and mode-specific copy without exposing raw `lane.value` text.
+  - [x] Use `StatusBadge`, Tailwind v4 token utilities, sharp borders, stable grid dimensions, and responsive tracks. Do not add a new timeline library.
+  - [x] Preserve existing `buildCustomerOrderTimeline(...)` as domain source of customer-safe events unless tests prove it needs a small extension.
 
-- [ ] Update Customer order surfaces. (AC: 1, 2, 3, 10, 11)
-  - [ ] Update `src/features/customer-account/CustomerOrdersPanel.tsx` only as needed to preserve latest-event card behavior and safe label checks.
-  - [ ] Update `src/features/customer-account/CustomerOrderDetailPanel.tsx` to render four lane summaries plus newest-first timeline via shared component.
-  - [ ] Keep order snapshot item display, product image paths, totals, shallow account navigation, and sign-in redirect behavior unchanged.
-  - [ ] Keep idle return/refund values out of customer timeline events.
+- [x] Update Customer order surfaces. (AC: 1, 2, 3, 10, 11)
+  - [x] Update `src/features/customer-account/CustomerOrdersPanel.tsx` only as needed to preserve latest-event card behavior and safe label checks.
+  - [x] Update `src/features/customer-account/CustomerOrderDetailPanel.tsx` to render the customer timeline while avoiding the Admin-style four-card status dashboard.
+  - [x] Keep order snapshot item display, product image paths, totals, shallow account navigation, and sign-in redirect behavior unchanged.
+  - [x] Keep idle return/refund values out of customer timeline events.
 
-- [ ] Update Admin order detail surface. (AC: 4, 5, 6, 7, 8, 9, 10, 11)
-  - [ ] Update `src/features/admin-orders/components/AdminOrderDetailDashboard.tsx`; do not create a parallel Admin order detail screen.
-  - [ ] Replace local `LanePanel` and duplicated timeline markup with shared order-truth components.
-  - [ ] Keep existing `FulfillmentActionsPanel`, `ReturnActionsPanel`, `ReturnHistoryPanel`, `RefundActionsPanel`, and `RefundHistoryPanel` unless extraction reduces duplication without changing behavior.
-  - [ ] Preserve recent `CentavosAmountInput` refund amount UI and product-price split-field change.
-  - [ ] Keep collapsed return/refund action panels behavior unless UX requires a specific panel open state.
-  - [ ] Add safe disabled reason copy for terminal statuses and blocked actions; avoid raw status-code copy.
+- [x] Update Admin order detail surface. (AC: 4, 5, 6, 7, 8, 9, 10, 11)
+  - [x] Update `src/features/admin-orders/components/AdminOrderDetailDashboard.tsx`; do not create a parallel Admin order detail screen.
+  - [x] Replace local `LanePanel` and duplicated timeline markup with shared order-truth components.
+  - [x] Keep existing `FulfillmentActionsPanel`, `ReturnActionsPanel`, `ReturnHistoryPanel`, `RefundActionsPanel`, and `RefundHistoryPanel` unless extraction reduces duplication without changing behavior.
+  - [x] Preserve recent `CentavosAmountInput` refund amount UI and product-price split-field change.
+  - [x] Keep collapsed return/refund action panels behavior unless UX requires a specific panel open state.
+  - [x] Add safe disabled reason copy for terminal statuses and blocked actions; avoid raw status-code copy.
 
-- [ ] Improve conflict feedback and rollback. (AC: 5, 6, 12)
-  - [ ] For fulfillment, return, and refund catch paths, continue best-effort `fetchAdminOrderDetail(...)` refresh on 409.
-  - [ ] Use `AdminOrderApiFailure.details` when present to show current status and allowed next labels through existing label helpers.
-  - [ ] Clear busy/loading state after failed actions and never leave buttons in pending state after conflict.
-  - [ ] Keep messages customer-safe/admin-safe: no DB errors, stack traces, request IDs, provider payloads, or raw status codes.
+- [x] Improve conflict feedback and rollback. (AC: 5, 6, 12)
+  - [x] For fulfillment, return, and refund catch paths, continue best-effort `fetchAdminOrderDetail(...)` refresh on 409.
+  - [x] Use `AdminOrderApiFailure.details` when present to show current status and allowed next labels through existing label helpers.
+  - [x] Clear busy/loading state after failed actions and never leave buttons in pending state after conflict.
+  - [x] Keep messages customer-safe/admin-safe: no DB errors, stack traces, request IDs, provider payloads, or raw status codes.
 
-- [ ] Add confirmation for high-impact return/refund record saves if not already covered. (AC: 8)
-  - [ ] Use existing `ConfirmDialog` or established modal pattern from `src/components/ui` rather than browser `confirm` if a custom dialog already fits.
-  - [ ] Confirmation copy must say manual record/status save and scope target; it must not imply provider automation.
-  - [ ] Preserve keyboard focus and Escape/cancel behavior.
+- [x] Add confirmation for high-impact return/refund record saves if not already covered. (AC: 8)
+  - [x] Use existing `ConfirmDialog` or established modal pattern from `src/components/ui` rather than browser `confirm` if a custom dialog already fits.
+  - [x] Confirmation copy must say manual record/status save and scope target; it must not imply provider automation.
+  - [x] Preserve keyboard focus and Escape/cancel behavior.
 
-- [ ] Add focused tests and QA evidence. (AC: 1-12)
-  - [ ] Extend `src/domain/orders/customer-order-status.test.ts` only if event/lane mapping changes.
-  - [ ] Add shared component tests if new components contain branching display logic.
-  - [ ] Extend `src/features/customer-account/customer-account-ui.test.tsx` for four lane summaries on detail, idle suppression from timeline, no raw codes/provider/PII, and responsive class contracts.
-  - [ ] Extend `src/features/admin-orders/admin-orders-ui.test.tsx` for shared lane/timeline structure, disabled reasons, conflict message detail rendering, collapsed panels, split refund amount field preservation, no PayMongo/provider execution wording, and no raw status-code copy.
-  - [ ] Run targeted tests: `npx vitest run src/domain/orders/customer-order-status.test.ts src/features/customer-account/customer-account-ui.test.tsx src/features/admin-orders/admin-orders-ui.test.tsx`.
-  - [ ] Run `npm run check`; prefer `npm run build-test` because this story touches both customer and Admin order UI.
-  - [ ] Add manual QA notes or documented blocker for 320, 375, 390, 430, 768, 1024, and 1440px order detail readability and keyboard walkthrough.
+- [x] Add focused tests and QA evidence. (AC: 1-12)
+  - [x] Extend `src/domain/orders/customer-order-status.test.ts` only if event/lane mapping changes.
+  - [x] Add shared component tests if new components contain branching display logic.
+  - [x] Extend `src/features/customer-account/customer-account-ui.test.tsx` for customer timeline detail, four-card dashboard absence, idle suppression from timeline, and no raw codes/provider/PII.
+  - [x] Extend `src/features/admin-orders/admin-orders-ui.test.tsx` for shared lane/timeline structure, disabled reasons, conflict message detail rendering, collapsed panels, split refund amount field preservation, no PayMongo/provider execution wording, and no raw status-code copy.
+  - [x] Run targeted tests: `npx vitest run src/domain/orders/customer-order-status.test.ts src/features/customer-account/customer-account-ui.test.tsx src/features/admin-orders/admin-orders-ui.test.tsx`.
+  - [x] Run `npm run check`; prefer `npm run build-test` because this story touches both customer and Admin order UI.
+  - [x] Add manual QA notes or documented blocker for 320, 375, 390, 430, 768, 1024, and 1440px order detail readability and keyboard walkthrough.
 
 ## Endpoint Guard Checklist
 
@@ -151,7 +155,7 @@ Actionable read:
   - four equal lane cards on desktop,
   - payment, fulfillment, return, refund titles,
   - status badge above title,
-  - concise lane description,
+  - no implementation/meta lane descriptions in customer-facing UI,
   - manual return/refund action placement near order operations.
 - Follow `_bmad-output/planning-artifacts/ux-design-specification.md#OrderTimeline` for customer-safe order status tracking.
 - Follow `_bmad-output/planning-artifacts/ux-design-specification.md#OrderStatusPanel` for Admin valid next action, disabled reason, pending update, and conflict rollback states.
@@ -247,7 +251,8 @@ PayMongo payload
 ### Testing Requirements
 
 - Customer UI tests must assert:
-  - four lane summaries on detail,
+  - customer timeline on detail,
+  - no four-card status dashboard on customer detail,
   - newest-first timeline,
   - no raw codes/provider/PII,
   - idle return/refund not in timeline,
@@ -267,6 +272,10 @@ PayMongo payload
 - Do not create another order status source outside `customer-order-status.ts`.
 - Do not merge lanes into a single "overall status".
 - Do not show idle return/refund as customer timeline events.
+- Do not render implementation/meta copy such as "Payment state only", "Packing and delivery state only", "Manual return state only", "Manual refund state only", "lane", "Order truth timeline", category-list eyebrows like "Payment, delivery, returns, refunds", or "process step" in Customer UI.
+- Do not render "Fulfillment" in Customer UI; use "Delivery".
+- Do not render redundant customer eyebrow labels like "Order updates" or "Newest first" in order detail.
+- Do not render Admin-style four-card status dashboards in Customer order detail; keep the customer order timeline visible.
 - Do not put provider/webhook/payment payload language in Customer UI.
 - Do not expose Admin-only notes/reference/actor/request data to Customer UI.
 - Do not restore raw centavos UI fields.
@@ -313,14 +322,61 @@ PayMongo payload
 
 ### Agent Model Used
 
-{{agent_model_name_version}}
+GPT-5 Codex
+
+### Status Review
+
+Moved to review on 2026-07-10 after shared timeline extraction, Customer/Admin wiring, conflict copy updates, confirmation dialogs, targeted tests, style guard, type check, and full build-test.
 
 ### Debug Log References
 
+- `npx vitest run src/domain/orders/customer-order-status.test.ts src/features/customer-account/customer-account-ui.test.tsx src/features/admin-orders/admin-orders-ui.test.tsx` passed: 3 files, 44 tests.
+- `rg -n "jrw-|--jrw|color-jrw|spacing-jrw|font-jrw" src/styles src/components src/features src/layouts src/pages` found existing fixture/test/placeholder matches only; no new runtime `jrw-*` classes.
+- `npm run check` passed with existing Astro hints only.
+- `npm run build-test` passed: 142 files, 975 tests, Astro build complete.
+- `npx vitest run src/features/customer-account/customer-account-ui.test.tsx src/features/admin-orders/admin-orders-ui.test.tsx` passed after customer-facing copy correction: 2 files, 38 tests.
+- `npm run check` passed after copy correction: 0 errors, existing hints only.
+- `rg -n "state only|manual return state|manual refund state|payment state|fulfillment state|Order truth timeline|order truth timeline|Separate lanes" src/components/data-display src/features/customer-account src/features/admin-orders` found guardrail regex references in tests only.
+- `npx vitest run src/domain/orders/customer-order-status.test.ts src/features/customer-account/customer-account-ui.test.tsx src/features/admin-orders/admin-orders-ui.test.tsx` passed after customer-only copy correction: 3 files, 45 tests.
+- `rg -n "Payment, delivery, returns, refunds|Order truth timeline|order truth timeline|Separate lanes|Fulfillment status unavailable|tracking this return request|tracking this refund request|state only|manual return state|manual refund state|payment state|fulfillment state" src/components/data-display src/features/customer-account src/domain/orders/customer-order-status.ts src/domain/orders/customer-order-status.test.ts` found guardrail references in tests only.
+- `npx vitest run src/domain/orders/customer-order-status.test.ts src/features/customer-account/customer-account-ui.test.tsx src/features/admin-orders/admin-orders-ui.test.tsx` passed after removing redundant customer eyebrow labels: 3 files, 45 tests.
+- `npm run check` passed after removing redundant customer eyebrow labels: 0 errors, existing hints only.
+- `npx vitest run src/domain/orders/customer-order-status.test.ts src/features/customer-account/customer-account-ui.test.tsx src/features/admin-orders/admin-orders-ui.test.tsx` passed after restoring customer timeline and keeping four-card status dashboard removed: 3 files, 45 tests.
+- `rg -n "OrderTruthTimeline|Order updates|Newest first|sm:grid-cols-2 xl:grid-cols-4|min-h-\[9rem\]" src/features/customer-account` found only customer test guardrails; no runtime customer feature usage.
+- `npm run check` passed after restoring customer timeline and keeping four-card status dashboard removed: 0 errors, existing hints only.
+
 ### Completion Notes List
 
+- Added shared `OrderTruthTimeline`, `OrderStatusLanes`, and `OrderTimelineEvents` display components under `src/components/data-display`.
+- Customer order detail shows timeline events through shared component without four lane summary cards; list latest-event behavior remains unchanged.
+- Customer-facing status cards intentionally omit implementation/meta descriptions after correction; tests now block "state only", "order truth timeline", and "lane" style copy.
+- Customer-facing status cards now omit the category-list eyebrow and use "Delivery" instead of "Fulfillment"; shared component defaults are customer-safe so Admin wording must opt in.
+- Customer order detail keeps the old timeline shape with "Order detail", "Latest update first", and "Order status"; tests block the rejected "Order updates" and "Newest first" labels from customer markup.
+- Customer order detail no longer renders the four-card `OrderTruthTimeline`; it renders `OrderTimelineEvents` only, then items and totals.
+- Return/refund customer timeline copy now uses outcome-specific messages and each support event uses its own updated timestamp.
+- Admin order detail now uses same shared lane/timeline component and no longer duplicates lane/timeline markup locally.
+- Admin conflict messages now read safe server details and show human current status plus allowed next actions.
+- Return/refund form saves and history status saves now use `ConfirmDialog` with manual-record copy and no provider automation wording.
+- `CentavosAmountInput` refund amount UI remains in place.
+- Responsive QA covered through SSR class assertions for stable lane height and `sm:grid-cols-2 xl:grid-cols-4`; live viewport walkthrough not run in this pass.
+
 ### File List
+
+- `src/components/data-display/OrderTruthTimeline.tsx`
+- `src/components/data-display/index.ts`
+- `src/domain/orders/customer-order-status.ts`
+- `src/domain/orders/customer-order-status.test.ts`
+- `src/features/customer-account/CustomerOrderDetailPanel.tsx`
+- `src/features/customer-account/customer-account-ui.test.tsx`
+- `src/features/admin-orders/components/AdminOrderListDashboard.tsx`
+- `src/features/admin-orders/components/AdminOrderDetailDashboard.tsx`
+- `src/features/admin-orders/admin-orders-ui.test.tsx`
+- `_bmad-output/project-context.md`
+- `_bmad-output/implementation-artifacts/6-6-order-truth-timeline-and-status-ux.md`
+- `_bmad-output/implementation-artifacts/sprint-status.yaml`
 
 ## Change Log
 
 - 2026-07-10: Created ready-for-dev story with shared order-truth timeline guidance, existing code intelligence, conflict UX guardrails, design direction fidelity, and focused test/QA requirements.
+- 2026-07-10: Implemented shared order truth lane/timeline UI, Customer/Admin detail wiring, safer Admin conflict feedback, return/refund confirmation dialogs, and validation evidence.
+- 2026-07-10: Corrected lane card copy guardrail: removed "state only" meta descriptions from customer-facing UI and documented ban in story/project context.

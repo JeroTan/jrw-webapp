@@ -1,11 +1,13 @@
 import * as React from "react";
 import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
+import { OrderTruthTimeline } from "@/components/data-display";
 import { EmptyState, Skeleton, StatusBadge } from "@/components/feedback";
 import {
   Button,
   ButtonLink,
   CentavosAmountInput,
+  ConfirmDialog,
   Input,
   Select,
   Textarea,
@@ -280,6 +282,138 @@ function fulfillmentEmailMessage(status: AdminFulfillmentEmailStatus): string {
   }
 }
 
+function detailsObject(details: unknown): Record<string, unknown> | null {
+  return typeof details === "object" && details !== null
+    ? (details as Record<string, unknown>)
+    : null;
+}
+
+function detailsString(
+  details: Record<string, unknown> | null,
+  key: string
+): string | null {
+  const value = details?.[key];
+
+  return typeof value === "string" && value.trim().length > 0
+    ? value.trim()
+    : null;
+}
+
+function detailsNumber(
+  details: Record<string, unknown> | null,
+  key: string
+): number | null {
+  const value = details?.[key];
+
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function detailsStringList(
+  details: Record<string, unknown> | null,
+  key: string
+): string[] {
+  const value = details?.[key];
+
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function actionListText(labels: string[]): string | null {
+  const cleanLabels = labels.filter(Boolean);
+
+  return cleanLabels.length > 0 ? cleanLabels.join(", ") : null;
+}
+
+export function fulfillmentConflictMessage(
+  failure: AdminOrderApiFailure
+): string {
+  if (failure.code !== "CONFLICT_STATE") {
+    return "Fulfillment update failed.";
+  }
+
+  const details = detailsObject(failure.details);
+  const currentStatus = detailsString(details, "currentStatus");
+  const allowedActions = actionListText(
+    detailsStringList(details, "allowedNextStatuses")
+      .filter(isFulfillmentStatus)
+      .map(fulfillmentActionLabel)
+  );
+  const parts = ["Order status changed."];
+
+  if (currentStatus && isFulfillmentStatus(currentStatus)) {
+    parts.push(`Current fulfillment: ${fulfillmentStatusLabel(currentStatus)}.`);
+  }
+
+  if (allowedActions) {
+    parts.push(`Next: ${allowedActions}.`);
+  }
+
+  return parts.join(" ");
+}
+
+export function returnConflictMessage(failure: AdminOrderApiFailure): string {
+  if (failure.code !== "CONFLICT_STATE") {
+    return "Return record failed.";
+  }
+
+  const details = detailsObject(failure.details);
+  const currentStatus = detailsString(details, "currentStatus");
+  const allowedActions = actionListText(
+    detailsStringList(details, "allowedNextStatuses")
+      .filter(isReturnStatus)
+      .map(
+        (status) => returnHistoryActionLabel[status] ?? returnStatusLabel(status)
+      )
+  );
+  const parts = ["Return status changed."];
+
+  if (currentStatus && isReturnStatus(currentStatus)) {
+    parts.push(`Current return: ${returnStatusLabel(currentStatus)}.`);
+  }
+
+  if (allowedActions) {
+    parts.push(`Next: ${allowedActions}.`);
+  }
+
+  return parts.join(" ");
+}
+
+export function refundConflictMessage(failure: AdminOrderApiFailure): string {
+  if (failure.code !== "CONFLICT_STATE") {
+    return "Refund record failed.";
+  }
+
+  const details = detailsObject(failure.details);
+  const maxAmountCentavos = detailsNumber(details, "maxAmountCentavos");
+
+  if (detailsString(details, "reason") === "AMOUNT_EXCEEDS_TARGET") {
+    return `Refund amount is above current target maximum ${formatCatalogPrice(
+      maxAmountCentavos ?? 0
+    )}.`;
+  }
+
+  const currentStatus = detailsString(details, "currentStatus");
+  const allowedActions = actionListText(
+    detailsStringList(details, "allowedNextStatuses")
+      .filter(isRefundStatus)
+      .map(
+        (status) => refundHistoryActionLabel[status] ?? refundStatusLabel(status)
+      )
+  );
+  const parts = ["Refund status changed."];
+
+  if (currentStatus && isRefundStatus(currentStatus)) {
+    parts.push(`Current refund: ${refundStatusLabel(currentStatus)}.`);
+  }
+
+  if (allowedActions) {
+    parts.push(`Next: ${allowedActions}.`);
+  }
+
+  return parts.join(" ");
+}
+
 function addressLines(order: AdminOrderDetail): string[] {
   return [
     order.shippingAddress.streetAddress,
@@ -287,25 +421,6 @@ function addressLines(order: AdminOrderDetail): string[] {
     order.shippingAddress.cityProvince,
     order.shippingAddress.postalCode,
   ].filter((line): line is string => Boolean(line && line.trim().length > 0));
-}
-
-function LanePanel({
-  label,
-  updatedAt,
-  value,
-}: {
-  label: string;
-  updatedAt: string | null;
-  value: string;
-}) {
-  return (
-    <article className="grid gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
-      <StatusBadge label={label} tone={statusTone(value)} />
-      <p className="m-0 text-sm text-brand-muted">
-        Last updated {formatDateTime(updatedAt)}
-      </p>
-    </article>
-  );
 }
 
 function customerKindLabel(kind: AdminOrderDetail["customerKind"]): string {
@@ -458,6 +573,8 @@ function ReturnActionsPanel({
   const [localMessage, setLocalMessage] = useState<ReturnActionMessage | null>(
     null
   );
+  const [pendingRecord, setPendingRecord] =
+    useState<AdminReturnRecordRequest | null>(null);
   const effectiveTargetType = hasExistingItemReturn ? "item" : targetType;
 
   useEffect(() => {
@@ -493,7 +610,7 @@ function ReturnActionsPanel({
 
     setLocalMessage(null);
 
-    await onRecord?.({
+    setPendingRecord({
       notes: notes.trim() || undefined,
       orderSnapshotId: effectiveTargetType === "item" ? itemId : undefined,
       reason: trimmedReason,
@@ -504,6 +621,16 @@ function ReturnActionsPanel({
           ? ("ITEM" satisfies AdminReturnTargetType)
           : ("ORDER" satisfies AdminReturnTargetType),
     });
+  }
+
+  async function confirmPendingRecord() {
+    if (!pendingRecord) {
+      return;
+    }
+
+    const body = pendingRecord;
+    setPendingRecord(null);
+    await onRecord?.(body);
   }
 
   const activeMessage = message ?? localMessage;
@@ -623,6 +750,14 @@ function ReturnActionsPanel({
           </Button>
         </form>
       )}
+      <ConfirmDialog
+        confirmLabel="Save manual return record"
+        message="This saves a manual return record for this order. It does not change payment, refund, inventory, or customer account data."
+        onCancel={() => setPendingRecord(null)}
+        onConfirm={() => void confirmPendingRecord()}
+        open={Boolean(pendingRecord)}
+        title="Confirm return record"
+      />
     </CollapsibleAdminPanel>
   );
 }
@@ -637,12 +772,14 @@ function ReturnHistoryPanel({
   order: AdminOrderDetail;
 }) {
   const latestTargetKeys = new Set<string>();
+  const [pendingRecord, setPendingRecord] =
+    useState<AdminReturnRecordRequest | null>(null);
 
-  async function recordNextStatus(
+  function recordNextStatus(
     record: AdminOrderDetail["returnHistory"][number],
     targetStatus: AdminReturnStatus
   ) {
-    await onRecord?.({
+    setPendingRecord({
       orderSnapshotId:
         record.targetType === "ITEM"
           ? (record.orderSnapshotId ?? undefined)
@@ -651,6 +788,16 @@ function ReturnHistoryPanel({
       targetStatus,
       targetType: record.targetType,
     });
+  }
+
+  async function confirmPendingRecord() {
+    if (!pendingRecord) {
+      return;
+    }
+
+    const body = pendingRecord;
+    setPendingRecord(null);
+    await onRecord?.(body);
   }
 
   return (
@@ -718,7 +865,7 @@ function ReturnHistoryPanel({
                         key={status}
                         loading={busy}
                         loadingLabel="Saving"
-                        onClick={() => void recordNextStatus(record, status)}
+                        onClick={() => recordNextStatus(record, status)}
                         size="sm"
                         textSize="xs"
                         variant={
@@ -736,6 +883,14 @@ function ReturnHistoryPanel({
           })}
         </ol>
       )}
+      <ConfirmDialog
+        confirmLabel="Save manual return status"
+        message="This saves a manual return status record. It does not change payment, refund, inventory, or customer account data."
+        onCancel={() => setPendingRecord(null)}
+        onConfirm={() => void confirmPendingRecord()}
+        open={Boolean(pendingRecord)}
+        title="Confirm return status"
+      />
     </CollapsibleAdminPanel>
   );
 }
@@ -781,6 +936,8 @@ function RefundActionsPanel({
   const [localMessage, setLocalMessage] = useState<RefundActionMessage | null>(
     null
   );
+  const [pendingRecord, setPendingRecord] =
+    useState<AdminRefundRecordRequest | null>(null);
   const canCreateRefund =
     !orderLevelRefundExists &&
     (effectiveTargetType === "order" || availableItems.length > 0);
@@ -843,7 +1000,7 @@ function RefundActionsPanel({
 
     setLocalMessage(null);
 
-    await onRecord?.({
+    setPendingRecord({
       amountCentavos,
       notes: notes.trim() || undefined,
       orderSnapshotId: effectiveTargetType === "item" ? itemId : undefined,
@@ -855,6 +1012,16 @@ function RefundActionsPanel({
           ? ("ITEM" satisfies AdminRefundTargetType)
           : ("ORDER" satisfies AdminRefundTargetType),
     });
+  }
+
+  async function confirmPendingRecord() {
+    if (!pendingRecord) {
+      return;
+    }
+
+    const body = pendingRecord;
+    setPendingRecord(null);
+    await onRecord?.(body);
   }
 
   const activeMessage = message ?? localMessage;
@@ -982,6 +1149,14 @@ function RefundActionsPanel({
           </Button>
         </form>
       )}
+      <ConfirmDialog
+        confirmLabel="Save manual refund record"
+        message="This saves a manual refund record for this order. It does not execute a provider refund, payout, email, inventory change, or customer account change."
+        onCancel={() => setPendingRecord(null)}
+        onConfirm={() => void confirmPendingRecord()}
+        open={Boolean(pendingRecord)}
+        title="Confirm refund record"
+      />
     </CollapsibleAdminPanel>
   );
 }
@@ -1002,8 +1177,10 @@ function RefundHistoryPanel({
   const [localMessage, setLocalMessage] = useState<RefundActionMessage | null>(
     null
   );
+  const [pendingRecord, setPendingRecord] =
+    useState<AdminRefundRecordRequest | null>(null);
 
-  async function recordNextStatus(
+  function recordNextStatus(
     record: AdminOrderDetail["refundHistory"][number],
     targetStatus: AdminRefundStatus
   ) {
@@ -1020,7 +1197,7 @@ function RefundHistoryPanel({
 
     setLocalMessage(null);
 
-    await onRecord?.({
+    setPendingRecord({
       amountCentavos: record.amountCentavos,
       orderSnapshotId:
         record.targetType === "ITEM"
@@ -1031,6 +1208,16 @@ function RefundHistoryPanel({
       targetStatus,
       targetType: record.targetType,
     });
+  }
+
+  async function confirmPendingRecord() {
+    if (!pendingRecord) {
+      return;
+    }
+
+    const body = pendingRecord;
+    setPendingRecord(null);
+    await onRecord?.(body);
   }
 
   return (
@@ -1129,7 +1316,7 @@ function RefundHistoryPanel({
                         key={status}
                         loading={busy}
                         loadingLabel="Saving"
-                        onClick={() => void recordNextStatus(record, status)}
+                        onClick={() => recordNextStatus(record, status)}
                         size="sm"
                         textSize="xs"
                         variant={refundActionVariant(status)}
@@ -1145,6 +1332,14 @@ function RefundHistoryPanel({
           })}
         </ol>
       )}
+      <ConfirmDialog
+        confirmLabel="Save manual refund status"
+        message="This saves a manual refund status record. It does not execute a provider refund, payout, email, inventory change, or customer account change."
+        onCancel={() => setPendingRecord(null)}
+        onConfirm={() => void confirmPendingRecord()}
+        open={Boolean(pendingRecord)}
+        title="Confirm refund status"
+      />
     </CollapsibleAdminPanel>
   );
 }
@@ -1253,68 +1448,22 @@ export function AdminOrderDetailView({
         </dl>
       </section>
 
-      <section
-        aria-label="Order status lanes"
-        className="order-3 grid gap-grid-sm"
-      >
-        <div className="grid gap-1">
-          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-            Separate lanes
-          </p>
-          <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
-            Status overview
-          </h2>
-        </div>
-        <div className="grid gap-grid-sm md:grid-cols-4">
-          <LanePanel {...order.payment} />
-          <LanePanel {...order.fulfillment} />
-          <LanePanel {...order.return} />
-          <LanePanel {...order.refund} />
-        </div>
-      </section>
-
-      <section
-        aria-label="Timeline"
-        className="order-4 grid gap-grid-sm border border-brand-border-strong bg-brand-surface p-grid-sm"
-      >
-        <div className="grid gap-1">
-          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-            Newest updates
-          </p>
-          <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
-            Order timeline
-          </h2>
-        </div>
-        <ol className="relative m-0 grid list-none gap-0 p-0 before:absolute before:bottom-0 before:left-0 before:top-grid-sm before:border-l before:border-brand-border-strong before:content-['']">
-          {timeline.map((event, index) => (
-            <li
-              className="relative grid gap-1 border-b border-brand-border py-grid-sm pl-grid-md last:border-b-0"
-              key={event.id}
-            >
-              <span
-                aria-hidden="true"
-                className={`absolute -left-[5px] top-grid-sm size-2 border border-current ${
-                  index === 0
-                    ? "bg-brand-accent text-brand-accent"
-                    : "bg-brand-border-strong text-brand-border-strong"
-                }`}
-              />
-              <div className="flex flex-wrap items-center gap-grid-xs">
-                <StatusBadge label={event.label} tone={event.tone} />
-                <span className="font-system text-xs uppercase text-brand-muted">
-                  {formatDateTime(event.updatedAt)}
-                </span>
-              </div>
-              <h3 className="m-0 font-heading text-lg font-bold text-brand-content">
-                {event.title}
-              </h3>
-              <p className="m-0 max-w-[64ch] text-sm leading-relaxed text-brand-muted">
-                {event.description}
-              </p>
-            </li>
-          ))}
-        </ol>
-      </section>
+      <div className="order-3">
+        <OrderTruthTimeline
+          laneHeading="Status overview"
+          laneSubheading="Payment, fulfillment, returns, refunds"
+          laneTitles={{ fulfillment: "Fulfillment" }}
+          lanes={{
+            fulfillment: order.fulfillment,
+            payment: order.payment,
+            refund: order.refund,
+            return: order.return,
+          }}
+          timeline={timeline}
+          timelineHeading="Order timeline"
+          timelineSubheading="Newest updates"
+        />
+      </div>
 
       <section className="order-1 grid gap-grid-sm lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.8fr)] lg:items-start">
         <section className="grid content-start gap-grid-xs border border-brand-border-strong bg-brand-surface p-grid-sm">
@@ -1530,10 +1679,7 @@ export function AdminOrderDetailDashboard({
       }
 
       setFulfillmentMessage({
-        text:
-          failure.code === "CONFLICT_STATE"
-            ? "Order changed. Review latest status before trying again."
-            : "Fulfillment update failed.",
+        text: fulfillmentConflictMessage(failure),
         tone: "warning",
       });
     } finally {
@@ -1568,10 +1714,7 @@ export function AdminOrderDetailDashboard({
       }
 
       setReturnMessage({
-        text:
-          failure.code === "CONFLICT_STATE"
-            ? "Return status changed. Review latest status before saving again."
-            : "Return record failed.",
+        text: returnConflictMessage(failure),
         tone: "warning",
       });
     } finally {
@@ -1606,10 +1749,7 @@ export function AdminOrderDetailDashboard({
       }
 
       setRefundMessage({
-        text:
-          failure.code === "CONFLICT_STATE"
-            ? "Refund status changed. Review latest status before saving again."
-            : "Refund record failed.",
+        text: refundConflictMessage(failure),
         tone: "warning",
       });
     } finally {

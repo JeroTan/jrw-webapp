@@ -1,6 +1,6 @@
 import * as React from "react";
 import { useEffect, useState } from "react";
-import { StatusBadge } from "@/components/feedback";
+import { OrderTimelineEvents } from "@/components/data-display";
 import { ButtonLink } from "@/components/ui";
 import { buildCustomerOrderTimeline } from "@/domain/orders/customer-order-status";
 import { formatCatalogPrice } from "@/domain/products/price-format";
@@ -63,24 +63,6 @@ function itemVariantLabel(item: CustomerOrderDetail["items"][number]) {
     .join(" / ");
 }
 
-function timelineDateLabel(value: string | null) {
-  if (!value) {
-    return "Update time unavailable";
-  }
-
-  const date = new Date(value);
-
-  if (Number.isNaN(date.valueOf())) {
-    return "Update time unavailable";
-  }
-
-  return new Intl.DateTimeFormat("en-PH", {
-    dateStyle: "medium",
-    timeStyle: "short",
-    timeZone: "Asia/Manila",
-  }).format(date);
-}
-
 export function CustomerOrderDetailView({
   order,
 }: {
@@ -96,13 +78,12 @@ export function CustomerOrderDetailView({
     },
     updatedAt: order.updatedAt,
   });
-
   return (
     <section className="grid gap-grid-sm" aria-label="Customer order detail">
       <div className="grid gap-grid-xs border-b border-brand-border pb-grid-sm md:grid-cols-[minmax(0,1fr)_auto] md:items-end">
         <div className="grid gap-1">
           <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-            Order truth timeline
+            Order detail
           </p>
           <h1 className="m-0 break-words font-heading text-2xl font-bold text-brand-content">
             {order.orderNumber}
@@ -113,48 +94,11 @@ export function CustomerOrderDetailView({
         </ButtonLink>
       </div>
 
-      <section
-        aria-label="Order status timeline"
-        className="grid gap-grid-sm rounded-none border border-brand-border-strong bg-brand-surface p-grid-sm"
-      >
-        <div className="grid gap-1">
-          <p className="m-0 font-system text-xs font-bold uppercase text-brand-muted">
-            Latest update first
-          </p>
-          <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
-            Order status
-          </h2>
-        </div>
-        <ol className="relative m-0 grid list-none gap-0 p-0 before:absolute before:bottom-0 before:left-0 before:top-grid-sm before:border-l before:border-brand-border-strong before:content-['']">
-          {timeline.map((event, index) => (
-            <li
-              className="relative grid gap-1 border-b border-brand-border py-grid-sm pl-grid-md last:border-b-0"
-              key={event.id}
-            >
-              <span
-                aria-hidden="true"
-                className={`absolute -left-[5px] top-grid-sm size-2 border border-current ${
-                  index === 0
-                    ? "bg-brand-accent text-brand-accent"
-                    : "bg-brand-border-strong text-brand-border-strong"
-                }`}
-              />
-              <div className="flex flex-wrap items-center gap-grid-xs">
-                <StatusBadge label={event.label} tone={event.tone} />
-                <span className="font-system text-xs uppercase text-brand-muted">
-                  {timelineDateLabel(event.updatedAt)}
-                </span>
-              </div>
-              <h3 className="m-0 font-heading text-lg font-bold text-brand-content">
-                {event.title}
-              </h3>
-              <p className="m-0 max-w-[64ch] text-sm leading-relaxed text-brand-muted">
-                {event.description}
-              </p>
-            </li>
-          ))}
-        </ol>
-      </section>
+      <OrderTimelineEvents
+        heading="Order status"
+        subheading="Latest update first"
+        timeline={timeline}
+      />
 
       <section className="grid gap-grid-xs rounded-none border border-brand-border-strong bg-brand-surface p-grid-sm">
         <h2 className="m-0 font-heading text-xl font-bold text-brand-content">
@@ -280,7 +224,7 @@ export function CustomerOrderDetailPanel({ orderId }: { orderId: string }) {
   return (
     <AccountDashboardShell
       currentSection="orders"
-      description="Track payment, fulfillment, return, and refund status."
+      description="Track payment, delivery, returns, and refunds."
       title="Order detail"
     >
       {loading ? (
